@@ -214,3 +214,6 @@ RXExample/packages/*
 Source/agents_new/Agents/packages/*
 *.vspx
 **/packages/*
+
+# YC generated files
+out

@@ -15,19 +15,37 @@
 
 namespace Brahma.FSharp.OpenCL.AST
 
-type FunFormalArg<'lang>(isGlobal:bool, name:string, _type:Type<'lang>) =
+type FunFormalArg<'lang>(declSpecs:DeclSpecifierPack<'lang>, name:string) =
     inherit Statement<'lang>()
     override this.Children = []
-    member this.IsGlobal = isGlobal
+    member this.DeclSpecs = declSpecs
     member this.Name = name
-    member this.Type = _type
 
-type FunDecl<'lang>(isKernel:bool, name:string, retType:Type<'lang>, args:List<FunFormalArg<'lang>>, body:Statement<'lang>) =
+    member this.Matches(other:obj) =
+        match other with
+        | :? FunFormalArg<'lang> as o ->
+            this.DeclSpecs.Matches(o.DeclSpecs)
+            && this.Name.Equals(o.Name)
+        | _ -> false
+
+type FunDecl<'lang>(declSpecs:DeclSpecifierPack<'lang>, name:string, args:List<FunFormalArg<'lang>>, body:Statement<'lang>) =
     inherit TopDef<'lang>()
     override this.Children = []
-    member this.isKernel = isKernel 
-    member this.RetType = retType
+    member this.DeclSpecs = declSpecs
     member this.Name = name
     member this.Args = args
     member this.Body = body
 
+    member this.Matches(other:obj) =
+        match other with
+        | :? FunDecl<'lang> as o ->
+            let areParamsMatching =
+                List.fold
+                    (fun eq ((x, y):(FunFormalArg<_> * FunFormalArg<_>)) -> eq && x.Matches(y))
+                    true
+                    (List.zip this.Args o.Args)
+            this.DeclSpecs.Matches(o.DeclSpecs)
+            && this.Name.Equals(o.Name)
+            && areParamsMatching
+            // NB: body is omitted in this check
+        | _ -> false

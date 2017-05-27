@@ -21,17 +21,20 @@ open Microsoft.FSharp.Text.StructuredFormat.LayoutOps
 
 let private printPrimitiveType (pType:PrimitiveType<'lang>) =
     match pType.Type with
+    | Bool -> "bool"
     | Char -> "char"
     | UChar -> "uchar"
     | Short -> "short"
     | UShort -> "ushort"
     | Int -> "int"
     | UInt -> "uint"
-    | Float -> "float"
     | Long -> "long"
     | ULong -> "ulong"
+    | Float -> "float"
     | Double -> "double"
+    | Half -> "half"
     | Void -> "void"
+    | TypeName tname -> tname
     |> wordL
 
 let rec Print<'lang> (_type:Type<'lang>) =

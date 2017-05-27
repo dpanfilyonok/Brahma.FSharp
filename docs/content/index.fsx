@@ -9,6 +9,10 @@ Brahma.FSharp
 
 Documentation
 
+
+
+Brahma.FSharp is a library for F# quotations to OpenCL translation.
+
 <div class="row">
   <div class="span1"></div>
   <div class="span6">
@@ -19,6 +23,14 @@ Documentation
   </div>
   <div class="span1"></div>
 </div>
+
+Features of Brahma.FSharp:
+
+ * We are aimed to translate native F# code to OpenCL with minimization of different wrappers and custom types.
+ * We use OpenCL for communication with GPU. So, you can work not only with NVIDIA hardware but with any device, 
+which supports OpenCL (e.g. with AMD devices).
+ * We support tuples and structures.
+ * We can use strongly typed kernels from OpenCL code in F#.
 
 Example
 -------

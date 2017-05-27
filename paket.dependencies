@@ -1,17 +1,19 @@
 source https://nuget.org/api/v2
 
-nuget Argu
 nuget FSharp.Core redirects: force
+nuget FSharp.TypeProviders.StarterPack
 nuget FSharp.Quotations.Evaluator
-nuget FSharpx.Collections
+nuget FSharpx.Collections 1.15.1 redirects: force
+nuget FSharpx.Collections.Experimental redirects: force
 nuget NuGet.CommandLine
 nuget NUnit 2.6.3
 nuget OpenCL.Net 2.2.9.0
-nuget YC.PrettyPrinter
+nuget YC.SDK
+nuget YC.SDK.Runtime
 
 group Build
   source https://nuget.org/api/v2
-  
+
   nuget SourceLink.Fake
   nuget FAKE
   nuget FSharp.Formatting
@@ -20,6 +22,6 @@ group Build
 
 group Test
   source https://nuget.org/api/v2
-  
+
   nuget NUnit ~> 2
   nuget NUnit.Runners ~> 2

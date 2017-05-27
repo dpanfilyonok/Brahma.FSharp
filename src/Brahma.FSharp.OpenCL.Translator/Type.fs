@@ -40,7 +40,7 @@ let rec Translate (_type:System.Type) isKernelArg size (context:TargetContext<_,
         | t when t.EndsWith "[]" ->
             let baseT = t.Substring(0,t.Length-2)
             if isKernelArg 
-            then RefType<_>(go baseT) :> Type<Lang>
+            then RefType<_>(go baseT, []) :> Type<Lang>
             else ArrayType<_>(go baseT, size |> Option.get) :> Type<Lang>
         | s when s.StartsWith "fsharpref" ->
             go (_type.GetGenericArguments().[0].Name)

@@ -24,17 +24,20 @@ let private printConst (c:Const<'lang>) =
     match c.Type with
     | :? PrimitiveType<'lang> as pt ->
         match pt.Type with
-        | Int
-        | UInt
-        | Short
-        | UShort
-        | Float
-        | Long
+        | Bool
         | Char
         | UChar
+        | Short
+        | UShort
+        | Int
+        | UInt
+        | Long
+        | ULong
+        | Float
         | Double
-        | ULong -> wordL c.Val
+        | Half -> wordL c.Val
         | Void -> wordL ""
+        | TypeName tname -> failwithf "Printer. Unsupported const with type: %A" tname
     | :? RefType<'lang> as rt
         -> wordL c.Val
     | :? ArrayType<'lang> as rt

@@ -16,7 +16,7 @@
 namespace Brahma.FSharp.OpenCL.Translator
 
 open Microsoft.FSharp.Quotations
-open  Brahma.FSharp.OpenCL.AST
+open Brahma.FSharp.OpenCL.AST
 open System.Collections.Generic
 open Brahma.FSharp.OpenCL.Translator.Type
 
@@ -103,7 +103,9 @@ type FSQuotationToOpenCLTranslator() =
                 |> List.map 
                     (fun v -> 
                         let t = Type.Translate v.Type true None (contextList.[i])
-                        new FunFormalArg<_>(t :? RefType<_> , v.Name, t))
+                        let declSpecs = new DeclSpecifierPack<_>(typeSpec=t)
+                        if t :? RefType<_> then declSpecs.AddressSpaceQual <- Global
+                        new FunFormalArg<_>(declSpecs, v.Name))
             let nameFun:Var = ((newAST.[i]).FunVar)
             let mutable retFunType = new PrimitiveType<_>(Void) :> Type<_>
             if i <> varsList.Count-1 then
@@ -115,7 +117,9 @@ type FSQuotationToOpenCLTranslator() =
                 then addReturn partialAstList.[i], false
                 else partialAstList.[i], true
 
-            let mainKernelFun = new FunDecl<_>(isKernel, nameFun.Name, retFunType, formalArgs,partAST)
+            let declSpecs = new DeclSpecifierPack<_>(typeSpec=retFunType)
+            if isKernel then declSpecs.FunQual <- Some Kernel
+            let mainKernelFun = new FunDecl<_>(declSpecs, nameFun.Name, formalArgs, partAST)
             
             let pragmas = 
                 let res = new ResizeArray<_>()

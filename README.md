@@ -12,18 +12,18 @@ Features of Brahma.FSharp:
 
 ## Build
 
-To build project use 
+To build project use
 
     > build.cmd // on windows    
     $ ./build.sh  // on unix
-  
+
 
 ## Build Status
 
-   |Mono | .NET
----|---- | ----
-master | [![Mono CI Build Status](https://img.shields.io/travis/YaccConstructor/Brahma.FSharp/master.svg)](https://travis-ci.org/YaccConstructor/Brahma.FSharp) | [![.NET Build Status](https://img.shields.io/appveyor/ci/gsvgit/brahma-fsharp/master.svg)](https://ci.appveyor.com/project/gsvgit/brahma-fsharp)
-dev | [![Mono CI Build Status](https://img.shields.io/travis/YaccConstructor/Brahma.FSharp/dev.svg)](https://travis-ci.org/YaccConstructor/Brahma.FSharp) | [![.NET Build Status](https://img.shields.io/appveyor/ci/gsvgit/brahma-fsharp/dev.svg)](https://ci.appveyor.com/project/gsvgit/brahma-fsharp)
+| branch | Mono | .NET |
+|---------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
+| master | [![Mono CI Build Status](https://img.shields.io/travis/YaccConstructor/Brahma.FSharp/master.svg)](https://travis-ci.org/YaccConstructor/Brahma.FSharp) | [![.NET Build Status](https://img.shields.io/appveyor/ci/gsvgit/brahma-fsharp/master.svg)](https://ci.appveyor.com/project/gsvgit/brahma-fsharp) |
+| dev | [![Mono CI Build Status](https://img.shields.io/travis/YaccConstructor/Brahma.FSharp/dev.svg)](https://travis-ci.org/YaccConstructor/Brahma.FSharp) | [![.NET Build Status](https://img.shields.io/appveyor/ci/gsvgit/brahma-fsharp/dev.svg)](https://ci.appveyor.com/project/gsvgit/brahma-fsharp) |
 
 ## Maintainer(s)
 

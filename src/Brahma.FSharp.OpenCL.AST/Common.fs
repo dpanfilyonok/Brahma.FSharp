@@ -27,8 +27,4 @@ type Statement<'lang> () =
 type TopDef<'lang>()=
     inherit Node<'lang>()
 
-(*type SpaceModifier =
-    | Local
-    | Private
-    | Global*)
-
+type Lang = | OpenCL
