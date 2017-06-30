@@ -37,8 +37,12 @@ module internal Misc =
 
     let TypeBuilderInstantiationType = 
         let runningOnMono = try System.Type.GetType("Mono.Runtime") <> null with e -> false 
-        let typeName = if runningOnMono then "System.Reflection.MonoGenericClass" else "System.Reflection.Emit.TypeBuilderInstantiation"
-        typeof<TypeBuilder>.Assembly.GetType(typeName)
+        if runningOnMono then
+            match Type.GetType("System.Reflection.MonoGenericClass") with
+            | null -> Type.GetType("System.Reflection.Emit.TypeBuilderInstantiation")
+            | ty -> ty
+        else
+            Type.GetType("System.Reflection.Emit.TypeBuilderInstantiation")
 
     let GetTypeFromHandleMethod = typeof<Type>.GetMethod("GetTypeFromHandle")
     let LanguagePrimitivesType = typedefof<list<_>>.Assembly.GetType("Microsoft.FSharp.Core.LanguagePrimitives")
@@ -494,7 +498,7 @@ module internal Misc =
                             else
                             Some (args.[1], args.[1])
                         )
-                        |> Seq.nth (n - 1)
+                        |> Seq.item (n - 1)
 
                     let adaptMethod = getFastFuncType args resultType
                     let adapted = E.Call(adaptMethod, [loop applicable])
