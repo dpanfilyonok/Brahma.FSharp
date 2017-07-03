@@ -42,12 +42,12 @@ Mutability is available by using of "let mutable" binding.
 let command = 
     <@ 
         fun (range:_1D) (buf:array<_>) ->
-            let x = 1
+            let mutable x = 1
             x <- x * 2
     @>
 
 (**
-Note, that scoupes are supported. So, you can "rebind" any name and "F#-style" visibility will be emuleted in target code. For example, next code will be translated correctly.
+Note, that scopes are supported. So, you can "rebind" any name and "F#-style" visibility will be emuleted in target code. For example, next code will be translated correctly.
 *)
 
 let command = 
@@ -70,7 +70,7 @@ let command =
 (**
 ##Control flow
 
-### Sequential opertions
+### Sequential operations
 *)
 
 let command = 
@@ -86,8 +86,8 @@ let command =
 let command = 
     <@ 
         fun (range:_1D) (buf:array<_>) ->
-         while buf.[0] < 5 do
-             buf.[0] <- buf.[0] + 1
+          while buf.[0] < 5 do
+            buf.[0] <- buf.[0] + 1
     @>
 
 (**
@@ -113,21 +113,21 @@ let command =
             buf.[1] <- (%myFun) 4 9
     @>
 
-let commandTeplate f = 
+let commandTemplate f = 
     <@ 
         fun (range:_1D) (buf:array<int>) ->
             buf.[0] <- (%f) 2 5
             buf.[1] <- (%f) 4 9
     @>
 
-let cmd1 = commandTeplate  <@ fun x y -> y - x @>
-let cmd2 = commandTeplate  <@ fun x y -> y + x @>
+let cmd1 = commandTemplate  <@ fun x y -> y - x @>
+let cmd2 = commandTemplate  <@ fun x y -> y + x @>
 
 
 (**
 ## Structs and tuples
 
-Structs and tuples trunsferring and using in kernel code are supported.
+Structs and tuples transferring and using in kernel code are supported.
 
 ### Structs
 *)
@@ -157,7 +157,7 @@ let command =
 (**
 ### Tuples
 
-Tuples support are limited. Single tuple trunsfer to GPU is supported, but metods Array.ToHOst and Array.ToGPU is not.
+Tuples support are limited. Single tuple trunsfer to GPU is supported, but methods Array.ToHost and Array.ToGPU is not.
 Also you can use tuples in kernel code.
 *)
 
