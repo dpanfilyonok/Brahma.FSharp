@@ -17,6 +17,8 @@ requireLicenseAcceptance
     false
 copyright
     Copyright YaccConstructor 2017
+include-pdbs true
+include-referenced-projects true
 references
     Brahma.dll
     Brahma.Agents.dll
