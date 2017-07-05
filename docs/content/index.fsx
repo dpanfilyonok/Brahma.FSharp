@@ -24,6 +24,8 @@ Brahma.FSharp is a library for F# quotations to OpenCL translation.
   <div class="span1"></div>
 </div>
 
+If you want to use Brahma.FSharp on Linux/macOS, check OpenCL.Net.dll.config after installation and fix path to opencl.dll if necessary.
+
 Features of Brahma.FSharp:
 
  * We are aimed to translate native F# code to OpenCL with minimization of different wrappers and custom types.
