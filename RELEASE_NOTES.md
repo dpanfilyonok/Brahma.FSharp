@@ -1,3 +1,6 @@
+### 1.1.2
+* More diagnostic information in kernel compiler
+
 ### 1.1.1
 * PDBs added
 * Autoinstallation of OpenCL.Net.dll.config
