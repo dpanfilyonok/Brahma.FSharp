@@ -123,7 +123,7 @@ type DataManager<'d>(readers:array<Reader<'d>>) =
                             | x ->  
                                 printfn "Unexpected message for Worker: %A" x
                                 return! loop n
-                            else return! loop n }
+                        else return! loop n }
             loop 0)
  
     member this.InitBuffers(bufs) = inner.PostAndReply((fun reply -> InitBuffers(bufs,reply)), timeout = 20000)

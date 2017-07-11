@@ -1,4 +1,4 @@
-﻿module Brahman.Substrings.Matcher
+﻿module Brahman.Substrings.MatcherHopac
 
 open Brahma.Helpers
 open Brahma.OpenCL
