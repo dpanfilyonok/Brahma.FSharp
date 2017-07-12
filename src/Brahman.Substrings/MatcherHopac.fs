@@ -9,8 +9,11 @@ open Brahma.FSharp.OpenCL.Extensions
 open Brahma.FSharp.OpenCL.Translator.Common
 open System.Threading.Tasks
 open Microsoft.FSharp.Collections
+open Hopac
+open Hopac.Infixes
+open Hopac.Extensions
 
-type Config =
+(*type Config =
     {
         additionalArgs: uint64
         additionalTempData: uint64
@@ -184,7 +187,7 @@ type Matcher(?maxHostMem) =
                 printfn "I am %A and I've already read %A bytes!" label !current
                 index := 0
 
-        let createWorkerFun (wConfig:Agents.WorkerConfig) =
+        let createWorkerFun (wConfig:Agents.Hopac.WorkerConfig) =
             
             let c = [|0|]            
             let config = configure templateArr wConfig.GPUProvider
@@ -225,12 +228,12 @@ type Matcher(?maxHostMem) =
                     provider |> printfn "%A"
                     providers.Add provider
                     let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.item 0) 
-                    let f = new Agents.WorkerConfig(1u,commandQueue,provider) |> createWorkerFun
-                    new Agents.Worker<_,_>(f))
+                    let f = new Agents.Hopac.WorkerConfig(1u,commandQueue,provider) |> createWorkerFun
+                    new Agents.Hopac.Worker<_,_>(f))
 
         let start = System.DateTime.Now
         let ws = workers ()
-        let master = new Agents.Master<_,_,_>(ws, readFun, bufs, Some postprocess)
+        let master = new Agents.Hopac.Master<_,_,_>(ws, readFun, bufs, Some postprocess)
         while not <| master.IsDataEnd() do ()        
         master.Die()
         printfn "Total time = %A " (System.DateTime.Now - start)
@@ -267,3 +270,4 @@ type Matcher(?maxHostMem) =
         rk readF templateArr
 
     member this.InBufSize with get () = !chankSize
+*)

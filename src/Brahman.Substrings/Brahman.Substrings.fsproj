@@ -76,6 +76,11 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Brahma.Agents.Hopac\Brahma.Agents.Hopac.fsproj">
+      <Name>Brahma.Agents.Hopac</Name>
+      <Project>{af24b2ba-6e6a-4d97-8eda-b030d37c79e9}</Project>
+      <Private>True</Private>
+    </ProjectReference>
     <ProjectReference Include="..\Brahma.Agents\Brahma.Agents.fsproj">
       <Name>Brahma.Agents</Name>
       <Project>{dfd428f8-3698-4ed4-9d08-09d4ead512d6}</Project>

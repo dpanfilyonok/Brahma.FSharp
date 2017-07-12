@@ -38,7 +38,11 @@ type Translator() =
  
     let checkResult command =
         let kernel,kernelPrepareF, kernelRunF = provider.Compile command    
-        let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.head)            
+        let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.head)
+        try
+            commandQueue.Add(intInArr.ToGpu(provider,intInArr)).Finish()
+            |> ignore
+        with _ -> ()
         let check (outArray:array<'a>) (expected:array<'a>) =        
             let cq = commandQueue.Add(kernelRunF()).Finish()
             let r = Array.zeroCreate expected.Length
@@ -413,9 +417,11 @@ type Translator() =
         let command = 
             <@ 
                 fun (range:_1D) (buf:array<byte>) ->
-                    buf.[0] <- buf.[0] + 1uy
-                    buf.[1] <- buf.[1] + 1uy
-                    buf.[2] <- buf.[2] + 1uy
+                    if range.GlobalID0 = 0
+                    then
+                        buf.[0] <- buf.[0] + 1uy
+                        buf.[1] <- buf.[1] + 1uy
+                        buf.[2] <- buf.[2] + 1uy
             @>
         let run,check = checkResult command
         let inByteArray = [|0uy;255uy;254uy|]
@@ -427,9 +433,11 @@ type Translator() =
         let command = 
             <@ 
                 fun (range:_1D) (buf:array<byte>) ->
-                    buf.[0] <- buf.[0] + 1uy
-                    buf.[1] <- buf.[1] + 1uy
-                    buf.[2] <- buf.[2] + 1uy
+                    if range.GlobalID0 = 0
+                    then
+                        buf.[0] <- buf.[0] + 1uy
+                        buf.[1] <- buf.[1] + 1uy
+                        buf.[2] <- buf.[2] + 1uy
             @>
         let kernel,kernelPrepareF, kernelRunF = provider.Compile command
         let inArray = [|1uy;2uy;3uy|]
@@ -453,9 +461,11 @@ type Translator() =
         let command = 
             <@ 
                 fun (range:_1D) (buf:array<byte>) ->
-                    buf.[0] <- buf.[0] + 1uy
-                    buf.[1] <- buf.[1] + 1uy
-                    buf.[2] <- buf.[2] + 1uy
+                    if range.GlobalID0 = 0
+                    then
+                        buf.[0] <- buf.[0] + 1uy
+                        buf.[1] <- buf.[1] + 1uy
+                        buf.[2] <- buf.[2] + 1uy
             @>
         let kernel,kernelPrepareF, kernelRunF = provider.Compile command
         let inArray = [|1uy;2uy;3uy|]
@@ -523,16 +533,19 @@ type Translator() =
         let command = 
             <@ 
                 fun (range:_1D) (buf:array<TestStruct>) ->
-                    let b = buf.[0]
-                    buf.[0] <- buf.[1]
-                    buf.[1] <- b
+                    if range.GlobalID0 = 0
+                    then
+                        let b = buf.[0]
+                        buf.[0] <- buf.[1]
+                        buf.[1] <- b
             @>
         let run,check = checkResult command
         let inByteArray = [|new TestStruct(1, 2.0);new TestStruct(3, 4.0)|]
         run _1d inByteArray
         check inByteArray [|new TestStruct(3, 4.0); new TestStruct(1, 2.0)|]
 
-    //[<Test>]
+    [<Ignore("Strange test...")>]
+    [<Test>]
     member this.``Simple seq of struct changes.``() = 
         let command = 
             <@ 
@@ -783,7 +796,8 @@ type Translator() =
                         let x y = 
                             devStore.[0] <- devStore.[0] + 1
                             y + 2
-                        devStore.[1] <- x 9
+                        if r.GlobalID0 = 0 
+                        then devStore.[1] <- x 9
                 @>
 
         let kernel,kernelPrepareF, kernelRunF = provider.Compile command    
@@ -1066,7 +1080,8 @@ type Translator() =
                                 z (a + x + l)
                             y 6
                         r + m.[3]
-                    m.[0] <- x 7
+                    if range.GlobalID0 = 0
+                    then m.[0] <- x 7
             @>
 
         let run,check = checkResult command
@@ -1194,7 +1209,9 @@ type Translator() =
     [<Test>]
     member this.``Template Let Transformation Test 17``() =
         let command = 
-            <@ fun (range:_1D) (buf:array<int>) -> 
+            <@ fun (range:_1D) (buf:array<int>) ->
+                if range.GlobalID0 = 0
+                then
                     let f y =
                         let g = buf.[1] + 1
                         y + g
@@ -1214,7 +1231,8 @@ type Translator() =
                         let f =
                             let g = buf.[1] + 1
                             i + g
-                        buf.[i] <- f
+                        if range.GlobalID0 = 0
+                        then buf.[i] <- f
             @>
 
         let run,check = checkResult command
@@ -1225,6 +1243,8 @@ type Translator() =
     member this.``Template Let Transformation Test 19``() =
         let command = 
             <@ fun (range:_1D) (buf:array<int>) ->                    
+                if range.GlobalID0 = 0
+                then
                     for i in 0..3 do
                         let f x =
                             let g = buf.[1] + x
