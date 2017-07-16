@@ -1,3 +1,6 @@
+### 1.1.3
+* Fix OpenCL compiller options.
+
 ### 1.1.2
 * More diagnostic information in kernel compiler
 

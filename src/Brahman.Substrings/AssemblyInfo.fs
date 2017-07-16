@@ -5,13 +5,13 @@ open System.Reflection
 [<assembly: AssemblyTitleAttribute("Brahman.Substrings")>]
 [<assembly: AssemblyProductAttribute("Brahma.FSharp")>]
 [<assembly: AssemblyDescriptionAttribute("F# quotation to OpenCL translator.")>]
-[<assembly: AssemblyVersionAttribute("1.1.2")>]
-[<assembly: AssemblyFileVersionAttribute("1.1.2")>]
+[<assembly: AssemblyVersionAttribute("1.1.3")>]
+[<assembly: AssemblyFileVersionAttribute("1.1.3")>]
 do ()
 
 module internal AssemblyVersionInformation =
     let [<Literal>] AssemblyTitle = "Brahman.Substrings"
     let [<Literal>] AssemblyProduct = "Brahma.FSharp"
     let [<Literal>] AssemblyDescription = "F# quotation to OpenCL translator."
-    let [<Literal>] AssemblyVersion = "1.1.2"
-    let [<Literal>] AssemblyFileVersion = "1.1.2"
+    let [<Literal>] AssemblyVersion = "1.1.3"
+    let [<Literal>] AssemblyFileVersion = "1.1.3"
