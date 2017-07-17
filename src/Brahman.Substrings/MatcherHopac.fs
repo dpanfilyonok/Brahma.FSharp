@@ -231,14 +231,17 @@ type Matcher(?maxHostMem) =
                     let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.item 0) 
                     let f = new WorkerConfig(1u,commandQueue,provider) |> createWorkerFun
                     new Worker<_,_>(f))
-
-        let start = System.DateTime.Now
-        let ws = workers ()
-        let master = new Master<_,_,_>(ws, readFun, bufs, Some postprocess)
-        while not(!master.isDataEnd) do ()        
-        master.Die() |> ignore
-        printfn "Total time = %A " (System.DateTime.Now - start)
-        providers |> ResizeArray.iter finalize         
+        
+        let start = job {
+            let start = System.DateTime.Now
+            let ws = workers ()
+            let master = new Master<_,_,_>(ws, readFun, bufs, Some postprocess)
+            let! mstCh = master.Create
+            while not(master.IsDataEnd) do ()        
+            master.Die(mstCh) |> ignore
+            printfn "Total time = %A " (System.DateTime.Now - start)
+            providers |> ResizeArray.iter finalize  
+            }       
         
         new FindRes(totalResult.ToArray(), sorted templates, !chankSize )
 

@@ -30,8 +30,12 @@ type Msg<'data,'res> =
     | Get of IVar<Option<'data>>
     | Enq of 'data
 
-type Reader<'d>  (fillF:'d -> Option<'d>) as this =
-    member this.Create = job {
+type Reader<'d>  (fillF:'d -> Option<'d>) = 
+
+    member this.Read inCh (a, cont) = inCh *<- (Fill(a, cont))     
+    member this.Die (inCh : Ch<_>) = inCh *<+=>- Die :> Job<_> // здесь и подобных были таймауты... могут понадобиться
+    
+    member this.Create : Job<Ch<Msg<'d,_>>>= job {
         let inCh = Ch()
         let rec loop n = job {
             let! msg = Ch.take inCh
@@ -52,8 +56,7 @@ type Reader<'d>  (fillF:'d -> Option<'d>) as this =
         return inCh
         }
 
-    member this.Read inCh (a, cont) = inCh *<- (Fill(a, cont))     
-    member this.Die (inCh : Ch<_>) = inCh *<+=>- Die :> Job<_> // здесь и подобных были таймауты... могут понадобиться
+
 
 type Worker<'d,'r>(f: 'd -> 'r) =
     member this.Create = job {
