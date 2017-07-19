@@ -232,16 +232,19 @@ type Matcher(?maxHostMem) =
                     let f = new WorkerConfig(1u,commandQueue,provider) |> createWorkerFun
                     new Worker<_,_>(f))
         
-        let start = job {
+        let jobb = 
             let start = System.DateTime.Now
-            let ws = workers ()
-            let master = new Master<_,_,_>(ws, readFun, bufs, Some postprocess)
-            let! mstCh = master.Create
-            while not(master.IsDataEnd) do ()        
-            master.Die(mstCh) |> ignore
+            run <| job {
+                let ws = workers ()
+                let master = new Master<_,_,_>(ws, readFun, bufs, Some postprocess)
+                let! mstCh = master.Create
+                while not(master.IsDataEnd) do ()        
+                master.Die(mstCh) |> ignore
+                }    
             printfn "Total time = %A " (System.DateTime.Now - start)
             providers |> ResizeArray.iter finalize  
-            }       
+        jobb
+            
         
         new FindRes(totalResult.ToArray(), sorted templates, !chankSize )
 
