@@ -118,6 +118,7 @@ type DataManager<'d>(readers:array<Reader<'d>>) =
                                 else ch.Reply None
                                 return! loop n
                             | Enq b -> 
+                                printfn "%s" "dm msg4"
                                 dataToFill.Enqueue b
                                 return! loop n
                             | x ->  

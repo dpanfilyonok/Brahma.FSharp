@@ -8,13 +8,13 @@ let template = [|1uy;1uy|]
 let zSeq  = seq {for i in 0 .. 10000 do if i = 0 then yield! template else yield 0uy}  
 printfn "%A" zSeq     
 
-let matcher = new Brahman.Substrings.Matcher.Matcher(1UL * 1024UL * 1024UL)
-let res2 = matcher.RabinKarp (zSeq,[|template|])
+//let matcher = new Brahman.Substrings.Matcher.Matcher(1UL * 1024UL * 1024UL)
+//let res2 = matcher.RabinKarp (zSeq,[|template|])
 
-printfn "%i" res2.Data.Length              //1
-printfn "%i" res2.Data.[0].ChunkNum        //0
-printfn "%i" res2.Data.[0].Offset          //0
-printfn "%i" res2.Data.[0].PatternId       //0
+//printfn "%i" res2.Data.Length              //1
+//printfn "%i" res2.Data.[0].ChunkNum        //0
+//printfn "%i" res2.Data.[0].Offset          //0
+//printfn "%i" res2.Data.[0].PatternId       //0
 
 
 
