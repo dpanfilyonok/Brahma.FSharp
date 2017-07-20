@@ -239,7 +239,7 @@ type Matcher(?maxHostMem) =
                 let master = new Master<_,_,_>(ws, readFun, bufs, Some postprocess)
                 let! mstCh = master.Create
                 while not(master.IsDataEnd) do ()        
-                do! mstCh *<+ Die //master.Die(mstCh) |> ignore
+                do! mstCh *<+ Die
                 }    
             printfn "Total time = %A " (System.DateTime.Now - start)
             providers |> ResizeArray.iter finalize  
