@@ -34,7 +34,6 @@ type Reader<'d>  (fillF:'d -> Option<'d>) =
     member this.Create : Job<Ch<Msg<'d,_>>>= job {
         let inCh = Ch()
         let loop = job {
-            printfn "%s" "reader exists"
             let! msg = Ch.take inCh
             match msg with
             | Die -> 
@@ -47,7 +46,7 @@ type Reader<'d>  (fillF:'d -> Option<'d>) =
                 if filled.IsNone
                 then do! inCh *<+ Die
             | x -> 
-                    printfn "unexpected message for reader: %A" x
+                printfn "unexpected message for reader: %A" x
             }
         do! Job.foreverServer loop
         return inCh
@@ -84,7 +83,6 @@ type Worker<'d,'r>(f: 'd -> 'r) =
  
     
 type DataManager<'d>(reader:Reader<'d>) =
-
     member this.Create = job {
         let inCh = Ch()
         let! rCh = reader.Create   
@@ -127,6 +125,7 @@ type DataManager<'d>(reader:Reader<'d>) =
             | Enq b -> 
                 printfn "%s" "dm msg4"
                 dataToFill.Enqueue b
+                //do! inCh *<+ Die
             | x ->  
                 printfn "Unexpected message for Worker: %A" x
         }
@@ -148,15 +147,30 @@ type Master<'d,'r,'fr>(workers:array<Worker<'d,'r>>, fill: 'd -> Option<'d>, buf
     
     let isDataEnd = ref false
     member this.Create = job {  
-        let isEnd = ref false
         let reader = new Reader<'d>(fill)     
+        
         let dataManager = new DataManager<'d>(reader)
-        let postprocessor = postProcessF |> Option.map(fun f -> new Worker<_,_>(f))
-        let freeWorkers = new System.Collections.Concurrent.ConcurrentQueue<_>(workers)  
-        let inCh = Ch()
         let! dmCh = dataManager.Create
+
+        let postprocessor = postProcessF |> Option.map(fun f -> new Worker<_,_>(f))
+        let ppCh = Ch()
+        if postprocessor.IsSome 
+        then 
+            let! ppCh = postprocessor.Value.Create
+            ()
+        else ()
+
+        let workerch = new ResizeArray<_>()
+        for i = 0 to workers.Length - 1 do
+            let! iW = workers.[i].Create
+            workerch.Add(workers.[i], iW)
+        let freeWorkers = new System.Collections.Concurrent.ConcurrentQueue<_>(workerch) 
+             
+        let inCh = Ch()     
         let! bufers = dataManager.InitBuffers dmCh (bufs.ToArray())
-        let loop = job {       
+
+        let loop = job {     
+            printfn "%s" "mst begin"  
             if not freeWorkers.IsEmpty
             then 
                 let success,w = freeWorkers.TryDequeue()
@@ -165,41 +179,30 @@ type Master<'d,'r,'fr>(workers:array<Worker<'d,'r>>, fill: 'd -> Option<'d>, buf
                     let! b = dataManager.GetData dmCh
                     if b.IsSome
                     then
-                        let! wCh = w.Create
                         if postprocessor.IsSome 
                         then
-                            let! ppCh = postprocessor.Value.Create
-                            do! w.Process wCh
+                            do! (fst w).Process (snd w)
                                     (b.Value
                                     , fun a -> run <| job {
+                                          printfn "%s" "in loop"  
                                           do! postprocessor.Value.Process ppCh (a, fun _ -> ()) 
                                           freeWorkers.Enqueue w
                                           do! dataManager.Enq dmCh b.Value}) 
                         else 
-                            do! w.Process wCh
+                            do! (fst w).Process (snd w)
                                     (b.Value
                                     , fun a -> run <| job {
                                           freeWorkers.Enqueue w
                                           do! dataManager.Enq dmCh b.Value})
                     else 
+                        printfn "%s" "master die"
+                        do! dmCh *<+ Die
+                        for i = 0 to workerch.Count - 1 do
+                            do! snd workerch.[i] *<+ Die
+                        do! ppCh *<+ Die
                         isDataEnd := true 
-            let! msg = Ch.take inCh
-            match msg with
-            | Die ->
-                printfn "%s" "master msg1"
-                do! dmCh *<+ Die
-                for i = 0 to workers.Length - 1 do
-                    let! iwCh = workers.[i].Create                       
-                    do! iwCh *<+ Die 
-                if postprocessor.IsSome 
-                then
-                    let! ppCh = postprocessor.Value.Create
-                    printfn "%s" "ppCh was create again" 
-                    do! ppCh *<+ Die
-                isEnd := true
-                do! Job.abort() 
-            | x ->
-                printfn "unexpected message for Worker: %A" x
+                        do! Job.abort() 
+            printfn "%s" "mst msg2"  
             }
         do! Job.foreverServer loop
         return inCh

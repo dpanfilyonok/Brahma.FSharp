@@ -118,7 +118,6 @@ type DataManager<'d>(readers:array<Reader<'d>>) =
                                 else ch.Reply None
                                 return! loop n
                             | Enq b -> 
-                                printfn "%s" "dm msg4"
                                 dataToFill.Enqueue b
                                 return! loop n
                             | x ->  
@@ -137,7 +136,7 @@ type Master<'d,'r,'fr>(workers:array<Worker<'d,'r>>, fill: 'd -> Option<'d>, buf
     
     let isDataEnd = ref false
     let reader = new Reader<_>(fill)
-    let mutable isEnd = false
+    //let mutable isEnd = false
             
     let dataManager = new DataManager<'d>([|reader|])
 
@@ -164,22 +163,23 @@ type Master<'d,'r,'fr>(workers:array<Worker<'d,'r>>, fill: 'd -> Option<'d>, buf
                                             postprocessor |> Option.iter (fun p -> p.Process(a,fun _ -> ()))
                                             freeWorkers.Enqueue w
                                             dataManager.Enq b.Value)
+                                    return! loop n
                                 else 
-                                    isDataEnd := true
-                        if inbox.CurrentQueueLength > 0
-                        then
-                            let! msg = inbox.Receive()
-                            match msg with
-                            | Die ch ->
+//                        if inbox.CurrentQueueLength > 0
+//                        then
+//                            let! msg = inbox.Receive()
+//                            match msg with
+//                            | Die ch ->
                                 dataManager.Die()                                
                                 workers |> Array.iter (fun w -> w.Die())
                                 match postprocessor with Some p -> p.Die() | None -> ()
-                                isEnd <- true
-                                ch.Reply()
+                                //isEnd <- true
+                                //ch.Reply()
+                                isDataEnd := true
                                 return ()
-                            | x ->
-                                printfn "unexpected message for Worker: %A" x
-                                return! loop n 
+//                            | x ->
+//                                printfn "unexpected message for Worker: %A" x
+//                                return! loop n 
                         else return! loop n}
             loop 0)
 

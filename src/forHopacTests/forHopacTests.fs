@@ -6,7 +6,7 @@ open Brahman.Substrings.Matcher
 let matcher2 = new Brahman.Substrings.MatcherHopac.Matcher(1UL * 1024UL * 1024UL)
 let template = [|1uy;1uy|]
 let zSeq  = seq {for i in 0 .. 10000 do if i = 0 then yield! template else yield 0uy}  
-printfn "%A" zSeq     
+printfn "!!!%A" zSeq     
 
 //let matcher = new Brahman.Substrings.Matcher.Matcher(1UL * 1024UL * 1024UL)
 //let res2 = matcher.RabinKarp (zSeq,[|template|])

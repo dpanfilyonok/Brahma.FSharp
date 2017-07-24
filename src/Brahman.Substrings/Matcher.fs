@@ -232,7 +232,7 @@ type Matcher(?maxHostMem) =
         let ws = workers ()
         let master = new Agents.Master<_,_,_>(ws, readFun, bufs, Some postprocess)
         while not <| master.IsDataEnd() do ()        
-        master.Die()
+        //master.Die()
         printfn "Total time = %A " (System.DateTime.Now - start)
         providers |> ResizeArray.iter finalize         
         
