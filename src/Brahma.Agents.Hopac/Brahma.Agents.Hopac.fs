@@ -9,6 +9,8 @@ open Brahma.OpenCL
 open Hopac
 open Hopac.Infixes
 open Hopac.Extensions
+open System
+open System.Diagnostics
 
 type GpuConfig =
     val Name: string
@@ -29,22 +31,23 @@ type Msg<'data,'res> =
     | InitBuffers of array<'data>*IVar<array<'data>>
     | Get of IVar<Option<'data>>
     | Enq of 'data
+    | Wait
 
 type Reader<'d>  (fillF:'d -> Option<'d>) = 
     member this.Create : Job<Ch<Msg<'d,_>>>= job {
-        let inCh = Ch()
+        let inCh = Ch() 
         let loop = job {
             let! msg = Ch.take inCh
             match msg with
-            | Die -> 
-                printfn "%s" "reader msg1"
-                do! Job.abort() 
+//            | Die -> 
+//                printfn "%s" "r msg1"
+//                do! Job.abort() 
             | Fill (x, cont) ->
-                printfn "%s" "reader msg2"
+                printfn "%s" "r msg2"
                 let filled = fillF x
                 cont filled
                 if filled.IsNone
-                then do! inCh *<+ Die
+                then do! Job.abort()
             | x -> 
                 printfn "unexpected message for reader: %A" x
             }
@@ -59,15 +62,15 @@ type Reader<'d>  (fillF:'d -> Option<'d>) =
 
 type Worker<'d,'r>(f: 'd -> 'r) =
     member this.Create = job {
-        let inCh = Ch()
+        let inCh = Ch() 
         let loop = job {
             let! msg = Ch.take inCh
             match msg with
             | Die ->
-                printfn "%s" "worker msg1"
+                printfn "%s" "w msg1"
                 do! Job.abort() 
             | Process (x,continuation) ->
-                printfn "%s" "worker msg2"
+                printfn "%s" "w msg2"
                 let r = f x
                 continuation r
             | x -> 
@@ -84,7 +87,7 @@ type Worker<'d,'r>(f: 'd -> 'r) =
     
 type DataManager<'d>(reader:Reader<'d>) =
     member this.Create = job {
-        let inCh = Ch()
+        let inCh = Ch()   
         let! rCh = reader.Create   
         let dataToProcess = new System.Collections.Concurrent.ConcurrentQueue<Option<'d>>()
         let dataToFill = new System.Collections.Generic.Queue<_>()
@@ -101,13 +104,12 @@ type DataManager<'d>(reader:Reader<'d>) =
             | Die ->
                 printfn "%s" "dm msg1"
                 if !dataIsEnd 
-                then 
-                    do! Job.abort() 
+                then do! Job.abort() 
                 else 
                     do! inCh *<+ Die
             | InitBuffers (bufs,ch) ->
                 printfn "%s" "dm msg2"
-                do! ch *<= bufs
+                do! IVar.fill ch bufs
                 bufs |> Array.iter dataToFill.Enqueue                                
             | Get ch -> 
                 printfn "%s" "dm msg3"
@@ -115,17 +117,19 @@ type DataManager<'d>(reader:Reader<'d>) =
                 if s
                 then 
                     if r.IsNone 
-                    then
-                        printfn "None!"
-                        dataIsEnd := true
-                    do! ch *<= r    
+                    then dataIsEnd := true
+                    do! IVar.fill ch r    
                 elif not !dataIsEnd
                 then do! inCh *<+ Get ch        
-                else do! ch *<=  None                    
+                else do! IVar.fill ch None                    
             | Enq b -> 
                 printfn "%s" "dm msg4"
                 dataToFill.Enqueue b
-                //do! inCh *<+ Die
+                //do! inCh *<+ Wait
+//            | Wait ->
+//                printfn "%s" "wait"
+//                do! timeOut (TimeSpan.FromMilli или как-то так Seconds 0.5)
+//                do! inCh *<+ Wait
             | x ->  
                 printfn "Unexpected message for Worker: %A" x
         }
@@ -140,7 +144,9 @@ type DataManager<'d>(reader:Reader<'d>) =
     member this.Enq inCh b = 
         printfn "%s" "enq"
         inCh *<+ Enq b
-    member this.GetData inCh = inCh *<+=>- (fun reply -> Get reply) :> Job<_> 
+    member this.GetData inCh = 
+        printfn "%s" "data"
+        inCh *<+=>- (fun reply -> Get reply) :> Job<_> 
 
 
 type Master<'d,'r,'fr>(workers:array<Worker<'d,'r>>, fill: 'd -> Option<'d>, bufs:ResizeArray<'d>, postProcessF:Option<'r->'fr>) =             
@@ -166,10 +172,10 @@ type Master<'d,'r,'fr>(workers:array<Worker<'d,'r>>, fill: 'd -> Option<'d>, buf
             workerch.Add(workers.[i], iW)
         let freeWorkers = new System.Collections.Concurrent.ConcurrentQueue<_>(workerch) 
              
-        let inCh = Ch()     
+        let inCh = Ch()
         let! bufers = dataManager.InitBuffers dmCh (bufs.ToArray())
 
-        let loop = job {     
+        let rec loop = job {     
             printfn "%s" "mst begin"  
             if not freeWorkers.IsEmpty
             then 
@@ -202,7 +208,6 @@ type Master<'d,'r,'fr>(workers:array<Worker<'d,'r>>, fill: 'd -> Option<'d>, buf
                         do! ppCh *<+ Die
                         isDataEnd := true 
                         do! Job.abort() 
-            printfn "%s" "mst msg2"  
             }
         do! Job.foreverServer loop
         return inCh
