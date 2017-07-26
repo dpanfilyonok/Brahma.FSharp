@@ -37,11 +37,9 @@ type Reader<'d> (fillF:'d -> Option<'d>) as this =
                         let! msg = inbox.Receive()
                         match msg with
                         | Die ch ->
-                            printfn "%s" "r msg1"
                             ch.Reply()
                             return ()
                         | Fill (x,cont) ->
-                            printfn "%s" "r msg2"
                             let filled = fillF x
                             cont filled
                             if filled.IsNone
@@ -52,12 +50,8 @@ type Reader<'d> (fillF:'d -> Option<'d>) as this =
                             return! loop n }
             loop 0)
     
-    member this.Read(a, cont) = 
-        printfn "%s" "read"
-        inner.Post(Fill(a, cont))
-    member this.Die() = 
-        printfn "%s" "r die"
-        inner.PostAndReply((fun reply -> Die reply), timeout = 20000)    
+    member this.Read(a, cont) = inner.Post(Fill(a, cont))
+    member this.Die() = inner.PostAndReply((fun reply -> Die reply), timeout = 20000)    
 
 type Worker<'d,'r>(f: 'd -> 'r) =
     let inner =
@@ -66,11 +60,9 @@ type Worker<'d,'r>(f: 'd -> 'r) =
                 async { let! msg = inbox.Receive()
                         match msg with
                         | Die ch ->
-                            printfn "%s" "w msg1"
                             ch.Reply()
                             return ()                            
                         | Process (x,continuation) ->
-                            printfn "%s" "w msg2"
                             let r = f x
                             continuation r
                             return! loop n
@@ -79,12 +71,8 @@ type Worker<'d,'r>(f: 'd -> 'r) =
                             return! loop n }
             loop 0)
  
-    member this.Process(a, continuation) = 
-        printfn "%s" "process"
-        inner.Post(Process(a,continuation))
-    member this.Die() = 
-        printfn "%s" "w die"
-        inner.PostAndReply((fun reply -> Die reply), timeout = 20000)
+    member this.Process(a, continuation) = inner.Post(Process(a,continuation))
+    member this.Die() = inner.PostAndReply((fun reply -> Die reply), timeout = 20000)
 
 type DataManager<'d>(readers:array<Reader<'d>>) =
     let dataToProcess = new System.Collections.Concurrent.ConcurrentQueue<Option<'d>>()
@@ -108,7 +96,6 @@ type DataManager<'d>(readers:array<Reader<'d>>) =
                             let! msg = inbox.Receive()
                             match msg with
                             | Die ch ->
-                                printfn "%s" "dm msg1"
                                 if !dataIsEnd 
                                 then
                                     ch.Reply()
@@ -117,23 +104,21 @@ type DataManager<'d>(readers:array<Reader<'d>>) =
                                     inbox.Post(Die ch)
                                     return! loop n
                             | InitBuffers (bufs,ch) ->
-                                printfn "%s" "dm msg2"
                                 ch.Reply bufs
                                 bufs |> Array.iter dataToFill.Enqueue                                
                                 return! loop n
                             | Get(ch) -> 
-                                printfn "%s" "dm msg3"
                                 let s,r = dataToProcess.TryDequeue()
                                 if s
                                 then 
-                                    if r.IsNone then dataIsEnd := true
+                                    if r.IsNone 
+                                    then dataIsEnd := true
                                     ch.Reply r
                                 elif not !dataIsEnd
                                 then inbox.Post(Get ch)
                                 else ch.Reply None
                                 return! loop n
                             | Enq b -> 
-                                printfn "%s" "dm msg4"
                                 dataToFill.Enqueue b
                                 return! loop n
                             | x ->  
@@ -142,31 +127,22 @@ type DataManager<'d>(readers:array<Reader<'d>>) =
                         else return! loop n }
             loop 0)
  
-    member this.InitBuffers(bufs) = 
-        printfn "%s" "bufs"
-        inner.PostAndReply((fun reply -> InitBuffers(bufs,reply)), timeout = 20000)
-    member this.GetData() = 
-        printfn "%s" "data"
-        inner.PostAndReply((fun reply -> Get reply), timeout = 20000)
-    member this.Enq(b) = 
-        printfn "%s" "enq"
-        inner.Post(Enq b)
-    member this.Die() = 
-        printfn "%s" "dm die"
-        inner.PostAndReply((fun reply -> Die reply), timeout = 20000)
+    member this.InitBuffers(bufs) = inner.PostAndReply((fun reply -> InitBuffers(bufs,reply)), timeout = 20000)
+    member this.GetData() = inner.PostAndReply((fun reply -> Get reply), timeout = 20000)
+    member this.Enq(b) = inner.Post(Enq b)
+    member this.Die() = inner.PostAndReply((fun reply -> Die reply), timeout = 20000)
 
 type Master<'d,'r,'fr>(workers:array<Worker<'d,'r>>, fill: 'd -> Option<'d>, bufs:ResizeArray<'d>, postProcessF:Option<'r->'fr>) =        
     
     let isDataEnd = ref false
     let reader = new Reader<_>(fill)
-    //let mutable isEnd = false
             
     let dataManager = new DataManager<'d>([|reader|])
 
     let postprocessor =
         postProcessF |> Option.map(fun f ->new Worker<'r,'fr>(f))        
 
-    let bufers = dataManager.InitBuffers(bufs.ToArray())
+    let buffers = dataManager.InitBuffers(bufs.ToArray())
     let freeWorkers = new System.Collections.Concurrent.ConcurrentQueue<_>(workers)
     let inner =
         MailboxProcessor.Start(fun inbox ->
@@ -188,24 +164,12 @@ type Master<'d,'r,'fr>(workers:array<Worker<'d,'r>>, fill: 'd -> Option<'d>, buf
                                             dataManager.Enq b.Value)
                                     return! loop n
                                 else 
-//                        if inbox.CurrentQueueLength > 0
-//                        then
-//                            let! msg = inbox.Receive()
-//                            match msg with
-//                            | Die ch ->
-                                printfn "%s" "mst die"
-                                dataManager.Die()                                
-                                workers |> Array.iter (fun w -> w.Die())
-                                match postprocessor with Some p -> p.Die() | None -> ()
-                                //isEnd <- true
-                                //ch.Reply()
-                                isDataEnd := true
-                                return ()
-//                            | x ->
-//                                printfn "unexpected message for Worker: %A" x
-//                                return! loop n 
+                                    dataManager.Die()                                
+                                    workers |> Array.iter (fun w -> w.Die())
+                                    match postprocessor with Some p -> p.Die() | None -> ()
+                                    isDataEnd := true
+                                    return ()
                         else return! loop n}
             loop 0)
 
-//    member this.Die() = inner.PostAndReply(fun reply -> Die reply)
     member this.IsDataEnd() = !isDataEnd
