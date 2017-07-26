@@ -46,7 +46,7 @@ type FindRes =
     new (data,templates,chunkSize) = {Data = data; Templates = templates; ChunkSize = chunkSize }
 
 //GPGPU provider
-let platformName = "*"
+let platformName = "NVIDIA*"
 let deviceType = OpenCL.Net.DeviceType.Default        
 
 // Main
@@ -220,7 +220,7 @@ type Matcher(?maxHostMem) =
             f   
         
         let workers () =             
-            Array.init 2 
+            Array.init 6 
                 (fun i ->
                     let provider =
                         try  ComputeProvider.Create(platformName, deviceType)
@@ -228,8 +228,8 @@ type Matcher(?maxHostMem) =
                         | ex -> failwith ex.Message
                     provider |> printfn "%A"
                     providers.Add provider
-                    let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.item 0) 
-                    let f = new WorkerConfig(1u,commandQueue,provider) |> createWorkerFun
+                    let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.item (i % 2) ) //здесь менять кол-во worker-ов и их распределение
+                    let f = new WorkerConfig(2u,commandQueue,provider) |> createWorkerFun //здесь менять кол-во дополнительных буфферов
                     new Worker<_,_>(f))
         
         let jobb = 
@@ -247,7 +247,7 @@ type Matcher(?maxHostMem) =
         
         new FindRes(totalResult.ToArray(), sorted templates, !chankSize )
 
-    new () = Matcher (256UL * 1024UL * 1024UL)
+    new () = Matcher (512UL * 1024UL * 1024UL)
 
     member this.RabinKarp (readFun, templateArr) = 
         rk readFun templateArr

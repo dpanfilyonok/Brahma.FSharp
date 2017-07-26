@@ -42,7 +42,7 @@ type FindRes =
     new (data,templates,chunkSize) = {Data = data; Templates = templates; ChunkSize = chunkSize }
 
 //GPGPU provider
-let platformName = "*"
+let platformName = "NVIDIA*"
 let deviceType = OpenCL.Net.DeviceType.Default        
 
 // Main
