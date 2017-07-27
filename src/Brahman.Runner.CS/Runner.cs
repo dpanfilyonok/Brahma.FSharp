@@ -86,7 +86,7 @@ namespace Brahman.Runner.CS
         static void Main()
         {
             var matcher = new MatcherCS.MatcherCS();            
-            var r = matcher.RabinKarp( new HDReader(), templates);
+            var r = matcher.RabinKarp(true, new HDReader(), templates);
             System.Console.WriteLine("Ordered templates count: " + r.Templates.Length);
             System.Console.WriteLine("Chunk size: " + r.ChunkSize);
             foreach (var i in r.Data)

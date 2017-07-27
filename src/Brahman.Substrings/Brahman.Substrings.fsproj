@@ -67,7 +67,6 @@
     <Compile Include="MatcherCS.fs" />
     <None Include="paket.references" />
     <None Include="app.config" />
-    <Compile Include="MatcherHopac.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />

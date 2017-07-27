@@ -93,9 +93,9 @@ let main argv =
     let args = parser.Parse argv
     let dId = args.GetResult <@DiskIdToProcess@>
 
-    let res =
-        matcher.RabinKarp (dId, (Array.append(Array.append first templates) additional))
+    let res = matcher.RabinKarp (true, dId, (Array.append(Array.append first templates) additional))
     printfn "Add Total: %A" res.Data.Length
+    System.Console.ReadKey(true) |> ignore
     0
 
 

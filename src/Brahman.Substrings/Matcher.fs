@@ -8,6 +8,9 @@ open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.Extensions
 open Brahma.FSharp.OpenCL.Translator.Common
 open System.Threading.Tasks
+open Hopac
+open Hopac.Infixes
+open Hopac.Extensions
 open Microsoft.FSharp.Collections
 
 type Config =
@@ -146,7 +149,7 @@ type Matcher(?maxHostMem) =
 
     let chankSize = ref 0
 
-    let rk readFun templateArr = 
+    let rk readFun templateArr f = 
         let counter = ref 0
         readingTimer.Start()
         
@@ -215,8 +218,8 @@ type Matcher(?maxHostMem) =
                 
             f   
         
-        let workers () =             
-            Array.init 2 
+        let mailboxWorkers() =             
+            Array.init 2
                 (fun i ->
                     let provider =
                         try  ComputeProvider.Create(platformName, deviceType)
@@ -224,32 +227,60 @@ type Matcher(?maxHostMem) =
                         | ex -> failwith ex.Message
                     provider |> printfn "%A"
                     providers.Add provider
-                    let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.item 0) 
-                    let f = new Agents.WorkerConfig(1u,commandQueue,provider) |> createWorkerFun
+                    let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.item (i%2)) //здесь менять кол-во worker-ов и их распределение
+                    let f = new Agents.WorkerConfig(1u,commandQueue,provider) |> createWorkerFun //здесь менять кол-во дополнительных буфферов
                     new Agents.Worker<_,_>(f))
-
-        let start = System.DateTime.Now
-        let ws = workers ()
-        let master = new Agents.Master<_,_,_>(ws, readFun, bufs, Some postprocess)
-        while not <| master.IsDataEnd() do ()
-        printfn "Total time = %A " (System.DateTime.Now - start)
-        providers |> ResizeArray.iter finalize         
+        
+        let hopacWorkers() =             
+            Array.init 2
+                (fun i ->
+                    let provider =
+                        try  ComputeProvider.Create(platformName, deviceType)
+                        with 
+                        | ex -> failwith ex.Message
+                    provider |> printfn "%A"
+                    providers.Add provider
+                    let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.item (i%2)) //здесь менять кол-во worker-ов и их распределение
+                    let f = new Agents.WorkerConfig(1u,commandQueue,provider) |> createWorkerFun //здесь менять кол-во дополнительных буфферов
+                    new Brahma.Agents.Hopac.Worker<_,_>(f))
+        
+        if f 
+        then 
+            let start = System.DateTime.Now
+            let ws = mailboxWorkers()
+            let master = new Agents.Master<_,_,_>(ws, readFun, bufs, Some postprocess)
+            while not <| master.IsDataEnd() do ()
+            printfn "Total time = %A " (System.DateTime.Now - start)
+            providers |> ResizeArray.iter finalize 
+        else 
+            let jobb = 
+               let start = System.DateTime.Now
+               run <| job {
+                   let ws = hopacWorkers()
+                   let master = new Brahma.Agents.Hopac.Master<_,_,_>(ws, readFun, bufs, Some postprocess)
+                   let! mstCh = master.Create
+                   while not(master.IsDataEnd) do ()        
+               }    
+               printfn "Total time = %A " (System.DateTime.Now - start)
+               providers |> ResizeArray.iter finalize  
+            jobb
+      
         
         new FindRes(totalResult.ToArray(), sorted templates, !chankSize )
 
-    new () = Matcher (256UL * 1024UL * 1024UL)
+    new () = Matcher (512UL * 1024UL * 1024UL)
 
-    member this.RabinKarp (readFun, templateArr) = 
-        rk readFun templateArr
+    member this.RabinKarp (f, readFun, templateArr) = 
+        rk readFun templateArr f
 
-    member this.RabinKarp (hdId, templateArr) =         
+    member this.RabinKarp (f, hdId, templateArr) =         
         let handle = RawIO.CreateFileW hdId        
-        let res = rk (RawIO.ReadHD handle) templateArr
+        let res = rk (RawIO.ReadHD handle) templateArr f
         RawIO.CloseHandle(handle)
         |> ignore
         res
 
-    member this.RabinKarp (inSeq, templateArr) = 
+    member this.RabinKarp (f, inSeq, templateArr) = 
         let readF = 
             let next = Helpers.chunk 32 inSeq
             let finish = ref false
@@ -263,6 +294,6 @@ type Matcher(?maxHostMem) =
                     | Some x -> finish := true
                     Some buf
 
-        rk readF templateArr
+        rk readF templateArr f
 
     member this.InBufSize with get () = !chankSize

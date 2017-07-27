@@ -12,16 +12,6 @@ open Hopac.Extensions
 open System
 open System.Diagnostics
 
-type GpuConfig =
-    val Name: string
-    val Workers: int
-    new (n,w) = {Name=n; Workers=w}
-
-type WorkerConfig =
-    val AdditionalBuffsNum: uint32
-    val GpuCommandQueue: CommandQueue
-    val GPUProvider: ComputeProvider
-    new (bNum,queue,provider) = {AdditionalBuffsNum = bNum; GpuCommandQueue = queue; GPUProvider = provider}
 
 type Msg<'data,'res> =
     | Die of IVar<unit>
