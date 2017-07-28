@@ -81,29 +81,31 @@ type DataManager<'d>(reader:Reader<'d>) =
                 if not <| !dataIsEnd
                 then do! reader.Read rCh (b, fun a -> dataToProcess.Enqueue a
                                                       dataIsEnd := Option.isNone a)
-            let! msg = Ch.take inCh
-            match msg with
-            | Die ch ->
-                if !dataIsEnd 
-                then 
-                    do! IVar.fill ch ()
-                    do! Job.abort() 
-                else do! inCh *<+=>- (fun reply -> Die reply)
-            | InitBuffers (bufs,ch) ->
-                do! IVar.fill ch bufs
-                bufs |> Array.iter dataToFill.Enqueue                                
-            | Get ch -> 
-                let s,r = dataToProcess.TryDequeue()
-                if s
-                then 
-                    if r.IsNone 
-                    then dataIsEnd := true
-                    do! IVar.fill ch r    
-                elif not !dataIsEnd
-                then do! inCh *<+ Get ch        
-                else do! IVar.fill ch None
-            | Enq b -> dataToFill.Enqueue b
-            | x -> printfn "Unexpected message for Worker: %A" x
+            let! msg = Ch.Try.take inCh
+            if msg.IsSome 
+            then
+                match msg.Value with
+                | Die ch ->
+                    if !dataIsEnd 
+                    then 
+                        do! IVar.fill ch ()
+                        do! Job.abort() 
+                    else do! inCh *<+=>- (fun reply -> Die reply)
+                | InitBuffers (bufs,ch) ->
+                    do! IVar.fill ch bufs
+                    bufs |> Array.iter dataToFill.Enqueue                                
+                | Get ch -> 
+                    let s,r = dataToProcess.TryDequeue()
+                    if s
+                    then 
+                        if r.IsNone 
+                        then dataIsEnd := true
+                        do! IVar.fill ch r    
+                    elif not !dataIsEnd
+                    then do! inCh *<+ Get ch        
+                    else do! IVar.fill ch None
+                | Enq b -> dataToFill.Enqueue b
+                | x -> printfn "Unexpected message for Worker: %A" x
         }
         do! Job.foreverServer loop  
         return inCh

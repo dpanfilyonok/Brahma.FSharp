@@ -91,40 +91,41 @@ type DataManager<'d>(readers:array<Reader<'d>>) =
                                 , fun a ->                                     
                                     dataToProcess.Enqueue a
                                     dataIsEnd := Option.isNone a)
-                        if inbox.CurrentQueueLength > 0
-                        then
-                            let! msg = inbox.Receive()
-                            match msg with
-                            | Die ch ->
-                                if !dataIsEnd 
-                                then
-                                    ch.Reply()
-                                    return ()
-                                else 
-                                    inbox.Post(Die ch)
-                                    return! loop n
-                            | InitBuffers (bufs,ch) ->
-                                ch.Reply bufs
-                                bufs |> Array.iter dataToFill.Enqueue                                
+                        //if inbox.CurrentQueueLength > 0
+                        //then
+                        let! msg = inbox.Receive()
+                        match msg with
+                        | Die ch ->
+                            if !dataIsEnd 
+                            then
+                                ch.Reply()
+                                return ()
+                            else 
+                                inbox.Post(Die ch)
                                 return! loop n
-                            | Get(ch) -> 
-                                let s,r = dataToProcess.TryDequeue()
-                                if s
-                                then 
-                                    if r.IsNone 
-                                    then dataIsEnd := true
-                                    ch.Reply r
-                                elif not !dataIsEnd
-                                then inbox.Post(Get ch)
-                                else ch.Reply None
-                                return! loop n
-                            | Enq b -> 
-                                dataToFill.Enqueue b
-                                return! loop n
-                            | x ->  
-                                printfn "Unexpected message for Worker: %A" x
-                                return! loop n
-                        else return! loop n }
+                        | InitBuffers (bufs,ch) ->
+                            ch.Reply bufs
+                            bufs |> Array.iter dataToFill.Enqueue                                
+                            return! loop n
+                        | Get(ch) -> 
+                            let s,r = dataToProcess.TryDequeue()
+                            if s
+                            then 
+                                if r.IsNone 
+                                then dataIsEnd := true
+                                ch.Reply r
+                            elif not !dataIsEnd
+                            then inbox.Post(Get ch)
+                            else ch.Reply None
+                            return! loop n
+                        | Enq b -> 
+                            dataToFill.Enqueue b
+                            return! loop n
+                        | x ->  
+                            printfn "Unexpected message for Worker: %A" x
+                            return! loop n
+                        //else return! loop n 
+                   }
             loop 0)
  
     member this.InitBuffers(bufs) = inner.PostAndReply((fun reply -> InitBuffers(bufs,reply)), timeout = 20000)

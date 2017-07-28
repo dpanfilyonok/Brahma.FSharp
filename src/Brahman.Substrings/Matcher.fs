@@ -227,8 +227,8 @@ type Matcher(?maxHostMem) =
                         | ex -> failwith ex.Message
                     provider |> printfn "%A"
                     providers.Add provider
-                    let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.item (i%2)) //здесь менять кол-во worker-ов и их распределение
-                    let f = new Agents.WorkerConfig(1u,commandQueue,provider) |> createWorkerFun //здесь менять кол-во дополнительных буфферов
+                    let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.item (i%2))
+                    let f = new Agents.WorkerConfig(1u,commandQueue,provider) |> createWorkerFun
                     new Agents.Worker<_,_>(f))
         
         let hopacWorkers() =             
@@ -240,8 +240,8 @@ type Matcher(?maxHostMem) =
                         | ex -> failwith ex.Message
                     provider |> printfn "%A"
                     providers.Add provider
-                    let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.item (i%2)) //здесь менять кол-во worker-ов и их распределение
-                    let f = new Agents.WorkerConfig(1u,commandQueue,provider) |> createWorkerFun //здесь менять кол-во дополнительных буфферов
+                    let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.item (i%2))
+                    let f = new Agents.WorkerConfig(1u,commandQueue,provider) |> createWorkerFun
                     new Brahma.Agents.Hopac.Worker<_,_>(f))
         
         if f 

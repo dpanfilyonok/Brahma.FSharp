@@ -36,52 +36,8 @@
     <WarningLevel>3</WarningLevel>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DocumentationFile>bin\Release\Brahma.Agents.Hopac.XML</DocumentationFile>
-    <Prefer32Bit>true</Prefer32Bit>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="mscorlib" />
-    <Reference Include="OpenCL.Net">
-      <HintPath>..\Brahma.Helpers\bin\Debug\OpenCL.Net.dll</HintPath>
-    </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Numerics" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="Brahma.Agents.Hopac.fs" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Brahma.FSharp.OpenCL.Core\Brahma.FSharp.OpenCL.Core.fsproj">
-      <Name>Brahma.FSharp.OpenCL.Core</Name>
-      <Project>{cbbc6d5c-5051-4d66-b616-a59a52a1a3f5}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\Brahma.FSharp.OpenCL.Extensions\Brahma.FSharp.OpenCL.Extensions.fsproj">
-      <Name>Brahma.FSharp.OpenCL.Extensions</Name>
-      <Project>{4903d3e4-f6dd-49b8-998b-470277120271}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\Brahma.Helpers\Brahma.Helpers.csproj">
-      <Name>Brahma.Helpers</Name>
-      <Project>{c46de069-f581-4afe-be34-387c5d46ddef}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\Brahma.OpenCL\Brahma.OpenCL.csproj">
-      <Name>Brahma.OpenCL</Name>
-      <Project>{1f52ecb5-6cd2-4d76-a4b7-a23131c9d195}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\Brahma\Brahma.csproj">
-      <Name>Brahma</Name>
-      <Project>{0e731438-dd9e-4444-950d-ef2de31d3e97}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="App.config">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
   </PropertyGroup>
@@ -182,4 +138,44 @@
       </ItemGroup>
     </When>
   </Choose>
+  <ItemGroup>
+    <Compile Include="Brahma.Agents.Hopac.fs" />
+    <Content Include="App.config">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="mscorlib" />
+    <Reference Include="OpenCL.Net">
+      <HintPath>..\Brahma.Helpers\bin\Debug\OpenCL.Net.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Numerics" />
+    <ProjectReference Include="..\Brahma.FSharp.OpenCL.Core\Brahma.FSharp.OpenCL.Core.fsproj">
+      <Name>Brahma.FSharp.OpenCL.Core</Name>
+      <Project>{cbbc6d5c-5051-4d66-b616-a59a52a1a3f5}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\Brahma.FSharp.OpenCL.Extensions\Brahma.FSharp.OpenCL.Extensions.fsproj">
+      <Name>Brahma.FSharp.OpenCL.Extensions</Name>
+      <Project>{4903d3e4-f6dd-49b8-998b-470277120271}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\Brahma.Helpers\Brahma.Helpers.csproj">
+      <Name>Brahma.Helpers</Name>
+      <Project>{c46de069-f581-4afe-be34-387c5d46ddef}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\Brahma.OpenCL\Brahma.OpenCL.csproj">
+      <Name>Brahma.OpenCL</Name>
+      <Project>{1f52ecb5-6cd2-4d76-a4b7-a23131c9d195}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\Brahma\Brahma.csproj">
+      <Name>Brahma</Name>
+      <Project>{0e731438-dd9e-4444-950d-ef2de31d3e97}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+  </ItemGroup>
 </Project>

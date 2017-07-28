@@ -101,5 +101,5 @@ let main argv =
 
 //do matcher.Hashtable (0, (Array.append first templates))
 //do matcher.NaiveSearch(0, (Array.append first templates))
-
 //do matcher.RabinKarp (demoSeqGenerator (512*1024), (Array.append first templates)) |> ignore
+

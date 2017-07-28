@@ -92,11 +92,11 @@ let ReadHDAsSeq handle =
 
 let ReadHD handle =
     let offset = ref 0L
-    let count = ref 0 //ограничивает читаемый кусок памяти
+    let count = ref 0
     fun (buf:array<_>) ->
         let chank = buf.Length
         incr count
         let read = ReadFileW(handle, buf, chank, !offset)
         offset := !offset + int64 chank
-        if read = -1 || !count > 100
+        if read = -1 || !count > 250
         then None else Some buf        
