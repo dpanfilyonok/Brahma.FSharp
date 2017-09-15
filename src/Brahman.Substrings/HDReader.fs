@@ -98,5 +98,5 @@ let ReadHD handle =
         incr count
         let read = ReadFileW(handle, buf, chank, !offset)
         offset := !offset + int64 chank
-        if read = -1 || !count > 250
+        if read = -1
         then None else Some buf        

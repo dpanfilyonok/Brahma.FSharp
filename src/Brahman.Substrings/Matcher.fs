@@ -45,7 +45,7 @@ type FindRes =
     new (data,templates,chunkSize) = {Data = data; Templates = templates; ChunkSize = chunkSize }
 
 //GPGPU provider
-let platformName = "NVIDIA*"
+let platformName = "*"
 let deviceType = OpenCL.Net.DeviceType.Default        
 
 // Main
@@ -227,7 +227,7 @@ type Matcher(?maxHostMem) =
                         | ex -> failwith ex.Message
                     provider |> printfn "%A"
                     providers.Add provider
-                    let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.item (i%2))
+                    let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.item 0)
                     let f = new Agents.WorkerConfig(1u,commandQueue,provider) |> createWorkerFun
                     new Agents.Worker<_,_>(f))
         
@@ -240,7 +240,7 @@ type Matcher(?maxHostMem) =
                         | ex -> failwith ex.Message
                     provider |> printfn "%A"
                     providers.Add provider
-                    let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.item (i%2))
+                    let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.item 0)
                     let f = new Agents.WorkerConfig(1u,commandQueue,provider) |> createWorkerFun
                     new Brahma.Agents.Hopac.Worker<_,_>(f))
         
