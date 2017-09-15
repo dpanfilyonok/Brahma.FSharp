@@ -118,11 +118,10 @@ and printNewStruct (newStruct:NewStruct<_>) =
     let args = 
         List.map Print newStruct.ConstructorArgs
         |> commaListL
-        |> bracketL
     [ 
-        //wordL "new"
-        wordL newStruct.Struct.Name
+        wordL "{"
         args
+        wordL "}"
     ]
     |> spaceListL
 

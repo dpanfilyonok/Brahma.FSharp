@@ -42,12 +42,12 @@ Mutability is available by using of "let mutable" binding.
 let command = 
     <@ 
         fun (range:_1D) (buf:array<_>) ->
-            let x = 1
+            let mutable x = 1
             x <- x * 2
     @>
 
 (**
-Note, that scoupes are supported. So, you can "rebind" any name and "F#-style" visibility will be emuleted in target code. For example, next code will be translated correctly.
+Note, that scopes are supported. So, you can "rebind" any name and "F#-style" visibility will be emuleted in target code. For example, next code will be translated correctly.
 *)
 
 let command = 
@@ -70,7 +70,7 @@ let command =
 (**
 ##Control flow
 
-### Sequential opertions
+### Sequential operations
 *)
 
 let command = 
@@ -86,8 +86,8 @@ let command =
 let command = 
     <@ 
         fun (range:_1D) (buf:array<_>) ->
-         while buf.[0] < 5 do
-             buf.[0] <- buf.[0] + 1
+          while buf.[0] < 5 do
+            buf.[0] <- buf.[0] + 1
     @>
 
 (**
@@ -113,17 +113,69 @@ let command =
             buf.[1] <- (%myFun) 4 9
     @>
 
-let commandTeplate f = 
+let commandTemplate f = 
     <@ 
         fun (range:_1D) (buf:array<int>) ->
             buf.[0] <- (%f) 2 5
             buf.[1] <- (%f) 4 9
     @>
 
-let cmd1 = commandTeplate  <@ fun x y -> y - x @>
-let cmd2 = commandTeplate  <@ fun x y -> y + x @>
+let cmd1 = commandTemplate  <@ fun x y -> y - x @>
+let cmd2 = commandTemplate  <@ fun x y -> y + x @>
 
 
 (**
-Some more info
+## Structs and tuples
+
+Structs and tuples transferring and using in kernel code are supported.
+
+### Structs
+*)
+
+[<Struct>]
+type c =
+    val x: int 
+    val y: int
+    new (x1, y1) = {x = x1; y = y1} 
+    new (x1) = {x = x1; y = 0}
+
+let command = 
+    <@ 
+        fun(range:_1D) (buf:array<int>) (s:c) -> 
+            buf.[0] <- s.x + s.y
+            let s2 = new c(6)
+            let s3 = new c(s2.y + 6)
+            buf.[1] <- s2.x
+    @>
+
+let command = 
+    <@ 
+        fun(range:_1D) (buf:array<int>) (arr:array<c>) -> 
+            buf.[0] <- arr.[0].x         
+    @>
+
+(**
+### Tuples
+
+Tuples support are limited. Single tuple trunsfer to GPU is supported, but methods Array.ToHost and Array.ToGPU is not.
+Also you can use tuples in kernel code.
+*)
+
+let command = 
+    <@ 
+        fun (range:_1D) (buf:array<int>) (k1:int*int) (k2:int64*byte) (k3:float32*int) -> 
+            let x = fst k1
+            buf.[0] <- x
+            buf.[1] <- int(fst k3)
+    @>
+
+let command = 
+    <@ 
+        fun (range:_1D) (buf:array<int>) -> 
+            let (a, b) = (1, 2)
+            buf.[0] <- a
+    @>
+
+(**
+[More examples.]()
 *)

@@ -5,7 +5,7 @@ NUGET
     DotParser (1.0.6)
       FSharp.Core
       FSharpx.Collections.Experimental
-    FSharp.Core (4.0.0.1) - redirects: force
+    FSharp.Core (4.0.0.1)
     FSharp.Quotations.Evaluator (1.0.7)
     FSharp.TypeProviders.StarterPack (1.1.3.88)
     FSharpx.Collections (1.15.1) - redirects: force
@@ -13,7 +13,7 @@ NUGET
     FSharpx.Collections.Experimental (1.15.1) - redirects: force
       FSharp.Core
       FSharpx.Collections (>= 1.15.1)
-    Mono.Addins (1.3.3)
+    Mono.Addins (1.3.4)
     NuGet.CommandLine (3.5)
     NUnit (2.6.3)
     OpenCL.Net (2.2.9)
@@ -38,7 +38,7 @@ NUGET
 GROUP Build
 NUGET
   remote: https://www.nuget.org/api/v2
-    FAKE (4.52)
+    FAKE (4.61.3)
     FSharp.Compiler.Service (2.0.0.6)
     FSharp.Formatting (2.14.4)
       FSharp.Compiler.Service (2.0.0.6)
@@ -56,7 +56,7 @@ NUGET
     SourceLink.Fake (1.1)
 GITHUB
   remote: fsharp/FAKE
-    modules/Octokit/Octokit.fsx (fed01fd06a3838b924aca6d3db0ab89813dea2eb)
+    modules/Octokit/Octokit.fsx (15e1b741f4ae9fbaad640a65231dfcec28ce6ddd)
       Octokit (>= 0.20)
 GROUP Test
 NUGET

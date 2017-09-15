@@ -19,10 +19,11 @@ open Brahma.FSharp.OpenCL.AST
 open Microsoft.FSharp.Text
 open Microsoft.FSharp.Text.StructuredFormat.LayoutOps
 open Brahma.FSharp.OpenCL.Printer
+open Brahma.FSharp.OpenCL.Translator
 
 let Print (ast:AST<'lang>) =
     let layout = 
-        ast.TopDefs 
+        ast.TopDefs
         |> List.map 
             (fun d -> 
                 match d with 

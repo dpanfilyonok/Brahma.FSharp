@@ -26,10 +26,10 @@ type ``Marshalling Issue`` () =
 
     [<Test>]
     member this.``CheckFloat`` ()=
-        let res = Float64Version "NVIDIA*" (GenerateMatrix64 200 200) (GenerateMatrix64 200 200)
+        let res = Float64Version "*" (GenerateMatrix64 200 200) (GenerateMatrix64 200 200)
         Assert.AreEqual (true, res)
 
     [<Test>]
     member this.``CheckFloat32`` ()=
-        let res = Float32Version "NVIDIA*" (GenerateMatrix32 200 200) (GenerateMatrix32 200 200)
+        let res = Float32Version "*" (GenerateMatrix32 200 200) (GenerateMatrix32 200 200)
         Assert.AreEqual (true, res)

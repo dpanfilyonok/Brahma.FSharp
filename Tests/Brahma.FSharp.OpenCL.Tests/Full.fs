@@ -4,14 +4,10 @@ open NUnit.Framework
 open System.IO
 open System
 open System.Reflection
-
-
 open Brahma.Helpers
 open OpenCL.Net
 open Brahma.OpenCL
 open Brahma.FSharp.OpenCL.Core
-open System
-open System.Reflection
 open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.Extensions
 
@@ -29,7 +25,7 @@ type Translator() =
     let _1d = new _1D(defaultInArrayLength, 1)
     let _2d = new _2D(defaultInArrayLength, 1)
     let deviceType = DeviceType.Default
-    let platformName = "NVIDIA*"
+    let platformName = "*"
 
     let provider =
         try  ComputeProvider.Create(platformName, deviceType)
@@ -1235,6 +1231,21 @@ type Translator() =
         let run,check = checkResult command
         run _1d intInArr        
         check intInArr [|2;3;6;7|]
+
+    [<Test>]
+    [<Ignore("Image 2D not finished")>]
+    member this.``Checking of Image2D``() = 
+        let command = 
+            <@ 
+                fun (range:_1D) (img:Image2D<ARGB<Float>>) (a:array<_>) ->
+                    a.[0] <- 1
+            @>        
+        let CLimg = new Image2D<_>(provider, Operations.ReadOnly, true, 10, 10, -1)
+        let run,check = checkResult command
+        run _1d CLimg intInArr        
+        check intInArr [|1;3;6;7|]
+
+
 
 let x = 
     let d = ref 0

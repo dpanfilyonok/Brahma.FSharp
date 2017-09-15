@@ -24,7 +24,7 @@ type FSQuotationToOpenCLTranslator() =
    
     let CollectStructs e =
         let escapeNames = [|"_1D";"_2D";"_3D"|]
-        let structs = new System.Collections.Generic.Dictionary<System.Type, _> () 
+        let structs = new System.Collections.Generic.Dictionary<System.Type, _> ()
         let  add (t:System.Type) =
             if ((t.IsValueType && not t.IsPrimitive && not t.IsEnum)) && not (structs.ContainsKey t) 
                && not (Array.exists ((=)t.Name) escapeNames )
@@ -102,7 +102,8 @@ type FSQuotationToOpenCLTranslator() =
                 varsList.[i] |> List.filter (fun (v:Var) -> bdts |> List.exists((=) (v.Type.FullName.ToLowerInvariant())) |> not)
                 |> List.map 
                     (fun v -> 
-                        let t = Type.Translate v.Type true None (contextList.[i])
+                       
+                        let t = Type.Translate v.Type true None (contextList.[i]) 
                         let declSpecs = new DeclSpecifierPack<_>(typeSpec=t)
                         if t :? RefType<_> then declSpecs.AddressSpaceQual <- Global
                         new FunFormalArg<_>(declSpecs, v.Name))
@@ -130,7 +131,8 @@ type FSQuotationToOpenCLTranslator() =
                 if contextList.[i].Flags.enableFP64
                 then res.Add(new CLPragma<_>(CLFP64))
                 List.ofSeq res
-            listCLFun <- pragmas@types@listCLFun@[mainKernelFun]
+            let translatedTuples = contextList.[i].tupleList |> Seq.cast<_> |> List.ofSeq 
+            listCLFun <- pragmas@translatedTuples@types@listCLFun@[mainKernelFun]
         new AST<_>(listCLFun)
 
     let translate qExpr translatorOptions =
@@ -151,6 +153,10 @@ type FSQuotationToOpenCLTranslator() =
                         c.UserDefinedTypes.AddRange context.UserDefinedTypes
                         c.UserDefinedTypesOpenCLDeclaration.Clear()
                         for x in context.UserDefinedTypesOpenCLDeclaration do c.UserDefinedTypesOpenCLDeclaration.Add (x.Key,x.Value)
+                        for x in context.tupleDecls do c.tupleDecls.Add(x.Key,x.Value)
+                        for x in context.tupleList do c.tupleList.Add(x)
+                        c.tupleNumber <- context.tupleNumber
+
                         c.Flags.enableFP64 <- context.Flags.enableFP64
                         c.Namer.LetIn()
                         c.TranslatorOptions.AddRange translatorOptions
@@ -175,7 +181,6 @@ type FSQuotationToOpenCLTranslator() =
             listPartsASTPartialAst.Add((partialAst :> Statement<_>))
             listPartsASTContext.Add(context)
             //Body.dictionaryFun.Add(partAST.FunVar.Name, partialAst)
-
         let AST = buildFullAst (listPartsASTVars) translatedStructs (listPartsASTPartialAst) listPartsASTContext
         AST, newAST        
   

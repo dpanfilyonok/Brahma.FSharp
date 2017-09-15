@@ -9,10 +9,11 @@
     <OutputType>Library</OutputType>
     <RootNamespace>Brahma.FSharp.OpenCL.TypeProvider</RootNamespace>
     <AssemblyName>Brahma.FSharp.OpenCL.TypeProvider</AssemblyName>
-    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <TargetFSharpCoreVersion>4.4.0.0</TargetFSharpCoreVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Name>Brahma.FSharp.OpenCL.TypeProvider</Name>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -69,6 +70,11 @@
     <Content Include="app.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Brahma.FSharp.OpenCL.OpenCLParser\Brahma.FSharp.OpenCL.OpenCLParser.fsproj">
+      <Name>Brahma.FSharp.OpenCL.OpenCLParser</Name>
+      <Project>{a93e672f-931f-415d-84a9-e7ca230f5ce8}</Project>
+      <Private>True</Private>
+    </ProjectReference>
     <Reference Include="mscorlib" />
     <Reference Include="FSharp.Core, Version=$(TargetFSharpCoreVersion), Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
       <Private>True</Private>
@@ -79,11 +85,6 @@
     <ProjectReference Include="..\Brahma.FSharp.OpenCL.AST\Brahma.FSharp.OpenCL.AST.fsproj">
       <Name>Brahma.FSharp.OpenCL.AST</Name>
       <Project>{e0388e66-e36c-4eca-adcc-bfd115820c25}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\Brahma.FSharp.OpenCL.OpenCLTranslator\Brahma.FSharp.OpenCL.OpenCLTranslator.fsproj">
-      <Name>Brahma.FSharp.OpenCL.OpenCLTranslator</Name>
-      <Project>{a93e672f-931f-415d-84a9-e7ca230f5ce8}</Project>
       <Private>True</Private>
     </ProjectReference>
   </ItemGroup>

@@ -49,7 +49,7 @@ let solutionFile  = "Brahma.FSharp.sln"
 let tpTestSolutionFile  = "OpenCLProviderTest.sln"
 
 // Pattern specifying assemblies to be tested using NUnit
-let testAssemblies = "Tests/**/bin/Release/*Tests*.dll"
+let testAssemblies = "tests/**/bin/Release/*Tests*.dll"
 
 // Git configuration (used for publishing documentation in gh-pages branch)
 // The profile where the project is posted
@@ -149,7 +149,7 @@ Target "CleanDocs" (fun _ ->
 // --------------------------------------------------------------------------------------
 // Build library & test project
 
-Target "Gen:OpenCLTranslator" (fun _ -> runShell <| "src" @@ "Brahma.FSharp.OpenCL.OpenCLTranslator" @@ "gen")
+Target "Gen:OpenCLTranslator" (fun _ -> runShell <| "src" @@ "Brahma.FSharp.OpenCL.OpenCLParser" @@ "gen")
 
 Target "Build" (fun _ ->
     !! solutionFile

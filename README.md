@@ -10,6 +10,9 @@ Features of Brahma.FSharp:
 * We are aimed to translate native F# code to OpenCL with minimization of different wrappers and custom types.
 * We use OpenCL for communication with GPU. So, you can work not only with NVIDIA cards but with any device, which support OpenCL (e.g. with AMD devices).
 
+More detailes are available [here](https://yaccconstructor.github.io/Brahma.FSharp/).
+Examples of usage are available [here](https://github.com/YaccConstructor/Brahma.FSharp.Examples).
+
 ## Build
 
 To build project use

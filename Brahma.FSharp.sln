@@ -1,53 +1,28 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+VisualStudioVersion = 14.0.24720.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".paket", ".paket", "{63297B98-5CED-492C-A5B7-A5B4F73CF142}"
-	ProjectSection(SolutionItems) = preProject
-		paket.dependencies = paket.dependencies
-		paket.lock = paket.lock
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{A6A6AF7D-D6E3-442D-9B1E-58CC91879BE1}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "project", "project", "{BF60BC93-E09B-4E5F-9D85-95A519479D54}"
-	ProjectSection(SolutionItems) = preProject
-		build.fsx = build.fsx
-		README.md = README.md
-		RELEASE_NOTES.md = RELEASE_NOTES.md
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{83F16175-43B1-4C90-A1EE-8E351C33435D}"
-	ProjectSection(SolutionItems) = preProject
-		docs\tools\generate.fsx = docs\tools\generate.fsx
-		docs\tools\templates\template.cshtml = docs\tools\templates\template.cshtml
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "content", "content", "{8E6D5255-776D-4B61-85F9-73C37AA1FB9A}"
-	ProjectSection(SolutionItems) = preProject
-		docs\content\index.fsx = docs\content\index.fsx
-		docs\content\tutorial.fsx = docs\content\tutorial.fsx
-	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{ED8079DD-2B06-4030-9F0F-DC548F98E1C4}"
 EndProject
-Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "Brahma.FSharp.OpenCL.Tests", "Tests\Brahma.FSharp.OpenCL.Tests\Brahma.FSharp.OpenCL.Tests.fsproj", "{73882D44-0194-400A-BCE4-F29D66417DE0}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Brahma.FSharp.OpenCL.Tests", "tests\Brahma.FSharp.OpenCL.Tests\Brahma.FSharp.OpenCL.Tests.fsproj", "{73882D44-0194-400A-BCE4-F29D66417DE0}"
 EndProject
-Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "Brahman.Test", "Tests\Brahman.Tests\Brahman.Test.fsproj", "{4E3137B9-DD0A-426A-A0D3-90C21EC1811E}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Brahman.Test", "tests\Brahman.Tests\Brahman.Test.fsproj", "{4E3137B9-DD0A-426A-A0D3-90C21EC1811E}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Core", "Core", "{25E14FB9-7440-42DF-8166-7CD7A9ECDBE1}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brahma", "src\Brahma\Brahma.csproj", "{0E731438-DD9E-4444-950D-EF2DE31D3E97}"
 EndProject
-Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "Brahma.FSharp.OpenCL.AST", "src\Brahma.FSharp.OpenCL.AST\Brahma.FSharp.OpenCL.AST.fsproj", "{E0388E66-E36C-4ECA-ADCC-BFD115820C25}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Brahma.FSharp.OpenCL.AST", "src\Brahma.FSharp.OpenCL.AST\Brahma.FSharp.OpenCL.AST.fsproj", "{E0388E66-E36C-4ECA-ADCC-BFD115820C25}"
 EndProject
-Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "Brahma.FSharp.OpenCL.Core", "src\Brahma.FSharp.OpenCL.Core\Brahma.FSharp.OpenCL.Core.fsproj", "{CBBC6D5C-5051-4D66-B616-A59A52A1A3F5}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Brahma.FSharp.OpenCL.Core", "src\Brahma.FSharp.OpenCL.Core\Brahma.FSharp.OpenCL.Core.fsproj", "{CBBC6D5C-5051-4D66-B616-A59A52A1A3F5}"
 EndProject
-Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "Brahma.FSharp.OpenCL.Extensions", "src\Brahma.FSharp.OpenCL.Extensions\Brahma.FSharp.OpenCL.Extensions.fsproj", "{4903D3E4-F6DD-49B8-998B-470277120271}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Brahma.FSharp.OpenCL.Extensions", "src\Brahma.FSharp.OpenCL.Extensions\Brahma.FSharp.OpenCL.Extensions.fsproj", "{4903D3E4-F6DD-49B8-998B-470277120271}"
 EndProject
-Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "Brahma.FSharp.OpenCL.Printer", "src\Brahma.FSharp.OpenCL.Printer\Brahma.FSharp.OpenCL.Printer.fsproj", "{F43CAB12-684E-4F92-938B-4E98B8284DAA}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Brahma.FSharp.OpenCL.Printer", "src\Brahma.FSharp.OpenCL.Printer\Brahma.FSharp.OpenCL.Printer.fsproj", "{F43CAB12-684E-4F92-938B-4E98B8284DAA}"
 EndProject
-Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "Brahma.FSharp.OpenCL.Translator", "src\Brahma.FSharp.OpenCL.Translator\Brahma.FSharp.OpenCL.Translator.fsproj", "{BBB08EB4-A2AE-430B-A29C-3B3446F69A6D}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Brahma.FSharp.OpenCL.Translator", "src\Brahma.FSharp.OpenCL.Translator\Brahma.FSharp.OpenCL.Translator.fsproj", "{BBB08EB4-A2AE-430B-A29C-3B3446F69A6D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brahma.OpenCL", "src\Brahma.OpenCL\Brahma.OpenCL.csproj", "{1F52ECB5-6CD2-4D76-A4B7-A23131C9D195}"
 EndProject
@@ -55,29 +30,29 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brahma.Helpers", "src\Brahm
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "StringMatching", "StringMatching", "{53FE49B3-9DC2-41B9-AD20-F037DFF2070D}"
 EndProject
-Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "Brahman.Runner", "src\Brahman.Runner\Brahman.Runner.fsproj", "{06AF6F48-A711-47F3-BADD-D582254473FA}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Brahman.Runner", "src\Brahman.Runner\Brahman.Runner.fsproj", "{06AF6F48-A711-47F3-BADD-D582254473FA}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brahman.Runner.CS", "src\Brahman.Runner.CS\Brahman.Runner.CS.csproj", "{89C75587-E3FF-4CDA-93C4-9725081766ED}"
 EndProject
-Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "Brahman.Substrings", "src\Brahman.Substrings\Brahman.Substrings.fsproj", "{EF36E48C-A9D2-464E-8EFD-CBD050E0A2DC}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Brahman.Substrings", "src\Brahman.Substrings\Brahman.Substrings.fsproj", "{EF36E48C-A9D2-464E-8EFD-CBD050E0A2DC}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Agents", "Agents", "{75EE1B05-083A-41B6-8DF4-745FD8EEAC1C}"
 EndProject
-Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "Brahma.Agents", "src\Brahma.Agents\Brahma.Agents.fsproj", "{DFD428F8-3698-4ED4-9D08-09D4EAD512D6}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Brahma.Agents", "src\Brahma.Agents\Brahma.Agents.fsproj", "{DFD428F8-3698-4ED4-9D08-09D4EAD512D6}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MarshallingIssue.Tests", "Tests\Brahma.Issues\MarshallingIssue\MarshallingIssue.Tests\MarshallingIssue.Tests.fsproj", "{EEFE2993-CE77-4B4B-B41D-A9C9092E8E55}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MarshallingIssue.Tests", "tests\Brahma.Issues\MarshallingIssue\MarshallingIssue.Tests\MarshallingIssue.Tests.fsproj", "{EEFE2993-CE77-4B4B-B41D-A9C9092E8E55}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Issues", "Issues", "{2D2491DC-4E27-471F-A7BF-7AF419E1ACBB}"
 EndProject
-Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "MarshallingIssue.Core", "Tests\Brahma.Issues\MarshallingIssue\MarshallingIssue.Code\MarshallingIssue.Core.fsproj", "{C47CE7F6-7EC9-46FC-8021-BEF69C9F0864}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MarshallingIssue.Core", "tests\Brahma.Issues\MarshallingIssue\MarshallingIssue.Code\MarshallingIssue.Core.fsproj", "{C47CE7F6-7EC9-46FC-8021-BEF69C9F0864}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MarshallingIssue", "MarshallingIssue", "{52214C1D-753B-42F5-A020-A9C4F93B8282}"
 EndProject
-Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "Brahma.FSharp.OpenCL.OpenCLTranslator", "src\Brahma.FSharp.OpenCL.OpenCLTranslator\Brahma.FSharp.OpenCL.OpenCLTranslator.fsproj", "{A93E672F-931F-415D-84A9-E7CA230F5CE8}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Brahma.FSharp.OpenCL.TypeProvider", "src\Brahma.FSharp.OpenCL.TypeProvider\Brahma.FSharp.OpenCL.TypeProvider.fsproj", "{144320DA-C5F8-41F9-9FBC-DC8DAA4F21A5}"
 EndProject
-Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "Brahma.FSharp.OpenCL.TypeProvider", "src\Brahma.FSharp.OpenCL.TypeProvider\Brahma.FSharp.OpenCL.TypeProvider.fsproj", "{144320DA-C5F8-41F9-9FBC-DC8DAA4F21A5}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Brahma.FSharp.OpenCL.OpenCLParser.Tests", "tests\Brahma.FSharp.OpenCL.OpenCLTranslator.Tests\Brahma.FSharp.OpenCL.OpenCLParser.Tests.fsproj", "{E83DF1BA-5B55-4770-AC08-BB1C9D5856B8}"
 EndProject
-Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "Brahma.FSharp.OpenCL.OpenCLTranslator.Tests", "Tests\Brahma.FSharp.OpenCL.OpenCLTranslator.Tests\Brahma.FSharp.OpenCL.OpenCLTranslator.Tests.fsproj", "{E83DF1BA-5B55-4770-AC08-BB1C9D5856B8}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Brahma.FSharp.OpenCL.OpenCLParser", "src\Brahma.FSharp.OpenCL.OpenCLParser\Brahma.FSharp.OpenCL.OpenCLParser.fsproj", "{A93E672F-931F-415D-84A9-E7CA230F5CE8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -281,18 +256,6 @@ Global
 		{C47CE7F6-7EC9-46FC-8021-BEF69C9F0864}.Release|x64.Build.0 = Release|Any CPU
 		{C47CE7F6-7EC9-46FC-8021-BEF69C9F0864}.Release|x86.ActiveCfg = Release|Any CPU
 		{C47CE7F6-7EC9-46FC-8021-BEF69C9F0864}.Release|x86.Build.0 = Release|Any CPU
-		{A93E672F-931F-415D-84A9-E7CA230F5CE8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A93E672F-931F-415D-84A9-E7CA230F5CE8}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A93E672F-931F-415D-84A9-E7CA230F5CE8}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{A93E672F-931F-415D-84A9-E7CA230F5CE8}.Debug|x64.Build.0 = Debug|Any CPU
-		{A93E672F-931F-415D-84A9-E7CA230F5CE8}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{A93E672F-931F-415D-84A9-E7CA230F5CE8}.Debug|x86.Build.0 = Debug|Any CPU
-		{A93E672F-931F-415D-84A9-E7CA230F5CE8}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{A93E672F-931F-415D-84A9-E7CA230F5CE8}.Release|Any CPU.Build.0 = Release|Any CPU
-		{A93E672F-931F-415D-84A9-E7CA230F5CE8}.Release|x64.ActiveCfg = Release|Any CPU
-		{A93E672F-931F-415D-84A9-E7CA230F5CE8}.Release|x64.Build.0 = Release|Any CPU
-		{A93E672F-931F-415D-84A9-E7CA230F5CE8}.Release|x86.ActiveCfg = Release|Any CPU
-		{A93E672F-931F-415D-84A9-E7CA230F5CE8}.Release|x86.Build.0 = Release|Any CPU
 		{144320DA-C5F8-41F9-9FBC-DC8DAA4F21A5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{144320DA-C5F8-41F9-9FBC-DC8DAA4F21A5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{144320DA-C5F8-41F9-9FBC-DC8DAA4F21A5}.Debug|x64.ActiveCfg = Debug|Any CPU
@@ -317,13 +280,23 @@ Global
 		{E83DF1BA-5B55-4770-AC08-BB1C9D5856B8}.Release|x64.Build.0 = Release|Any CPU
 		{E83DF1BA-5B55-4770-AC08-BB1C9D5856B8}.Release|x86.ActiveCfg = Release|Any CPU
 		{E83DF1BA-5B55-4770-AC08-BB1C9D5856B8}.Release|x86.Build.0 = Release|Any CPU
+		{A93E672F-931F-415D-84A9-E7CA230F5CE8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A93E672F-931F-415D-84A9-E7CA230F5CE8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A93E672F-931F-415D-84A9-E7CA230F5CE8}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A93E672F-931F-415D-84A9-E7CA230F5CE8}.Debug|x64.Build.0 = Debug|Any CPU
+		{A93E672F-931F-415D-84A9-E7CA230F5CE8}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A93E672F-931F-415D-84A9-E7CA230F5CE8}.Debug|x86.Build.0 = Debug|Any CPU
+		{A93E672F-931F-415D-84A9-E7CA230F5CE8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A93E672F-931F-415D-84A9-E7CA230F5CE8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A93E672F-931F-415D-84A9-E7CA230F5CE8}.Release|x64.ActiveCfg = Release|Any CPU
+		{A93E672F-931F-415D-84A9-E7CA230F5CE8}.Release|x64.Build.0 = Release|Any CPU
+		{A93E672F-931F-415D-84A9-E7CA230F5CE8}.Release|x86.ActiveCfg = Release|Any CPU
+		{A93E672F-931F-415D-84A9-E7CA230F5CE8}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{83F16175-43B1-4C90-A1EE-8E351C33435D} = {A6A6AF7D-D6E3-442D-9B1E-58CC91879BE1}
-		{8E6D5255-776D-4B61-85F9-73C37AA1FB9A} = {A6A6AF7D-D6E3-442D-9B1E-58CC91879BE1}
 		{73882D44-0194-400A-BCE4-F29D66417DE0} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 		{4E3137B9-DD0A-426A-A0D3-90C21EC1811E} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 		{0E731438-DD9E-4444-950D-EF2DE31D3E97} = {25E14FB9-7440-42DF-8166-7CD7A9ECDBE1}
@@ -342,8 +315,8 @@ Global
 		{2D2491DC-4E27-471F-A7BF-7AF419E1ACBB} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 		{C47CE7F6-7EC9-46FC-8021-BEF69C9F0864} = {52214C1D-753B-42F5-A020-A9C4F93B8282}
 		{52214C1D-753B-42F5-A020-A9C4F93B8282} = {2D2491DC-4E27-471F-A7BF-7AF419E1ACBB}
-		{A93E672F-931F-415D-84A9-E7CA230F5CE8} = {25E14FB9-7440-42DF-8166-7CD7A9ECDBE1}
 		{144320DA-C5F8-41F9-9FBC-DC8DAA4F21A5} = {25E14FB9-7440-42DF-8166-7CD7A9ECDBE1}
-		{E83DF1BA-5B55-4770-AC08-BB1C9D5856B8} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
+		{E83DF1BA-5B55-4770-AC08-BB1C9D5856B8} = {25E14FB9-7440-42DF-8166-7CD7A9ECDBE1}
+		{A93E672F-931F-415D-84A9-E7CA230F5CE8} = {25E14FB9-7440-42DF-8166-7CD7A9ECDBE1}
 	EndGlobalSection
 EndGlobal

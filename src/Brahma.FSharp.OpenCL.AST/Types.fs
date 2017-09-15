@@ -65,6 +65,18 @@ type ArrayType<'lang>(baseType:Type<'lang>, ?size:int) =
             // NB: size is omitted in this check
         | _ -> false
 
+type Image2DType<'lang>(modifier:bool) =
+    inherit Type<'lang>()
+    override this.Size = 32
+    override this.Children = []
+    member this.Modifier = modifier
+    override this.Matches(other:obj) =
+        match other with
+        | :? Image2DType<'lang> as o ->
+            this.Equals(o)
+            // NB: fields are omitted in this check
+        | _ -> false
+
 [<Struct>]
 type StructField<'lang> =
     val FName: string
@@ -102,6 +114,13 @@ type StructType<'lang>(decl)=
             | _ -> false
             // NB: size is omitted in this check
         | _ -> false
+        
+type TupleType<'lang>(baseStruct:StructType<'lang>, number:int)=    
+    inherit Type<'lang>()
+    override this.Children = []
+    override this.Size = baseStruct.Size
+    member this.Number = number        
+    override this.Matches(other) = failwith "Not implemented: matches for tuples"
 
 type RefType<'lang>(baseType:Type<'lang>, typeQuals:TypeQualifier<'lang> list) =
     inherit Type<'lang>()

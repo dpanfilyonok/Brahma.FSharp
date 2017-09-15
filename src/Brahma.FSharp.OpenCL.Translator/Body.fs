@@ -24,6 +24,9 @@ let private clearContext (targetContext:TargetContext<'a,'b>) =
     let c = new TargetContext<'a,'b>()
     c.Namer <- targetContext.Namer
     c.Flags <- targetContext.Flags
+    for td in targetContext.tupleDecls do c.tupleDecls.Add(td.Key, td.Value)
+    for t in targetContext.tupleList do c.tupleList.Add(t)
+    c.tupleNumber <- targetContext.tupleNumber
     c.UserDefinedTypes.AddRange(targetContext.UserDefinedTypes)
     for kvp in targetContext.UserDefinedTypesOpenCLDeclaration do c.UserDefinedTypesOpenCLDeclaration.Add (kvp.Key,kvp.Value)
     c
@@ -101,7 +104,7 @@ and private translateCall exprOpt (mInfo:System.Reflection.MethodInfo) _args tar
     | "touint64"               -> new Cast<_>( args.[0],new PrimitiveType<_>(PTypes<_>.ULong)):> Statement<_>,tContext
     | "acos" | "asin" | "atan"
     | "cos" | "cosh" | "exp"
-    | "floor" | "log" | "log10"
+    | "floor" | "log" | "log10" 
     | "pow" | "sin" | "sinh" | "sqrt"
     | "tan" | "tanh" as fName ->
         if mInfo.DeclaringType.AssemblyQualifiedName.StartsWith("System.Math")
@@ -136,6 +139,11 @@ and private translateCall exprOpt (mInfo:System.Reflection.MethodInfo) _args tar
             | :? Const<Lang> as c -> int c.Val
             | other -> failwithf "Calling Array.zeroCreate with a non-const argument: %A" other
         new ZeroArray<_>(length) :> Statement<_>, tContext
+    | "fst" -> new FieldGet<_>(args.[0], "_1") :> Statement<_>, tContext 
+    | "snd" -> new FieldGet<_>(args.[0], "_2") :> Statement<_>, tContext
+    | "first" -> new FieldGet<_>(args.[0], "_1") :> Statement<_>, tContext
+    | "second" -> new FieldGet<_>(args.[0], "_2") :> Statement<_>, tContext
+    | "third" -> new FieldGet<_>(args.[0], "_3") :> Statement<_>, tContext
     | c -> failwithf "Unsupported call: %s" c
 
 and private itemHelper exprs hostVar tContext =
@@ -358,6 +366,9 @@ and translateFieldSet host (*fldInfo:System.Reflection.FieldInfo*) name _val con
     let res = new FieldSet<_>(hostE, field, valE)
     res, tc
 
+
+
+
 and translateFieldGet host (*fldInfo:System.Reflection.FieldInfo*)name context =
     let hostE, tc = TranslateAsExpr host context
     let field = name//fldInfo.Name
@@ -421,7 +432,24 @@ and Translate expr (targetContext:TargetContext<_,_>) =
             res :> Node<_>,targetContext
         else "NewObject is not suported:" + string expr|> failwith
     | Patterns.NewRecord(sType,exprs) -> "NewRecord is not suported:" + string expr|> failwith
-    | Patterns.NewTuple(exprs) -> "NewTuple is not suported:" + string expr|> failwith
+    | Patterns.NewTuple(exprs) ->
+        let mutable n = 0
+        let baseTypes = [|for i in 0..exprs.Length - 1 -> exprs.[i].Type|]           
+        let elements = [for i in 0..exprs.Length - 1 -> new StructField<'lang> ("_" + (i + 1).ToString(), Type.Translate baseTypes.[i] false None targetContext)]
+        let mutable s = ""
+        for i in 0..baseTypes.Length - 1 do s <- s + baseTypes.[i].Name
+        if not (targetContext.tupleDecls.ContainsKey(s)) 
+        then
+            targetContext.tupleNumber <- targetContext.tupleNumber + 1
+            targetContext.tupleDecls.Add(s, targetContext.tupleNumber)
+            let a = new Struct<Lang>("tuple" + targetContext.tupleNumber.ToString(), elements)
+            targetContext.tupleList.Add(a)
+            let cArgs = exprs |> List.map (fun x -> TranslateAsExpr x targetContext)
+            new NewStruct<_>(a,cArgs |> List.unzip |> fst) :> Node<_>, targetContext 
+        else 
+            let a = new Struct<Lang>("tuple" + (targetContext.tupleDecls.Item(s)).ToString(), elements)                     
+            let cArgs = exprs |> List.map (fun x -> TranslateAsExpr x targetContext)
+            new NewStruct<_>(a,cArgs |> List.unzip |> fst) :> Node<_>, targetContext    
     | Patterns.NewUnionCase(unionCaseinfo,exprs) -> "NewUnionCase is not suported:" + string expr|> failwith
     | Patterns.PropertyGet(exprOpt,propInfo,exprs) -> 
         let res, tContext = transletaPropGet exprOpt propInfo exprs targetContext
@@ -434,7 +462,9 @@ and Translate expr (targetContext:TargetContext<_,_>) =
         res :> Node<_>,tContext
     | Patterns.TryFinally(tryExpr,finallyExpr) -> "TryFinally is not suported:" + string expr|> failwith
     | Patterns.TryWith(expr1,var1,expr2,var2,expr3) -> "TryWith is not suported:" + string expr|> failwith 
-    | Patterns.TupleGet(expr,i) -> "TupleGet is not suported:" + string expr|> failwith
+    | Patterns.TupleGet(expr,i) ->           
+        let r,tContext =  translateFieldGet expr  ("_" + (string (i + 1))) targetContext
+        r :> Node<_>,tContext
     | Patterns.TypeTest(expr,sType) -> "TypeTest is not suported:" + string expr|> failwith
     | Patterns.UnionCaseTest(expr,unionCaseInfo) -> "UnionCaseTest is not suported:" + string expr|> failwith
     | Patterns.Value(_obj,sType) -> translateValue _obj sType  targetContext :> Node<_> , targetContext 
@@ -464,8 +494,14 @@ and private translateLet var expr inExpr (targetContext:TargetContext<_,_>) =
     vDecl.IsLocal <- isLocal
     targetContext.VarDecls.Add vDecl    
     targetContext.Namer.LetIn var.Name    
-    let sb = new ResizeArray<_>(targetContext.VarDecls |> Seq.cast<Statement<_>>)
+    
     let res,tContext = clearContext targetContext |> Translate inExpr //вот тут мб нужно проверять на call или application
+    let sb = new ResizeArray<_>(targetContext.VarDecls |> Seq.cast<Statement<_>>)
+    targetContext.tupleDecls.Clear()
+    targetContext.tupleList.Clear()
+    for td in tContext.tupleDecls do targetContext.tupleDecls.Add(td.Key, td.Value)
+    for t in tContext.tupleList do targetContext.tupleList.Add(t)
+    targetContext.tupleNumber <- tContext.tupleNumber
     match res with
     | :? StatementBlock<Lang> as s -> sb.AddRange s.Statements; 
     | _ -> sb.Add (res :?> Statement<_>)                       

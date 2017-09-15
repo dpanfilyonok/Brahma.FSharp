@@ -217,3 +217,6 @@ Source/agents_new/Agents/packages/*
 
 # YC generated files
 out
+
+*.fsl.fs
+*.yrd.fs
