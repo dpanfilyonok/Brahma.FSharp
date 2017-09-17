@@ -38,25 +38,33 @@ type ComputeProvider with
 
     member private this.CompileQuery<'T when 'T :> ICLKernel>(lambda:Expr, translatorOptions,
                                                               additionalSources:string list) =
-        let kernel = System.Activator.CreateInstance<'T>()        
-//        let r, newLambda = CLCodeGenerator.GenerateKernel(lambda, this, kernel, translatorOptions)
-        let r = CLCodeGenerator.GenerateKernel(lambda, this, kernel, translatorOptions)
-        let mainSrc = (kernel :> ICLKernel).Source.ToString()    
-        let program, error =
-            let sources = additionalSources @ [mainSrc] |> List.toArray
-            Cl.CreateProgramWithSource(this.Context, uint32 (sources.Length), sources, null)
         let _devices = Array.ofSeq  this.Devices
-        let error = Cl.BuildProgram(program, _devices.Length |> uint32, _devices, this.CompileOptionsStr, null, IntPtr.Zero)
-        if error <> ErrorCode.Success
-        then 
+        let getProgramProcessingError errCode program =
             let s = _devices |> Array.map (fun device -> Cl.GetProgramBuildInfo(program, device, ProgramBuildInfo.Log ) |> fst |> string)
             s
             |> String.concat "\n"
+            |> fun s -> s + sprintf "\nError code: %A"  errCode
             |> failwith
-        let clKernel,errpr = Cl.CreateKernel(program, CLCodeGenerator.KernelName)
+
+        let kernel = System.Activator.CreateInstance<'T>()        
+        let r = CLCodeGenerator.GenerateKernel(lambda, this, kernel, translatorOptions)
+        let mainSrc = (kernel :> ICLKernel).Source.ToString()    
+        
+        let program, error =
+            let sources = additionalSources @ [mainSrc] |> List.toArray
+            Cl.CreateProgramWithSource(this.Context, uint32 (sources.Length), sources, null)
+        if error <> ErrorCode.Success
+        then getProgramProcessingError error program
+
+        let error = Cl.BuildProgram(program, _devices.Length |> uint32, _devices, this.CompileOptionsStr, null, IntPtr.Zero)
+        if error <> ErrorCode.Success
+        then getProgramProcessingError error program
+            
+        let clKernel,error = Cl.CreateKernel(program, CLCodeGenerator.KernelName)
+        if error <> ErrorCode.Success
+        then failwithf "OpenCL kernel creation problem. Error code: %A" error
         (kernel :> ICLKernel).ClKernel <- clKernel
             
-//        kernel , newLambda 
         kernel            
                     
     member this.Compile (query: Expr<'TRange ->'a> , ?_options:CompileOptions, ?translatorOptions,
@@ -65,7 +73,6 @@ type ComputeProvider with
         let tOptions = defaultArg translatorOptions []
         let additionalSources = defaultArg _additionalSources []
         this.SetCompileOptions options
-//        let kernel, newQuery = this.CompileQuery<Kernel<'TRange>>(query, tOptions)
         let kernel = this.CompileQuery<Kernel<'TRange>>(query, tOptions, additionalSources)
         let rng = ref Unchecked.defaultof<'TRange>
         let args = ref [||]

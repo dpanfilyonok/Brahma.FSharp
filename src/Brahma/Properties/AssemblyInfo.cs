@@ -4,14 +4,14 @@ using System.Reflection;
 [assembly: AssemblyTitleAttribute("Brahma")]
 [assembly: AssemblyProductAttribute("Brahma.FSharp")]
 [assembly: AssemblyDescriptionAttribute("F# quotation to OpenCL translator.")]
-[assembly: AssemblyVersionAttribute("1.1.0")]
-[assembly: AssemblyFileVersionAttribute("1.1.0")]
+[assembly: AssemblyVersionAttribute("1.1.3")]
+[assembly: AssemblyFileVersionAttribute("1.1.3")]
 namespace System {
     internal static class AssemblyVersionInformation {
         internal const System.String AssemblyTitle = "Brahma";
         internal const System.String AssemblyProduct = "Brahma.FSharp";
         internal const System.String AssemblyDescription = "F# quotation to OpenCL translator.";
-        internal const System.String AssemblyVersion = "1.1.0";
-        internal const System.String AssemblyFileVersion = "1.1.0";
+        internal const System.String AssemblyVersion = "1.1.3";
+        internal const System.String AssemblyFileVersion = "1.1.3";
     }
 }

@@ -17,6 +17,8 @@ requireLicenseAcceptance
     false
 copyright
     Copyright YaccConstructor 2017
+include-pdbs true
+include-referenced-projects true
 references
     Brahma.dll
     Brahma.Agents.dll
@@ -46,6 +48,8 @@ files
     ../../bin/Brahma.FSharp.OpenCL.TypeProvider/YC.RNGLRParser.dll ==> lib/net45
     ../../bin/Brahma.FSharp.OpenCL.TypeProvider/FSharpx.Collections.dll ==> lib/net45
     ../../bin/Brahma.FSharp.OpenCL.TypeProvider/FSharpx.Collections.Experimental.dll ==> lib/net45
+    ../installation/Install.ps1 ==> tools 
+    ../installation/OpenCL.Net.dll.config ==> content
 dependencies
     FSharpx.Collections >= 1.15.0
     YC.PrettyPrinter >= 0.0.5

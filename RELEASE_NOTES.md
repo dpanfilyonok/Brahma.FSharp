@@ -1,3 +1,13 @@
+### 1.1.3
+* Fix OpenCL compiller options.
+
+### 1.1.2
+* More diagnostic information in kernel compiler
+
+### 1.1.1
+* PDBs added
+* Autoinstallation of OpenCL.Net.dll.config
+
 ### 1.1.0
 * Basic support of structs and tuples.
 * OpenCL type provider. Strongly typed kernels from OpenCL code are available in F#.
