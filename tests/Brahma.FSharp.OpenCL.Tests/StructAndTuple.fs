@@ -278,8 +278,10 @@ type Translator() =
         let command = 
             <@ 
                 fun (range:_1D) (buf:array<a>) ->
-                    buf.[0] <- buf.[1] 
-                    buf.[1] <- buf.[2] 
+                    if range.GlobalID0 = 0
+                    then
+                        buf.[0] <- buf.[1] 
+                        buf.[1] <- buf.[2] 
             @>
         let kernel,kernelPrepareF, kernelRunF = provider.Compile command
         let s = new a(2, 3)

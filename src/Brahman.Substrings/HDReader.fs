@@ -91,9 +91,11 @@ let ReadHDAsSeq handle =
         }
 
 let ReadHD handle =
-    let offset = ref 0L    
+    let offset = ref 0L
+    let count = ref 0
     fun (buf:array<_>) ->
         let chank = buf.Length
+        incr count
         let read = ReadFileW(handle, buf, chank, !offset)
         offset := !offset + int64 chank
         if read = -1

@@ -91,44 +91,45 @@ type DataManager<'d>(readers:array<Reader<'d>>) =
                                 , fun a ->                                     
                                     dataToProcess.Enqueue a
                                     dataIsEnd := Option.isNone a)
-                        if inbox.CurrentQueueLength > 0
-                        then
-                            let! msg = inbox.Receive()
-                            match msg with
-                            | Die ch ->
-                                if !dataIsEnd 
-                                then
-                                    ch.Reply()
-                                    return ()
-                                else 
-                                    inbox.Post(Die ch)
-                                    return! loop n
-                            | InitBuffers (bufs,ch) ->
-                                ch.Reply bufs
-                                bufs |> Array.iter dataToFill.Enqueue                                
+                        //if inbox.CurrentQueueLength > 0
+                        //then
+                        let! msg = inbox.Receive()
+                        match msg with
+                        | Die ch ->
+                            if !dataIsEnd 
+                            then
+                                ch.Reply()
+                                return ()
+                            else 
+                                inbox.Post(Die ch)
                                 return! loop n
-                            | Get(ch) -> 
-                                let s,r = dataToProcess.TryDequeue()
-                                if s
-                                then 
-                                    if r.IsNone then dataIsEnd := true
-                                    ch.Reply r
-                                elif not !dataIsEnd
-                                then inbox.Post(Get ch)
-                                else ch.Reply None
-                                return! loop n
-                            | Enq b -> 
-                                dataToFill.Enqueue b
-                                return! loop n
-                            | x ->  
-                                printfn "Unexpected message for Worker: %A" x
-                                return! loop n
-                            else return! loop n }
+                        | InitBuffers (bufs,ch) ->
+                            ch.Reply bufs
+                            bufs |> Array.iter dataToFill.Enqueue                                
+                            return! loop n
+                        | Get(ch) -> 
+                            let s,r = dataToProcess.TryDequeue()
+                            if s
+                            then 
+                                if r.IsNone 
+                                then dataIsEnd := true
+                                ch.Reply r
+                            elif not !dataIsEnd
+                            then inbox.Post(Get ch)
+                            else ch.Reply None
+                            return! loop n
+                        | Enq b -> 
+                            dataToFill.Enqueue b
+                            return! loop n
+                        | x ->  
+                            printfn "Unexpected message for Worker: %A" x
+                            return! loop n
+                        //else return! loop n 
+                   }
             loop 0)
  
     member this.InitBuffers(bufs) = inner.PostAndReply((fun reply -> InitBuffers(bufs,reply)), timeout = 20000)
-    member this.GetData() = 
-        inner.PostAndReply((fun reply -> Get reply), timeout = 20000)
+    member this.GetData() = inner.PostAndReply((fun reply -> Get reply), timeout = 20000)
     member this.Enq(b) = inner.Post(Enq b)
     member this.Die() = inner.PostAndReply((fun reply -> Die reply), timeout = 20000)
 
@@ -136,14 +137,13 @@ type Master<'d,'r,'fr>(workers:array<Worker<'d,'r>>, fill: 'd -> Option<'d>, buf
     
     let isDataEnd = ref false
     let reader = new Reader<_>(fill)
-    let mutable isEnd = false
             
     let dataManager = new DataManager<'d>([|reader|])
 
     let postprocessor =
         postProcessF |> Option.map(fun f ->new Worker<'r,'fr>(f))        
 
-    let bufers = dataManager.InitBuffers(bufs.ToArray())
+    let buffers = dataManager.InitBuffers(bufs.ToArray())
     let freeWorkers = new System.Collections.Concurrent.ConcurrentQueue<_>(workers)
     let inner =
         MailboxProcessor.Start(fun inbox ->
@@ -163,24 +163,14 @@ type Master<'d,'r,'fr>(workers:array<Worker<'d,'r>>, fill: 'd -> Option<'d>, buf
                                             postprocessor |> Option.iter (fun p -> p.Process(a,fun _ -> ()))
                                             freeWorkers.Enqueue w
                                             dataManager.Enq b.Value)
+                                    return! loop n
                                 else 
+                                    dataManager.Die()                                
+                                    workers |> Array.iter (fun w -> w.Die())
+                                    match postprocessor with Some p -> p.Die() | None -> ()
                                     isDataEnd := true
-                        if inbox.CurrentQueueLength > 0
-                        then
-                            let! msg = inbox.Receive()
-                            match msg with
-                            | Die ch ->
-                                dataManager.Die()                                
-                                workers |> Array.iter (fun w -> w.Die())
-                                match postprocessor with Some p -> p.Die() | None -> ()
-                                isEnd <- true
-                                ch.Reply()
-                                return ()
-                            | x ->
-                                printfn "unexpected message for Worker: %A" x
-                                return! loop n 
+                                    return ()
                         else return! loop n}
             loop 0)
 
-    member this.Die() = inner.PostAndReply(fun reply -> Die reply)
     member this.IsDataEnd() = !isDataEnd

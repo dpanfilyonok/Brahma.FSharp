@@ -1,7 +1,9 @@
 source https://nuget.org/api/v2
 
+nuget Argu
 nuget FSharp.TypeProviders.StarterPack
 nuget FSharp.Quotations.Evaluator
+nuget Hopac
 nuget NuGet.CommandLine
 nuget NUnit 2.6.3
 nuget OpenCL.Net 2.2.9.0

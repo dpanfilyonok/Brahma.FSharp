@@ -56,5 +56,5 @@ type RunWithTP() =
     
     [<Test>]
     member this.``Run code with TP on GPU``() =
-        let res = Run "NVIDIA*" gpuArr
+        let res = Run "*" gpuArr
         Assert.True(res)
