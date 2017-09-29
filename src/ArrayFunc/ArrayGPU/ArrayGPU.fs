@@ -31,7 +31,7 @@ let init (inArr: array<_>) =
     let t = provider, commandQueue, length, localWorkSize
     t    
 
-let Map func (inArr: array<_>) ((provider: ComputeProvider), (commandQueue: CommandQueue), length, localWorkSize) =
+let Map func (inArr: array<_>) ((provider: ComputeProvider), (commandQueue: CommandQueue), length, localWorkSize)=
     let command = 
          <@
             fun (rng: _1D) (a: array<_>) (b: array<_>) ->
@@ -45,7 +45,7 @@ let Map func (inArr: array<_>) ((provider: ComputeProvider), (commandQueue: Comm
     let _ = commandQueue.Add(kernelRun()) 
     outArr
 
-let Mapi func (inArr: array<_>) ((provider: ComputeProvider), (commandQueue: CommandQueue), length, localWorkSize) =  
+let Mapi ((provider: ComputeProvider), (commandQueue: CommandQueue), length, localWorkSize) func (inArr: array<_>)  =  
     let command = 
         <@
             fun (rng: _1D) (a: array<_>) (b: array<_>) ->
@@ -60,7 +60,7 @@ let Mapi func (inArr: array<_>) ((provider: ComputeProvider), (commandQueue: Com
     let _ = commandQueue.Add(kernelRun()) 
     outArr
 
-let Map2 func (inArr1: array<_>) (inArr2: array<_>) ((provider: ComputeProvider), (commandQueue: CommandQueue), length, localWorkSize) = 
+let Map2 func (inArr1: array<_>) (inArr2: array<_>)  ((provider: ComputeProvider), (commandQueue: CommandQueue), length, localWorkSize) = 
     if inArr1.Length <> inArr2.Length then failwith "Arrays must have the same lengths"
     let command = 
         <@
