@@ -55,15 +55,12 @@ module BrahmaBuilder =
         member __.Bind(m, f)    = m >>= f
         member __.Return (outArr: array<_>) =
             let _ = commandQueue.Add(outArr.ToHost provider).Finish()
-            commandQueue.Dispose()
-            provider.Dispose()
-            provider.CloseAllBuffers()
             constant outArr
         member __.Delay(f)      = f ()
     
 
     
-module tests =
+module test1 =
     open BrahmaBuilder
     //defining context
     let platformName = "NVIDIA*"
@@ -92,16 +89,26 @@ module tests =
        
     let a = [|5; 7; 8; 22; 16|] 
         
-    let Indus = new BrahmaBuilder(actcontext)
+    let gpu = new BrahmaBuilder(actcontext)
+    
+     
+                
+  
     let computation1 =
-             Indus 
+             gpu 
                  { 
                                  
                      let! c = ArrayGPU.Reverse a
-                     let! d = ArrayGPU.Map <@ fun a -> a + 1 @> c
-                     return d
+                     let! d =  gpu 
+                                {                             
+                                    let! e = ArrayGPU.Reverse a
+                                    let! f = ArrayGPU.Map <@ fun a -> a + 1 @> e
+                                    return f
+                                } 
+                     let! g = ArrayGPU.Map2 <@ fun a b -> a + b @> c d
+                     return g
                    } 
-        
+  
     //Now we have to unwrap the value which we get from the computation
     //To do that we use the run function from the Reader module with the same context that we use in the computation
     let test1 = Reader.run actcontext computation1
@@ -109,14 +116,18 @@ module tests =
     printresult test1
     //We can see, that it works just as expected
     //We get the result1 equil to [|17; 23; 9; 8; 6|]
-
-    let y = 1
-    
+    commandQueue1.Dispose()
+    provider1.Dispose()
+    provider1.CloseAllBuffers()
+module test2 = 
+    open BrahmaBuilder
+    let platformName = "NVIDIA*"
+    let deviceType = DeviceType.Default    
     let provider2 =
                 try  ComputeProvider.Create(platformName, deviceType)
                 with 
                 | ex -> failwith ex.Message
-    let mutable commandQueue2 = new CommandQueue(provider1, provider1.Devices |> Seq.head) 
+    let mutable commandQueue2 = new CommandQueue(provider2, provider2.Devices |> Seq.head) 
     let length2 = 6
     
     let getLocalWorkSize2 (length) = 
@@ -132,19 +143,23 @@ module tests =
     
 
     let actcontext2 = provider2, commandQueue2, length2, localworksize2
-    let Indus2=BrahmaBuilder(actcontext2)
+    let gpu2=BrahmaBuilder(actcontext2)
 
     let computation2 =
-             Indus2 
+             gpu2 
                  { 
-                     //let a = [|5; 7; 8; 22; 16|]             
+                     let a = [|5; 7; 8; 22; 16|]             
                      let! c = ArrayGPU.Reverse a
-                     //let! d = c1 c 
-                     return c
+                     let! d = ArrayGPU.Map <@ fun a -> a + 1 @> c
+                     return d
                    } 
-    let test2 = Reader.run actcontext computation2
+    let test2 = Reader.run actcontext2 computation2
       //If we try to compose it with the same computation we get an error about the wrong worksize
-    
-
+    let printresult result = printfn "result=%A" result
+    printresult test2
+    commandQueue2.Dispose()
+    provider2.Dispose()
+    provider2.CloseAllBuffers()
+    let x = 1
 
  

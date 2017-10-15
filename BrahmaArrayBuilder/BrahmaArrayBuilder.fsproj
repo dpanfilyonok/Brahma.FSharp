@@ -38,19 +38,15 @@
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="mscorlib" />
     <Reference Include="FSharp.Core, Version=$(TargetFSharpCoreVersion), Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
       <Private>True</Private>
     </Reference>
     <Reference Include="nunit.framework">
-      <HintPath>..\..\..\..\4Programming\Brahma.FSharp-master\packages\NUnit\lib\nunit.framework.dll</HintPath>
+      <HintPath>..\packages\NUnit\lib\nunit.framework.dll</HintPath>
     </Reference>
     <Reference Include="OpenCL.Net">
-      <HintPath>..\..\..\..\4Programming\Brahma.FSharp-master\packages\OpenCL.Net\lib\net40\OpenCL.Net.dll</HintPath>
+      <HintPath>..\bin\Brahma.OpenCL\OpenCL.Net.dll</HintPath>
     </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
@@ -76,11 +72,6 @@
     <ProjectReference Include="..\src\Brahma.FSharp.OpenCL.Translator\Brahma.FSharp.OpenCL.Translator.fsproj">
       <Name>Brahma.FSharp.OpenCL.Translator</Name>
       <Project>{bbb08eb4-a2ae-430b-a29c-3b3446f69a6d}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\src\Brahma.Helpers\Brahma.Helpers.csproj">
-      <Name>Brahma.Helpers</Name>
-      <Project>{c46de069-f581-4afe-be34-387c5d46ddef}</Project>
       <Private>True</Private>
     </ProjectReference>
     <ProjectReference Include="..\src\Brahma.OpenCL\Brahma.OpenCL.csproj">
