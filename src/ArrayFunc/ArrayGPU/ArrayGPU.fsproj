@@ -53,6 +53,7 @@
     <None Include="App.config" />
     <None Include="paket.references" />
     <None Include="OpenCL.Net.dll" />
+    <None Include="nunit.framework.dll" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Brahma.FSharp.OpenCL.Core\Brahma.FSharp.OpenCL.Core.fsproj">

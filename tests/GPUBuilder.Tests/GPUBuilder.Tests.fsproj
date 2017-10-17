@@ -57,6 +57,8 @@
     <Compile Include="Tests.fs" />
     <None Include="App.config" />
     <None Include="paket.references" />
+    <None Include="OpenCL.Net.dll" />
+    <None Include="nunit.framework.dll" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\ArrayFunc\ArrayGPU\ArrayGPU.fsproj">
