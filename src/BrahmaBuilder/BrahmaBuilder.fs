@@ -3,7 +3,6 @@ open Brahma.FSharp.OpenCL.Core
 open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.Extensions 
 open OpenCL.Net
-open ArrayGPU
 
 type Reader<'environment,'a> = Reader of ('environment -> 'a)
 type ReaderM<'d,'out> = 
