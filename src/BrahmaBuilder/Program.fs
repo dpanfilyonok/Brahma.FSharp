@@ -45,7 +45,7 @@ module GPUBuilder =
             |(a,b,c,d) -> d
 
     //Implementing a builder, using the methods from Reader Monad
-    type BrahmaBuilder (actcontext: context) =     
+    type Builder (actcontext: context) =     
         let provider = prov actcontext
         let mutable commandQueue = CQ actcontext
         let length = len actcontext 

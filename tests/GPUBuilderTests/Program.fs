@@ -4,7 +4,7 @@ open Brahma.FSharp.OpenCL.Core
 open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.Extensions 
 open ArrayGPU
-open GPUBuilder 
+open BrahmaBuilder 
 
 module test1 =
     open GPUBuilder 
@@ -35,7 +35,7 @@ module test1 =
        
     let testarr = [|5; 7; 8; 22; 16|] 
         
-    let gpu = new BrahmaBuilder(actcontext)
+    let gpu = new Builder(actcontext)
     
     let func1 a = 
                gpu 
@@ -82,7 +82,7 @@ module test2 =
     
 
     let actcontext2 = provider2, commandQueue2, length2, localworksize2
-    let gpu2=BrahmaBuilder(actcontext2)
+    let gpu2=Builder(actcontext2)
 
     let computation2 =
              gpu2 
