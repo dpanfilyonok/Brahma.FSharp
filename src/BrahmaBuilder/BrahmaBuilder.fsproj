@@ -5,14 +5,14 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>d358a3c3-982c-46e8-96c2-e9d19d69e313</ProjectGuid>
+    <ProjectGuid>18a4acd0-ae05-4dbc-bea8-9a719d344a5a</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>ArrayGPU</RootNamespace>
-    <AssemblyName>ArrayGPU</AssemblyName>
+    <RootNamespace>BrahmaBuilder</RootNamespace>
+    <AssemblyName>BrahmaBuilder</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <TargetFSharpCoreVersion>4.4.0.0</TargetFSharpCoreVersion>
-    <Name>ArrayGPU</Name>
+    <Name>BrahmaBuilder</Name>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -23,7 +23,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <DocumentationFile>bin\Debug\ArrayGPU.XML</DocumentationFile>
+    <DocumentationFile>bin\Debug\BrahmaBuilder.XML</DocumentationFile>
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
@@ -34,50 +34,23 @@
     <DefineConstants>TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <DocumentationFile>bin\Release\ArrayGPU.XML</DocumentationFile>
+    <DocumentationFile>bin\Release\BrahmaBuilder.XML</DocumentationFile>
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="mscorlib" />
     <Reference Include="FSharp.Core, Version=$(TargetFSharpCoreVersion), Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
       <Private>True</Private>
     </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ArrayGPU.fs" />
+    <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="BrahmaBuilder.fs" />
     <None Include="App.config" />
     <None Include="paket.references" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\Brahma.FSharp.OpenCL.Core\Brahma.FSharp.OpenCL.Core.fsproj">
-      <Name>Brahma.FSharp.OpenCL.Core</Name>
-      <Project>{cbbc6d5c-5051-4d66-b616-a59a52a1a3f5}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\..\Brahma.FSharp.OpenCL.Extensions\Brahma.FSharp.OpenCL.Extensions.fsproj">
-      <Name>Brahma.FSharp.OpenCL.Extensions</Name>
-      <Project>{4903d3e4-f6dd-49b8-998b-470277120271}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\..\Brahma.FSharp.OpenCL.Translator\Brahma.FSharp.OpenCL.Translator.fsproj">
-      <Name>Brahma.FSharp.OpenCL.Translator</Name>
-      <Project>{bbb08eb4-a2ae-430b-a29c-3b3446f69a6d}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\..\Brahma.Helpers\Brahma.Helpers.csproj">
-      <Name>Brahma.Helpers</Name>
-      <Project>{c46de069-f581-4afe-be34-387c5d46ddef}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\..\Brahma.OpenCL\Brahma.OpenCL.csproj">
-      <Name>Brahma.OpenCL</Name>
-      <Project>{1f52ecb5-6cd2-4d76-a4b7-a23131c9d195}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-    <ProjectReference Include="..\..\Brahma\Brahma.csproj">
-      <Name>Brahma</Name>
-      <Project>{0e731438-dd9e-4444-950d-ef2de31d3e97}</Project>
-      <Private>True</Private>
-    </ProjectReference>
   </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>

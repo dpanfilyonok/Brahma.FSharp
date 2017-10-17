@@ -55,11 +55,6 @@
     <None Include="paket.references" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\src\ArrayFunc\ArrayGPU\ArrayGPU.fsproj">
-      <Name>ArrayGPU</Name>
-      <Project>{d358a3c3-982c-46e8-96c2-e9d19d69e313}</Project>
-      <Private>True</Private>
-    </ProjectReference>
     <ProjectReference Include="..\src\Brahma.FSharp.OpenCL.Core\Brahma.FSharp.OpenCL.Core.fsproj">
       <Name>Brahma.FSharp.OpenCL.Core</Name>
       <Project>{cbbc6d5c-5051-4d66-b616-a59a52a1a3f5}</Project>
