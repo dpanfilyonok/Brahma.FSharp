@@ -38,16 +38,19 @@ module test1 =
         
     let gpu = new GPUBuilder(actcontext)
     
+    let outerFunc inArr =
+                      gpu 
+                        {                             
+                         let! e = ArrayGPU.Reverse inArr
+                         let! f = ArrayGPU.Map <@ fun a -> a + 1 @> e
+                         yield f
+                        } 
+
     let func1 a = 
                gpu 
                  {                        
                      let! c = ArrayGPU.Reverse a
-                     let! d =  gpu 
-                                {                             
-                                    let! e = ArrayGPU.Reverse a
-                                    let! f = ArrayGPU.Map <@ fun a -> a + 1 @> e
-                                    yield f
-                                } 
+                     let! d = outerFunc a
                      let! g = ArrayGPU.Map2 <@ fun a b -> a + b @> c d
                      return g
                    } 
@@ -94,6 +97,5 @@ module test2 =
                      return d
                    } 
     let test2 = BrahmaBuilder.run actcontext2 computation2
-      //If we try to compose it with the same computation we get an error about the wrong worksize
     let printresult result = printfn "result=%A" result
     printresult test2
