@@ -1,4 +1,4 @@
-﻿namespace BrahmaArrayBuilder.AssemblyInfo
+﻿namespace BrahmaBuilder.AssemblyInfo
 
 open System.Reflection
 open System.Runtime.CompilerServices
@@ -7,11 +7,11 @@ open System.Runtime.InteropServices
 // Общие сведения о сборке можно задать с помощью следующего 
 // набора атрибутов. Отредактируйте эти значения атрибутов, чтобы изменить сведения,
 // связанные с этой сборкой.
-[<assembly: AssemblyTitle("BrahmaArrayBuilder")>]
+[<assembly: AssemblyTitle("BrahmaBuilder")>]
 [<assembly: AssemblyDescription("")>]
 [<assembly: AssemblyConfiguration("")>]
 [<assembly: AssemblyCompany("")>]
-[<assembly: AssemblyProduct("BrahmaArrayBuilder")>]
+[<assembly: AssemblyProduct("BrahmaBuilder")>]
 [<assembly: AssemblyCopyright("Copyright ©  2017")>]
 [<assembly: AssemblyTrademark("")>]
 [<assembly: AssemblyCulture("")>]
@@ -22,7 +22,7 @@ open System.Runtime.InteropServices
 [<assembly: ComVisible(false)>]
 
 // Следующий GUID служит для идентификации библиотеки типов, если этот проект видим для COM
-[<assembly: Guid("7b66e0d4-cef7-4137-b0dd-58e5e1d6aadf")>]
+[<assembly: Guid("ca0a733c-d2db-4e8f-840e-3e55533ef6fc")>]
 
 // Сведения о версии сборки состоят из следующих четырех значений:
 // 
