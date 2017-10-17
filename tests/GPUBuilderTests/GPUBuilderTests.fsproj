@@ -82,6 +82,11 @@
       <Project>{1f52ecb5-6cd2-4d76-a4b7-a23131c9d195}</Project>
       <Private>True</Private>
     </ProjectReference>
+    <ProjectReference Include="..\..\src\BrahmaBuilder\BrahmaBuilder.fsproj">
+      <Name>BrahmaBuilder</Name>
+      <Project>{ca0a733c-d2db-4e8f-840e-3e55533ef6fc}</Project>
+      <Private>True</Private>
+    </ProjectReference>
     <ProjectReference Include="..\..\src\Brahma\Brahma.csproj">
       <Name>Brahma</Name>
       <Project>{0e731438-dd9e-4444-950d-ef2de31d3e97}</Project>

@@ -6,8 +6,9 @@ open Brahma.FSharp.OpenCL.Extensions
 open ArrayGPU
 open BrahmaBuilder 
 
+
 module test1 =
-    open GPUBuilder 
+    open BrahmaBuilder 
     //defining context
     let platformName = "NVIDIA*"
     let deviceType = DeviceType.Default        
@@ -35,7 +36,7 @@ module test1 =
        
     let testarr = [|5; 7; 8; 22; 16|] 
         
-    let gpu = new Builder(actcontext)
+    let gpu = new GPUBuilder(actcontext)
     
     let func1 a = 
                gpu 
@@ -53,13 +54,13 @@ module test1 =
     let computation1 = func1 testarr
     //Now we have to unwrap the value which we get from the computation
     //To do that we use the run function from the Reader module with the same context that we use in the computation
-    let test1 = Reader.run actcontext computation1
+    let test1 = BrahmaBuilder.run actcontext computation1
     let printresult result = printfn "result=%A" result
     printresult test1
     //We can see, that it works just as expected
     
 module test2 = 
-    open GPUBuilder
+    open BrahmaBuilder
     let platformName = "NVIDIA*"
     let deviceType = DeviceType.Default    
     let provider2 =
@@ -82,7 +83,7 @@ module test2 =
     
 
     let actcontext2 = provider2, commandQueue2, length2, localworksize2
-    let gpu2=Builder(actcontext2)
+    let gpu2= new GPUBuilder(actcontext2)
 
     let computation2 =
              gpu2 
@@ -92,7 +93,7 @@ module test2 =
                      let! d = ArrayGPU.Map <@ fun a -> a + 1 @> c
                      return d
                    } 
-    let test2 = Reader.run actcontext2 computation2
+    let test2 = BrahmaBuilder.run actcontext2 computation2
       //If we try to compose it with the same computation we get an error about the wrong worksize
     let printresult result = printfn "result=%A" result
     printresult test2
