@@ -3,8 +3,9 @@ open Brahma.OpenCL
 open Brahma.FSharp.OpenCL.Core
 open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.Extensions 
+open Brahma.Helpers
 open ArrayGPU
-open GPUBuilder 
+open BrahmaBuilder
 
 module test1 =
     open GPUBuilder 

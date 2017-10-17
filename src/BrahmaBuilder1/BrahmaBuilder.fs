@@ -1,9 +1,10 @@
-﻿open OpenCL.Net
+﻿namespace BrahmaBuilder
+
 open Brahma.OpenCL
 open Brahma.FSharp.OpenCL.Core
 open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.Extensions 
-open ArrayGPU
+open OpenCL.Net
 
 type Reader<'environment,'a> = Reader of ('environment -> 'a)
 type ReaderM<'d,'out> = 
@@ -46,7 +47,7 @@ module GPUBuilder =
             |(a,b,c,d) -> d
 
     //Implementing a builder, using the methods from Reader Monad
-    type BrahmaBuilder (actcontext: context) =     
+    type GPUBuilder (actcontext: context) =     
         let provider = prov actcontext
         let mutable commandQueue = CQ actcontext
         let length = len actcontext 

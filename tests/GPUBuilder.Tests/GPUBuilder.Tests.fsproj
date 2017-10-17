@@ -42,6 +42,12 @@
     <Reference Include="FSharp.Core, Version=$(TargetFSharpCoreVersion), Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
       <Private>True</Private>
     </Reference>
+    <Reference Include="nunit.framework">
+      <HintPath>..\..\packages\NUnit\lib\nunit.framework.dll</HintPath>
+    </Reference>
+    <Reference Include="OpenCL.Net">
+      <HintPath>..\..\packages\OpenCL.Net\lib\net40\OpenCL.Net.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
@@ -51,6 +57,43 @@
     <Compile Include="Tests.fs" />
     <None Include="App.config" />
     <None Include="paket.references" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ArrayFunc\ArrayGPU\ArrayGPU.fsproj">
+      <Name>ArrayGPU</Name>
+      <Project>{d358a3c3-982c-46e8-96c2-e9d19d69e313}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\Brahma.FSharp.OpenCL.Core\Brahma.FSharp.OpenCL.Core.fsproj">
+      <Name>Brahma.FSharp.OpenCL.Core</Name>
+      <Project>{cbbc6d5c-5051-4d66-b616-a59a52a1a3f5}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\Brahma.FSharp.OpenCL.Extensions\Brahma.FSharp.OpenCL.Extensions.fsproj">
+      <Name>Brahma.FSharp.OpenCL.Extensions</Name>
+      <Project>{4903d3e4-f6dd-49b8-998b-470277120271}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\Brahma.Helpers\Brahma.Helpers.csproj">
+      <Name>Brahma.Helpers</Name>
+      <Project>{c46de069-f581-4afe-be34-387c5d46ddef}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\Brahma.OpenCL\Brahma.OpenCL.csproj">
+      <Name>Brahma.OpenCL</Name>
+      <Project>{1f52ecb5-6cd2-4d76-a4b7-a23131c9d195}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\BrahmaBuilder\BrahmaBuilder.fsproj">
+      <Name>BrahmaBuilder</Name>
+      <Project>{7b66e0d4-cef7-4137-b0dd-58e5e1d6aadf}</Project>
+      <Private>True</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\..\src\Brahma\Brahma.csproj">
+      <Name>Brahma</Name>
+      <Project>{0e731438-dd9e-4444-950d-ef2de31d3e97}</Project>
+      <Private>True</Private>
+    </ProjectReference>
   </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
