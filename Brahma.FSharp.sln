@@ -61,6 +61,9 @@ EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BrahmaArrayBuilder", "BrahmaArrayBuilder\BrahmaArrayBuilder.fsproj", "{7B66E0D4-CEF7-4137-B0DD-58E5E1D6AADF}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BrahmaBuilder", "BrahmaBuilder", "{520E0D42-ECB6-4485-A246-4CD103684440}"
+	ProjectSection(SolutionItems) = preProject
+		paket.references = paket.references
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

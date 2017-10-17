@@ -51,6 +51,7 @@
   <ItemGroup>
     <Compile Include="ArrayGPU.fs" />
     <None Include="App.config" />
+    <None Include="paket.references" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Brahma.FSharp.OpenCL.Core\Brahma.FSharp.OpenCL.Core.fsproj">

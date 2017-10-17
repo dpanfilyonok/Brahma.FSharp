@@ -53,8 +53,15 @@ module BrahmaBuilder =
         let mutable localWorkSize = WS actcontext
         
         member __.Bind(m, f)    = m >>= f
+        member __.Yield (outArr: array<_>) =
+            let _ = commandQueue.Add(outArr.ToHost provider).Finish()
+            constant outArr
+        member __.Zero = constant None
         member __.Return (outArr: array<_>) =
             let _ = commandQueue.Add(outArr.ToHost provider).Finish()
+            commandQueue.Dispose()
+            provider.Dispose()
+            provider.CloseAllBuffers()
             constant outArr
         member __.Delay(f)      = f ()
     
@@ -103,7 +110,7 @@ module test1 =
                                 {                             
                                     let! e = ArrayGPU.Reverse a
                                     let! f = ArrayGPU.Map <@ fun a -> a + 1 @> e
-                                    return f
+                                    yield f
                                 } 
                      let! g = ArrayGPU.Map2 <@ fun a b -> a + b @> c d
                      return g
@@ -116,9 +123,7 @@ module test1 =
     printresult test1
     //We can see, that it works just as expected
     //We get the result1 equil to [|17; 23; 9; 8; 6|]
-    commandQueue1.Dispose()
-    provider1.Dispose()
-    provider1.CloseAllBuffers()
+    
 module test2 = 
     open BrahmaBuilder
     let platformName = "NVIDIA*"
@@ -157,9 +162,5 @@ module test2 =
       //If we try to compose it with the same computation we get an error about the wrong worksize
     let printresult result = printfn "result=%A" result
     printresult test2
-    commandQueue2.Dispose()
-    provider2.Dispose()
-    provider2.CloseAllBuffers()
-    let x = 1
 
  
