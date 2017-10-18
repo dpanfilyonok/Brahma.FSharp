@@ -99,5 +99,4 @@ type ``Brahma Workflow Builder tests`` () =
                             return d
                             } 
         let test2 = BrahmaBuilder.run actcontext2 computation2
-        Assert.AreSame  (test2, [|33; 45; 17; 15; 11;|])
-
+        Assert.AreSame  (test2, [|1; 17; 23; 9; 8; 6;|])
