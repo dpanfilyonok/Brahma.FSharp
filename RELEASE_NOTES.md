@@ -1,3 +1,6 @@
+### 1.1.4
+* Fix translation of access to local ids of 2D.
+
 ### 1.1.3
 * Fix OpenCL compiller options.
 
