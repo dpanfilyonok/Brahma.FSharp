@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8"/>
-    <title>AddressSpaceQualifier<'lang> - Brahma.FSharp</title>
+    <title>Msg<'data, 'res> - Brahma.FSharp</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta name="description" content=""/>
     <meta name="author" content="Semyon Grigorev"/>
@@ -35,9 +35,10 @@
 
 
 
-<h1>AddressSpaceQualifier<'lang></h1>
+<h1>Msg<'data, 'res></h1>
 <p>
-  <span>Namespace: Brahma.FSharp.OpenCL.AST</span><br />
+  <span>Namespace: Brahma.Agents</span><br />
+  <span>Parent Module: <a href="brahma-agents-hopac.html">Hopac</a></span>
 </p>
 <div class="xmldoc">
 </div>
@@ -50,15 +51,15 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '251', 251)" onmouseover="showTip(event, '251', 251)">
-            Constant
+          <code onmouseout="hideTip(event, '190', 190)" onmouseover="showTip(event, '190', 190)">
+            Die(IVar&lt;unit&gt;)
           </code>
-          <div class="tip" id="251">
-            <strong>Signature:</strong> <br />
+          <div class="tip" id="190">
+            <strong>Signature:</strong> IVar&lt;unit&gt;<br />
                       </div>
         </td>
         <td class="xmldoc">
-            <a href="http://github.com/YaccConstructor/Brahma.FSharp/tree/master/src/Brahma.FSharp.OpenCL.AST/DeclSpecifiers.fs#L24-24" class="github-link">
+            <a href="http://github.com/YaccConstructor/Brahma.FSharp/tree/master/src/Brahma.Agents.Hopac/Brahma.Agents.Hopac.fs#L17-17" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -68,15 +69,15 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '252', 252)" onmouseover="showTip(event, '252', 252)">
-            Default
+          <code onmouseout="hideTip(event, '191', 191)" onmouseover="showTip(event, '191', 191)">
+            Enq(&#39;data)
           </code>
-          <div class="tip" id="252">
-            <strong>Signature:</strong> <br />
+          <div class="tip" id="191">
+            <strong>Signature:</strong> &#39;data<br />
                       </div>
         </td>
         <td class="xmldoc">
-            <a href="http://github.com/YaccConstructor/Brahma.FSharp/tree/master/src/Brahma.FSharp.OpenCL.AST/DeclSpecifiers.fs#L26-26" class="github-link">
+            <a href="http://github.com/YaccConstructor/Brahma.FSharp/tree/master/src/Brahma.Agents.Hopac/Brahma.Agents.Hopac.fs#L23-23" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -86,15 +87,15 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '253', 253)" onmouseover="showTip(event, '253', 253)">
-            Global
+          <code onmouseout="hideTip(event, '192', 192)" onmouseover="showTip(event, '192', 192)">
+            Fill(&#39;data,Option&lt;&#39;data&gt; -&gt; unit)
           </code>
-          <div class="tip" id="253">
-            <strong>Signature:</strong> <br />
+          <div class="tip" id="192">
+            <strong>Signature:</strong> &#39;data * Option&lt;&#39;data&gt; -&gt; unit<br />
                       </div>
         </td>
         <td class="xmldoc">
-            <a href="http://github.com/YaccConstructor/Brahma.FSharp/tree/master/src/Brahma.FSharp.OpenCL.AST/DeclSpecifiers.fs#L22-22" class="github-link">
+            <a href="http://github.com/YaccConstructor/Brahma.FSharp/tree/master/src/Brahma.Agents.Hopac/Brahma.Agents.Hopac.fs#L20-20" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -104,15 +105,15 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '254', 254)" onmouseover="showTip(event, '254', 254)">
-            Local
+          <code onmouseout="hideTip(event, '193', 193)" onmouseover="showTip(event, '193', 193)">
+            Get(IVar&lt;Option&lt;&#39;data&gt;&gt;)
           </code>
-          <div class="tip" id="254">
-            <strong>Signature:</strong> <br />
+          <div class="tip" id="193">
+            <strong>Signature:</strong> IVar&lt;Option&lt;&#39;data&gt;&gt;<br />
                       </div>
         </td>
         <td class="xmldoc">
-            <a href="http://github.com/YaccConstructor/Brahma.FSharp/tree/master/src/Brahma.FSharp.OpenCL.AST/DeclSpecifiers.fs#L23-23" class="github-link">
+            <a href="http://github.com/YaccConstructor/Brahma.FSharp/tree/master/src/Brahma.Agents.Hopac/Brahma.Agents.Hopac.fs#L22-22" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -122,15 +123,51 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '255', 255)" onmouseover="showTip(event, '255', 255)">
-            Private
+          <code onmouseout="hideTip(event, '194', 194)" onmouseover="showTip(event, '194', 194)">
+            InitBuffers(...)
           </code>
-          <div class="tip" id="255">
-            <strong>Signature:</strong> <br />
+          <div class="tip" id="194">
+            <strong>Signature:</strong> &#39;data array * IVar&lt;&#39;data array&gt;<br />
                       </div>
         </td>
         <td class="xmldoc">
-            <a href="http://github.com/YaccConstructor/Brahma.FSharp/tree/master/src/Brahma.FSharp.OpenCL.AST/DeclSpecifiers.fs#L25-25" class="github-link">
+            <a href="http://github.com/YaccConstructor/Brahma.FSharp/tree/master/src/Brahma.Agents.Hopac/Brahma.Agents.Hopac.fs#L21-21" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '195', 195)" onmouseover="showTip(event, '195', 195)">
+            PostProcess(&#39;res)
+          </code>
+          <div class="tip" id="195">
+            <strong>Signature:</strong> &#39;res<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/YaccConstructor/Brahma.FSharp/tree/master/src/Brahma.Agents.Hopac/Brahma.Agents.Hopac.fs#L19-19" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '196', 196)" onmouseover="showTip(event, '196', 196)">
+            Process(&#39;data,&#39;res -&gt; unit)
+          </code>
+          <div class="tip" id="196">
+            <strong>Signature:</strong> &#39;data * &#39;res -&gt; unit<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/YaccConstructor/Brahma.FSharp/tree/master/src/Brahma.Agents.Hopac/Brahma.Agents.Hopac.fs#L18-18" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>

@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8"/>
-    <title>StructType<'lang> - Brahma.FSharp</title>
+    <title>DataManager<'d> - Brahma.FSharp</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta name="description" content=""/>
     <meta name="author" content="Semyon Grigorev"/>
@@ -35,9 +35,10 @@
 
 
 
-<h1>StructType<'lang></h1>
+<h1>DataManager<'d></h1>
 <p>
-  <span>Namespace: Brahma.FSharp.OpenCL.AST</span><br />
+  <span>Namespace: Brahma.Agents</span><br />
+  <span>Parent Module: <a href="brahma-agents-hopac.html">Hopac</a></span>
 </p>
 <div class="xmldoc">
 </div>
@@ -50,15 +51,15 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '395', 395)" onmouseover="showTip(event, '395', 395)">
-            new(decl)
+          <code onmouseout="hideTip(event, '182', 182)" onmouseover="showTip(event, '182', 182)">
+            new(reader)
           </code>
-          <div class="tip" id="395">
-            <strong>Signature:</strong> decl:Option&lt;Struct&lt;&#39;lang&gt;&gt; -&gt; StructType&lt;&#39;lang&gt;<br />
+          <div class="tip" id="182">
+            <strong>Signature:</strong> reader:Reader&lt;&#39;d&gt; -&gt; DataManager&lt;&#39;d&gt;<br />
                       </div>
         </td>
         <td class="xmldoc">
-            <a href="http://github.com/YaccConstructor/Brahma.FSharp/tree/master/src/Brahma.FSharp.OpenCL.AST/Types.fs#L99-99" class="github-link">
+            <a href="http://github.com/YaccConstructor/Brahma.FSharp/tree/master/src/Brahma.Agents.Hopac/Brahma.Agents.Hopac.fs#L71-71" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -77,39 +78,74 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '396', 396)" onmouseover="showTip(event, '396', 396)">
-            Declaration()
+          <code onmouseout="hideTip(event, '183', 183)" onmouseover="showTip(event, '183', 183)">
+            Create
           </code>
-          <div class="tip" id="396">
-            <strong>Signature:</strong> unit -&gt; Option&lt;Struct&lt;&#39;lang&gt;&gt;<br />
+          <div class="tip" id="183">
+            <strong>Signature:</strong> Job&lt;Ch&lt;Msg&lt;&#39;d,obj&gt;&gt;&gt;<br />
                       </div>
         </td>
         <td class="xmldoc">
-            <a href="http://github.com/YaccConstructor/Brahma.FSharp/tree/master/src/Brahma.FSharp.OpenCL.AST/Types.fs#L101-101" class="github-link">
+            <a href="http://github.com/YaccConstructor/Brahma.FSharp/tree/master/src/Brahma.Agents.Hopac/Brahma.Agents.Hopac.fs#L72-72" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
           
-              <p>CompiledName: <code>set_Declaration</code></p>
+              <p>CompiledName: <code>get_Create</code></p>
         </td>
       </tr>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '397', 397)" onmouseover="showTip(event, '397', 397)">
-            Declaration()
+          <code onmouseout="hideTip(event, '184', 184)" onmouseover="showTip(event, '184', 184)">
+            Enq(inCh b)
           </code>
-          <div class="tip" id="397">
-            <strong>Signature:</strong> unit -&gt; unit<br />
-                      </div>
+          <div class="tip" id="184">
+            <strong>Signature:</strong> inCh:Ch&lt;Msg&lt;&#39;?7275,&#39;?7276&gt;&gt; -&gt; b:&#39;?7275 -&gt; Job&lt;unit&gt;<br />
+                          <strong>Type parameters:</strong> '?7276          </div>
         </td>
         <td class="xmldoc">
-            <a href="http://github.com/YaccConstructor/Brahma.FSharp/tree/master/src/Brahma.FSharp.OpenCL.AST/Types.fs#L101-101" class="github-link">
+            <a href="http://github.com/YaccConstructor/Brahma.FSharp/tree/master/src/Brahma.Agents.Hopac/Brahma.Agents.Hopac.fs#L117-117" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
           
-              <p>CompiledName: <code>get_Declaration</code></p>
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '185', 185)" onmouseover="showTip(event, '185', 185)">
+            GetData(inCh)
+          </code>
+          <div class="tip" id="185">
+            <strong>Signature:</strong> inCh:Ch&lt;Msg&lt;&#39;?7279,&#39;?7280&gt;&gt; -&gt; Alt&lt;Option&lt;&#39;?7279&gt;&gt;<br />
+                          <strong>Type parameters:</strong> '?7280          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/YaccConstructor/Brahma.FSharp/tree/master/src/Brahma.Agents.Hopac/Brahma.Agents.Hopac.fs#L118-118" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '186', 186)" onmouseover="showTip(event, '186', 186)">
+            InitBuffers(ch bufs)
+          </code>
+          <div class="tip" id="186">
+            <strong>Signature:</strong> ch:Ch&lt;Msg&lt;&#39;?7271,&#39;?7272&gt;&gt; -&gt; (bufs:&#39;?7271 array) -&gt; Job&lt;IVar&lt;&#39;?7271 array&gt;&gt;<br />
+                          <strong>Type parameters:</strong> '?7272          </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/YaccConstructor/Brahma.FSharp/tree/master/src/Brahma.Agents.Hopac/Brahma.Agents.Hopac.fs#L114-114" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
         </td>
       </tr>
     </tbody>

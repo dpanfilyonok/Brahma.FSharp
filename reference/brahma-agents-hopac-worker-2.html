@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8"/>
-    <title>RandomExtensions - Brahma.FSharp</title>
+    <title>Worker<'d, 'r> - Brahma.FSharp</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta name="description" content=""/>
     <meta name="author" content="Semyon Grigorev"/>
@@ -35,29 +35,80 @@
 
 
 
-<h1>RandomExtensions</h1>
+<h1>Worker<'d, 'r></h1>
 <p>
-  <span>Namespace: Brahma.Helpers</span><br />
+  <span>Namespace: Brahma.Agents</span><br />
+  <span>Parent Module: <a href="brahma-agents-hopac.html">Hopac</a></span>
 </p>
 <div class="xmldoc">
 </div>
-  <h3>Static members</h3>
+  <h3>Constructors</h3>
   <table class="table table-bordered member-list">
     <thead>
-      <tr><td>Static member</td><td>Description</td></tr>
+      <tr><td>Constructor</td><td>Description</td></tr>
     </thead>
     <tbody>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '501', 501)" onmouseover="showTip(event, '501', 501)">
-            Random(random, low, high)
+          <code onmouseout="hideTip(event, '200', 200)" onmouseover="showTip(event, '200', 200)">
+            new(f)
           </code>
-          <div class="tip" id="501">
-            <strong>Signature:</strong> (random:Random * low:float32 * high:float32) -&gt; float32<br />
+          <div class="tip" id="200">
+            <strong>Signature:</strong> (f:(&#39;d -&gt; &#39;r)) -&gt; Worker&lt;&#39;d,&#39;r&gt;<br />
                       </div>
         </td>
         <td class="xmldoc">
+            <a href="http://github.com/YaccConstructor/Brahma.FSharp/tree/master/src/Brahma.Agents.Hopac/Brahma.Agents.Hopac.fs#L49-49" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+              <p>CompiledName: <code>.ctor</code></p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <h3>Instance members</h3>
+  <table class="table table-bordered member-list">
+    <thead>
+      <tr><td>Instance member</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '201', 201)" onmouseover="showTip(event, '201', 201)">
+            Create
+          </code>
+          <div class="tip" id="201">
+            <strong>Signature:</strong> Job&lt;Ch&lt;Msg&lt;&#39;d,&#39;r&gt;&gt;&gt;<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/YaccConstructor/Brahma.FSharp/tree/master/src/Brahma.Agents.Hopac/Brahma.Agents.Hopac.fs#L51-51" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+              <p>CompiledName: <code>get_Create</code></p>
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '202', 202)" onmouseover="showTip(event, '202', 202)">
+            Process(inCh (a, continuation))
+          </code>
+          <div class="tip" id="202">
+            <strong>Signature:</strong> inCh:Ch&lt;Msg&lt;&#39;?7263,&#39;?7264&gt;&gt; -&gt; (a:&#39;?7263 * continuation:(&#39;?7264 -&gt; unit)) -&gt; Job&lt;unit&gt;<br />
+                      </div>
+        </td>
+        <td class="xmldoc">
+            <a href="http://github.com/YaccConstructor/Brahma.FSharp/tree/master/src/Brahma.Agents.Hopac/Brahma.Agents.Hopac.fs#L68-68" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
           
         </td>
       </tr>
