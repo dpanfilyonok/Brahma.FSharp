@@ -55,6 +55,31 @@ type Translator() =
     let a = [|0..3|]
 
     [<Test>]
+    member this.``LocalID of 1D``() = 
+        let command = 
+            <@ 
+                fun (range:_1D) (buf:array<int>) -> 
+                    let id = range.LocalID0
+                    buf.[id] <- 0
+            @>
+
+        checkCode command "LocalID1D.gen" "LocalID1D.cl"
+
+
+    [<Test>]
+    member this.``LocalID of 2D``() = 
+        let command = 
+            <@ 
+                fun (range:_2D) (buf:array<int>) -> 
+                    let v = range.LocalID0
+                    let id = range.LocalID1
+                    buf.[id] <- v
+            @>
+
+        checkCode command "LocalID2D.gen" "LocalID2D.cl"
+
+
+    [<Test>]
     member this.``Array item set``() = 
         let command = 
             <@ 
