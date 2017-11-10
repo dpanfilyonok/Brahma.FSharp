@@ -131,8 +131,9 @@ type FSQuotationToOpenCLTranslator() =
                 if contextList.[i].Flags.enableFP64
                 then res.Add(new CLPragma<_>(CLFP64))
                 List.ofSeq res
+            let topLevelVarDecls = contextList.[i].TopLevelVarsDeclarations |> Seq.cast<_> |> List.ofSeq 
             let translatedTuples = contextList.[i].tupleList |> Seq.cast<_> |> List.ofSeq 
-            listCLFun <- pragmas@translatedTuples@types@listCLFun@[mainKernelFun]
+            listCLFun <- pragmas@translatedTuples@topLevelVarDecls@types@listCLFun@[mainKernelFun]
         new AST<_>(listCLFun)
 
     let translate qExpr translatorOptions =

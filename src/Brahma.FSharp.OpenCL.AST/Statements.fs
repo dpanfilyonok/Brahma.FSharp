@@ -15,16 +15,21 @@
 
 namespace Brahma.FSharp.OpenCL.AST
 
-type VarDecl<'lang> (vType:Type<'lang>,name:string ,expr:Option<Expression<'lang>>) =
+type VarDecl<'lang> (vType:Type<'lang>, name:string, expr:Option<Expression<'lang>>, ?spaceModifier:AddressSpaceQualifier<'lang>) =        
     inherit Statement<'lang>()
-    let mutable isLocal = false
+    let mutable spaceModifier = spaceModifier
+    interface TopDef<'lang>    
     override this.Children = []
     member this.Type = vType
     member this.Name = name
     member this.Expr = expr
-    member this.IsLocal
-        with get() = isLocal
-        and set v = isLocal <- v
+    member this.SpaceModifier
+        with get() = spaceModifier
+        and set v = spaceModifier <- v
+    member this.IsLocal () =
+        match spaceModifier with
+        | Some Local -> true
+        | _ -> false
 
 type Assignment<'lang> (vName:Property<'lang>,value:Expression<'lang>)=
     inherit Statement<'lang>()

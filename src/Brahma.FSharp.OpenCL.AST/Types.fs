@@ -85,7 +85,8 @@ type StructField<'lang> =
     new (fName, fType) = {FName = fName; FType = fType}
 
 type Struct<'lang>(name: string, fields: List<StructField<'lang>>) =
-    inherit TopDef<'lang>()
+    inherit Node<'lang>()
+    interface TopDef<'lang>
     override this.Children = []
     member this.Fields = fields
     member this.Name = name

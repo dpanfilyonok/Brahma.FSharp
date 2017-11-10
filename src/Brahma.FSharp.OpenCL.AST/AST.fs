@@ -17,3 +17,13 @@ namespace Brahma.FSharp.OpenCL.AST
 
 type AST<'lang>(topDefs:List<TopDef<'lang>>) = 
     member this.TopDefs = topDefs
+
+//type TopLevelVarDecl<'lang>(name: string, _type:Type<'lang>, spaceModifier:AddressSpaceQualifier<'lang>, ?value: obj) =
+//    inherit TopDef<'lang>()
+//    override this.Children = []
+//    member this.Name = name
+//    member this.Type = _type
+//    member this.SpaceModifier = spaceModifier
+//    member this.Value = value
+
+    

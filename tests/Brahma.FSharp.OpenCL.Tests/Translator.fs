@@ -685,6 +685,14 @@ type Translator() =
             @> 
         checkCode command "Checking of Image2D.gen" "Checking of Image2D.cl"
 
+    [<Test>]
+    member this.``Constant array translation. Test 1``() =
+        let cArray1 = [|1;2;3|]
+        let command = 
+            <@ fun (range:_1D) (buf:array<int>) ->                     
+                    buf.[0] <- cArray1.[1]
+            @>
+        checkCode command "Constant array translation. Test 1.gen" "Constant array translation. Test 1.cl"
 
 //[<EntryPoint>]
 //let f _ =

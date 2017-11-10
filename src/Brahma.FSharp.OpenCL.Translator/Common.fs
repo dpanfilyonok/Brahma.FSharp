@@ -27,7 +27,8 @@ type Flags () =
 type TranslatorOption =
     | BoolAsBit
 
-type TargetContext<'lang,'vDecl>() =
+type TargetContext<'lang, 'vDecl>() =
+    let topLevelVarsDeclarations = new ResizeArray<'vDecl>()
     let varDecls = new ResizeArray<'vDecl>()    
     let mutable flags = new Flags()
     let mutable namer = new Namer()
@@ -42,6 +43,8 @@ type TargetContext<'lang,'vDecl>() =
     member this.tupleNumber 
         with get() = tn
         and set tn2 = tn <- tn2
+    member this.TopLevelVarsDeclarations
+        with get() = topLevelVarsDeclarations
     member this.VarDecls
         with get() = varDecls
     member this.Flags

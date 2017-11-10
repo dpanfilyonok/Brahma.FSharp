@@ -329,3 +329,48 @@ type Translator() =
         Assert.AreEqual(expected, inArray)
         commandQueue.Dispose()        
         provider.CloseAllBuffers()
+
+
+let _go() =
+    let provider =
+        try ComputeProvider.Create("*", DeviceType.Default)
+        with
+        | e -> failwithf "%A" e.Message
+
+    let mutable commandQueue = new Brahma.OpenCL.CommandQueue(provider, provider.Devices |> Seq.head)
+
+    let gauss x cPI mean sigma =
+        let num = exp( - 0.5 * (pown ((x-mean)/sigma) 2) + (pown (mean/sigma) 2))
+        let denum = (2.0 * cPI * sigma * sigma)
+        sqrt(num / denum)
+    let mean = 7.5
+    let sigma = 8.
+    let cPI= 3.14159265358979323846
+    let weights = Array.init 16 (fun x -> float32(gauss (float x) cPI mean sigma))
+    let total = Array.fold (+) (float32 0) weights
+    let scratch = Array.init (4 * 49) (fun _ -> byte 0)
+
+    let command global_memory_index local_memory_index= <@ fun (range:_2D) (buf:array<byte>) (dst:array<byte>)->
+        let i = range.GlobalID0
+        let j = range.GlobalID1
+        let local_buf = local scratch
+        local_buf.[(%local_memory_index) range.LocalID0 range.LocalID1] <- buf.[(%global_memory_index) i j]
+        local_buf.[(%local_memory_index) (range.LocalID0 + 16) range.LocalID1] <- buf.[(%global_memory_index) (i + 16) j]
+        local_buf.[(%local_memory_index) (range.LocalID0 + 32) range.LocalID1] <- buf.[(%global_memory_index) (i + 32) j]
+        barrier ()
+        let mutable res = float32 0.
+        for k in 0..15 do
+            res <- res + weights.[k] * float32 local_buf.[(%local_memory_index) (range.LocalID0 + 16 + k) range.LocalID1]
+            done
+        dst.[(%global_memory_index) i j] <-  byte (res / total)
+    @>
+
+    let stride = 3//img.Width
+    let kernel, kernelprepare, kernelrun = provider.Compile (command <@ fun i j -> (i + j * stride) * 3 + 1 @> <@ fun i j -> i * 16 + j @> )
+    printfn "%A" kernel
+
+_go()
+
+//do
+// let t = new Brahma.FSharp.OpenCL.Tests.Translator()
+// t.``Constant array translation. Test 1``()

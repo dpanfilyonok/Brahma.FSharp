@@ -24,12 +24,20 @@ open Microsoft.FSharp.Collections
 let rec private printAssignment (a:Assignment<'lang>) =
     [Expressions.Print a.Name; wordL "="; Expressions.Print a.Value] |> spaceListL
 
+and private printSpaceModeifier (sm:AddressSpaceQualifier<_>) =
+    match sm with
+    | Global   -> wordL "__global"
+    | Local    -> wordL "__local"
+    | Constant -> wordL "__constant"
+    | Private  -> wordL "__private"
+    | Default  -> wordL "__default"
+
 and private printVarDecl (vd:VarDecl<'lang>) =
-    [ if vd.IsLocal then yield wordL "__local"
+    [ if vd.SpaceModifier.IsSome then yield printSpaceModeifier vd.SpaceModifier.Value
     ; yield Types.Print vd.Type
     ; yield wordL vd.Name
     ; if vd.Type :? ArrayType<_> then yield wordL "["  ^^ wordL (string vd.Type.Size)  ^^ wordL "]"
-    ; if vd.Expr.IsSome && not vd.IsLocal then yield [wordL "="; Expressions.Print vd.Expr.Value] |> spaceListL
+    ; if vd.Expr.IsSome && not <| vd.IsLocal () then yield [wordL "="; Expressions.Print vd.Expr.Value] |> spaceListL
     ] |> spaceListL
 
 and private printVar (v: Variable<'lang>) =

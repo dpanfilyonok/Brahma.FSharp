@@ -470,6 +470,15 @@ and Translate expr (targetContext:TargetContext<_,_>) =
         r :> Node<_>,tContext
     | Patterns.TypeTest(expr,sType) -> "TypeTest is not suported:" + string expr|> failwith
     | Patterns.UnionCaseTest(expr,unionCaseInfo) -> "UnionCaseTest is not suported:" + string expr|> failwith
+    | Patterns.ValueWithName(_obj,sType,name) -> 
+        if sType.ToString().EndsWith "[]"
+        then
+            targetContext.Namer.AddVar name
+            let res = translateValue _obj sType  targetContext  
+            targetContext.TopLevelVarsDeclarations.Add(new VarDecl<_>(res.Type, name, Some(res :> Expression<_>), AddressSpaceQualifier.Constant))
+            let var = new Var(name, sType)
+            translateVar var targetContext :> Node<_>, targetContext
+        else translateValue _obj sType  targetContext :> Node<_> , targetContext 
     | Patterns.Value(_obj,sType) -> translateValue _obj sType  targetContext :> Node<_> , targetContext 
     | Patterns.Var var -> translateVar var targetContext :> Node<_>, targetContext
     | Patterns.VarSet(var,expr) -> 
@@ -494,7 +503,7 @@ and private translateLet var expr inExpr (targetContext:TargetContext<_,_>) =
                 expr
         | other -> other            
     let vDecl = translateBinding var bName valueExpression targetContext
-    vDecl.IsLocal <- isLocal
+    if isLocal then vDecl.SpaceModifier <- Some Local
     targetContext.VarDecls.Add vDecl    
     targetContext.Namer.LetIn var.Name    
     

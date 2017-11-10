@@ -29,7 +29,8 @@ type FunFormalArg<'lang>(declSpecs:DeclSpecifierPack<'lang>, name:string) =
         | _ -> false
 
 type FunDecl<'lang>(declSpecs:DeclSpecifierPack<'lang>, name:string, args:List<FunFormalArg<'lang>>, body:Statement<'lang>) =
-    inherit TopDef<'lang>()
+    inherit Node<'lang>()
+    interface TopDef<'lang>    
     override this.Children = []
     member this.DeclSpecs = declSpecs
     member this.Name = name

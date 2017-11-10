@@ -21,6 +21,7 @@ type CLPragmaType<'lang> =
     | CLFP64
 
 type CLPragma<'lang>(pragmaType:CLPragmaType<'lang>) =
-    inherit TopDef<'lang>()
+    inherit Node<'lang>()
+    interface TopDef<'lang>
     override this.Children = []
     member this.Type = pragmaType
