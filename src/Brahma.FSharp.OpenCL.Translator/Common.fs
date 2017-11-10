@@ -28,7 +28,7 @@ type TranslatorOption =
     | BoolAsBit
 
 type TargetContext<'lang, 'vDecl>() =
-    let topLevelVarsDeclarations = new ResizeArray<'vDecl>()
+    let mutable topLevelVarsDeclarations = new ResizeArray<'vDecl>()
     let varDecls = new ResizeArray<'vDecl>()    
     let mutable flags = new Flags()
     let mutable namer = new Namer()
@@ -39,12 +39,14 @@ type TargetContext<'lang, 'vDecl>() =
     member val tupleDecls = new Dictionary<string, int>() 
     member val tupleList = new List<Struct<Lang>>()    
     member val UserDefinedTypes = new ResizeArray<System.Type>()
+    member val InLocal = false with get, set
     member val UserDefinedTypesOpenCLDeclaration = new System.Collections.Generic.Dictionary<string,Brahma.FSharp.OpenCL.AST.Struct<'lang>>()
     member this.tupleNumber 
         with get() = tn
         and set tn2 = tn <- tn2
     member this.TopLevelVarsDeclarations
         with get() = topLevelVarsDeclarations
+        and  set v = topLevelVarsDeclarations <- v
     member this.VarDecls
         with get() = varDecls
     member this.Flags

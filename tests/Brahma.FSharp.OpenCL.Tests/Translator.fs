@@ -690,9 +690,30 @@ type Translator() =
         let cArray1 = [|1;2;3|]
         let command = 
             <@ fun (range:_1D) (buf:array<int>) ->                     
-                    buf.[0] <- cArray1.[1]
+                buf.[0] <- cArray1.[1]
             @>
         checkCode command "Constant array translation. Test 1.gen" "Constant array translation. Test 1.cl"
+
+    [<Test>]
+    member this.``Constant array translation. Test 2``() =
+        let cArray1 = [|1;2;3|]
+        let command = 
+            <@ fun (range:_1D) (buf:array<int>) ->                     
+                buf.[0] <- 1 + cArray1.[1]
+            @>
+        checkCode command "Constant array translation. Test 1.gen" "Constant array translation. Test 1.cl"
+
+
+    [<Ignore("Complex initialization of local vars is not supported.")>]
+    [<Test>]
+    member this.``Constant array translation. Local copy test 1``() =
+        let cArray1 = [|1;2;3|]
+        let command = 
+            <@ fun (range:_1D) (buf:array<int>) ->
+                let c = local (Array.zeroCreate 3)//cArray1         
+                buf.[0] <- c.[1]
+            @>
+        checkCode command "Constant array translation. Local copy test 1.gen" "Constant array translation. Local copy test 1.cl"
 
 //[<EntryPoint>]
 //let f _ =

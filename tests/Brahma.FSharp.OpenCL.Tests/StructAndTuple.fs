@@ -349,11 +349,15 @@ let _go() =
     let weights = Array.init 16 (fun x -> float32(gauss (float x) cPI mean sigma))
     let total = Array.fold (+) (float32 0) weights
     let scratch = Array.init (4 * 49) (fun _ -> byte 0)
+    let size = 4 * 49 
 
     let command global_memory_index local_memory_index= <@ fun (range:_2D) (buf:array<byte>) (dst:array<byte>)->
         let i = range.GlobalID0
         let j = range.GlobalID1
-        let local_buf = local scratch
+        let local_buf = local (Array.zeroCreate size)
+        if range.LocalID0 = 0 && range.LocalID1 = 0
+        then for i in 0.. size - 1 do local_buf.[i] <- byte 0
+        barrier ()
         local_buf.[(%local_memory_index) range.LocalID0 range.LocalID1] <- buf.[(%global_memory_index) i j]
         local_buf.[(%local_memory_index) (range.LocalID0 + 16) range.LocalID1] <- buf.[(%global_memory_index) (i + 16) j]
         local_buf.[(%local_memory_index) (range.LocalID0 + 32) range.LocalID1] <- buf.[(%global_memory_index) (i + 32) j]
@@ -373,4 +377,4 @@ _go()
 
 //do
 // let t = new Brahma.FSharp.OpenCL.Tests.Translator()
-// t.``Constant array translation. Test 1``()
+// t.``Constant array translation. Test 2``()

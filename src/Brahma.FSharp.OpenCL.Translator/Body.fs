@@ -24,6 +24,7 @@ let private clearContext (targetContext:TargetContext<'a,'b>) =
     let c = new TargetContext<'a,'b>()
     c.Namer <- targetContext.Namer
     c.Flags <- targetContext.Flags
+    c.TopLevelVarsDeclarations <- targetContext.TopLevelVarsDeclarations
     for td in targetContext.tupleDecls do c.tupleDecls.Add(td.Key, td.Value)
     for t in targetContext.tupleList do c.tupleList.Add(t)
     c.tupleNumber <- targetContext.tupleNumber
@@ -281,7 +282,7 @@ and translateForIntegerRangeLoop (i:Var) (from:Expr) (_to:Expr) (_do:Expr) (targ
     let body,tContext = Translate _do (clearContext targetContext)
     let cond = new Binop<_>(LessEQ, v, condExpr)
     let condModifier = new Unop<_>(UOp.Incr,v)   
-    targetContext.Namer.LetOut()
+    targetContext.Namer.LetOut()    
     new ForIntegerLoop<_>(var,cond, condModifier,toStb body),targetContext
 
 and translateWhileLoop condExpr bodyExpr targetContext =
@@ -471,7 +472,7 @@ and Translate expr (targetContext:TargetContext<_,_>) =
     | Patterns.TypeTest(expr,sType) -> "TypeTest is not suported:" + string expr|> failwith
     | Patterns.UnionCaseTest(expr,unionCaseInfo) -> "UnionCaseTest is not suported:" + string expr|> failwith
     | Patterns.ValueWithName(_obj,sType,name) -> 
-        if sType.ToString().EndsWith "[]"
+        if sType.ToString().EndsWith "[]" && not targetContext.InLocal
         then
             targetContext.Namer.AddVar name
             let res = translateValue _obj sType  targetContext  
@@ -498,11 +499,13 @@ and private translateLet var expr inExpr (targetContext:TargetContext<_,_>) =
         | Patterns.Call (exprOpt,mInfo,args) ->
             if mInfo.Name.Equals("local") then
                 isLocal <- true
+                targetContext.InLocal <- true
                 args.[0]
             else
                 expr
         | other -> other            
     let vDecl = translateBinding var bName valueExpression targetContext
+    targetContext.InLocal <- false
     if isLocal then vDecl.SpaceModifier <- Some Local
     targetContext.VarDecls.Add vDecl    
     targetContext.Namer.LetIn var.Name    
