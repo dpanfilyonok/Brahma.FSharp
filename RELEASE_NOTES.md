@@ -1,3 +1,6 @@
+### 1.1.5
+* Constant array translation improved.
+
 ### 1.1.4
 * Fix translation of access to local ids of 2D.
 
