@@ -1,4 +1,4 @@
-﻿#region License and Copyright Notice
+#region License and Copyright Notice
 // Copyright (c) 2010 Ananth B.
 // All rights reserved.
 // 

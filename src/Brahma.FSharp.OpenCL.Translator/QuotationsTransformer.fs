@@ -1,15 +1,15 @@
 ﻿// Copyright (c) 2013 Semyon Grigorev <rsdpisuy@gmail.com>
 // All rights reserved.
-// 
+//
 // The contents of this file are made available under the terms of the
 // Eclipse Public License v1.0 (the "License") which accompanies this
 // distribution, and is available at the following URL:
 // http://www.opensource.org/licenses/eclipse-1.0.php
-// 
+//
 // Software distributed under the License is distributed on an "AS IS" basis,
 // WITHOUT WARRANTY OF ANY KIND, either expressed or implied. See the License for
 // the specific language governing rights and limitations under the License.
-// 
+//
 // By using this software in any fashion, you are agreeing to be bound by the
 // terms of the License.
 
@@ -18,28 +18,29 @@ module Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
 open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.Translator.Type
 open Microsoft.FSharp.Collections
+open FSharpx.Collections
 
 let mainKernelName = "brahmaKernel"
 
 let apply (expr:Expr) =
-    let rec go expr = 
-        match expr with    
+    let rec go expr =
+        match expr with
         | Patterns.Application (expr1,expr2) -> translateApplication expr
-        | Patterns.Call (exprOpt,mInfo,args) -> 
+        | Patterns.Call (exprOpt,mInfo,args) ->
             match exprOpt with
             | Some e -> Expr.Call(go e, mInfo, args |> List.map go)
             | None -> Expr.Call(mInfo, args |> List.map go)
         | Patterns.ForIntegerRangeLoop (i, from, _to, _do) ->
-            Expr.ForIntegerRangeLoop(i, from, _to, go _do)            
+            Expr.ForIntegerRangeLoop(i, from, _to, go _do)
         | Patterns.IfThenElse (cond, thenExpr, elseExpr) ->
-            Expr.IfThenElse(go cond, go thenExpr, go elseExpr)        
+            Expr.IfThenElse(go cond, go thenExpr, go elseExpr)
         | Patterns.Let (var, expr, inExpr) ->
             Expr.Let(var, go expr, go inExpr)
-        | Patterns.Sequential(expr1,expr2) -> 
-            Expr.Sequential(go expr1, go expr2)        
-        | Patterns.VarSet(var,expr) -> 
+        | Patterns.Sequential(expr1,expr2) ->
+            Expr.Sequential(go expr1, go expr2)
+        | Patterns.VarSet(var,expr) ->
             Expr.VarSet(var, go expr)
-        | Patterns.WhileLoop(condExpr,bodyExpr) -> 
+        | Patterns.WhileLoop(condExpr,bodyExpr) ->
             Expr.WhileLoop(go condExpr, go bodyExpr)
         | Patterns.Lambda(v,e) ->
             Expr.Lambda(v,go e)
@@ -47,12 +48,12 @@ let apply (expr:Expr) =
 
     and translateApplication expr =
         let rec _go expr =
-            match expr with            
+            match expr with
             | Patterns.Application (Patterns.Lambda (fv,e),v) ->
                 e.Substitute(fun x -> if x = fv then Some v else None) |> _go
             | Patterns.Application (e,v) ->
                 let fb = go e
-                Expr.Application(fb,v) |> _go 
+                Expr.Application(fb,v) |> _go
             | e -> e
         let body = _go expr
         body
@@ -60,7 +61,7 @@ let apply (expr:Expr) =
     go expr
 
 let inlineLamdas (expr:Expr) =
-    let rec go expr = 
+    let rec go expr =
         match expr with
         | Patterns.Let(var, expr, inExpr) ->
             match expr with
@@ -74,15 +75,15 @@ let inlineLamdas (expr:Expr) =
             | Some e -> Expr.Call(go e, mInfo, args |> List.map go)
             | None -> Expr.Call(mInfo, args |> List.map go)
         | Patterns.ForIntegerRangeLoop (i, from, _to, _do) ->
-            Expr.ForIntegerRangeLoop(i, from, _to, go _do)            
+            Expr.ForIntegerRangeLoop(i, from, _to, go _do)
         | Patterns.IfThenElse (cond, thenExpr, elseExpr) ->
-            Expr.IfThenElse(go cond, go thenExpr, go elseExpr)        
-        | Patterns.Sequential(expr1,expr2) -> 
-            Expr.Sequential(go expr1, go expr2)        
-        | Patterns.VarSet(var,expr) -> 
+            Expr.IfThenElse(go cond, go thenExpr, go elseExpr)
+        | Patterns.Sequential(expr1,expr2) ->
+            Expr.Sequential(go expr1, go expr2)
+        | Patterns.VarSet(var,expr) ->
             Expr.VarSet(var, go expr)
-        | Patterns.WhileLoop(condExpr,bodyExpr) -> 
-            Expr.WhileLoop(go condExpr, go bodyExpr)            
+        | Patterns.WhileLoop(condExpr,bodyExpr) ->
+            Expr.WhileLoop(go condExpr, go bodyExpr)
         | other -> other
     go expr
 
@@ -91,34 +92,34 @@ let isLetFun expr =
     | Patterns.Let (var, ExprShape.ShapeLambda(lv, lb), afterExpr) -> true
     | _ -> false
 
-let rec recLet expr = 
+let rec recLet expr =
     match expr with
     | Patterns.Let(v, valExpr, inExpr1) ->
         match valExpr with
-        | Patterns.Let (var, inExpr, afterExpr) -> 
+        | Patterns.Let (var, inExpr, afterExpr) ->
             let newLet = Expr.Let(v, afterExpr, inExpr1) |> recLet
             Expr.Let(var, inExpr, newLet) |> letFunUp
         | ExprShape.ShapeLambda(lv, lb) ->
             let newLet = recLet valExpr
             match newLet with
-            | Patterns.Let (var, inExpr, afterExpr) -> 
+            | Patterns.Let (var, inExpr, afterExpr) ->
                 let newLetIn = (Expr.Let(v, afterExpr , inExpr1))
                 letFunUp (Expr.Let(var, inExpr, newLetIn))
-            | _ -> Expr.Let(v, newLet , inExpr1) 
+            | _ -> Expr.Let(v, newLet , inExpr1)
         | _ -> Expr.Let(v, recLet valExpr, inExpr1)
-    | ExprShape.ShapeVar var -> expr           
+    | ExprShape.ShapeVar var -> expr
     | ExprShape.ShapeLambda(lv, lb1) ->
         match lb1 with
         | ExprShape.ShapeLambda(lv1, lb) ->
             let lb = recLet lb1
             match lb with
             | Patterns.Let (var, inExpr, afterExpr) when isLetFun lb ->
-                Expr.Let(var, inExpr, (Expr.Lambda(lv, afterExpr)))                
+                Expr.Let(var, inExpr, (Expr.Lambda(lv, afterExpr)))
             | _ -> Expr.Lambda(lv, lb)
-        | _ -> 
+        | _ ->
             let funUpLB = letFunUp lb1
             match funUpLB with
-            | Patterns.Let (var, inExpr, afterExpr) when isLetFun funUpLB ->                
+            | Patterns.Let (var, inExpr, afterExpr) when isLetFun funUpLB ->
                 Expr.Let(var, inExpr, (Expr.Lambda(lv, afterExpr)))
             | _ -> Expr.Lambda(lv, funUpLB)
 
@@ -136,7 +137,7 @@ and letFunUp expr =
             then Expr.Let(v, iE, retFunUp)
             else
                 match retFunUp with
-                | Patterns.Let(vF, iEF, bF) when isLetFun retFunUp ->                    
+                | Patterns.Let(vF, iEF, bF) when isLetFun retFunUp ->
                     let newAfterExpr = Expr.Let(v, iE, bF)
                     Expr.Let(vF, iEF, letFunUp newAfterExpr)
                 | Patterns.Let(vF, iEF, bF) ->
@@ -158,19 +159,19 @@ and letFunUp expr =
             then
                 let newAfterExpr = Expr.IfThenElse(cond, afterExpr2, elseExpr)
                 Expr.Let(var2, inExpr2, recLet newAfterExpr)
-            else 
+            else
                 let newElseExpr = letFunUp elseExpr
                 match newElseExpr with
                 | Patterns.Let (var1, inExpr1, afterExpr1) when isLetFun newElseExpr ->
                     let newAfterExpr = Expr.IfThenElse(cond, thenExpr, afterExpr1)
-                    Expr.Let(var1, inExpr1, recLet newAfterExpr)                    
+                    Expr.Let(var1, inExpr1, recLet newAfterExpr)
                 | _ -> Expr.IfThenElse(cond, thenExpr, elseExpr)
-        | _ -> 
+        | _ ->
             let newElseExpr = letFunUp elseExpr
             match newElseExpr with
-            | Patterns.Let (var1, inExpr1, afterExpr1) when isLetFun newElseExpr ->                
+            | Patterns.Let (var1, inExpr1, afterExpr1) when isLetFun newElseExpr ->
                 let newAfterExpr = Expr.IfThenElse(cond, thenExpr, afterExpr1)
-                Expr.Let(var1, inExpr1, recLet newAfterExpr)                
+                Expr.Let(var1, inExpr1, recLet newAfterExpr)
             | _ -> Expr.IfThenElse(cond, thenExpr,elseExpr)
 
     | Patterns.ForIntegerRangeLoop(v, f, t, body) ->
@@ -191,20 +192,20 @@ and letFunUp expr =
 
     | _ -> expr
 
-let rec transform expr = 
+let rec transform expr =
     match expr with
     | ExprShape.ShapeLambda(lv, lb) ->
         Expr.Lambda(lv, transform lb)
     | _ -> letFunUp expr
 
-let renameTree expr = 
+let renameTree expr =
     let renamer = new Namer()
     let rec renameRec expr =
         match expr with
         | Patterns.Lambda (param, body) ->
             let newName = renamer.GetUnicName param.Name
-            let newVar = new Var (newName, param.Type, param.IsMutable)                        
-            let newBody = 
+            let newVar = new Var (newName, param.Type, param.IsMutable)
+            let newBody =
                 body.Substitute (fun v -> if v = param then Some (Expr.Var newVar) else None)
                 |> renameRec
             Expr.Lambda(newVar,newBody)
@@ -213,9 +214,9 @@ let renameTree expr =
             let newName = renamer.GetUnicName var.Name
             let newVar = new Var(newName, var.Type, var.IsMutable)
             let exprIn = renameRec expr1
-            let exprAfter = 
+            let exprAfter =
                 expr2.Substitute(fun v -> if v = var then Some (Expr.Var newVar) else None)
-                |> renameRec 
+                |> renameRec
             let newLet = Expr.Let(newVar, exprIn, exprAfter)
             newLet
 
@@ -226,10 +227,10 @@ let renameTree expr =
             let newTo = renameRec _to
             let newDo =
                 _do.Substitute(fun v -> if v = i then Some (Expr.Var newVar) else None)
-                |> renameRec 
+                |> renameRec
 
             Expr.ForIntegerRangeLoop(newVar, newFrom, newTo, newDo)
-                                
+
         | ExprShape.ShapeCombination (o, exprs) -> ExprShape.RebuildShapeCombination (o, List.map renameRec exprs)
 
         | x -> x
@@ -239,9 +240,9 @@ let renameTree expr =
         | ExprShape.ShapeLambda(lv, lb) ->
             let newName = renamer.GetUnicName (lv.Name)
             let newVar = new Var(newName, lv.Type, lv.IsMutable)
-            let newLambda = 
+            let newLambda =
                 Expr.Lambda(newVar, quontationRenamerLetRec (lb.Substitute(fun v -> if v = lv then Some (Expr.Var newVar) else None)))
-            newLambda            
+            newLambda
         | _ ->
             renameRec expr
     quontationRenamerLetRec expr
@@ -258,14 +259,14 @@ let addNeededLamAndAppicatins (expr:Expr) =
             then
                 let neededVars,newVar = letToExtend.[var]
                 if neededVars |> List.length > 0
-                then                    
+                then
                     neededVars
-                    |> List.fold 
+                    |> List.fold
                         (fun ready (elem:Var) ->
                                 Expr.Application(ready, Expr.Var elem))
                         (Expr.Var newVar)
                 else expr
-             else  expr          
+             else  expr
 
         | Patterns.Let(var, expr1, expr2) ->
             lets.Add var |> ignore
@@ -275,7 +276,7 @@ let addNeededLamAndAppicatins (expr:Expr) =
             if neededVars.Length > 0 && isLetFun expr
             then
                 let readyLet =
-                    neededVars 
+                    neededVars
                     |> List.rev
                     |> List.fold
                         (fun readyLet elem -> Expr.Lambda(elem, readyLet))
@@ -306,7 +307,7 @@ let addNeededLamAndAppicatins (expr:Expr) =
         match expr with
         | ExprShape.ShapeLambda(lv, lb) ->
             Expr.Lambda(lv, run lb)
-        | _ ->         
+        | _ ->
             addNeededLam expr
     run expr
 
@@ -315,22 +316,22 @@ let getListLet expr =
     let listExpr = new ResizeArray<_>()
     let rec addLetInList expr =
         match expr with
-        | Patterns.Let(var, exprIn, exprAfter) when isLetFun expr ->                        
+        | Patterns.Let(var, exprIn, exprAfter) when isLetFun expr ->
             let newLet = Expr.Let(var, exprIn, Expr.Value(0)) // in  body some value
             listExpr.Add newLet
-            addLetInList exprAfter            
+            addLetInList exprAfter
         | _ -> expr
 
     and firstLams expr =
         match expr with
         | Patterns.Lambda(lv, lb) -> Expr.Lambda(lv, firstLams lb)
         | _ -> addLetInList expr
-        
+
     match expr with
     | Patterns.Lambda(lv, lb) -> listExpr.Add(firstLams (Expr.Lambda(lv, lb)))
     | _ -> ()
-    
-    listExpr  
+
+    listExpr
     |> ResizeArray.map
        (fun elem ->
             match elem with
@@ -338,15 +339,15 @@ let getListLet expr =
                 new Method(v,e)
             | Patterns.Lambda(lv, lb) ->
                 let newVar = new Var(mainKernelName, lv.Type, false)
-                new Method(newVar, elem)            
+                new Method(newVar, elem)
             | x -> failwithf "Anexpected element: %A" x
        )
 
 let quontationTransformer expr translatorOptions =
     let renamedTree = renameTree expr
-    let qTransformed = transform renamedTree    
+    let qTransformed = transform renamedTree
     let addedLam =
-        addNeededLamAndAppicatins qTransformed 
+        addNeededLamAndAppicatins qTransformed
         |> (fun x ->
                 lets.Clear()
                 letToExtend.Clear()
