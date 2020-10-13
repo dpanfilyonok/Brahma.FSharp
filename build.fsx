@@ -411,6 +411,7 @@ let dotnetBuild ctx =
 let fsharpAnalyzers ctx =
     let argParser = ArgumentParser.Create<FSharpAnalyzers.Arguments>(programName = "fsharp-analyzers")
     !! srcGlob
+    |> Seq.filter (fun proj -> String.endsWith ".csproj" proj |> not)
     |> Seq.iter(fun proj ->
         let args  =
             [
