@@ -1,15 +1,74 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFrameworks>netcoreapp3.1;net461</TargetFrameworks>
+        <TargetFrameworks>net461</TargetFrameworks>
     </PropertyGroup>
     <ItemGroup>
         <Compile Include="AssemblyInfo.fs" />
-        <Compile Include="Tests.fs" />
+        <Compile Include="Translator.fs" />
+        <Compile Include="Full.fs" />
+        <Compile Include="StructAndTuple.fs" />
         <Compile Include="Main.fs" />
     </ItemGroup>
     <ItemGroup>
+      <ProjectReference Include="..\..\src\Brahma.FSharp.OpenCL.Core\Brahma.FSharp.OpenCL.Core.fsproj" />
+      <ProjectReference Include="..\..\src\Brahma.FSharp.OpenCL.Translator\Brahma.FSharp.OpenCL.Translator.fsproj" />
+      <ProjectReference Include="..\..\src\Brahma.OpenCL\Brahma.OpenCL.csproj" />
+      <ProjectReference Include="..\..\src\Brahma\Brahma.csproj" />
+      <ProjectReference Include="..\..\src\OpenCL.NET\OpenCL.NET.csproj" />
+    </ItemGroup>
+    <ItemGroup>
+      <Content Include="Expected\Array.Item.Set.cl" />
+      <Content Include="Expected\Binary.Operations.Math.cl" />
+      <Content Include="Expected\Binding.And.FOR.Counter.Conflict.1.cl" />
+      <Content Include="Expected\Binding.And.FOR.Counter.Conflict.2.cl" />
+      <Content Include="Expected\Binding.And.FOR.Counter.Conflict.3.cl" />
+      <Content Include="Expected\Binding.And.FOR.Counter.Conflict.4.cl" />
+      <Content Include="Expected\Binding.cl" />
+      <Content Include="Expected\Binding.In.FOR.cl" />
+      <Content Include="Expected\Binding.In.IF.cl" />
+      <Content Include="Expected\Binding.In.WHILE.cl" />
+      <Content Include="Expected\Bindings.With.Equal.Names.cl" />
+      <Content Include="Expected\Binop.Plus.cl" />
+      <Content Include="Expected\Constant array translation. Local copy test 1.cl" />
+      <Content Include="Expected\Constant array translation. Test 1.cl" />
+      <Content Include="Expected\For.Integer.Loop.cl" />
+      <Content Include="Expected\If.Then.cl" />
+      <Content Include="Expected\If.Then.Else.cl" />
+      <Content Include="Expected\Let renamed 2.cl" />
+      <Content Include="Expected\Let renamed.cl" />
+      <Content Include="Expected\LocalID1D.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\LocalID2D.cl" />
+      <Content Include="Expected\Nested.Function.Carring.cl" />
+      <Content Include="Expected\Nested.Function.cl" />
+      <Content Include="Expected\Quotations.Injections.1.cl" />
+      <Content Include="Expected\Quotations.Injections.2.cl" />
+      <Content Include="Expected\Renamer Test.cl" />
+      <Content Include="Expected\Seq.With.Bindings.cl" />
+      <Content Include="Expected\Sequential.Bindings.cl" />
+      <Content Include="Expected\Simple.Seq.cl" />
+      <Content Include="Expected\Simple.WHILE.cl" />
+      <Content Include="Expected\Template Test 0.cl" />
+      <Content Include="Expected\Template Test 1.cl" />
+      <Content Include="Expected\Template Test 10.cl" />
+      <Content Include="Expected\Template Test 11.cl" />
+      <Content Include="Expected\Template Test 12.cl" />
+      <Content Include="Expected\Template Test 13.cl" />
+      <Content Include="Expected\Template Test 14.cl" />
+      <Content Include="Expected\Template Test 15.cl" />
+      <Content Include="Expected\Template Test 16.cl" />
+      <Content Include="Expected\Template Test 2.cl" />
+      <Content Include="Expected\Template Test 3.cl" />
+      <Content Include="Expected\Template Test 4.cl" />
+      <Content Include="Expected\Template Test 5.cl" />
+      <Content Include="Expected\Template Test 6.cl" />
+      <Content Include="Expected\Template Test 7.cl" />
+      <Content Include="Expected\Template Test 8.cl" />
+      <Content Include="Expected\Template Test 9.cl" />
+      <Content Include="Expected\WHILE.with.complex.condition.cl" />
     </ItemGroup>
     <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
