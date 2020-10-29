@@ -19,56 +19,151 @@
       <ProjectReference Include="..\..\src\OpenCL.NET\OpenCL.NET.csproj" />
     </ItemGroup>
     <ItemGroup>
-      <Content Include="Expected\Array.Item.Set.cl" />
-      <Content Include="Expected\Binary.Operations.Math.cl" />
-      <Content Include="Expected\Binding.And.FOR.Counter.Conflict.1.cl" />
-      <Content Include="Expected\Binding.And.FOR.Counter.Conflict.2.cl" />
-      <Content Include="Expected\Binding.And.FOR.Counter.Conflict.3.cl" />
-      <Content Include="Expected\Binding.And.FOR.Counter.Conflict.4.cl" />
-      <Content Include="Expected\Binding.cl" />
-      <Content Include="Expected\Binding.In.FOR.cl" />
-      <Content Include="Expected\Binding.In.IF.cl" />
-      <Content Include="Expected\Binding.In.WHILE.cl" />
-      <Content Include="Expected\Bindings.With.Equal.Names.cl" />
-      <Content Include="Expected\Binop.Plus.cl" />
-      <Content Include="Expected\Constant array translation. Local copy test 1.cl" />
-      <Content Include="Expected\Constant array translation. Test 1.cl" />
-      <Content Include="Expected\For.Integer.Loop.cl" />
-      <Content Include="Expected\If.Then.cl" />
-      <Content Include="Expected\If.Then.Else.cl" />
-      <Content Include="Expected\Let renamed 2.cl" />
-      <Content Include="Expected\Let renamed.cl" />
+      <Content Include="Expected\Array.Item.Set.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Binary.Operations.Math.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Binding.And.FOR.Counter.Conflict.1.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Binding.And.FOR.Counter.Conflict.2.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Binding.And.FOR.Counter.Conflict.3.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Binding.And.FOR.Counter.Conflict.4.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Binding.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Binding.In.FOR.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Binding.In.IF.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Binding.In.WHILE.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Bindings.With.Equal.Names.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Binop.Plus.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Constant array translation. Test 2.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Constant array translation. Test 1.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\For.Integer.Loop.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\If.Then.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\If.Then.Else.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Let renamed 2.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Let renamed.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
       <Content Include="Expected\LocalID1D.cl">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
-      <Content Include="Expected\LocalID2D.cl" />
-      <Content Include="Expected\Nested.Function.Carring.cl" />
-      <Content Include="Expected\Nested.Function.cl" />
-      <Content Include="Expected\Quotations.Injections.1.cl" />
-      <Content Include="Expected\Quotations.Injections.2.cl" />
-      <Content Include="Expected\Renamer Test.cl" />
-      <Content Include="Expected\Seq.With.Bindings.cl" />
-      <Content Include="Expected\Sequential.Bindings.cl" />
-      <Content Include="Expected\Simple.Seq.cl" />
-      <Content Include="Expected\Simple.WHILE.cl" />
-      <Content Include="Expected\Template Test 0.cl" />
-      <Content Include="Expected\Template Test 1.cl" />
-      <Content Include="Expected\Template Test 10.cl" />
-      <Content Include="Expected\Template Test 11.cl" />
-      <Content Include="Expected\Template Test 12.cl" />
-      <Content Include="Expected\Template Test 13.cl" />
+      <Content Include="Expected\LocalID2D.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Nested.Function.Carring.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Nested.Function.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Quotations.Injections.1.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Quotations.Injections.2.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Renamer Test.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Seq.With.Bindings.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Sequential.Bindings.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Simple.Seq.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Simple.WHILE.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Template Test 0.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Template Test 1.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Template Test 10.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Template Test 11.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Template Test 12.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Template Test 13.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
       <Content Include="Expected\Template Test 14.cl" />
-      <Content Include="Expected\Template Test 15.cl" />
-      <Content Include="Expected\Template Test 16.cl" />
-      <Content Include="Expected\Template Test 2.cl" />
-      <Content Include="Expected\Template Test 3.cl" />
-      <Content Include="Expected\Template Test 4.cl" />
-      <Content Include="Expected\Template Test 5.cl" />
-      <Content Include="Expected\Template Test 6.cl" />
-      <Content Include="Expected\Template Test 7.cl" />
-      <Content Include="Expected\Template Test 8.cl" />
-      <Content Include="Expected\Template Test 9.cl" />
-      <Content Include="Expected\WHILE.with.complex.condition.cl" />
+      <Content Include="Expected\Template Test 15.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Template Test 16.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Template Test 2.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Template Test 3.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Template Test 4.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Template Test 5.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Template Test 6.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Template Test 7.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Template Test 8.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Template Test 9.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\WHILE.with.complex.condition.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\Nested.Function.Carring2.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
     </ItemGroup>
     <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

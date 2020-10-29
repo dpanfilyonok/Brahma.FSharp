@@ -1,26 +1,25 @@
 ﻿// Copyright (c) 2012, 2013 Semyon Grigorev <rsdpisuy@gmail.com>
 // All rights reserved.
-// 
+//
 // The contents of this file are made available under the terms of the
 // Eclipse Public License v1.0 (the "License") which accompanies this
 // distribution, and is available at the following URL:
 // http://www.opensource.org/licenses/eclipse-1.0.php
-// 
+//
 // Software distributed under the License is distributed on an "AS IS" basis,
 // WITHOUT WARRANTY OF ANY KIND, either expressed or implied. See the License for
 // the specific language governing rights and limitations under the License.
-// 
+//
 // By using this software in any fashion, you are agreeing to be bound by the
 // terms of the License.
 
 module Brahma.FSharp.OpenCL.Printer.Expressions
 
 open Brahma.FSharp.OpenCL.AST
-open Microsoft.FSharp.Text.StructuredFormat
 open Microsoft.FSharp.Text.StructuredFormat.LayoutOps
 open Brahma.FSharp.OpenCL.Printer
 
-let private printConst (c:Const<'lang>) = 
+let private printConst (c:Const<'lang>) =
     match c.Type with
     | :? PrimitiveType<'lang> as pt ->
         match pt.Type with
@@ -63,9 +62,9 @@ and private printBop (op:BOp<'lang>) =
     | Or -> "||"
     | LeftShift -> "<<"
     | RightShift -> ">>"
-    | Less -> "<" 
+    | Less -> "<"
     | LessEQ -> "<="
-    | Great -> ">" 
+    | Great -> ">"
     | GreatEQ -> ">="
     | EQ -> "=="
     | NEQ -> "!="
@@ -98,7 +97,7 @@ and private printCast (c:Cast<'lang>) =
     let expr = Print c.Expr
     (t |> bracketL) ++ expr
 
-and private printPointer (p:Pointer<'lang>) =    
+and private printPointer (p:Pointer<'lang>) =
     let expr = Print p.Expr
     wordL "&" ^^ expr
 
@@ -115,10 +114,10 @@ and private getZeros x =
     string
 
 and printNewStruct (newStruct:NewStruct<_>) =
-    let args = 
+    let args =
         List.map Print newStruct.ConstructorArgs
         |> commaListL
-    [ 
+    [
         wordL "{"
         args
         wordL "}"

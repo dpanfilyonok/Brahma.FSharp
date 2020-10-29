@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2012, 2013 Semyon Grigorev <rsdpisuy@gmail.com>
+// Copyright (c) 2012, 2013 Semyon Grigorev <rsdpisuy@gmail.com>
 // All rights reserved.
 //
 // The contents of this file are made available under the terms of the
@@ -16,7 +16,6 @@
 module Brahma.FSharp.OpenCL.Printer.Statements
 
 open Brahma.FSharp.OpenCL.AST
-open Microsoft.FSharp.Text.StructuredFormat
 open Microsoft.FSharp.Text.StructuredFormat.LayoutOps
 open FSharpx.Collections
 open Brahma.FSharp.OpenCL.Printer
