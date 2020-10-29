@@ -1,14 +1,9 @@
 ﻿module Brahma.FSharp.OpenCL.Full
 
-(*open NUnit.Framework
-open System.IO
-open System
-open System.Reflection
-open Brahma.Helpers
+open Expecto
 open OpenCL.Net
 open Brahma.OpenCL
 open Brahma.FSharp.OpenCL.Core
-    open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.Extensions
 
 [<Struct>]
@@ -17,8 +12,8 @@ type TestStruct =
     val mutable y: float
     new (x,y) = {x=x; y=y}
 
-[<TestFixture>]
-type Translator() =
+[<Tests>]
+let FullTranslatorTests =
     let defaultInArrayLength = 4
     let intInArr = [|0..defaultInArrayLength-1|]
     let float32Arr = Array.init defaultInArrayLength (fun i -> float32 i)
@@ -44,35 +39,42 @@ type Translator() =
             let r = Array.zeroCreate expected.Length
             let cq2 = commandQueue.Add(outArray.ToHost(provider,r)).Finish()
             commandQueue.Dispose()
-            Assert.AreEqual(expected, r)
+            Expect.sequenceEqual expected r
             provider.CloseAllBuffers()
         kernelPrepareF,check
 
-    [<Test>]
-    member this.``Array item set``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    buf.[0] <- 1
-            @>
+    let arrayItemSetTests =
+        testList "Array item set tests."
+        [
+            testCase "Array item set" <| fun _ ->
+                let command =
+                    <@
+                        fun (range:_1D) (buf:array<int>) ->
+                            buf.[0] <- 1
+                    @>
 
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|1;1;2;3|]
+                let run,check = checkResult command
+                run _1d intInArr
+                check intInArr [|1;1;2;3|]
 
-    [<Test>]
-    member this.``Array item set. Long``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int64>) ->
-                    buf.[0] <- 1L
-            @>
+            testCase "Array item set. Long" <| fun _ ->
+                let command =
+                    <@
+                        fun (range:_1D) (buf:array<int64>) ->
+                            buf.[0] <- 1L
+                    @>
 
-        let run,check = checkResult command
-        let initInArr = [|0L; 1L; 2L; 3L|]
-        run _1d initInArr
-        check initInArr [|1L; 1L; 2L; 3L|]
+                let run,check = checkResult command
+                let initInArr = [|0L; 1L; 2L; 3L|]
+                run _1d initInArr
+                check initInArr [|1L; 1L; 2L; 3L|]
+        ]
 
+    testList "All tests for translator"
+        (
+            arrayItemSetTests
+        )
+    (*
     [<Test>]
     member this.``Cast. Long``() =
         let command =

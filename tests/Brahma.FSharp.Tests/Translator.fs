@@ -6,12 +6,6 @@ open Brahma.OpenCL
 open OpenCL.Net
 open Brahma.FSharp.OpenCL.Core
 
-[<Struct>]
-type TestStruct =
-    val x: int
-    val y: float
-    new (x,y) = {x=x; y=y}
-
 [<Tests>]
 let translatorTest =
 
