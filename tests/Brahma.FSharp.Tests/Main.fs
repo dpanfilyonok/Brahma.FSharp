@@ -3,5 +3,7 @@ module ExpectoTemplate
 open Expecto
 
 [<EntryPoint>]
-let main argv = Tests.runTestsInAssembly defaultConfig argv
+let main argv =
+    let config = { defaultConfig with parallel=false }
+    Tests.runTestsInAssembly config argv
 
