@@ -68,6 +68,19 @@ let FullTranslatorTests =
                 let initInArr = [|0L; 1L; 2L; 3L|]
                 run _1d initInArr
                 check initInArr [|1L; 1L; 2L; 3L|]
+
+            testCase "Array item set. ULong" <| fun _ ->
+                let command =
+                    <@
+                        fun (range:_1D) (buf:array<uint64>) ->
+                            buf.[0] <- 1UL
+                    @>
+
+                let run,check = checkResult command
+                let initInArr = [|0UL; 1UL; 2UL; 3UL|]
+                run _1d initInArr
+                check initInArr [|1UL; 1UL; 2UL; 3UL|]
+
         ]
 
     testList "All tests for translator"
@@ -102,17 +115,6 @@ let FullTranslatorTests =
         check initInArr [|1UL; 1UL|]
 
     [<Test>]
-    member this.``Array item set. ULong``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<uint64>) ->
-                    buf.[0] <- 1UL
-            @>
-
-        let run,check = checkResult command
-        let initInArr = [|0UL; 1UL; 2UL; 3UL|]
-        run _1d initInArr
-        check initInArr [|1UL; 1UL; 2UL; 3UL|]
 
     [<Test>]
     member this.Binding() =
