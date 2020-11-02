@@ -11,7 +11,7 @@ let translatorTest =
 
     let basePath = "Expected/"
 
-    let deviceType = DeviceType.Gpu
+    let deviceType = DeviceType.Default
     let platformName = "Intel*"
 
     let provider =
@@ -34,7 +34,6 @@ let translatorTest =
     let a = [|0..3|]
 
     let basicLocalIdTests =
-        testList "Basic tests on LocalID translation"
         [
             testCase "LocalID of 1D" <| fun _ ->
                 let command =
@@ -59,7 +58,6 @@ let translatorTest =
         ]
 
     let basicBinOpsTests =
-        testList "Basic operations translation tests"
         [
             testCase "Array item set" <| fun _ ->
                 let command =
@@ -107,7 +105,6 @@ let translatorTest =
         ]
 
     let controlFlowTests =
-        testList "Control flow translation tests"
         [
             testCase "If Then" <| fun _ ->
                 let command =
@@ -238,7 +235,6 @@ let translatorTest =
         ]
 
     let namesResolvingTests =
-        testList "Tests on variables renaming."
         [
             testCase "Bindings with equal names." <| fun _ ->
                 let command =
@@ -299,7 +295,6 @@ let translatorTest =
         ]
 
     let quotationsInjectionTests =
-        testList "Quotations injection tests"
         [
             testCase"Quotations injections 1" <| fun _ ->
                 let myF = <@ fun x -> x * x @>
@@ -326,7 +321,6 @@ let translatorTest =
         ]
 
     let constantArrayTests =
-        testList "Constatnt array translation tests."
         [
             testCase "Constant array translation. Test 1" <| fun _ ->
                 let cArray1 = [|1;2;3|]
@@ -347,7 +341,6 @@ let translatorTest =
         ]
 
     let lambdaLiftingTests =
-        testList
         [
             testCase "Template Let Transformation Test 0" <| fun _ ->
                 let command =
@@ -617,7 +610,6 @@ let translatorTest =
         ]
 
     let curryingTests =
-        testList "Currying translation test"
         [
             ptestCase "Nested functions. Carring 1." <| fun _ ->
                 let command =
@@ -648,7 +640,6 @@ let translatorTest =
         ]
 
     let localMemoryAllocationTests =
-        ptestList "Translation of local memory allocatuin functions."
         [
             ptestCase "Constant array translation. Local copy test 1" <| fun _ ->
                 let cArray1 = [|1;2;3|]
@@ -674,4 +665,3 @@ let translatorTest =
          @ curryingTests
          @ localMemoryAllocationTests
         )
-
