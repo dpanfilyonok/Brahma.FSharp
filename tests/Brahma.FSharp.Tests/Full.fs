@@ -39,54 +39,131 @@ let FullTranslatorTests =
             let r = Array.zeroCreate expected.Length
             let cq2 = commandQueue.Add(outArray.ToHost(provider,r)).Finish()
             commandQueue.Dispose()
-            Expect.sequenceEqual expected r
+            Expect.sequenceEqual expected r "Actual and expected results should be equal."
             provider.CloseAllBuffers()
         kernelPrepareF,check
 
+    let atomicsTests =
+        testList "Tests on atomic functions."
+            [
+                testCase "Atomic excenge int" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<_>) ->
+                                buf.[0] <! 1
+                        @>
+
+                    let run,check = checkResult command
+                    let initInArr = [|0; 1; 2; 3|]
+                    run _1d initInArr
+                    check initInArr [|1; 1; 2; 3|]
+
+                testCase "Atomic excenge float" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<_>) ->
+                                buf.[0] <! 1.0f
+                        @>
+
+                    let run,check = checkResult command
+                    let initInArr = [|0.0f; 1.0f; 2.0f; 3.0f|]
+                    run _1d initInArr
+                    check initInArr [|1.0f; 1.0f; 2.0f; 3.0f|]
+
+                testCase "Atomic excenge int and float" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<_>) ->
+                                let local_buf = local (Array.zeroCreate 1)
+                                let x = local_buf.[0] <!> int buf.[0]
+                                buf.[0] <! float32 x + 1.0f
+                        @>
+
+                    let run,check = checkResult command
+                    let initInArr = [|0.0f; 1.0f; 2.0f; 3.0f|]
+                    run _1d initInArr
+                    check initInArr [|1.0f; 1.0f; 2.0f; 3.0f|]
+
+                testCase "Atomic min and max int" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<_>) ->
+                                let local_buf = local (Array.zeroCreate 1)
+                                let x = aMinR local_buf.[0] (int buf.[0])
+                                aMax buf.[0] (x + 1)
+                        @>
+
+                    let run,check = checkResult command
+                    let initInArr = [|0; 1; 2; 3|]
+                    run _1d initInArr
+                    check initInArr [|1; 1; 2; 3|]
+            ]
+
+
+
+
     let arrayItemSetTests =
         testList "Array item set tests."
-        [
-            testCase "Array item set" <| fun _ ->
-                let command =
-                    <@
-                        fun (range:_1D) (buf:array<int>) ->
-                            buf.[0] <- 1
-                    @>
+            [
+                testCase "Array item set" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                buf.[0] <- 1
+                        @>
 
-                let run,check = checkResult command
-                run _1d intInArr
-                check intInArr [|1;1;2;3|]
+                    let run,check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|1;1;2;3|]
 
-            testCase "Array item set. Long" <| fun _ ->
-                let command =
-                    <@
-                        fun (range:_1D) (buf:array<int64>) ->
-                            buf.[0] <- 1L
-                    @>
+                testCase "Array item set. Long" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<_>) ->
+                                buf.[0] <- 1L
+                        @>
 
-                let run,check = checkResult command
-                let initInArr = [|0L; 1L; 2L; 3L|]
-                run _1d initInArr
-                check initInArr [|1L; 1L; 2L; 3L|]
+                    let run,check = checkResult command
+                    let initInArr = [|0L; 1L; 2L; 3L|]
+                    run _1d initInArr
+                    check initInArr [|1L; 1L; 2L; 3L|]
 
-            testCase "Array item set. ULong" <| fun _ ->
-                let command =
-                    <@
-                        fun (range:_1D) (buf:array<uint64>) ->
-                            buf.[0] <- 1UL
-                    @>
+                testCase "Local array" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int64>) ->
+                                let local_buf = local (Array.zeroCreate 42)
+                                local_buf.[0] <- 1L
+                                buf.[0] <- local_buf.[0]
+                        @>
 
-                let run,check = checkResult command
-                let initInArr = [|0UL; 1UL; 2UL; 3UL|]
-                run _1d initInArr
-                check initInArr [|1UL; 1UL; 2UL; 3UL|]
+                    let run,check = checkResult command
+                    let initInArr = [|0L; 1L; 2L; 3L|]
+                    run _1d initInArr
+                    check initInArr [|1L; 1L; 2L; 3L|]
 
-        ]
+
+                testCase "Array item set. ULong" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<uint64>) ->
+                                buf.[0] <- 1UL
+                        @>
+
+                    let run,check = checkResult command
+                    let initInArr = [|0UL; 1UL; 2UL; 3UL|]
+                    run _1d initInArr
+                    check initInArr [|1UL; 1UL; 2UL; 3UL|]
+
+            ]
 
     testList "All tests for translator"
-        (
-            arrayItemSetTests
-        )
+        [
+             arrayItemSetTests
+             atomicsTests
+        ]
+    |> (fun x -> Expecto.Sequenced (Expecto.SequenceMethod.Synchronous, x))
+
     (*
     [<Test>]
     member this.``Cast. Long``() =
