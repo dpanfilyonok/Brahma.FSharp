@@ -652,15 +652,17 @@ let translatorTest =
 
         ]
 
-    testList "Tests for translator" [
-        basicLocalIdTests
-        basicBinOpsTests
-        controlFlowTests
-        namesResolvingTests
-        quotationsInjectionTests
-        constantArrayTests
-        lambdaLiftingTests
-        curryingTests
-        localMemoryAllocationTests
-    ]
+    testList "Tests for translator"
+        [
+            basicLocalIdTests
+            basicBinOpsTests
+            controlFlowTests
+            namesResolvingTests
+            quotationsInjectionTests
+            constantArrayTests
+            lambdaLiftingTests
+            curryingTests
+            localMemoryAllocationTests
+        ]
+    |> (fun x -> Expecto.Sequenced (Expecto.SequenceMethod.Synchronous, x))
 
