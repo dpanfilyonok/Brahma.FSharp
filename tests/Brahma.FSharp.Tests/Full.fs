@@ -44,7 +44,7 @@ let FullTranslatorTests =
         kernelPrepareF,check
 
     let arrayItemSetTests =
-        [
+        testList "Array set tests" [
             testCase "Array item set. Int" <| fun _ ->
                 let command =
                     <@
@@ -82,7 +82,7 @@ let FullTranslatorTests =
         ]
 
     let typeCastingTests =
-        [
+        testList "Type castings tests" [
             testCase "Type casting. Long" <| fun _ ->
                 let command =
                     <@
@@ -118,11 +118,11 @@ let FullTranslatorTests =
                 let initInArr = [|0UL; 1UL|]
                 run _1d initInArr
                 check initInArr [|1UL; 1UL|]
-        ]
+          ]
 
 
     let bindingTests =
-        [
+        testList "Bindings tests" [
             testCase "Bindings. Simple." <| fun _ ->
                 let command =
                     <@
@@ -193,7 +193,7 @@ let FullTranslatorTests =
         ]
 
     let operatorsAndMathFunctionsTests =
-        [
+        testList "Operators and math functions tests" [
             testCase "Operators and math functions. Binop plus." <| fun _ ->
                 let command =
                     <@
@@ -204,10 +204,49 @@ let FullTranslatorTests =
                 let run,check = checkResult command
                 run _1d intInArr
                 check intInArr [|3;1;2;3|]
+
+            // Failed due to precision
+            ptestCase "Math sin." <| fun _ ->
+                let command =
+                    <@
+                        fun (range:_1D) (buf:array<float>) ->
+                            let i = range.GlobalID0
+                            buf.[i] <- System.Math.Sin (float buf.[i])
+                    @>
+
+                let run,check = checkResult command
+                let inA = [|0.0;1.0;2.0;3.0|]
+                run _1d inA
+                check inA (inA |> Array.map System.Math.Sin)  //[|0.0; 0.841471; 0.9092974; 0.14112|]
+        ]
+
+    let pipeTests =
+        ptestList "Pipe tests" [
+             // Lambda is not supported.
+            ptestCase "Forward pipe." <| fun _ ->
+                let command =
+                    <@
+                        fun (range:_1D) (buf:array<int>) ->
+                            buf.[0] <- (1.25f |> int)
+                    @>
+                let run,check = checkResult command
+                run _1d intInArr
+                check intInArr [|1;1;2;3|]
+
+            // Lambda is not supported.
+            ptestCase "Backward pipe." <| fun _ ->
+                let command =
+                    <@
+                        fun (range:_1D) (buf:array<int>) ->
+                            buf.[0] <- int <| 1.25f + 2.34f
+                    @>
+                let run,check = checkResult command
+                run _1d intInArr
+                check intInArr [|3;1;2;3|]
         ]
 
     let controlFlowTests =
-        [
+        testList "Control flow tests" [
             testCase "Control flow. If Then." <| fun _ ->
                 let command =
                     <@
@@ -269,7 +308,7 @@ let FullTranslatorTests =
         ]
 
     let kernelArgumentsTests =
-        [
+        testList "Kernel arguments tests" [
             testCase "Kernel arguments. Simple 1D." <| fun _ ->
                 let command =
                     <@
@@ -346,7 +385,7 @@ let FullTranslatorTests =
         ]
 
     let quotationInjectionTests =
-        [
+        testList "Quotation injection tests" [
             testCase "Quotations injections.  Quotations injections 1." <| fun _ ->
                 let myF = <@ fun x -> x * x @>
 
@@ -376,56 +415,17 @@ let FullTranslatorTests =
                 check intInArr [|3;5;2;3|]
         ]
 
-    let failedTests =
-        [
-            // Failed due to precision
-            testCase "Failed. Math sin." <| fun _ ->
-                let command =
-                    <@
-                        fun (range:_1D) (buf:array<float>) ->
-                            let i = range.GlobalID0
-                            buf.[i] <- System.Math.Sin (float buf.[i])
-                    @>
 
-                let run,check = checkResult command
-                let inA = [|0.0;1.0;2.0;3.0|]
-                run _1d inA
-                check inA (inA |> Array.map System.Math.Sin)  //[|0.0; 0.841471; 0.9092974; 0.14112|]
-
-            // Lambda is not supported.
-            testCase "Failed. Forward pipe." <| fun _ ->
-                let command =
-                    <@
-                        fun (range:_1D) (buf:array<int>) ->
-                            buf.[0] <- (1.25f |> int)
-                    @>
-                let run,check = checkResult command
-                run _1d intInArr
-                check intInArr [|1;1;2;3|]
-
-            // Lambda is not supported.
-            testCase "Failed. Backward pipe." <| fun _ ->
-                let command =
-                    <@
-                        fun (range:_1D) (buf:array<int>) ->
-                            buf.[0] <- int <| 1.25f + 2.34f
-                    @>
-                let run,check = checkResult command
-                run _1d intInArr
-                check intInArr [|3;1;2;3|]
-        ]
-
-
-    testList "All tests for translator"
-        (
-            arrayItemSetTests @
-            typeCastingTests @
-            bindingTests @
-            operatorsAndMathFunctionsTests @
-            controlFlowTests @
-            kernelArgumentsTests @
-            quotationInjectionTests
-        )
+    testList "System tests with running kernels" [
+        arrayItemSetTests
+        typeCastingTests
+        bindingTests
+        operatorsAndMathFunctionsTests
+        pipeTests
+        controlFlowTests
+        kernelArgumentsTests
+        quotationInjectionTests
+    ]
 
 (*
     [<Test>]
