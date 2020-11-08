@@ -27,7 +27,6 @@ let translatorTest =
     let checkCode command outFile expected =
         let code = ref ""
         let _ = provider.Compile(command,_outCode = code)
-        printfn "\n%s" !code
         System.IO.File.WriteAllText(outFile, !code)
         filesAreEqual outFile (System.IO.Path.Combine(basePath,expected))
 

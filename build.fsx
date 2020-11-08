@@ -64,7 +64,7 @@ let srcAndTest =
 let distDir = __SOURCE_DIRECTORY__  @@ "dist"
 let distGlob = distDir @@ "*.nupkg"
 
-let coverageThresholdPercent = 80
+let coverageThresholdPercent = 30
 let coverageReportDir =  __SOURCE_DIRECTORY__  @@ "docs" @@ "coverage"
 
 
@@ -437,7 +437,7 @@ let dotnetTest ctx =
             sprintf "/p:AltCover=%b" (not disableCodeCoverage)
             sprintf "/p:AltCoverThreshold=%d" coverageThresholdPercent
             sprintf "/p:AltCoverAssemblyExcludeFilter=%s" excludeCoverage
-            "/p:AltCoverLocalSource=true"
+            "/p:AltCoverLocalSource=true" 
         ]
     DotNet.test(fun c ->
 

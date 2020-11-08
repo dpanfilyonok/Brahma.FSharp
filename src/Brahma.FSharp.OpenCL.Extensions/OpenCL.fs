@@ -1,88 +1,88 @@
 ﻿[<AutoOpen>]
 module OpenCL
 
-let private kFail () = failwith "OpenCL kernel function!"
+let (*private*) kFail () = failwith "Seems that you try to use openCL kernel function as regular F# function!"
 
 /// Alias for atom_add. Not returns old value in F#.
 /// ### Example
 /// a.[i] <!+ buf
-let (<!+) a b =
+let inline (<!+) a b =
     kFail ()
     a + b |> ignore
 
 /// Alias for atom_add. Returns old value.
 /// ### Example
 /// let oldV = a.[i] <!+> buf
-let (<!+>) a b = 
+let inline (<!+>) a b =
     kFail ()
     a + b
 
-/// Alias for atom_sub. Not returns old value in F#. 
+/// Alias for atom_sub. Not returns old value in F#.
 /// ### Example
 /// a.[i] <!- buf
-let (<!-) a b =
+let inline (<!-) a b =
     kFail ()
     a - b |> ignore
 
 /// Alias for atom_sub. Returns old value.
 /// ### Example
 /// let oldV = a.[i] <!-> buf
-let (<!->) a b =
+let inline (<!->) a b =
     kFail ()
     a - b
 
 /// Alias for atom_xchg. Not returns old value in F#
 /// ### Example
 /// a.[i] <! buf
-let (<!) (a:'a) (b:'a) =
+let inline (<!) (a:'a) (b:'a) =
     kFail ()
-    b |> ignore 
+    b |> ignore
 
 /// Alias for atom_xchg. Returns old value.
 /// ### Example
 /// let oldV = a.[i] <!> buf
-let (<!>) (a:'a) (b:'a) = 
+let inline (<!>) (a:'a) (b:'a) =
     kFail ()
-    b 
+    b
 
-//let (<&&>) (a:uint16) b = 
+//let (<&&>) (a:uint16) b =
 //    kFail ()
 //    a &&& b
 //
-//let (<&&>) (a:int) b = 
+//let (<&&>) (a:int) b =
 //    kFail ()
 //    a &&& b
-let aIncrR a = 
+let aIncrR a =
     kFail ()
     a + 1
 
-let aIncr a = 
+let aIncr a =
     kFail ()
     a + 1
     |> ignore
 
-let aDecr a = 
+let aDecr a =
     kFail ()
     a - 1
     |> ignore
 
-let aDecrR a = 
+let aDecrR a =
     kFail ()
     a - 1
 
-let aMax a b = 
+let aMax a b =
     kFail ()
     max a b |> ignore
 
-let aMaxR a b = 
+let aMaxR a b =
     kFail ()
     max a b
 
-let aMin a b = 
+let aMin a b =
     kFail ()
     min a b |> ignore
 
-let aMinR a b = 
+let aMinR a b =
     kFail ()
     min a b
 
