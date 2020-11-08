@@ -510,6 +510,7 @@ let FullTranslatorTests =
 
     testList "System tests with running kernels"
         [
+            atomicsTests
             arrayItemSetTests
             typeCastingTests
             bindingTests
