@@ -25,6 +25,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Brahma.FSharp.OpenCL.AST\Brahma.FSharp.OpenCL.AST.fsproj" />
+    <ProjectReference Include="..\Brahma.FSharp.OpenCL.Extensions\Brahma.FSharp.OpenCL.Extensions.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

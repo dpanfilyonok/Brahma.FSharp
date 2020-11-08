@@ -134,7 +134,8 @@ and private translateCall exprOpt (mInfo:System.Reflection.MethodInfo) _args tar
     | "not" ->  new Unop<_>(UOp.Not,args.[0]) :> Statement<_>,tContext
     | "_byte"    -> args.[0] :> Statement<_>, tContext
     | "barrier" -> new Barrier<_>() :> Statement<_>, tContext
-    //| "local"    ->
+    | "local"    -> failwith "Calling the local function is allowed only at the top level of the let binding"
+    | "arrayLocal" -> failwith "Calling the localArray function is allowed only at the top level of the let binding"
     | "zerocreate" ->
         let length =
             match args.[0] with
@@ -473,6 +474,7 @@ and Translate expr (targetContext:TargetContext<_,_>) =
     | Patterns.TypeTest(expr,sType) -> "TypeTest is not suported:" + string expr|> failwith
     | Patterns.UnionCaseTest(expr,unionCaseInfo) -> "UnionCaseTest is not suported:" + string expr|> failwith
     | Patterns.ValueWithName(_obj,sType,name) ->
+        // Here is the only use of TargetContext.InLocal
         if sType.ToString().EndsWith "[]" && not targetContext.InLocal
         then
             targetContext.Namer.AddVar name
@@ -494,20 +496,24 @@ and Translate expr (targetContext:TargetContext<_,_>) =
 
 and private translateLet var expr inExpr (targetContext:TargetContext<_,_>) =
     let bName = targetContext.Namer.LetStart var.Name
-    let mutable isLocal = false
-    let mutable valueExpression =
+
+    let vDecl =
         match expr with
-        | Patterns.Call (exprOpt,mInfo,args) ->
-            if mInfo.Name.Equals("local") then
-                isLocal <- true
-                targetContext.InLocal <- true
-                args.[0]
-            else
-                expr
-        | other -> other
-    let vDecl = translateBinding var bName valueExpression targetContext
-    targetContext.InLocal <- false
-    if isLocal then vDecl.SpaceModifier <- Some Local
+        | DerivedPatterns.SpecificCall <@@ local @@> (_,_,_) ->
+            let vType = Type.Translate var.Type false None targetContext
+            VarDecl<Lang>(vType,bName,None,spaceModifier=Local)
+        | DerivedPatterns.SpecificCall <@@ localArray @@> (_,_,[arg]) ->
+            (*newTargetContext?*)
+            let expr, newTargetContext = translateCond arg targetContext
+            let length =
+                match expr with
+                | :? Const<Lang> as c -> (Some << int) c.Val
+                | other -> sprintf "Calling localArray with a non-const argument %A" other |> failwith
+            let arrayType =
+                Type.Translate var.Type false length newTargetContext
+            VarDecl<Lang>(arrayType,bName,None,spaceModifier=Local)
+        | _ -> translateBinding var bName expr targetContext
+
     targetContext.VarDecls.Add vDecl
     targetContext.Namer.LetIn var.Name
 

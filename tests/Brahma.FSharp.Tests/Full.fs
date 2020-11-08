@@ -74,7 +74,7 @@ let FullTranslatorTests =
                     let command =
                         <@
                             fun (range:_1D) (buf:array<_>) ->
-                                let local_buf = local (Array.zeroCreate 1)
+                                let local_buf = localArray 1
                                 let x = local_buf.[0] <!> int buf.[0]
                                 buf.[0] <! float32 x + 1.0f
                         @>
@@ -88,7 +88,7 @@ let FullTranslatorTests =
                     let command =
                         <@
                             fun (range:_1D) (buf:array<_>) ->
-                                let local_buf = local (Array.zeroCreate 1)
+                                let local_buf = localArray 1
                                 let x = aMinR local_buf.[0] (int buf.[0])
                                 aMax buf.[0] (x + 1)
                         @>
@@ -124,21 +124,6 @@ let FullTranslatorTests =
                     let initInArr = [|0L; 1L; 2L; 3L|]
                     run _1d initInArr
                     check initInArr [|1L; 1L; 2L; 3L|]
-
-                testCase "Local array" <| fun _ ->
-                    let command =
-                        <@
-                            fun (range:_1D) (buf:array<int64>) ->
-                                let local_buf = local (Array.zeroCreate 42)
-                                local_buf.[0] <- 1L
-                                buf.[0] <- local_buf.[0]
-                        @>
-
-                    let run,check = checkResult command
-                    let initInArr = [|0L; 1L; 2L; 3L|]
-                    run _1d initInArr
-                    check initInArr [|1L; 1L; 2L; 3L|]
-
 
                 testCase "Array item set. ULong" <| fun _ ->
                     let command =
@@ -507,9 +492,28 @@ let FullTranslatorTests =
                     check intInArr [|3;5;2;3|]
             ]
 
+    let localMemTests =
+        testList "Local memory tests"
+            [
+                testCase "Local array" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int64>) ->
+                                let local_buf = localArray 42
+                                local_buf.[0] <- 1L
+                                buf.[0] <- local_buf.[0]
+                        @>
+
+                    let run,check = checkResult command
+                    let initInArr = [|0L; 1L; 2L; 3L|]
+                    run _1d initInArr
+                    check initInArr [|1L; 1L; 2L; 3L|]
+            ]
+
 
     testList "System tests with running kernels"
         [
+            atomicsTests
             arrayItemSetTests
             typeCastingTests
             bindingTests
@@ -518,6 +522,7 @@ let FullTranslatorTests =
             controlFlowTests
             kernelArgumentsTests
             quotationInjectionTests
+            localMemTests
         ]
     |> (fun x -> Expecto.Sequenced (Expecto.SequenceMethod.Synchronous, x))
 
