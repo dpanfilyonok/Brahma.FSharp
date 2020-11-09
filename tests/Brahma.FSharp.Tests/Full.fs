@@ -39,7 +39,7 @@ let FullTranslatorTests =
             let r = Array.zeroCreate expected.Length
             let cq2 = commandQueue.Add(outArray.ToHost(provider,r)).Finish()
             commandQueue.Dispose()
-            Expect.sequenceEqual expected r "Actual and expected results should be equal."
+            Expect.sequenceEqual r expected "Arrays should be equals"
             provider.CloseAllBuffers()
         kernelPrepareF,check
 
@@ -58,7 +58,7 @@ let FullTranslatorTests =
                     run _1d initInArr
                     check initInArr [|1; 1; 2; 3|]
 
-                testCase "Atomic excenge float" <| fun _ ->
+                ptestCase "Atomic excenge float" <| fun _ ->
                     let command =
                         <@
                             fun (range:_1D) (buf:array<_>) ->
@@ -70,7 +70,7 @@ let FullTranslatorTests =
                     run _1d initInArr
                     check initInArr [|1.0f; 1.0f; 2.0f; 3.0f|]
 
-                testCase "Atomic excenge int and float" <| fun _ ->
+                ptestCase "Atomic excenge int and float" <| fun _ ->
                     let command =
                         <@
                             fun (range:_1D) (buf:array<_>) ->
@@ -98,9 +98,6 @@ let FullTranslatorTests =
                     run _1d initInArr
                     check initInArr [|1; 1; 2; 3|]
             ]
-
-
-
 
     let arrayItemSetTests =
         testList "Array item set tests."
@@ -155,340 +152,377 @@ let FullTranslatorTests =
                     run _1d initInArr
                     check initInArr [|1UL; 1UL; 2UL; 3UL|]
 
+                testCase "Array item set. Sequential operations." <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                buf.[0] <- 2
+                                buf.[1] <- 4
+                        @>
+
+                    let run,check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|2;4;2;3|]
+
             ]
 
-    testList "All tests for translator"
+    let typeCastingTests =
+        testList "Type castings tests"
+            [
+                testCase "Type casting. Long" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int64>) ->
+                                buf.[0] <- (int64)1UL
+                        @>
+
+                    let run,check = checkResult command
+                    let initInArr = [|0L; 1L|]
+                    run _1d initInArr
+                    check initInArr [|1L; 1L|]
+
+                testCase "Type casting. Ulong" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<uint64>) ->
+                                buf.[0] <- 1UL
+                        @>
+
+                    let run,check = checkResult command
+                    let initInArr = [|0UL; 1UL; 2UL; 3UL|]
+                    run _1d initInArr
+                    check initInArr [|1UL; 1UL; 2UL; 3UL|]
+
+                testCase "Type casting. ULong" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<uint64>) ->
+                                buf.[0] <- (uint64)1L
+                        @>
+
+                    let run,check = checkResult command
+                    let initInArr = [|0UL; 1UL|]
+                    run _1d initInArr
+                    check initInArr [|1UL; 1UL|]
+          ]
+
+
+    let bindingTests =
+        testList "Bindings tests"
+            [
+                testCase "Bindings. Simple." <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                let x = 1
+                                buf.[0] <- x
+                        @>
+
+                    let run,check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|1;1;2;3|]
+
+                testCase "Bindings. Sequential bindings." <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                let x = 1
+                                let y = x + 1
+                                buf.[0] <- y
+                        @>
+
+                    let run,check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|2;1;2;3|]
+
+                testCase "Bindings. Binding in IF." <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                if 2 = 0
+                                then
+                                    let x = 1
+                                    buf.[0] <- x
+                                else
+                                    let i = 2
+                                    buf.[0] <- i
+                        @>
+
+                    let run,check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|2;1;2;3|]
+
+                testCase "Bindings. Binding in FOR." <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                for i in 0..3 do
+                                    let x = i * i
+                                    buf.[i] <- x
+                        @>
+
+                    let run,check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|0;1;4;9|]
+
+                testCase "Bindings. Binding in WHILE." <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                while buf.[0] < 5 do
+                                    let x = buf.[0] + 1
+                                    buf.[0] <- x * x
+                        @>
+
+                    let run,check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|25;1;2;3|]
+            ]
+
+    let operatorsAndMathFunctionsTests =
+        testList "Operators and math functions tests"
+            [
+                testCase "Operators and math functions. Binop plus." <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                buf.[0] <- 1 + 2
+                        @>
+
+                    let run,check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|3;1;2;3|]
+
+                // Failed due to precision
+                ptestCase "Math sin." <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<float>) ->
+                                let i = range.GlobalID0
+                                buf.[i] <- System.Math.Sin (float buf.[i])
+                        @>
+
+                    let run,check = checkResult command
+                    let inA = [|0.0;1.0;2.0;3.0|]
+                    run _1d inA
+                    check inA (inA |> Array.map System.Math.Sin)  //[|0.0; 0.841471; 0.9092974; 0.14112|]
+            ]
+
+    let pipeTests =
+        ptestList "Pipe tests"
+            [
+                 // Lambda is not supported.
+                ptestCase "Forward pipe." <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                buf.[0] <- (1.25f |> int)
+                        @>
+                    let run,check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|1;1;2;3|]
+
+                // Lambda is not supported.
+                ptestCase "Backward pipe." <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                buf.[0] <- int <| 1.25f + 2.34f
+                        @>
+                    let run,check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|3;1;2;3|]
+            ]
+
+    let controlFlowTests =
+        testList "Control flow tests"
+            [
+                testCase "Control flow. If Then." <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                if 0 = 2 then buf.[0] <- 42
+                        @>
+
+                    let run,check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|0;1;2;3|]
+
+                testCase "Control flow. If Then Else." <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                if 0 = 2 then buf.[0] <- 1 else buf.[0] <- 2
+                        @>
+
+                    let run,check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|2;1;2;3|]
+
+                testCase "Control flow. For Integer Loop." <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                for i in 1..3 do
+                                    buf.[i] <- 0
+                        @>
+
+                    let run,check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|0;0;0;0|]
+
+                testCase "Control flow. WHILE loop simple test." <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                while buf.[0] < 5 do
+                                    buf.[0] <- buf.[0] + 1
+                        @>
+
+                    let run,check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|5;1;2;3|]
+
+                testCase "Control flow. WHILE in FOR." <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                for i in 0..3 do
+                                    while buf.[i] < 10 do
+                                        buf.[i] <- buf.[i] * buf.[i] + 1
+                        @>
+
+                    let run,check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|26;26;26;10|]
+            ]
+
+    let kernelArgumentsTests =
+        testList "Kernel arguments tests"
+            [
+                testCase "Kernel arguments. Simple 1D." <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                let i = range.GlobalID0
+                                buf.[i] <- i + i
+                        @>
+
+                    let run,check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|0;2;4;6|]
+
+                testCase "Kernel arguments. Simple 1D with copy." <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (inBuf:array<int>) (outBuf:array<int>) ->
+                                let i = range.GlobalID0
+                                outBuf.[i] <- inBuf.[i]
+                        @>
+
+                    let run,check = checkResult command
+                    let outA = [|0;0;0;0|]
+                    run _1d intInArr outA
+                    check outA [|0;1;2;3|]
+
+                testCase "Kernel arguments. Simple 1D float." <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<float32>) ->
+                                let i = range.GlobalID0
+                                buf.[i] <- buf.[i] * buf.[i]
+                        @>
+
+                    let run,check = checkResult command
+                    run _1d float32Arr
+                    check float32Arr [|0.0f;1.0f;4.0f;9.0f|]
+
+                testCase "Kernel arguments. Int as arg." <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) x (buf:array<int>) ->
+                                let i = range.GlobalID0
+                                buf.[i] <- x + x
+                        @>
+
+                    let run,check = checkResult command
+                    run _1d 2 intInArr
+                    check intInArr [|4;4;4;4|]
+
+                testCase "Kernel arguments. Sequential commands over single buffer." <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) i x (buf:array<int>) ->
+                                buf.[i] <- x + x
+                        @>
+
+                    let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.head)
+                    let _, kernelPrepareF, kernelRunF = provider.Compile command
+
+                    kernelPrepareF _1d 0 2 intInArr
+                    commandQueue.Add(kernelRunF()) |> ignore
+
+                    kernelPrepareF _1d 2 2 intInArr
+                    commandQueue.Add(kernelRunF()) |> ignore
+                    commandQueue.Finish() |> ignore
+
+                    let r = Array.zeroCreate intInArr.Length
+                    commandQueue.Add(intInArr.ToHost(provider, r)).Finish() |> ignore
+                    commandQueue.Dispose()
+                    provider.CloseAllBuffers()
+
+                    let expected = [|4;1;4;3|]
+                    Expect.sequenceEqual expected r "Arrays should be equals"
+            ]
+
+    let quotationInjectionTests =
+        testList "Quotation injection tests"
+            [
+                testCase "Quotations injections.  Quotations injections 1." <| fun _ ->
+                    let myF = <@ fun x -> x * x @>
+
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                buf.[0] <- (%myF) 2
+                                buf.[1] <- (%myF) 4
+                        @>
+
+                    let run,check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|4;16;2;3|]
+
+                testCase "Quotations injections. Quotations injections 2." <| fun _ ->
+                    let myF = <@ fun x y -> y - x @>
+
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                buf.[0] <- (%myF) 2 5
+                                buf.[1] <- (%myF) 4 9
+                        @>
+
+                    let run,check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|3;5;2;3|]
+            ]
+
+
+    testList "System tests with running kernels"
         [
-             arrayItemSetTests
-             atomicsTests
+            atomicsTests
+            arrayItemSetTests
+            typeCastingTests
+            bindingTests
+            operatorsAndMathFunctionsTests
+            pipeTests
+            controlFlowTests
+            kernelArgumentsTests
+            quotationInjectionTests
         ]
     |> (fun x -> Expecto.Sequenced (Expecto.SequenceMethod.Synchronous, x))
 
-    (*
-    [<Test>]
-    member this.``Cast. Long``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int64>) ->
-                    buf.[0] <- (int64)1UL
-            @>
-
-        let run,check = checkResult command
-        let initInArr = [|0L; 1L|]
-        run _1d initInArr
-        check initInArr [|1L; 1L|]
-
-    [<Test>]
-    member this.``Cast. ULong``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<uint64>) ->
-                    buf.[0] <- (uint64)1L
-            @>
-
-        let run,check = checkResult command
-        let initInArr = [|0UL; 1UL|]
-        run _1d initInArr
-        check initInArr [|1UL; 1UL|]
-
-    [<Test>]
-
-    [<Test>]
-    member this.Binding() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    let x = 1
-                    buf.[0] <- x
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|1;1;2;3|]
-
-    [<Test>]
-    member this.``Binop plus``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    buf.[0] <- 1 + 2
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|3;1;2;3|]
-
-    [<Test>]
-    member this.``If Then``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    if 0 = 2 then buf.[0] <- 1
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|0;1;2;3|]
-
-    [<Test>]
-    member this.``If Then Else``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    if 0 = 2 then buf.[0] <- 1 else buf.[0] <- 2
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|2;1;2;3|]
-
-    [<Test>]
-    member this.``For Integer Loop``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    for i in 1..3 do buf.[i] <- 0
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|0;0;0;0|]
-
-    [<Test>]
-    member this.``Sequential bindings``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    let x = 1
-                    let y = x + 1
-                    buf.[0] <- y
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|2;1;2;3|]
-
-    [<Test>]
-    member this.``Binding in IF.``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    if 2 = 0
-                    then
-                        let x = 1
-                        buf.[0] <- x
-                    else
-                        let i = 2
-                        buf.[0] <- i
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|2;1;2;3|]
-
-    [<Test>]
-    member this.``Binding in FOR.``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    for i in 0..3 do
-                        let x = i * i
-                        buf.[0] <- x
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|9;1;2;3|]
-
-    [<Test>]
-    member this.``WHILE loop simple test.``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                 while buf.[0] < 5 do
-                     buf.[0] <- buf.[0] + 1
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|5;1;2;3|]
-
-    [<Test>]
-    member this.``WHILE in FOR.``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                 for i in 0..3 do
-                     while buf.[i] < 10 do
-                         buf.[i] <- buf.[i] * buf.[i] + 1
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|26;26;26;10|]
-
-    [<Test>]
-    member this.``Binding in WHILE.``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    while buf.[0] < 5 do
-                        let x = buf.[0] + 1
-                        buf.[0] <- x * x
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|25;1;2;3|]
-
-    [<Test>]
-    member this.``Simple 1D.``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    let i = range.GlobalID0
-                    buf.[i] <- i + i
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|0;2;4;6|]
-
-    [<Test>]
-    member this.``Simple 1D with copy.``() =
-        let command =
-            <@
-                fun (range:_1D) (inBuf:array<int>) (outBuf:array<int>) ->
-                    let i = range.GlobalID0
-                    outBuf.[i] <- inBuf.[i]
-            @>
-
-        let run,check = checkResult command
-        let outA = [|0;0;0;0|]
-        run _1d intInArr outA
-        check outA [|0;1;2;3|]
-
-    [<Test>]
-    member this.``Simple 1D float.``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<float32>) ->
-                    let i = range.GlobalID0
-                    buf.[i] <- buf.[i] * buf.[i]
-            @>
-
-        let run,check = checkResult command
-        run _1d float32Arr
-        check float32Arr [|0.0f;1.0f;4.0f;9.0f|]
-
-    [<Ignore>]
-    [<Test>]
-    member this.``Math sin``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<float>) ->
-                    let i = range.GlobalID0
-                    buf.[i] <- System.Math.Sin (float buf.[i])
-            @>
-
-        let run,check = checkResult command
-        let inA = [|0.0;1.0;2.0;3.0|]
-        run _1d inA
-        check inA (inA |> Array.map System.Math.Sin)  //[|0.0; 0.841471; 0.9092974; 0.14112|]
-
-    [<Test>]
-    member this.``Int as arg``() =
-        let command =
-            <@
-                fun (range:_1D) x (buf:array<int>) ->
-                    let i = range.GlobalID0
-                    buf.[i] <- x + x
-            @>
-        let run,check = checkResult command
-        run _1d 2 intInArr
-        check intInArr [|4;4;4;4|]
-
-    [<Test>]
-    member this.``Sequential commands over single buffer``() =
-        let command =
-            <@
-                fun (range:_1D) i x (buf:array<int>) ->
-                    buf.[i] <- x + x
-            @>
-        let kernel,kernelPrepareF, kernelRunF = provider.Compile command
-        kernelPrepareF _1d 0 2 intInArr
-        let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.head)
-        let _ = commandQueue.Add(kernelRunF())
-        kernelPrepareF _1d 2 2 intInArr
-        let _ = commandQueue.Add(kernelRunF())
-        let _ = commandQueue.Finish()
-        let r = Array.zeroCreate intInArr.Length
-        let _ = commandQueue.Add(intInArr.ToHost(provider, r)).Finish()
-        commandQueue.Dispose()
-        let expected = [|4;1;4;3|]
-        Assert.AreEqual(expected, r)
-        provider.CloseAllBuffers()
-
-    [<Test>]
-    member this.``Sequential operations``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    buf.[0] <- 2
-                    buf.[1] <- 4
-            @>
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|2;4;2;3|]
-
-    [<Test>]
-    member this.``Quotations injections 1``() =
-        let myF = <@ fun x -> x * x @>
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    buf.[0] <- (%myF) 2
-                    buf.[1] <- (%myF) 4
-            @>
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|4;16;2;3|]
-
-    [<Test>]
-    member this.``Quotations injections 2``() =
-        let myF = <@ fun x y -> y - x @>
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    buf.[0] <- (%myF) 2 5
-                    buf.[1] <- (%myF) 4 9
-            @>
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|3;5;2;3|]
-
-    //[<Test>]
-    member this.``Forward pipe``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    buf.[0] <- 1.25f |> int
-            @>
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|1;1;2;3|]
-
-    //[<Test>]
-    member this.``Backward pipe``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    buf.[0] <- int <| 1.25f + 2.34f
-            @>
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|3;1;2;3|]
-
+(*
     [<Test>]
     member this.``Byte type support``() =
         let command =
