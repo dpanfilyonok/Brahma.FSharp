@@ -270,3 +270,7 @@ coverage.*.xml
 .fake
 .ionide
 *.gen
+
+*.exn
+
+*.blob

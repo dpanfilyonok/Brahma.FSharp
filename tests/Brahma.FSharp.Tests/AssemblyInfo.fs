@@ -4,20 +4,20 @@ open System.Reflection
 
 [<assembly: AssemblyTitleAttribute("Brahma.FSharp.Tests")>]
 [<assembly: AssemblyProductAttribute("Brahma.FSharp")>]
-[<assembly: AssemblyVersionAttribute("0.1.0")>]
-[<assembly: AssemblyMetadataAttribute("ReleaseDate","2017-03-17T00:00:00.0000000")>]
-[<assembly: AssemblyFileVersionAttribute("0.1.0")>]
-[<assembly: AssemblyInformationalVersionAttribute("0.1.0")>]
-[<assembly: AssemblyMetadataAttribute("ReleaseChannel","release")>]
-[<assembly: AssemblyMetadataAttribute("GitHash","bb8964b54bee133e9af64d316dc2cfee16df7f72")>]
+[<assembly: AssemblyVersionAttribute("1.5.6")>]
+[<assembly: AssemblyMetadataAttribute("ReleaseDate","2020-11-08T00:00:00.0000000+03:00")>]
+[<assembly: AssemblyFileVersionAttribute("1.5.6")>]
+[<assembly: AssemblyInformationalVersionAttribute("1.5.6")>]
+[<assembly: AssemblyMetadataAttribute("ReleaseChannel","alpha")>]
+[<assembly: AssemblyMetadataAttribute("GitHash","a7be26ce329053159b6dbc5105623a08a3bcc60e")>]
 do ()
 
 module internal AssemblyVersionInformation =
     let [<Literal>] AssemblyTitle = "Brahma.FSharp.Tests"
     let [<Literal>] AssemblyProduct = "Brahma.FSharp"
-    let [<Literal>] AssemblyVersion = "0.1.0"
-    let [<Literal>] AssemblyMetadata_ReleaseDate = "2017-03-17T00:00:00.0000000"
-    let [<Literal>] AssemblyFileVersion = "0.1.0"
-    let [<Literal>] AssemblyInformationalVersion = "0.1.0"
-    let [<Literal>] AssemblyMetadata_ReleaseChannel = "release"
-    let [<Literal>] AssemblyMetadata_GitHash = "bb8964b54bee133e9af64d316dc2cfee16df7f72"
+    let [<Literal>] AssemblyVersion = "1.5.6"
+    let [<Literal>] AssemblyMetadata_ReleaseDate = "2020-11-08T00:00:00.0000000+03:00"
+    let [<Literal>] AssemblyFileVersion = "1.5.6"
+    let [<Literal>] AssemblyInformationalVersion = "1.5.6"
+    let [<Literal>] AssemblyMetadata_ReleaseChannel = "alpha"
+    let [<Literal>] AssemblyMetadata_GitHash = "a7be26ce329053159b6dbc5105623a08a3bcc60e"

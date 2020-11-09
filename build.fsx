@@ -55,6 +55,7 @@ let testsCodeGlob =
     ++ (__SOURCE_DIRECTORY__  @@ "tests/**/*.fsx")
 
 let srcGlob =__SOURCE_DIRECTORY__  @@ "src/**/*.??proj"
+let fsSrcGlob =__SOURCE_DIRECTORY__  @@ "src/**/*.fsproj"
 let testsGlob = __SOURCE_DIRECTORY__  @@ "tests/**/*.??proj"
 
 let srcAndTest =
@@ -247,7 +248,7 @@ module DocsTool =
     let buildCLI () =
         [
             BuildArgs.SiteBaseUrl docsSiteBaseUrl
-            BuildArgs.ProjectGlob srcGlob
+            BuildArgs.ProjectGlob fsSrcGlob
             BuildArgs.DocsOutputDirectory docsDir
             BuildArgs.DocsSourceDirectory docsSrcDir
             BuildArgs.GitHubRepoUrl gitHubRepoUrl
@@ -265,7 +266,7 @@ module DocsTool =
     let watchparser = ArgumentParser.Create<WatchArgs>(programName = "docstool")
     let watchCLI () =
         [
-            WatchArgs.ProjectGlob srcGlob
+            WatchArgs.ProjectGlob fsSrcGlob
             WatchArgs.DocsSourceDirectory docsSrcDir
             WatchArgs.GitHubRepoUrl gitHubRepoUrl
             WatchArgs.ProjectName gitRepoName
@@ -629,6 +630,7 @@ let buildDocs _ =
 let watchDocs _ =
     let watchBuild () =
         !! srcGlob
+        |> Seq.filter (fun proj -> String.endsWith ".csproj" proj |> not)
         |> Seq.map(fun proj -> fun () ->
             dotnet.watch
                 (fun opt ->
