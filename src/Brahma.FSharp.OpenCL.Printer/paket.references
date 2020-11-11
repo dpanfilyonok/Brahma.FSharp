@@ -1,4 +1,5 @@
-OpenCL.Net
 FSharp.Core
-YC.PrettyPrinter
+Microsoft.SourceLink.GitHub
+Microsoft.NETFramework.ReferenceAssemblies
+FSharpx.Text.StructuredFormat
 FSharpx.Collections
