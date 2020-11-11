@@ -13,11 +13,11 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "docsTool", "docsTool\docsTo
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "OpenCL.NET", "OpenCL.NET", "{B1560D9E-E516-4CB3-B5B5-FD67E01A43AD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenCL.NET", "src\OpenCL.NET\OpenCL.NET.csproj", "{512FDEC8-7AFA-45B8-BC73-228AF0F0F05F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YC.OpenCL.NET", "src\YC.OpenCL.NET\YC.OpenCL.NET.csproj", "{512FDEC8-7AFA-45B8-BC73-228AF0F0F05F}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Brahma", "Brahma", "{F1D43FDC-C688-4859-9843-49E74ECEA034}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brahma", "src\Brahma\Brahma.csproj", "{29428C3B-EA8C-423C-BC26-FC0338612F99}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YC.Brahma", "src\YC.Brahma\YC.Brahma.csproj", "{29428C3B-EA8C-423C-BC26-FC0338612F99}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Brahma.FSharp", "Brahma.FSharp", "{C3AB2B84-58C4-4503-9244-2F2B33783CB9}"
 EndProject
@@ -25,7 +25,7 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Brahma.FSharp.OpenCL.AST", 
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Brahma.FSharp.OpenCL.Core", "src\Brahma.FSharp.OpenCL.Core\Brahma.FSharp.OpenCL.Core.fsproj", "{22C12ED0-D136-4B00-9018-A6DBD022891A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brahma.OpenCL", "src\Brahma.OpenCL\Brahma.OpenCL.csproj", "{6BD4EEC2-7C93-4703-9EDA-D3D255FEF84B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YC.Brahma.OpenCL", "src\YC.Brahma.OpenCL\YC.Brahma.OpenCL.csproj", "{6BD4EEC2-7C93-4703-9EDA-D3D255FEF84B}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Brahma.FSharp.OpenCL.Translator", "src\Brahma.FSharp.OpenCL.Translator\Brahma.FSharp.OpenCL.Translator.fsproj", "{5193EB24-97FC-4283-BFFF-E4E519344CFB}"
 EndProject

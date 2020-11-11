@@ -2,10 +2,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>netstandard2.1;net461</TargetFrameworks>
+    <RootNamespace>Brahma.OpenCL</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Brahma\Brahma.csproj" />
-    <ProjectReference Include="..\OpenCL.NET\OpenCL.NET.csproj" />
+    <ProjectReference Include="..\YC.Brahma\YC.Brahma.csproj" />
+    <ProjectReference Include="..\YC.OpenCL.NET\YC.OpenCL.NET.csproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

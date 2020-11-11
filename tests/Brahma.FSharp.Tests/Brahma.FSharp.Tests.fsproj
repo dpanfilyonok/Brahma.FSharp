@@ -15,9 +15,9 @@
       <ProjectReference Include="..\..\src\Brahma.FSharp.OpenCL.Core\Brahma.FSharp.OpenCL.Core.fsproj" />
       <ProjectReference Include="..\..\src\Brahma.FSharp.OpenCL.Extensions\Brahma.FSharp.OpenCL.Extensions.fsproj" />
       <ProjectReference Include="..\..\src\Brahma.FSharp.OpenCL.Translator\Brahma.FSharp.OpenCL.Translator.fsproj" />
-      <ProjectReference Include="..\..\src\Brahma.OpenCL\Brahma.OpenCL.csproj" />
-      <ProjectReference Include="..\..\src\Brahma\Brahma.csproj" />
-      <ProjectReference Include="..\..\src\OpenCL.NET\OpenCL.NET.csproj" />
+      <ProjectReference Include="..\..\src\YC.Brahma.OpenCL\YC.Brahma.OpenCL.csproj" />
+      <ProjectReference Include="..\..\src\YC.Brahma\YC.Brahma.csproj" />
+      <ProjectReference Include="..\..\src\YC.OpenCL.NET\YC.OpenCL.NET.csproj" />
     </ItemGroup>
     <ItemGroup>
       <Content Include="Expected\Array.Item.Set.cl">

@@ -9,7 +9,6 @@
         <PackageProjectUrl>https://github.com/YaccConstructor/Brahma.FSharp</PackageProjectUrl>
         <PackageIcon>BrahmaFSharpLogoBW_small1.png</PackageIcon>
         <PackageLicenseExpression>EPL-1.0</PackageLicenseExpression>
-        <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
         <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
         <RepositoryType>git</RepositoryType>
         <Authors>YaccConstructor</Authors>
