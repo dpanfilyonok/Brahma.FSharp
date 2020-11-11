@@ -4,21 +4,21 @@ using System.Reflection;
 
 [assembly: AssemblyTitle("Brahma.OpenCL")]
 [assembly: AssemblyProduct("Brahma.FSharp")]
-[assembly: AssemblyVersion("1.5.6")]
-[assembly: AssemblyMetadata("ReleaseDate","2020-11-08T00:00:00.0000000+03:00")]
-[assembly: AssemblyFileVersion("1.5.6")]
-[assembly: AssemblyInformationalVersion("1.5.6")]
+[assembly: AssemblyVersion("2.0.0")]
+[assembly: AssemblyMetadata("ReleaseDate","2020-11-11T00:00:00.0000000+03:00")]
+[assembly: AssemblyFileVersion("2.0.0")]
+[assembly: AssemblyInformationalVersion("2.0.0")]
 [assembly: AssemblyMetadata("ReleaseChannel","alpha")]
-[assembly: AssemblyMetadata("GitHash","a7be26ce329053159b6dbc5105623a08a3bcc60e")]
+[assembly: AssemblyMetadata("GitHash","beff768932c3707796488dc54b4de1cd467e726b")]
 namespace System {
     internal static class AssemblyVersionInformation {
         internal const System.String AssemblyTitle = "Brahma.OpenCL";
         internal const System.String AssemblyProduct = "Brahma.FSharp";
-        internal const System.String AssemblyVersion = "1.5.6";
-        internal const System.String AssemblyMetadata_ReleaseDate = "2020-11-08T00:00:00.0000000+03:00";
-        internal const System.String AssemblyFileVersion = "1.5.6";
-        internal const System.String AssemblyInformationalVersion = "1.5.6";
+        internal const System.String AssemblyVersion = "2.0.0";
+        internal const System.String AssemblyMetadata_ReleaseDate = "2020-11-11T00:00:00.0000000+03:00";
+        internal const System.String AssemblyFileVersion = "2.0.0";
+        internal const System.String AssemblyInformationalVersion = "2.0.0";
         internal const System.String AssemblyMetadata_ReleaseChannel = "alpha";
-        internal const System.String AssemblyMetadata_GitHash = "a7be26ce329053159b6dbc5105623a08a3bcc60e";
+        internal const System.String AssemblyMetadata_GitHash = "beff768932c3707796488dc54b4de1cd467e726b";
     }
 }

@@ -1,9 +1,15 @@
 <Project>
+    <ItemGroup>
+      <None Include="../../docsSrc/figures/BrahmaFSharpLogoBW_small1.png" Pack="true" PackagePath="/"/>
+      <None Include="../../LICENSE.md" Pack="true" PackagePath="/"/>
+    </ItemGroup>
     <PropertyGroup>
         <!-- summary is not migrated from project.json, but you can use the <Description> property for that if needed. -->
-        <PackageTags>f#, fsharp</PackageTags>
+        <PackageTags>OpenCL, GPGPU, f#, fsharp</PackageTags>
         <PackageProjectUrl>https://github.com/YaccConstructor/Brahma.FSharp</PackageProjectUrl>
-        <PackageLicenseUrl>https://github.com/YaccConstructor/Brahma.FSharp/blob/master/LICENSE.md</PackageLicenseUrl>
+        <PackageIcon>BrahmaFSharpLogoBW_small1.png</PackageIcon>
+        <PackageLicenseExpression>EPL-1.0</PackageLicenseExpression>
+        <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
         <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
         <RepositoryType>git</RepositoryType>
         <Authors>YaccConstructor</Authors>

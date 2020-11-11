@@ -551,7 +551,8 @@ let dotnetPack ctx =
 let sourceLinkTest _ =
     !! distGlob
     |> Seq.iter (fun nupkg ->
-        dotnet.sourcelink id (sprintf "test %s" nupkg)
+         printfn "!!! %A" nupkg
+         dotnet.sourcelink id (sprintf "test %s" nupkg)
     )
 
 let publishToNuget _ =
@@ -716,7 +717,7 @@ Target.create "ReleaseDocs" releaseDocs
     ==> "DotnetTest"
     =?> ("GenerateCoverageReport", not disableCodeCoverage)
     ==> "DotnetPack"
-    ==> "SourceLinkTest"
+    //==> "SourceLinkTest"
     ==> "PublishToNuGet"
     ==> "GitRelease"
     ==> "GitHubRelease"
