@@ -30,17 +30,18 @@ let FullTranslatorTests =
     let checkResult command =
         let kernel,kernelPrepareF, kernelRunF = provider.Compile command
         let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.head)
-        try
-            commandQueue.Add(intInArr.ToGpu(provider,intInArr)).Finish()
-            |> ignore
-        with _ -> ()
+
         let check (outArray:array<'a>) (expected:array<'a>) =
-            let cq = commandQueue.Add(kernelRunF()).Finish()
-            let r = Array.zeroCreate expected.Length
-            let cq2 = commandQueue.Add(outArray.ToHost(provider,r)).Finish()
-            commandQueue.Dispose()
-            Expect.sequenceEqual r expected "Arrays should be equals"
+            let r = Array.zeroCreate outArray.Length
+
+            commandQueue.Add(kernelRunF())
+                        .Add(outArray.ToHost(provider, r))
+                        .Finish()
+                        .Dispose()
             provider.CloseAllBuffers()
+
+            Expect.sequenceEqual r expected "Arrays should be equals"
+
         kernelPrepareF,check
 
     let atomicsTests =
@@ -495,12 +496,60 @@ let FullTranslatorTests =
     let localMemTests =
         testList "Local memory tests"
             [
-                testCase "Local array" <| fun _ ->
+                testCase "Local int. Work item counting" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (output: array<int>) ->
+                                let globalID = range.GlobalID0
+                                let mutable x = local ()
+
+                                if globalID = 0 then
+                                    x <- 0
+                                x <!+ 1
+                                if globalID = 0 then
+                                    output.[0] <- x
+                        @>
+
+                    let binder, check = checkResult command
+                    let input = [|0|]
+                    let range = _1D(5, 5)
+
+                    binder range input
+                    check input [|5|]
+
+                testCase "Local array. Test 1" <| fun _ ->
+                    let localWorkSize = 5
+                    let globalWorkSize = 15
+
+                    let command =
+                        <@
+                            fun (range:_1D) (input: array<int>) (output: array<int>) ->
+                                let local_buf: array<int> = localArray localWorkSize
+
+                                local_buf.[range.LocalID0] <- range.LocalID0
+                                output.[range.GlobalID0] <- local_buf.[(range.LocalID0 + 1) % localWorkSize]
+                        @>
+
+                    let kernelPrepare, check = checkResult command
+
+                    let range = _1D(globalWorkSize, localWorkSize)
+
+                    let input = Array.zeroCreate globalWorkSize
+                    let output = Array.zeroCreate globalWorkSize
+
+                    kernelPrepare range input output
+                    let expected = [| for x in 1..localWorkSize -> x % localWorkSize |]
+                                   |> Array.replicate (globalWorkSize / localWorkSize)
+                                   |> Array.concat
+
+                    check output expected
+
+                testCase "Local array. Test 2" <| fun _ ->
                     let command =
                         <@
                             fun (range:_1D) (buf:array<int64>) ->
                                 let local_buf = localArray 42
-                                local_buf.[0] <- 1L
+                                local_buf.[0] <! 1L
                                 buf.[0] <- local_buf.[0]
                         @>
 
