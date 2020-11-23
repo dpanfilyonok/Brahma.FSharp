@@ -58,7 +58,7 @@ let FullTranslatorTests =
                     run _1d initInArr
                     check initInArr [|1; 1; 2; 3|]
 
-                testCase "Atomic excenge float" <| fun _ ->
+                ptestCase "Atomic excenge float" <| fun _ ->
                     let command =
                         <@
                             fun (range:_1D) (buf:array<_>) ->
@@ -70,7 +70,7 @@ let FullTranslatorTests =
                     run _1d initInArr
                     check initInArr [|1.0f; 1.0f; 2.0f; 3.0f|]
 
-                testCase "Atomic excenge int and float" <| fun _ ->
+                ptestCase "Atomic excenge int and float" <| fun _ ->
                     let command =
                         <@
                             fun (range:_1D) (buf:array<_>) ->
