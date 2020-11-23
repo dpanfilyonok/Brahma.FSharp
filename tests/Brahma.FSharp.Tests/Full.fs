@@ -46,7 +46,7 @@ let FullTranslatorTests =
     let atomicsTests =
         testList "Tests on atomic functions."
             [
-                testCase "Atomic excenge int" <| fun _ ->
+                testCase "Atomic exchange int" <| fun _ ->
                     let command =
                         <@
                             fun (range:_1D) (buf:array<_>) ->
@@ -58,7 +58,7 @@ let FullTranslatorTests =
                     run _1d initInArr
                     check initInArr [|1; 1; 2; 3|]
 
-                ptestCase "Atomic excenge float" <| fun _ ->
+                ptestCase "Atomic exchange float" <| fun _ ->
                     let command =
                         <@
                             fun (range:_1D) (buf:array<_>) ->
@@ -70,7 +70,7 @@ let FullTranslatorTests =
                     run _1d initInArr
                     check initInArr [|1.0f; 1.0f; 2.0f; 3.0f|]
 
-                ptestCase "Atomic excenge int and float" <| fun _ ->
+                ptestCase "Atomic exchange int and float" <| fun _ ->
                     let command =
                         <@
                             fun (range:_1D) (buf:array<_>) ->

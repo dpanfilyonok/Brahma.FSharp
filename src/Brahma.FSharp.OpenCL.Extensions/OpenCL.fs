@@ -101,7 +101,7 @@ let aCompExchR a b c =
     |> ignore
     a
 
-let local<'a> () =
+let local<'a when 'a : struct> () =
     kFail()
     Unchecked.defaultof<'a>
 
