@@ -16,10 +16,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="BasicMonads\State.fs" />
-    <Compile Include="BasicMonads\Reader.fs" />
     <Compile Include="Workflow.fs" />
-    <Compile Include="BasicEvaluations.fs" />
+    <Compile Include="Basic.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Brahma.FSharp.OpenCL.Core\Brahma.FSharp.OpenCL.Core.fsproj" />
