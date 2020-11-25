@@ -8,10 +8,10 @@ open Brahma.FSharp.OpenCL.Core
 
 let opencl = OpenCLEvaluationBuilder()
 
-let getContext : OpenCLEvaluation<OpenCLContext> =
+let getEvaluationContext : OpenCLEvaluation<OpenCLEvaluationContext> =
     OpenCLEvaluation <|fun x -> x
 
-type OpenCLContext with
+type OpenCLEvaluationContext with
     member this.RunSync (OpenCLEvaluation f) =
         let res = f this
         this.CommandQueue.Finish() |> ignore
@@ -22,14 +22,14 @@ type OpenCLContext with
 
 let ToHost (xs : array<'a>) : OpenCLEvaluation<array<'a>> =
     opencl {
-        let! ctx = getContext
+        let! ctx = getEvaluationContext
         ctx.CommandQueue.Add(xs.ToHost ctx.Provider) |> ignore
         return xs
     }
 
 let RunCommand (command : Expr<'range -> 'a>) (binder : ('range -> 'a) -> unit) : OpenCLEvaluation<unit> =
     opencl {
-        let! ctx = getContext
+        let! ctx = getEvaluationContext
         let _, kernelP, kernelR = ctx.Provider.Compile command
 
         binder kernelP

@@ -15,7 +15,7 @@ let WorkflowTests =
     let platformName = "*"
 
     let provider = ComputeProvider.Create(platformName, deviceType)
-    let ctx = OpenCLContext provider
+    let ctx = OpenCLEvaluationContext provider
 
     let eqMsg = "Values should be equal"
 
@@ -56,7 +56,7 @@ let WorkflowTests =
     let asyncRunTests =
         testList "Tests of async workflow"
             [
-                testCase "Test 1" <| fun _ ->
+                ptestCase "Test 1" <| fun _ ->
                     let command =
                         <@
                             fun (range:_1D) (xs:array<int>) ->

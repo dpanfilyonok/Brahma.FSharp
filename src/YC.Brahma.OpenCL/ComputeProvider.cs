@@ -176,23 +176,21 @@ namespace Brahma.OpenCL
             var platformNameRegex = new Regex(WildcardToRegex(platformName), RegexOptions.IgnoreCase);
             Platform? currentPlatform = null;
             ErrorCode error;
+            
             foreach (var platform in Cl.GetPlatformIDs(out error))
                 if (platformNameRegex.Match(Cl.GetPlatformInfo(platform, PlatformInfo.Name, out error).ToString()).Success)
                 {
                     currentPlatform = platform;
-                    break;
+                    var compatibleDevices = 
+                        from device in Cl.GetDeviceIDs(currentPlatform.Value, deviceType, out error)
+                        select device;
+                    
+                    if (compatibleDevices.Count() != 0)
+                        return new ComputeProvider(compatibleDevices.ToArray());
                 }
 
-            if (currentPlatform == null)
-                throw new PlatformNotSupportedException(string.Format("Could not find a platform that matches {0}", platformName));
-
-            var compatibleDevices = from device in Cl.GetDeviceIDs(currentPlatform.Value, deviceType, out error)
-                                    select device;
-            if (compatibleDevices.Count() == 0)
-                throw new PlatformNotSupportedException(string.Format("Could not find a device with type {0} on platform {1}",
-                    deviceType, Cl.GetPlatformInfo(currentPlatform.Value, PlatformInfo.Name, out error)));
-
-            return new ComputeProvider(compatibleDevices.ToArray());
+            throw new PlatformNotSupportedException(string.Format("Could not find any platform that matches {0} with device type {1}",
+                platformName, deviceType));
         }
     }
 }

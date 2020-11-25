@@ -1,15 +1,27 @@
 module Brahma.FSharp.OpenCL.Workflow.Evaluation
 
 open Brahma.OpenCL
+open OpenCL.Net
 
-type OpenCLContext(provider: ComputeProvider) =
+exception EmptyDevicesException of string
+
+type OpenCLEvaluationContext(provider: ComputeProvider) =
     member this.Provider = provider
 
     member this.CommandQueue =
-        new CommandQueue(provider, provider.Devices |> Seq.head)
+        if provider.Devices |> Seq.isEmpty then
+            raise (EmptyDevicesException <| sprintf "Provider:\n%AIt hasn't any device." provider)
+
+        new Brahma.OpenCL.CommandQueue(provider, provider.Devices |> Seq.head)
+
+    new (?platform_name, ?device_type: DeviceType) =
+            let platform_name = defaultArg platform_name "*"
+            let device_type = defaultArg device_type DeviceType.Default
+            let provider = ComputeProvider.Create(platform_name, device_type)
+            OpenCLEvaluationContext(provider)
 
 type OpenCLEvaluation<'a> =
-    OpenCLEvaluation of (OpenCLContext -> 'a)
+    OpenCLEvaluation of (OpenCLEvaluationContext -> 'a)
 
 let private runEvaluation (OpenCLEvaluation f) = f
 

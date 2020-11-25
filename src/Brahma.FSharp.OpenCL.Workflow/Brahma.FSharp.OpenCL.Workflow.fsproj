@@ -16,7 +16,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="Workflow.fs" />
+    <Compile Include="Evaluation.fs" />
     <Compile Include="Basic.fs" />
   </ItemGroup>
   <ItemGroup>
