@@ -101,7 +101,14 @@ let aCompExchR a b c =
     |> ignore
     a
 
-let local a = a
+let local<'a when 'a : struct> () =
+    kFail()
+    Unchecked.defaultof<'a>
+
+let localArray<'a> (size : int) =
+    kFail()
+    Unchecked.defaultof<array<'a>>
+
 let barrier () = ignore(null)
 
 let _byte (x:bool) = 0uy

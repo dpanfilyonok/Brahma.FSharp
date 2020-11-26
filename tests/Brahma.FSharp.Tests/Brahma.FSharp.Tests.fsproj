@@ -77,6 +77,15 @@
       <Content Include="Expected\Let renamed.cl">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
+      <Content Include="Expected\LocalMemory.int.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\LocalMemory.float.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="Expected\LocalMemory.int [].cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
       <Content Include="Expected\LocalID1D.cl">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
