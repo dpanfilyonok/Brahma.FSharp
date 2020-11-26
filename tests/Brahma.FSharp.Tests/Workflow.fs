@@ -11,11 +11,8 @@ open Brahma.FSharp.OpenCL.Workflow.Basic
 
 [<Tests>]
 let WorkflowTests =
-    let deviceType = DeviceType.Default
-    let platformName = "*"
-
-    let provider = ComputeProvider.Create(platformName, deviceType)
-    let ctx = OpenCLEvaluationContext provider
+    let ctx = OpenCLEvaluationContext()
+    printfn "Running workflow tests on:\n%A" ctx.Provider
 
     let eqMsg = "Values should be equal"
 
@@ -56,7 +53,7 @@ let WorkflowTests =
     let asyncRunTests =
         testList "Tests of async workflow"
             [
-                ptestCase "Test 1" <| fun _ ->
+                testCase "Test 1" <| fun _ ->
                     let command =
                         <@
                             fun (range:_1D) (xs:array<int>) ->
@@ -75,12 +72,12 @@ let WorkflowTests =
                             return! ToHost xs
                         }
 
-                    let get_result = ctx.RunAsync <| workflow (32*1000) 32
+                    let get_result = ctx.RunAsync <| workflow (32*10000) 32
 
                     do Some |> ignore
 
                     let result = get_result ()
-                    let expected = Array.replicate 1000 [|0..31|] |> Array.concat
+                    let expected = Array.replicate 10000 [|0..31|] |> Array.concat
                     Expect.equal result expected eqMsg
             ]
 

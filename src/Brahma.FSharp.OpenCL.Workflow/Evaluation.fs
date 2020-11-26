@@ -5,14 +5,22 @@ open OpenCL.Net
 
 exception EmptyDevicesException of string
 
-type OpenCLEvaluationContext(provider: ComputeProvider) =
+type OpenCLEvaluationContext(provider: ComputeProvider, ?device_id: int) =
+    let devices = provider.Devices |> Seq.toArray
+    let device_id = defaultArg device_id 0
+    do
+        if device_id >= devices.Length then
+            raise (EmptyDevicesException <|
+                   sprintf "Provider:\n%Ahas not device with id %i." provider device_id)
+
+    let device = devices.[device_id]
+    let command_queue = new Brahma.OpenCL.CommandQueue(provider, device)
+
     member this.Provider = provider
 
-    member this.CommandQueue =
-        if provider.Devices |> Seq.isEmpty then
-            raise (EmptyDevicesException <| sprintf "Provider:\n%AIt hasn't any device." provider)
+    member this.Device = device
 
-        new Brahma.OpenCL.CommandQueue(provider, provider.Devices |> Seq.head)
+    member this.CommandQueue = command_queue
 
     new (?platform_name, ?device_type: DeviceType) =
             let platform_name = defaultArg platform_name "*"
