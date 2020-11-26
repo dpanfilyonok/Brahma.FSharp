@@ -1,0 +1,39 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.1;net461</TargetFrameworks>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <PropertyGroup>
+    <Title>Brahma.FSharp.OpenCL.Workflow</Title>
+    <Description>Brahma.FSharp does the thing!</Description>
+
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <Optimize>true</Optimize>
+    <Tailcalls>true</Tailcalls>
+    
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="Evaluation.fs" />
+    <Compile Include="Basic.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Brahma.FSharp.OpenCL.Core\Brahma.FSharp.OpenCL.Core.fsproj" />
+    <ProjectReference Include="..\Brahma.FSharp.OpenCL.Extensions\Brahma.FSharp.OpenCL.Extensions.fsproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="..\..\docsSrc\figures\BrahmaFSharpLogoBW_small1.png">
+      <Pack>true</Pack>
+      <PackagePath>/</PackagePath>
+      <Link>BrahmaFSharpLogoBW_small1.png</Link>
+    </None>
+    <None Update="..\..\LICENSE.md">
+      <Pack>true</Pack>
+      <PackagePath>/</PackagePath>
+      <Link>LICENSE.md</Link>
+    </None>
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+</Project>
