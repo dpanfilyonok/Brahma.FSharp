@@ -638,8 +638,38 @@ let translatorTest =
                 checkCode command "Nested.Function.Carring2.gen" "Nested.Function.Carring2.cl"
         ]
 
+    let localMemoryTests =
+        testList "Test of local memory declaration functions." [
+            testCase "Local int" <| fun _ ->
+                let command =
+                    <@
+                        fun (range:_1D) ->
+                            let mutable x = local ()
+                            x <- 0
+                    @>
+                checkCode command "LocalMemory.int.gen" "LocalMemory.int.cl"
+
+            testCase "Local float" <| fun _ ->
+                let command =
+                    <@
+                        fun (range:_1D) ->
+                            let mutable x = local ()
+                            x <- 0.0
+                    @>
+                checkCode command "LocalMemory.float.gen" "LocalMemory.float.cl"
+
+            testCase "Local int array" <| fun _ ->
+                let command =
+                    <@
+                        fun (range:_1D) ->
+                            let xs = localArray 5
+                            xs.[range.LocalID0] <- range.LocalID0
+                    @>
+                checkCode command "LocalMemory.int [].gen" "LocalMemory.int [].cl"
+        ]
+
     let localMemoryAllocationTests =
-        ptestList "Translation of local memory allocatuin functions." [
+        ptestList "Translation of local memory allocation functions." [
             ptestCase "Constant array translation. Local copy test 1" <| fun _ ->
                 let cArray1 = [|1;2;3|]
                 let command =
@@ -662,6 +692,7 @@ let translatorTest =
             constantArrayTests
             lambdaLiftingTests
             curryingTests
+            localMemoryTests
             localMemoryAllocationTests
         ]
     |> (fun x -> Expecto.Sequenced (Expecto.SequenceMethod.Synchronous, x))

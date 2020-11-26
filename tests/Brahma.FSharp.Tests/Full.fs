@@ -30,23 +30,24 @@ let FullTranslatorTests =
     let checkResult command =
         let kernel,kernelPrepareF, kernelRunF = provider.Compile command
         let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.head)
-        try
-            commandQueue.Add(intInArr.ToGpu(provider,intInArr)).Finish()
-            |> ignore
-        with _ -> ()
+
         let check (outArray:array<'a>) (expected:array<'a>) =
-            let cq = commandQueue.Add(kernelRunF()).Finish()
-            let r = Array.zeroCreate expected.Length
-            let cq2 = commandQueue.Add(outArray.ToHost(provider,r)).Finish()
-            commandQueue.Dispose()
-            Expect.sequenceEqual r expected "Arrays should be equals"
+            let r = Array.zeroCreate outArray.Length
+
+            commandQueue.Add(kernelRunF())
+                        .Add(outArray.ToHost(provider, r))
+                        .Finish()
+                        .Dispose()
             provider.CloseAllBuffers()
+
+            Expect.sequenceEqual r expected "Arrays should be equals"
+
         kernelPrepareF,check
 
     let atomicsTests =
         testList "Tests on atomic functions."
             [
-                testCase "Atomic excenge int" <| fun _ ->
+                testCase "Atomic exchange int" <| fun _ ->
                     let command =
                         <@
                             fun (range:_1D) (buf:array<_>) ->
@@ -58,7 +59,7 @@ let FullTranslatorTests =
                     run _1d initInArr
                     check initInArr [|1; 1; 2; 3|]
 
-                ptestCase "Atomic excenge float" <| fun _ ->
+                ptestCase "Atomic exchange float" <| fun _ ->
                     let command =
                         <@
                             fun (range:_1D) (buf:array<_>) ->
@@ -70,11 +71,11 @@ let FullTranslatorTests =
                     run _1d initInArr
                     check initInArr [|1.0f; 1.0f; 2.0f; 3.0f|]
 
-                ptestCase "Atomic excenge int and float" <| fun _ ->
+                ptestCase "Atomic exchange int and float" <| fun _ ->
                     let command =
                         <@
                             fun (range:_1D) (buf:array<_>) ->
-                                let local_buf = local (Array.zeroCreate 1)
+                                let local_buf = localArray 1
                                 let x = local_buf.[0] <!> int buf.[0]
                                 buf.[0] <! float32 x + 1.0f
                         @>
@@ -88,7 +89,7 @@ let FullTranslatorTests =
                     let command =
                         <@
                             fun (range:_1D) (buf:array<_>) ->
-                                let local_buf = local (Array.zeroCreate 1)
+                                let local_buf = localArray 1
                                 let x = aMinR local_buf.[0] (int buf.[0])
                                 aMax buf.[0] (x + 1)
                         @>
@@ -124,21 +125,6 @@ let FullTranslatorTests =
                     let initInArr = [|0L; 1L; 2L; 3L|]
                     run _1d initInArr
                     check initInArr [|1L; 1L; 2L; 3L|]
-
-                testCase "Local array" <| fun _ ->
-                    let command =
-                        <@
-                            fun (range:_1D) (buf:array<int64>) ->
-                                let local_buf = local (Array.zeroCreate 42)
-                                local_buf.[0] <- 1L
-                                buf.[0] <- local_buf.[0]
-                        @>
-
-                    let run,check = checkResult command
-                    let initInArr = [|0L; 1L; 2L; 3L|]
-                    run _1d initInArr
-                    check initInArr [|1L; 1L; 2L; 3L|]
-
 
                 testCase "Array item set. ULong" <| fun _ ->
                     let command =
@@ -507,6 +493,72 @@ let FullTranslatorTests =
                     check intInArr [|3;5;2;3|]
             ]
 
+    let localMemTests =
+        testList "Local memory tests"
+            [
+                testCase "Local int. Work item counting" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (output: array<int>) ->
+                                let globalID = range.GlobalID0
+                                let mutable x = local ()
+
+                                if globalID = 0 then
+                                    x <- 0
+                                x <!+ 1
+                                if globalID = 0 then
+                                    output.[0] <- x
+                        @>
+
+                    let binder, check = checkResult command
+                    let input = [|0|]
+                    let range = _1D(5, 5)
+
+                    binder range input
+                    check input [|5|]
+
+                testCase "Local array. Test 1" <| fun _ ->
+                    let localWorkSize = 5
+                    let globalWorkSize = 15
+
+                    let command =
+                        <@
+                            fun (range:_1D) (input: array<int>) (output: array<int>) ->
+                                let local_buf: array<int> = localArray localWorkSize
+
+                                local_buf.[range.LocalID0] <- range.LocalID0
+                                output.[range.GlobalID0] <- local_buf.[(range.LocalID0 + 1) % localWorkSize]
+                        @>
+
+                    let kernelPrepare, check = checkResult command
+
+                    let range = _1D(globalWorkSize, localWorkSize)
+
+                    let input = Array.zeroCreate globalWorkSize
+                    let output = Array.zeroCreate globalWorkSize
+
+                    kernelPrepare range input output
+                    let expected = [| for x in 1..localWorkSize -> x % localWorkSize |]
+                                   |> Array.replicate (globalWorkSize / localWorkSize)
+                                   |> Array.concat
+
+                    check output expected
+
+                testCase "Local array. Test 2" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int64>) ->
+                                let local_buf = localArray 42
+                                local_buf.[0] <! 1L
+                                buf.[0] <- local_buf.[0]
+                        @>
+
+                    let run,check = checkResult command
+                    let initInArr = [|0L; 1L; 2L; 3L|]
+                    run _1d initInArr
+                    check initInArr [|1L; 1L; 2L; 3L|]
+            ]
+
 
     testList "System tests with running kernels"
         [
@@ -519,6 +571,7 @@ let FullTranslatorTests =
             controlFlowTests
             kernelArgumentsTests
             quotationInjectionTests
+            localMemTests
         ]
     |> (fun x -> Expecto.Sequenced (Expecto.SequenceMethod.Synchronous, x))
 
