@@ -6,9 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.0.0-alpha1]
- 
+### Fixed
+- Local memory semantic. It is forbidden to initialize variables in the local memory.
 ### Added
+- Basic workflow builders for designing computations
+
+## [2.0.0-alpha2]
 - Atomic functions are polimorphic
 - Function for allocation in local memory is revised
 - Type provider is removed
