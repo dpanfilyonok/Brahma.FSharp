@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFrameworks>netstandard2.1;net461</TargetFrameworks>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <RootNamespace>Brahma.FSharp.OpenCL.Workflow</RootNamespace>
   </PropertyGroup>
   <PropertyGroup>
     <Title>Brahma.FSharp.OpenCL.Workflow</Title>

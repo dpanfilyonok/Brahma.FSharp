@@ -6,8 +6,8 @@ open Expecto
 open OpenCL.Net
 
 open Brahma.OpenCL
-open Brahma.FSharp.OpenCL.Workflow.Evaluation
-open Brahma.FSharp.OpenCL.Workflow.Basic
+open Brahma.FSharp.OpenCL.WorkflowBuilder.Evaluation
+open Brahma.FSharp.OpenCL.WorkflowBuilder.Basic
 
 [<Tests>]
 let WorkflowTests =

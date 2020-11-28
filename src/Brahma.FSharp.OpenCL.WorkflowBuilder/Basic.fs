@@ -1,8 +1,8 @@
-module Brahma.FSharp.OpenCL.Workflow.Basic
+module Brahma.FSharp.OpenCL.WorkflowBuilder.Basic
 
 open FSharp.Quotations
 
-open Brahma.FSharp.OpenCL.Workflow.Evaluation
+open Brahma.FSharp.OpenCL.WorkflowBuilder.Evaluation
 open Brahma.FSharp.OpenCL.Extensions
 open Brahma.FSharp.OpenCL.Core
 

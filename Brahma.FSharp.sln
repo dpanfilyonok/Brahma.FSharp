@@ -33,7 +33,7 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Brahma.FSharp.OpenCL.Printe
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Brahma.FSharp.OpenCL.Extensions", "src\Brahma.FSharp.OpenCL.Extensions\Brahma.FSharp.OpenCL.Extensions.fsproj", "{01321D4B-B2F5-40D9-A8A9-989ED3172CBC}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Brahma.FSharp.OpenCL.Workflow", "src\Brahma.FSharp.OpenCL.Workflow\Brahma.FSharp.OpenCL.Workflow.fsproj", "{DF5E12ED-63CF-46D2-B61C-14DC9BDA9C58}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Brahma.FSharp.OpenCL.WorkflowBuilder", "src\Brahma.FSharp.OpenCL.WorkflowBuilder\Brahma.FSharp.OpenCL.WorkflowBuilder.fsproj", "{DF5E12ED-63CF-46D2-B61C-14DC9BDA9C58}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

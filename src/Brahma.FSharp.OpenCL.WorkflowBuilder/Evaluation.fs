@@ -1,4 +1,4 @@
-module Brahma.FSharp.OpenCL.Workflow.Evaluation
+module Brahma.FSharp.OpenCL.WorkflowBuilder.Evaluation
 
 open Brahma.OpenCL
 open OpenCL.Net
