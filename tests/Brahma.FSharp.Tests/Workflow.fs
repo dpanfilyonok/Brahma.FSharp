@@ -88,6 +88,25 @@ let WorkflowTests =
                     let output = ctx.RunSync workflow
                     Expect.equal output expected eqMsg
 
+                testCase "While. Test 3. Do inside body of while loop" <| fun _ ->
+                    let xs: int array ref = ref [|1; 2; 3; 4|]
+
+                    let GpuMapInplace f (xs: int array ref) =
+                        opencl {
+                            let! res = GpuMap f !xs
+                            xs := res
+                        }
+
+                    let workflow = opencl {
+                        let mutable i = 0
+                        while i < 10 do
+                            do! GpuMapInplace <@ fun x -> x + 1 @> xs
+                            i <- i + 1
+                        return! ToHost !xs
+                    }
+                    let output = ctx.RunSync workflow
+                    Expect.equal output [|11; 12; 13; 14|] eqMsg
+
                 testCase "For. Test 1. Without evaluation" <| fun _ ->
                     let log = List<int>()
                     let workflow = opencl {
