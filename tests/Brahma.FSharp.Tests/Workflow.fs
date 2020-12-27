@@ -3,7 +3,7 @@ module Brahma.FSharp.Tests.Workflow
 open FSharp.Quotations
 
 open Expecto
-open OpenCL.Net
+open System.Collections.Generic
 
 open Brahma.OpenCL
 open Brahma.FSharp.OpenCL.WorkflowBuilder.Evaluation
@@ -64,8 +64,8 @@ let WorkflowTests =
                             i <- i + 1
                             log <- i :: log
                     }
-                    Expect.equal log [] "Delay should not allow any computations
-                                         before evaluation started"
+                    Expect.equal log []
+                        "Delay should prevent any computations before evaluation started"
                     ctx.RunSync workflow
                     Expect.equal log [10..-1..0] eqMsg
 
@@ -87,6 +87,30 @@ let WorkflowTests =
                     }
                     let output = ctx.RunSync workflow
                     Expect.equal output expected eqMsg
+
+                testCase "For. Test 1. Without evaluation" <| fun _ ->
+                    let log = List<int>()
+                    let workflow = opencl {
+                        log.Add(0)
+                        for x in [1..10] do
+                            log.Add(x)
+                    }
+
+                    Expect.sequenceEqual log <| List<int>() <|
+                        "Delay should prevent any computations before evaluation started"
+                    ctx.RunSync workflow
+                    Expect.sequenceEqual log (List<int>([0..10])) eqMsg
+
+                testCase "For. Test 2. Simple evaluation" <| fun _ ->
+                    let workflow = opencl {
+                        let mutable xs = [|1; 2; 3; 4|]
+                        for y in [|10; 20; 30|] do
+                            let! res = GpuMap <@ fun x -> x + y @> xs
+                            xs <- res
+                        return! ToHost xs
+                    }
+                    let output = ctx.RunSync workflow
+                    Expect.equal output [|61; 62; 63; 64|] eqMsg
             ]
 
     let asyncRunTests =

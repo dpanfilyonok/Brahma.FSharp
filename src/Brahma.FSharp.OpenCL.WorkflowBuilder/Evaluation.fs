@@ -48,6 +48,8 @@ type OpenCLEvaluationBuilder() =
 
     abstract member While : (unit -> bool) * OpenCLEvaluation<unit> -> OpenCLEvaluation<unit>
 
+    abstract member For : seq<'elem> * ('elem -> OpenCLEvaluation<unit>) -> OpenCLEvaluation<unit>
+
     abstract member TryWith : OpenCLEvaluation<'a> * (exn -> OpenCLEvaluation<'a>) -> OpenCLEvaluation<'a>
 
     default this.Return x =
@@ -76,6 +78,11 @@ type OpenCLEvaluationBuilder() =
         OpenCLEvaluation <| fun env ->
             while predicate() do
                 runEvaluation body env
+
+    default this.For (elems, f_body) =
+        OpenCLEvaluation <| fun env ->
+            for elem in elems do
+                runEvaluation (f_body elem) env
 
     default this.TryWith (tryBlock, handler) =
         OpenCLEvaluation <| fun env ->
