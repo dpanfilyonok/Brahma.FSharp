@@ -38,9 +38,15 @@ type OpenCLEvaluationBuilder() =
 
     abstract member ReturnFrom : OpenCLEvaluation<'a> -> OpenCLEvaluation<'a>
 
+    abstract member Zero : unit -> OpenCLEvaluation<unit>
+
     abstract member Bind : OpenCLEvaluation<'a> * ('a -> OpenCLEvaluation<'b>) -> OpenCLEvaluation<'b>
 
-    abstract member Zero : unit -> OpenCLEvaluation<unit>
+    abstract member Combine : OpenCLEvaluation<unit> * OpenCLEvaluation<'a> -> OpenCLEvaluation<'a>
+
+    abstract member Delay : (unit -> OpenCLEvaluation<'a>) -> OpenCLEvaluation<'a>
+
+    abstract member While : (unit -> bool) * OpenCLEvaluation<unit> -> OpenCLEvaluation<unit>
 
     abstract member TryWith : OpenCLEvaluation<'a> * (exn -> OpenCLEvaluation<'a>) -> OpenCLEvaluation<'a>
 
@@ -49,13 +55,27 @@ type OpenCLEvaluationBuilder() =
 
     default this.ReturnFrom m = m
 
-    default this.Bind(m, k) =
+    default this.Zero () =
+        this.Return ()
+
+    default this.Bind (m, k) =
         OpenCLEvaluation <| fun env ->
             let res = runEvaluation m env
             runEvaluation <| k res <| env
 
-    default this.Zero () =
-        this.Return ()
+    default this.Combine (m1, m2) =
+        OpenCLEvaluation <| fun env ->
+            runEvaluation m1 env
+            runEvaluation m2 env
+
+    default this.Delay (rest) =
+        OpenCLEvaluation <| fun env ->
+            runEvaluation (rest()) env
+
+    default this.While (predicate, body) =
+        OpenCLEvaluation <| fun env ->
+            while predicate() do
+                runEvaluation body env
 
     default this.TryWith (tryBlock, handler) =
         OpenCLEvaluation <| fun env ->

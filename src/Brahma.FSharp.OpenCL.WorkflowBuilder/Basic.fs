@@ -9,7 +9,7 @@ open Brahma.FSharp.OpenCL.Core
 let opencl = OpenCLEvaluationBuilder()
 
 let getEvaluationContext : OpenCLEvaluation<OpenCLEvaluationContext> =
-    OpenCLEvaluation <|fun x -> x
+    OpenCLEvaluation <| fun x -> x
 
 type OpenCLEvaluationContext with
     member this.RunSync (OpenCLEvaluation f) =
