@@ -1,10 +1,13 @@
 ﻿module Brahma.FSharp.OpenCL.Full
 
+open Brahma.FSharp.OpenCL.WorkflowBuilder.Evaluation
 open Expecto
 open OpenCL.Net
 open Brahma.OpenCL
 open Brahma.FSharp.OpenCL.Core
 open Brahma.FSharp.OpenCL.Extensions
+open Brahma.FSharp.OpenCL.WorkflowBuilder.Basic
+open FSharp.Quotations
 
 [<Struct>]
 type TestStruct =
@@ -266,20 +269,52 @@ let FullTranslatorTests =
             ]
 
     let operatorsAndMathFunctionsTests =
+        let testOpGen testCase
+          (name: string)
+          (binop: Expr<'a -> 'a -> 'a>)
+          (xs: array<'a>)
+          (ys: array<'a>)
+          (expected: array<'a>) =
+            testCase name <| fun _ ->
+                let command =
+                    <@
+                        fun (range: _1D) (xs: array<'a>) (ys: array<'a>) (zs: array<'a>) ->
+                            let i = range.GlobalID0
+                            zs.[i] <- (%binop) xs.[i] ys.[i]
+                    @>
+
+                let range = (_1D <| Array.length expected)
+                let zs = Array.zeroCreate <| Array.length expected
+
+                let eval = opencl {
+                    do! RunCommand command (fun binder -> binder range xs ys zs)
+                    return! ToHost zs
+                }
+
+                let ctx = OpenCLEvaluationContext()
+                let output = ctx.RunSync eval
+                Expect.sequenceEqual output expected ":("
+
         testList "Operators and math functions tests"
             [
-                testCase "Operators and math functions. Binop plus." <| fun _ ->
-                    let command =
-                        <@
-                            fun (range:_1D) (buf:array<int>) ->
-                                buf.[0] <- 1 + 2
-                        @>
+                // Failed: SIGSEGV
+                testOpGen ptestCase "Boolean or 1." <@ (||) @>
+                    [|true; false; false; false|]
+                    [|false; true; true; true|]
+                    [|false; false; false; false|]
 
-                    let run,check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|3;1;2;3|]
+//                // Failed: actual = [|true; false|]
+                testOpGen ptestCase "Boolean or 2." <@ (||) @>
+                    [|true; false|]
+                    [|false; true|]
+                    [|true; true|]
 
-                // Failed due to precision
+                testOpGen testCase "Binop plus 1." <@ (+) @>
+                    [|1; 2; 3; 4|]
+                    [|5; 6; 7; 8|]
+                    [|6; 8; 10; 12|]
+
+                // Failed: due to precision
                 ptestCase "Math sin." <| fun _ ->
                     let command =
                         <@

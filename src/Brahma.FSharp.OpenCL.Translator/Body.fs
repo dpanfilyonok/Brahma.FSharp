@@ -67,6 +67,8 @@ and private translateCall exprOpt (mInfo:System.Reflection.MethodInfo) _args tar
     | "op_bitwiseor"           -> new Binop<_>(BitOr,args.[0],args.[1]) :> Statement<_>,tContext
     | "op_leftshift"           -> new Binop<_>(LeftShift,args.[0],args.[1]) :> Statement<_>,tContext
     | "op_rightshift"          -> new Binop<_>(RightShift,args.[0],args.[1]) :> Statement<_>,tContext
+    | "op_booleanand"          -> new Binop<_>(And, args.[0], args.[1]) :> Statement<_>, tContext
+    | "op_booleanor"           -> new Binop<_>(Or, args.[0], args.[1]) :> Statement<_>, tContext
     | "op_lessbangplusgreater"
     | "op_lessbangplus"        ->
         tContext.Flags.enableAtomic <- true
