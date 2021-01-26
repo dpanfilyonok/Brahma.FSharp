@@ -297,17 +297,20 @@ let FullTranslatorTests =
 
         testList "Operators and math functions tests"
             [
-                // Failed: SIGSEGV
-                testOpGen ptestCase "Boolean or 1." <@ (||) @>
+                testOpGen testCase "Boolean or 1." <@ (||) @>
                     [|true; false; false; false|]
                     [|false; true; true; true|]
-                    [|false; false; false; false|]
+                    [|true; true; true; true|]
 
-//                // Failed: actual = [|true; false|]
-                testOpGen ptestCase "Boolean or 2." <@ (||) @>
+                testOpGen testCase "Boolean or 2." <@ (||) @>
                     [|true; false|]
                     [|false; true|]
                     [|true; true|]
+
+                testOpGen testCase "Boolean and 1." <@ (&&) @>
+                    [|true; false; false; false|]
+                    [|true; false; true; true|]
+                    [|true; false; false; false|]
 
                 testOpGen testCase "Binop plus 1." <@ (+) @>
                     [|1; 2; 3; 4|]
