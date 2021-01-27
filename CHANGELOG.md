@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0-alpha5] - 2021-01-27
+
+### Fixed
+- Boolean binary operators
+
+- Transfer arrays of boolean
+
+- Local memory semantic. It is forbidden to initialize variables in the local memory.
+- Local memory semantic. It is forbidden to initialize variables in the local memory.
+
+### Added
+- While and for loops in workflow builders
+- Basic workflow builders for designing computations
+- Basic workflow builders for designing computations
+
 ## [2.0.0-alpha4] - 2020-12-27
 
 ### Added
@@ -86,5 +101,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - FSharp.Core form NuGet
 - .NET 4.5
-[Unreleased]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v2.0.0-alpha4...HEAD
+[Unreleased]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v2.0.0-alpha5...HEAD
+[2.0.0-alpha5]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v1.1.5...v2.0.0-alpha5
 [2.0.0-alpha4]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v1.1.5...v2.0.0-alpha4
