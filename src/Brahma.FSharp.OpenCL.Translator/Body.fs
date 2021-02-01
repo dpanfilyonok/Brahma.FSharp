@@ -443,7 +443,7 @@ and Translate expr (targetContext:TargetContext<_,_>) =
     | Patterns.NewTuple(exprs) ->
         let mutable n = 0
         let baseTypes = [|for i in 0..exprs.Length - 1 -> exprs.[i].Type|]
-        let elements = [for i in 0..exprs.Length - 1 -> new StructField<'lang> ("_" + (i + 1).ToString(), Type.Translate baseTypes.[i] false None targetContext)]
+        let elements = [for i in 0..exprs.Length - 1 -> { Name = "_" + (i + 1).ToString(); Type = Type.Translate baseTypes.[i] false None targetContext}]
         let mutable s = ""
         for i in 0..baseTypes.Length - 1 do s <- s + baseTypes.[i].Name
         if not (targetContext.tupleDecls.ContainsKey(s))

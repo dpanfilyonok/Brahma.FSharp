@@ -86,7 +86,7 @@ let rec Translate (_type:System.Type) isKernelArg size (context:TargetContext<_,
                 else _type.UnderlyingSystemType.ToString().Substring(15, _type.UnderlyingSystemType.ToString().Length - 16).Split(',')
              let mutable n = 0
              let baseTypes = [|for i in 0..types.Length - 1 -> types.[i].Substring(7)|]
-             let elements = [for i in 0..types.Length - 1 -> new StructField<'lang> ("_" + (i + 1).ToString(), go baseTypes.[i])]
+             let elements = [for i in 0..types.Length - 1 -> { Name = "_" + (i + 1).ToString(); Type = go baseTypes.[i] }]
              let mutable s = ""
              for i in 0..baseTypes.Length - 1 do s <- s + baseTypes.[i]
              if not (context.tupleDecls.ContainsKey(s))
@@ -115,16 +115,16 @@ let rec Translate (_type:System.Type) isKernelArg size (context:TargetContext<_,
     |> go
 
 
-let TransleteStructDecls structs (targetContext:TargetContext<_,_>) =
+let TranslateStructDecls structs (targetContext:TargetContext<_,_>) =
     let translateStruct (t:System.Type) =
         let name = t.Name
         let fields = [ for f in
                             t.GetProperties (BindingFlags.Public ||| BindingFlags.Instance) ->
-                        new StructField<_> (f.Name, Translate f.PropertyType true None targetContext)]
+                            { Name = f.Name; Type = Translate f.PropertyType true None targetContext }]
                      @
                      [ for f in
                             t.GetFields(BindingFlags.Public ||| BindingFlags.Instance) ->
-                        new StructField<_> (f.Name, Translate f.FieldType true None targetContext)]
+                            { Name = f.Name; Type = Translate f.FieldType true None targetContext }]
 
         new Struct<_>(name, fields)
 

@@ -18,25 +18,39 @@ namespace Brahma.FSharp.OpenCL.Translator
 open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.AST
 open System.Collections.Generic
+open Brahma.FSharp.OpenCL.Translator.TypeReflection
 
 type FSQuotationToOpenCLTranslator() =
 
-    let CollectStructs e =
+    let CollectStructs expr =
         let escapeNames = [|"_1D";"_2D";"_3D"|]
-        let structs = new System.Collections.Generic.Dictionary<System.Type, _> ()
-        let  add (t:System.Type) =
-            if ((t.IsValueType && not t.IsPrimitive && not t.IsEnum)) && not (structs.ContainsKey t)
-               && not (Array.exists ((=)t.Name) escapeNames )
-            then structs.Add(t, ())
+        let structs = Dictionary<System.Type, _> ()
+
+        let rec add (t: System.Type) =
+            if isStruct t &&
+               not <| structs.ContainsKey t &&
+               not <| Array.exists ((=) t.Name) escapeNames
+            then
+                Array.concat <| seq {
+                    t.GetProperties() |>
+                    Array.map (fun prop -> prop.PropertyType);
+
+                    t.GetFields() |>
+                    Array.map (fun field -> field.FieldType)
+                } |>
+                Array.iter add
+
+                structs.Add(t, ())
+
         let rec go (e: Expr) =
             add e.Type
             match e with
-            | ExprShape.ShapeVar(v) -> ()
-            | ExprShape.ShapeLambda(v, body) -> go body
+            | ExprShape.ShapeVar _ -> ()
+            | ExprShape.ShapeLambda(_, body) -> go body
             | ExprShape.ShapeCombination(o, l) ->
                 o.GetType() |> add
                 List.iter go l
-        go e
+        go expr
         structs
 
     /// The parameter 'vars' is an immutable map that assigns expressions to variables
@@ -85,7 +99,7 @@ type FSQuotationToOpenCLTranslator() =
                     else
                         Some((adding (ite.Else.Value)) :?> StatementBlock<_> )
                 (new IfThenElse<_>(ite.Condition,newThen, newElse)) :> Statement<_>
-            | _ -> failwithf "Unsapported statement to add Return: %A" stmt
+            | _ -> failwithf "Unsupported statement to add Return: %A" stmt
 
         adding subAST
 
@@ -137,9 +151,9 @@ type FSQuotationToOpenCLTranslator() =
 
     let translate qExpr translatorOptions =
 
-        let structs = CollectStructs qExpr
+        let structs: Dictionary<System.Type, unit> = CollectStructs qExpr
         let context = new TargetContext<_,_>()
-        let translatedStructs = Type.TransleteStructDecls structs.Keys context |> Seq.cast<_> |> List.ofSeq
+        let translatedStructs = Type.TranslateStructDecls structs.Keys context |> Seq.cast<_> |> List.ofSeq
         newAST <- QuotationsTransformer.quontationTransformer qExpr translatorOptions
 
         //let qExpr = expand Map.empty qExpr
