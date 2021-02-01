@@ -94,23 +94,20 @@ let rec Translate (_type:System.Type) isKernelArg size (context:TargetContext<_,
                  context.tupleNumber <- context.tupleNumber + 1
                  n <- context.tupleNumber
                  context.tupleDecls.Add(s, n)
-                 let a = new Struct<_>("tuple" + n.ToString(), elements)
+                 let a = StructType<_>("tuple" + n.ToString(), elements)
                  context.tupleList.Add(a)
-                 let decl = Some a
-                 TupleType<_>(StructType(decl), n) :> Type<_>
+                 TupleType<_>(a, n) :> Type<_>
              else
                  n <- context.tupleDecls.Item(s)
-                 let a = new Struct<Lang>("tuple" + n.ToString(), elements)
-                 let decl = Some a
-                 TupleType<_>(StructType(decl), n) :> Type<_>
+                 let a = StructType<_>("tuple" + n.ToString(), elements)
+                 TupleType<_>(a, n) :> Type<_>
         | x when context.UserDefinedTypes.Exists(fun t -> t.Name.ToLowerInvariant() = x)
             ->
-                let decl =
-                    if context.UserDefinedTypesOpenCLDeclaration.ContainsKey x
-                    then Some context.UserDefinedTypesOpenCLDeclaration.[x]
-                    else None
-                StructType(decl) :> Type<_>
-        | x -> "Unsuported kernel type: " + x |> failwith
+                if not <| context.UserDefinedTypesOpenCLDeclaration.ContainsKey x
+                    then failwithf "Declaration of struct %s doesn't exists" x
+                let structType =  context.UserDefinedTypesOpenCLDeclaration.[x]
+                structType :> Type<_>
+        | x -> "Unsupported kernel type: " + x |> failwith
     _type.Name
     |> go
 
@@ -126,15 +123,14 @@ let TranslateStructDecls structs (targetContext:TargetContext<_,_>) =
                             t.GetFields(BindingFlags.Public ||| BindingFlags.Instance) ->
                             { Name = f.Name; Type = Translate f.FieldType true None targetContext }]
 
-        new Struct<_>(name, fields)
+        StructType<_>(name, fields)
 
     let translated =
         do targetContext.UserDefinedTypes.AddRange(structs)
         structs
-        |> List.ofSeq
         |> List.map
             (fun t ->
                 let r = translateStruct t
-                targetContext.UserDefinedTypesOpenCLDeclaration.Add(t.Name.ToLowerInvariant(),r)
-                r)
+                targetContext.UserDefinedTypesOpenCLDeclaration.Add(t.Name.ToLowerInvariant(), r)
+                StructDecl r)
     translated

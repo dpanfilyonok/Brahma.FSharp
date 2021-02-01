@@ -429,14 +429,14 @@ and Translate expr (targetContext:TargetContext<_,_>) =
     | Patterns.LetRecursive (bindings,expr) -> "LetRecursive is not suported:" + string expr|> failwith
     | Patterns.NewArray(sType,exprs) -> "NewArray is not suported:" + string expr|> failwith
     | Patterns.NewDelegate(sType,vars,expr) -> "NewDelegate is not suported:" + string expr|> failwith
-    | Patterns.NewObject(constrInfo,exprs) ->
+    | Patterns.NewObject(constrInfo, exprs) ->
         let p = constrInfo.GetParameters()
         let p2 = constrInfo.GetMethodBody()
         if targetContext.UserDefinedTypes.Contains(constrInfo.DeclaringType)
         then
             let structInfo =  targetContext.UserDefinedTypesOpenCLDeclaration.[constrInfo.DeclaringType.Name.ToLowerInvariant()]
             let cArgs = exprs |> List.map (fun x -> TranslateAsExpr x targetContext)
-            let res = new NewStruct<_>(structInfo,cArgs |> List.unzip |> fst)
+            let res = NewStruct<_>(structInfo, cArgs |> List.unzip |> fst)
             res :> Node<_>,targetContext
         else "NewObject is not suported:" + string expr|> failwith
     | Patterns.NewRecord(sType,exprs) -> "NewRecord is not suported:" + string expr|> failwith
@@ -450,14 +450,14 @@ and Translate expr (targetContext:TargetContext<_,_>) =
         then
             targetContext.tupleNumber <- targetContext.tupleNumber + 1
             targetContext.tupleDecls.Add(s, targetContext.tupleNumber)
-            let a = new Struct<Lang>("tuple" + targetContext.tupleNumber.ToString(), elements)
+            let a = StructType<Lang>("tuple" + targetContext.tupleNumber.ToString(), elements)
             targetContext.tupleList.Add(a)
             let cArgs = exprs |> List.map (fun x -> TranslateAsExpr x targetContext)
-            new NewStruct<_>(a,cArgs |> List.unzip |> fst) :> Node<_>, targetContext
+            NewStruct<_>(a,cArgs |> List.unzip |> fst) :> Node<_>, targetContext
         else
-            let a = new Struct<Lang>("tuple" + (targetContext.tupleDecls.Item(s)).ToString(), elements)
+            let a = StructType<Lang>("tuple" + (targetContext.tupleDecls.Item(s)).ToString(), elements)
             let cArgs = exprs |> List.map (fun x -> TranslateAsExpr x targetContext)
-            new NewStruct<_>(a,cArgs |> List.unzip |> fst) :> Node<_>, targetContext
+            NewStruct<_>(a,cArgs |> List.unzip |> fst) :> Node<_>, targetContext
     | Patterns.NewUnionCase(unionCaseinfo,exprs) -> "NewUnionCase is not suported:" + string expr|> failwith
     | Patterns.PropertyGet(exprOpt,propInfo,exprs) ->
         let res, tContext = transletaPropGet exprOpt propInfo exprs targetContext

@@ -51,7 +51,7 @@ type FSQuotationToOpenCLTranslator() =
                 o.GetType() |> add
                 List.iter go l
         go expr
-        structs
+        structs.Keys |> List.ofSeq
 
     /// The parameter 'vars' is an immutable map that assigns expressions to variables
     /// (as we recursively process the tree, we replace all known variables)
@@ -151,9 +151,11 @@ type FSQuotationToOpenCLTranslator() =
 
     let translate qExpr translatorOptions =
 
-        let structs: Dictionary<System.Type, unit> = CollectStructs qExpr
+        let structs = CollectStructs qExpr
         let context = new TargetContext<_,_>()
-        let translatedStructs = Type.TranslateStructDecls structs.Keys context |> Seq.cast<_> |> List.ofSeq
+        let translatedStructs =
+            Type.TranslateStructDecls structs context
+            |> List.map (fun x -> x :> TopDef<_>)
         newAST <- QuotationsTransformer.quontationTransformer qExpr translatorOptions
 
         //let qExpr = expand Map.empty qExpr
@@ -163,7 +165,7 @@ type FSQuotationToOpenCLTranslator() =
             | e ->
                 let body =
                     let b,context =
-                        let c = new TargetContext<_,_>()
+                        let c = TargetContext<_,_>()
                         c.UserDefinedTypes.AddRange context.UserDefinedTypes
                         c.UserDefinedTypesOpenCLDeclaration.Clear()
                         for x in context.UserDefinedTypesOpenCLDeclaration do c.UserDefinedTypesOpenCLDeclaration.Add (x.Key,x.Value)

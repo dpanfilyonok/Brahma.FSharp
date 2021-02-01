@@ -88,46 +88,35 @@ type StructField<'lang> =
     { Name: string;
       Type: Type<'lang> }
 
-// Struct Definition
-type Struct<'lang>(name: string, fields: List<StructField<'lang>>) =
-    inherit Node<'lang>()
-    interface TopDef<'lang>
-    override this.Children = []
+type StructType<'lang>(name: string, fields: List<StructField<'lang>>)=
+    inherit Type<'lang>()
+
     member this.Fields = fields
     member this.Name = name
-    member this.Matches(other:obj) =
+
+    override this.Size =
+        this.Fields |> List.sumBy (fun f -> f.Type.Size)
+
+    override this.Matches(other:obj) =
         match other with
-        | :? Struct<'lang> as o ->
+        | :? StructType<'lang> as o ->
             this.Name.Equals(o.Name)
             // NB: fields are omitted in this check
         | _ -> false
 
-// Struct Type
-type StructType<'lang>(decl)=
-    inherit Type<'lang>()
-    member val Declaration : Option<Struct<'lang>> = decl with get, set
+type StructDecl<'lang>(structType: StructType<'lang>) =
+    inherit Node<'lang>()
+    interface TopDef<'lang>
 
-    override this.Size =
-        match  this.Declaration with
-        | Some decl -> decl.Fields |> List.sumBy (fun f -> f.Type.Size)
-        | None -> 0
-
-    override this.Matches(other) =
-        match other with
-        | :? StructType<'lang> as o ->
-            match this.Declaration, o.Declaration with
-            | Some x, Some y -> x.Matches(y)
-            | None, None -> true
-            | _ -> false
-            // NB: size is omitted in this check
-        | _ -> false
-
-type TupleType<'lang>(baseStruct:StructType<'lang>, number:int)=
-    inherit Type<'lang>()
+    member val StructType : StructType<'lang> = structType with get, set
     override this.Children = []
+
+type TupleType<'lang>(baseStruct: StructType<'lang>, number:int)=
+    inherit Type<'lang>()
+
     override this.Size = baseStruct.Size
     member this.Number = number
-    override this.Matches(other) = failwith "Not implemented: matches for tuples"
+    override this.Matches _ = failwith "Not implemented: matches for tuples"
 
 type RefType<'lang>(baseType:Type<'lang>, typeQuals:TypeQualifier<'lang> list) =
     inherit Type<'lang>()

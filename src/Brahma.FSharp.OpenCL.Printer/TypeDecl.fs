@@ -19,19 +19,19 @@ open Brahma.FSharp.OpenCL.AST
 open Microsoft.FSharp.Text.StructuredFormat
 open Microsoft.FSharp.Text.StructuredFormat.LayoutOps
 
-let PrintStructDeclaration (decl:Struct<_>) =
+let PrintStructDeclaration (decl:StructDecl<_>) =
     let header =
         [
             wordL "typedef"
             wordL "struct "
-            wordL decl.Name
+            wordL decl.StructType.Name
 
         ]
         |> spaceListL
 
     let flds =
         [
-            for f in decl.Fields ->
+            for f in decl.StructType.Fields ->
                 [
                     Types.Print f.Type
                     wordL f.Name
@@ -43,7 +43,7 @@ let PrintStructDeclaration (decl:Struct<_>) =
         |> braceL
     let footer =
         [
-            wordL decl.Name
+            wordL decl.StructType.Name
             wordL ";"
         ]
         |> spaceListL
