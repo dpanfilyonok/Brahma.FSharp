@@ -83,12 +83,11 @@ type Image2DType<'lang>(modifier:bool) =
 
     member this.Modifier = modifier
 
-//[<Struct>]
-type StructField<'lang> =
+type Field<'lang> =
     { Name: string;
       Type: Type<'lang> }
 
-type StructType<'lang>(name: string, fields: List<StructField<'lang>>)=
+type StructType<'lang>(name: string, fields: List<Field<'lang>>) =
     inherit Type<'lang>()
 
     member this.Fields = fields
@@ -104,12 +103,18 @@ type StructType<'lang>(name: string, fields: List<StructField<'lang>>)=
             // NB: fields are omitted in this check
         | _ -> false
 
-type StructDecl<'lang>(structType: StructType<'lang>) =
-    inherit Node<'lang>()
-    interface TopDef<'lang>
+type UnionType<'lang>(name: string, fields: List<Field<'lang>>) =
+    inherit Type<'lang>()
 
-    member val StructType : StructType<'lang> = structType with get, set
-    override this.Children = []
+    member this.Fields = fields
+    member this.Name = name
+
+    override this.Size =
+        this.Fields
+        |> List.map (fun f -> f.Type.Size)
+        |> List.fold max 0
+
+    override this.Matches _ = failwith "Not implemented"
 
 type TupleType<'lang>(baseStruct: StructType<'lang>, number:int)=
     inherit Type<'lang>()
@@ -131,3 +136,17 @@ type RefType<'lang>(baseType:Type<'lang>, typeQuals:TypeQualifier<'lang> list) =
             this.BaseType.Matches(o.BaseType)
             && this.TypeQuals.Equals(o.TypeQuals)
         | _ -> false
+
+type StructDecl<'lang>(structType: StructType<'lang>) =
+    inherit Node<'lang>()
+    interface TopDef<'lang>
+
+    member val StructType: StructType<'lang> = structType with get, set
+    override this.Children = []
+
+type UnionDecl<'lang>(unionType: UnionType<'lang>) =
+    inherit Node<'lang>()
+    interface TopDef<'lang>
+
+    member val UnionType: UnionType<'lang> = unionType with get, set
+    override this.Children = []
