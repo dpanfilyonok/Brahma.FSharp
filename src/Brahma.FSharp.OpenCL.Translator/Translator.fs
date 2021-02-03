@@ -17,42 +17,9 @@ namespace Brahma.FSharp.OpenCL.Translator
 
 open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.AST
-open System.Collections.Generic
 open Brahma.FSharp.OpenCL.Translator.TypeReflection
 
 type FSQuotationToOpenCLTranslator() =
-
-    let CollectStructs expr =
-        let escapeNames = [|"_1D";"_2D";"_3D"|]
-        let structs = Dictionary<System.Type, _> ()
-
-        let rec add (t: System.Type) =
-            if isStruct t &&
-               not <| structs.ContainsKey t &&
-               not <| Array.exists ((=) t.Name) escapeNames
-            then
-                Array.concat <| seq {
-                    t.GetProperties() |>
-                    Array.map (fun prop -> prop.PropertyType);
-
-                    t.GetFields() |>
-                    Array.map (fun field -> field.FieldType)
-                } |>
-                Array.iter add
-
-                structs.Add(t, ())
-
-        let rec go (e: Expr) =
-            add e.Type
-            match e with
-            | ExprShape.ShapeVar _ -> ()
-            | ExprShape.ShapeLambda(_, body) -> go body
-            | ExprShape.ShapeCombination(o, l) ->
-                o.GetType() |> add
-                List.iter go l
-        go expr
-        structs.Keys |> List.ofSeq
-
     /// The parameter 'vars' is an immutable map that assigns expressions to variables
     /// (as we recursively process the tree, we replace all known variables)
     let rec expand vars expr =
@@ -152,7 +119,7 @@ type FSQuotationToOpenCLTranslator() =
     let translate qExpr translatorOptions =
 
         let structs = CollectStructs qExpr
-        let context = new TargetContext<_,_>()
+        let context = TargetContext<_,_>()
         let translatedStructs =
             Type.TranslateStructDecls structs context
             |> List.map (fun x -> x :> TopDef<_>)

@@ -10,6 +10,7 @@
         <Compile Include="Full.fs" />
         <Compile Include="StructAndTuple.fs" />
         <Compile Include="Workflow.fs" />
+        <Compile Include="Union.fs" />
         <Compile Include="Main.fs" />
     </ItemGroup>
     <ItemGroup>

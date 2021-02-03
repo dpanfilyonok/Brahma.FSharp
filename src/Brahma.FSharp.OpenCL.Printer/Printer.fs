@@ -30,7 +30,7 @@ let Print (ast:AST<'lang>) =
                 | :? FunDecl<'lang> as fd -> FunDecl.Print fd
                 | :? CLPragma<'lang> as clp -> Pragmas.Print clp
                 | :? StructDecl<'lang> as s -> TypeDecl.PrintStructDeclaration s
-                | :? UnionDecl<'lang> as u -> failwith ""
+                | :? UnionDecl<'lang> as u -> TypeDecl.PrintUnionDeclaration u
                 | :? VarDecl<'lang> as s -> Statements.Print false s
                 | _ -> failwithf "Printer. Unsupported toplevel declaration: %A"  d)
         |> aboveListL
