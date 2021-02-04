@@ -17,9 +17,8 @@ module Brahma.FSharp.OpenCL.Translator.Type
 
 open Brahma.FSharp.OpenCL.AST
 open System.Reflection
+open FSharp.Reflection
 open Microsoft.FSharp.Collections
-open Microsoft.FSharp.Quotations
-open System.Collections.Generic
 
 let printElementType (_type: string) (context:TargetContext<_,_>) =
     let pType =
@@ -134,3 +133,30 @@ let TranslateStructDecls structs (targetContext:TargetContext<_,_>) =
                 targetContext.UserDefinedTypesOpenCLDeclaration.Add(t.Name.ToLowerInvariant(), r)
                 StructDecl r)
     translated
+
+let translateDiscriminatedUnionDecls (unions: List<System.Type>) =
+    let tc = TargetContext()
+
+    let translateUnion (t: System.Type) =
+        let name = t.Name
+
+        let notEmptyCases =
+            FSharpType.GetUnionCases t
+            |> Array.filter (fun case -> case.GetFields().Length <> 0)
+
+        let fields =
+            [
+                for case in notEmptyCases ->
+                    let structName = case.Name
+                    let tag = case.Tag
+                    let fields: List<Field<_>> =
+                        [
+                            for field in case.GetFields() ->
+                                { Name = field.Name
+                                  Type = Translate field.PropertyType false None tc }
+                        ]
+                    (tag, {Name = structName; Type = StructInplaceType(structName + "Type", fields); })
+            ]
+        DiscriminatedUnionType(name, fields)
+
+    List.map translateUnion unions

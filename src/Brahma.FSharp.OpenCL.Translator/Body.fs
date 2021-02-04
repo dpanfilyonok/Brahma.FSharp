@@ -458,7 +458,7 @@ and Translate expr (targetContext:TargetContext<_,_>) =
             let a = StructType<Lang>("tuple" + (targetContext.tupleDecls.Item(s)).ToString(), elements)
             let cArgs = exprs |> List.map (fun x -> TranslateAsExpr x targetContext)
             NewStruct<_>(a,cArgs |> List.unzip |> fst) :> Node<_>, targetContext
-    | Patterns.NewUnionCase(unionCaseinfo,exprs) -> "NewUnionCase is not suported:" + string expr|> failwith
+    | Patterns.NewUnionCase(unionCaseInfo,exprs) -> "NewUnionCase is not suported:" + string expr|> failwith
     | Patterns.PropertyGet(exprOpt,propInfo,exprs) ->
         let res, tContext = transletaPropGet exprOpt propInfo exprs targetContext
         (res :> Node<_>), tContext

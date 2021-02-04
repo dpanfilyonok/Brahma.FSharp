@@ -2,6 +2,8 @@ module Brahma.FSharp.Tests.Union
 
 open Expecto
 open Brahma.FSharp.OpenCL.Translator
+open Brahma.FSharp.OpenCL.AST
+open Brahma.FSharp.OpenCL.Printer
 
 type SimpleUnion =
     | SimpleOne
@@ -11,6 +13,10 @@ type OuterUnion =
     | Outer of int
     | Inner of SimpleUnion
 
+type TranslateTest =
+    | A of int * float
+    | B of double
+    | C
 
 [<Tests>]
 let unionTestCases =
@@ -43,4 +49,19 @@ let unionTestCases =
                         ()
                     @>
             ]
-    collectUnionTests
+
+    let translateUnionTests =
+        testList "Translate union"
+            [
+                ptestCase "Test 1" <| fun _ ->
+                    let unions = Type.translateDiscriminatedUnionDecls [typeof<TranslateTest>]
+                    let code = AST.Print <| AST [StructDecl unions.[0]]
+                    printfn "%s" code
+            ]
+
+    testList "Tests for translator"
+        [
+            collectUnionTests
+            translateUnionTests
+        ]
+    |> (fun x -> Expecto.Sequenced (Expecto.SequenceMethod.Synchronous, x))

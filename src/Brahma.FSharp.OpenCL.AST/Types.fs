@@ -103,7 +103,7 @@ type StructType<'lang>(name: string, fields: List<Field<'lang>>) =
             // NB: fields are omitted in this check
         | _ -> false
 
-type UnionType<'lang>(name: string, fields: List<Field<'lang>>) =
+type UnionClInplaceType<'lang>(name: string, fields: List<Field<'lang>>) =
     inherit Type<'lang>()
 
     member this.Fields = fields
@@ -115,6 +115,18 @@ type UnionType<'lang>(name: string, fields: List<Field<'lang>>) =
         |> List.fold max 0
 
     override this.Matches _ = failwith "Not implemented"
+
+type StructInplaceType<'lang>(name: string, fields: List<Field<'lang>>) =
+    inherit StructType<'lang>(name, fields)
+
+type DiscriminatedUnionType<'lang>(name: string, fields: List<int * Field<'lang>>) =
+    inherit StructType<'lang> (
+        name,
+        [
+          { Name = "tag"; Type = PrimitiveType(Int) }
+          { Name = "data"; Type = UnionClInplaceType(name + "_Data", List.map snd fields) }
+        ]
+    )
 
 type TupleType<'lang>(baseStruct: StructType<'lang>, number:int)=
     inherit Type<'lang>()
@@ -142,11 +154,4 @@ type StructDecl<'lang>(structType: StructType<'lang>) =
     interface TopDef<'lang>
 
     member val StructType: StructType<'lang> = structType with get, set
-    override this.Children = []
-
-type UnionDecl<'lang>(unionType: UnionType<'lang>) =
-    inherit Node<'lang>()
-    interface TopDef<'lang>
-
-    member val UnionType: UnionType<'lang> = unionType with get, set
     override this.Children = []

@@ -16,21 +16,21 @@
 module Brahma.FSharp.OpenCL.Printer.TypeDecl
 
 open Brahma.FSharp.OpenCL.AST
+open Brahma.FSharp.OpenCL.Printer
 open Microsoft.FSharp.Text.StructuredFormat.LayoutOps
 
-let PrintAggregateType typeName keyword fields =
+let PrintStructDeclaration (decl: StructDecl<_>) =
     let header =
         [
             wordL "typedef"
-            wordL keyword
-            wordL typeName
-
+            wordL "struct"
+            wordL decl.StructType.Name
         ]
         |> spaceListL
 
     let flds =
         [
-            for f in fields ->
+            for f in decl.StructType.Fields ->
                 [
                     Types.Print f.Type
                     wordL f.Name
@@ -42,14 +42,8 @@ let PrintAggregateType typeName keyword fields =
         |> braceL
     let footer =
         [
-            wordL typeName
+            wordL decl.StructType.Name
             wordL ";"
         ]
         |> spaceListL
     header ^^ flds ^^ footer
-
-let PrintStructDeclaration (decl: StructDecl<_>) =
-    PrintAggregateType decl.StructType.Name "struct" decl.StructType.Fields
-
-let PrintUnionDeclaration (decl: UnionDecl<_>) =
-    PrintAggregateType decl.UnionType.Name "union" decl.UnionType.Fields
