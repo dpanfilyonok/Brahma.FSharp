@@ -6,6 +6,7 @@
     </PropertyGroup>
     <ItemGroup>
         <Compile Include="AssemblyInfo.fs" />
+        <Compile Include="Common.fs" />
         <Compile Include="Translator.fs" />
         <Compile Include="Full.fs" />
         <Compile Include="StructAndTuple.fs" />
@@ -175,6 +176,24 @@
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
       <Content Include="Expected\Nested.Function.Carring2.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="UnionExpected\Translation.Test1.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="UnionExpected\Union.Compile.Test1.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="UnionExpected\Union.Compile.Test2.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="UnionExpected\Union.Compile.Test3.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="UnionExpected\Union.Compile.Test4.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="UnionExpected\Union.Compile.Test5.cl">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
     </ItemGroup>

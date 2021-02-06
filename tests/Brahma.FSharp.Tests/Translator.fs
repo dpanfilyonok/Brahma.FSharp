@@ -1,10 +1,10 @@
 ﻿module Brahma.FSharp.OpenCL.Tests
 
 open Expecto
-open System.IO
 open Brahma.OpenCL
-open OpenCL.Net
 open Brahma.FSharp.OpenCL.Core
+open OpenCL.Net
+open Brahma.FSharp.Tests.Common
 
 [<Tests>]
 let translatorTest =
@@ -19,16 +19,12 @@ let translatorTest =
         with
         | ex -> failwith ex.Message
 
-    let filesAreEqual file1 file2 =
-        let all1 = (File.ReadAllText file1).Trim().Replace ("\r\n", "\n")
-        let all2 = (File.ReadAllText file2).Trim().Replace ("\r\n", "\n")
-        Expect.equal all1 all2 "Files should be equals as strings"
 
     let checkCode command outFile expected =
         let code = ref ""
         let _ = provider.Compile(command,_outCode = code)
         System.IO.File.WriteAllText(outFile, !code)
-        filesAreEqual outFile (System.IO.Path.Combine(basePath,expected))
+        filesAreEqual outFile (System.IO.Path.Combine(basePath, expected))
 
     let a = [|0..3|]
 

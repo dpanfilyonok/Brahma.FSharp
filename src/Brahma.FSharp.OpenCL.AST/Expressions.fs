@@ -119,6 +119,14 @@ type NewStruct<'lang>(structInfo: StructType<'lang>, cArgs: List<Expression<'lan
     member this.Struct = structInfo
     member this.ConstructorArgs = cArgs
 
+type NewUnion<'lang>(unionInfo: UnionClInplaceType<'lang>, fieldName: string, arg: Expression<'lang>) =
+    inherit Expression<'lang>()
+
+    override this.Children = [arg :> Node<'lang>]
+    member this.Union = unionInfo
+    member this.ConstructorArg = arg
+    member this.ConstructorArgName = fieldName
+
 type FieldGet<'lang>(host:Expression<'lang>, field:string) =
     inherit Expression<'lang>()
     override this.Children = []

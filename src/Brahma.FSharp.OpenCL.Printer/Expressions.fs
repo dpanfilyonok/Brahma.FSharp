@@ -124,6 +124,17 @@ and printNewStruct (newStruct:NewStruct<_>) =
     ]
     |> spaceListL
 
+and printNewUnion (newUnion: NewUnion<_>) =
+    let arg = Print newUnion.ConstructorArg
+    [
+        wordL "{"
+        wordL <| "." + newUnion.ConstructorArgName
+        wordL "="
+        arg
+        wordL "}"
+    ]
+    |> spaceListL
+
 and printFfieldGet (fg:FieldGet<_>) =
     let host = Print fg.Host
     let fld = wordL fg.Field
@@ -147,5 +158,6 @@ and Print (expr:Expression<'lang>) =
     | :? Pointer<'lang> as p -> printPointer p
     | :? ArrayInitializer<'lang> as ai -> printArrayInitializer ai
     | :? NewStruct<'lang> as ns -> printNewStruct ns
+    | :? NewUnion<'lang> as nu -> printNewUnion nu
     | :? FieldGet<'lang> as fg -> printFfieldGet fg
     | c -> failwithf "Printer. Unsupported expression: %A" c

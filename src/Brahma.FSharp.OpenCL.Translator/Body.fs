@@ -30,7 +30,7 @@ let private clearContext (targetContext:TargetContext<'a,'b>) =
     for t in targetContext.tupleList do c.tupleList.Add(t)
     c.tupleNumber <- targetContext.tupleNumber
     c.UserDefinedTypes.AddRange(targetContext.UserDefinedTypes)
-    for kvp in targetContext.UserDefinedTypesOpenCLDeclaration do c.UserDefinedTypesOpenCLDeclaration.Add (kvp.Key,kvp.Value)
+    for kvp in targetContext.UserDefinedStructsOpenCLDeclaration do c.UserDefinedStructsOpenCLDeclaration.Add (kvp.Key,kvp.Value)
     c
 
 
@@ -434,7 +434,7 @@ and Translate expr (targetContext:TargetContext<_,_>) =
         let p2 = constrInfo.GetMethodBody()
         if targetContext.UserDefinedTypes.Contains(constrInfo.DeclaringType)
         then
-            let structInfo =  targetContext.UserDefinedTypesOpenCLDeclaration.[constrInfo.DeclaringType.Name.ToLowerInvariant()]
+            let structInfo =  targetContext.UserDefinedStructsOpenCLDeclaration.[constrInfo.DeclaringType.Name.ToLowerInvariant()]
             let cArgs = exprs |> List.map (fun x -> TranslateAsExpr x targetContext)
             let res = NewStruct<_>(structInfo, cArgs |> List.unzip |> fst)
             res :> Node<_>,targetContext
@@ -458,7 +458,37 @@ and Translate expr (targetContext:TargetContext<_,_>) =
             let a = StructType<Lang>("tuple" + (targetContext.tupleDecls.Item(s)).ToString(), elements)
             let cArgs = exprs |> List.map (fun x -> TranslateAsExpr x targetContext)
             NewStruct<_>(a,cArgs |> List.unzip |> fst) :> Node<_>, targetContext
-    | Patterns.NewUnionCase(unionCaseInfo,exprs) -> "NewUnionCase is not suported:" + string expr|> failwith
+    | Patterns.NewUnionCase(unionCaseInfo, exprs) ->
+        let unionType = unionCaseInfo.DeclaringType
+        if not <| targetContext.UserDefinedTypes.Contains(unionType)
+        then
+            failwithf "Union type %s is not registered" unionType.Name
+
+        let typeName = unionType.Name.ToLowerInvariant()
+        let unionInfo = targetContext.UserDefinedUnionsOpenCLDeclaration.[typeName]
+
+
+        let tag = Const(unionInfo.Tag.Type, string unionCaseInfo.Tag) :> Expression<_>
+        let args =
+            match unionInfo.GetCase unionCaseInfo.Tag with
+            | None -> []
+            | Some field ->
+                let structArgs =
+                    exprs |> List.map (fun x -> fst <| TranslateAsExpr x targetContext)
+                let data =
+                    NewUnion (
+                        unionInfo.Data.Type :?> UnionClInplaceType<_>,
+                        field.Name,
+                        NewStruct (
+                            field.Type :?> StructType<_>,
+                            structArgs
+                        )
+                    )
+                [data :> Expression<_>]
+
+        NewStruct(unionInfo, tag :: args) :> Node<_>, targetContext
+//        failwith ":D"
+
     | Patterns.PropertyGet(exprOpt,propInfo,exprs) ->
         let res, tContext = transletaPropGet exprOpt propInfo exprs targetContext
         (res :> Node<_>), tContext

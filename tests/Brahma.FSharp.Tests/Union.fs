@@ -1,9 +1,12 @@
 module Brahma.FSharp.Tests.Union
 
 open Expecto
+open Brahma.FSharp.Tests.Common
 open Brahma.FSharp.OpenCL.Translator
 open Brahma.FSharp.OpenCL.AST
 open Brahma.FSharp.OpenCL.Printer
+open Brahma.OpenCL
+open Brahma.FSharp.OpenCL.Core
 
 type SimpleUnion =
     | SimpleOne
@@ -21,6 +24,7 @@ type TranslateTest =
 [<Tests>]
 let unionTestCases =
     let defaultMsg = "Should be equal"
+    let basePath = "UnionExpected"
 
     let collectUnionTests =
         let testGen testCase name expected command =
@@ -51,17 +55,79 @@ let unionTestCases =
             ]
 
     let translateUnionTests =
+        let testGen testCase name (types: List<System.Type>) outFile expectedFile =
+            testCase name <| fun _ ->
+                let context = TargetContext()
+                let unions = Type.translateDiscriminatedUnionDecls types context
+                let ast = AST <| List.map (fun du -> du :> TopDef<_>) unions
+                let code = AST.Print ast
+
+                System.IO.File.WriteAllText(outFile, code)
+                filesAreEqual outFile <| System.IO.Path.Combine(basePath, expectedFile)
+
         testList "Translate union"
             [
-                ptestCase "Test 1" <| fun _ ->
-                    let unions = Type.translateDiscriminatedUnionDecls [typeof<TranslateTest>]
-                    let code = AST.Print <| AST [StructDecl unions.[0]]
-                    printfn "%s" code
+                testGen testCase "Test 1" [typeof<TranslateTest>] "Translation.Test1.gen" "Translation.Test1.cl"
+            ]
+
+    let compileTests =
+        let provider = ComputeProvider.Create()
+        platformMessage provider "union compile tests"
+
+        let testGen testCase name outFile expectedFile command =
+            testCase name <| fun _ ->
+                let code = ref ""
+                provider.Compile(command, _outCode=code) |> ignore
+                System.IO.File.WriteAllText(outFile, !code)
+                filesAreEqual outFile <| System.IO.Path.Combine(basePath, expectedFile)
+
+        testList "Compile creation of union."
+            [
+                testGen testCase "Test 1: TranslateTest.A" "Union.Compile.Test1.gen" "Union.Compile.Test1.cl"
+                    <@
+                        fun (range: _1D) ->
+                            let x = A(5, 6.0)
+                            let mutable y = 5
+                            y <- 7
+                    @>
+
+                testGen testCase "Test 2: TranslateTest.B" "Union.Compile.Test2.gen" "Union.Compile.Test2.cl"
+                    <@
+                        fun (range: _1D) ->
+                            let x = B(5.0)
+                            let mutable y = 5
+                            y <- 7
+                    @>
+
+                testGen testCase "Test 3: TranslateTest.C" "Union.Compile.Test3.gen" "Union.Compile.Test3.cl"
+                    <@
+                        fun (range: _1D) ->
+                            let x = C
+                            let mutable y = 5
+                            y <- 7
+                    @>
+
+                testGen testCase "Test 4: OuterUnion.Outer" "Union.Compile.Test4.gen" "Union.Compile.Test4.cl"
+                    <@
+                        fun (range: _1D) ->
+                            let x = Inner SimpleOne
+                            let mutable y = 5
+                            y <- 7
+                    @>
+
+                testGen testCase "Test 5: OuterUnion.Inner" "Union.Compile.Test5.gen" "Union.Compile.Test5.cl"
+                    <@
+                        fun (range: _1D) ->
+                            let x = Inner (SimpleTwo 29)
+                            let mutable y = 5
+                            y <- 7
+                    @>
             ]
 
     testList "Tests for translator"
         [
             collectUnionTests
             translateUnionTests
+            compileTests
         ]
     |> (fun x -> Expecto.Sequenced (Expecto.SequenceMethod.Synchronous, x))

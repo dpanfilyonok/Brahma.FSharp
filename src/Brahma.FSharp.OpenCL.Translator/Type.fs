@@ -102,16 +102,21 @@ let rec Translate (_type:System.Type) isKernelArg size (context:TargetContext<_,
                  TupleType<_>(a, n) :> Type<_>
         | x when context.UserDefinedTypes.Exists(fun t -> t.Name.ToLowerInvariant() = x)
             ->
-                if not <| context.UserDefinedTypesOpenCLDeclaration.ContainsKey x
-                    then failwithf "Declaration of struct %s doesn't exists" x
-                let structType =  context.UserDefinedTypesOpenCLDeclaration.[x]
+                let structType =
+                    if context.UserDefinedStructsOpenCLDeclaration.ContainsKey x
+                    then context.UserDefinedStructsOpenCLDeclaration.[x]
+                    else
+                        if context.UserDefinedUnionsOpenCLDeclaration.ContainsKey x
+                        then context.UserDefinedUnionsOpenCLDeclaration.[x] :> StructType<_>
+                        else failwithf "Declaration of struct %s doesn't exists" x
                 structType :> Type<_>
+
         | x -> "Unsupported kernel type: " + x |> failwith
     _type.Name
     |> go
 
 
-let TranslateStructDecls structs (targetContext:TargetContext<_,_>) =
+let TranslateStructDecls structs (targetContext: TargetContext<_,_>) =
     let translateStruct (t:System.Type) =
         let name = t.Name
         let fields = [ for f in
@@ -130,13 +135,11 @@ let TranslateStructDecls structs (targetContext:TargetContext<_,_>) =
         |> List.map
             (fun t ->
                 let r = translateStruct t
-                targetContext.UserDefinedTypesOpenCLDeclaration.Add(t.Name.ToLowerInvariant(), r)
+                targetContext.UserDefinedStructsOpenCLDeclaration.Add(t.Name.ToLowerInvariant(), r)
                 StructDecl r)
     translated
 
-let translateDiscriminatedUnionDecls (unions: List<System.Type>) =
-    let tc = TargetContext()
-
+let translateDiscriminatedUnionDecls (unions: List<System.Type>) (tc: TargetContext<_,_>) =
     let translateUnion (t: System.Type) =
         let name = t.Name
 
@@ -159,4 +162,10 @@ let translateDiscriminatedUnionDecls (unions: List<System.Type>) =
             ]
         DiscriminatedUnionType(name, fields)
 
-    List.map translateUnion unions
+    unions
+    |> List.map
+           (fun t ->
+                let u = translateUnion t
+                tc.UserDefinedTypes.Add(t)
+                tc.UserDefinedUnionsOpenCLDeclaration.Add(t.Name.ToLowerInvariant(), u)
+                StructDecl u)

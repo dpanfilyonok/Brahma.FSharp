@@ -117,12 +117,20 @@ type FSQuotationToOpenCLTranslator() =
         new AST<_>(listCLFun)
 
     let translate qExpr translatorOptions =
+        let context = TargetContext<_,_>()
 
         let structs = CollectStructs qExpr
-        let context = TargetContext<_,_>()
         let translatedStructs =
             Type.TranslateStructDecls structs context
             |> List.map (fun x -> x :> TopDef<_>)
+
+        let unions = CollectDiscriminatedUnions qExpr
+        let translatedUnions =
+            Type.translateDiscriminatedUnionDecls unions context
+            |> List.map (fun x -> x :> TopDef<_>)
+
+        let translatedTypes = List.concat [translatedStructs; translatedUnions]
+
         newAST <- QuotationsTransformer.quontationTransformer qExpr translatorOptions
 
         //let qExpr = expand Map.empty qExpr
@@ -134,8 +142,10 @@ type FSQuotationToOpenCLTranslator() =
                     let b,context =
                         let c = TargetContext<_,_>()
                         c.UserDefinedTypes.AddRange context.UserDefinedTypes
-                        c.UserDefinedTypesOpenCLDeclaration.Clear()
-                        for x in context.UserDefinedTypesOpenCLDeclaration do c.UserDefinedTypesOpenCLDeclaration.Add (x.Key,x.Value)
+                        c.UserDefinedStructsOpenCLDeclaration.Clear()
+                        c.UserDefinedUnionsOpenCLDeclaration.Clear()
+                        for x in context.UserDefinedStructsOpenCLDeclaration do c.UserDefinedStructsOpenCLDeclaration.Add (x.Key,x.Value)
+                        for x in context.UserDefinedUnionsOpenCLDeclaration do c.UserDefinedUnionsOpenCLDeclaration.Add (x.Key,x.Value)
                         for x in context.tupleDecls do c.tupleDecls.Add(x.Key,x.Value)
                         for x in context.tupleList do c.tupleList.Add(x)
                         c.tupleNumber <- context.tupleNumber
@@ -164,7 +174,7 @@ type FSQuotationToOpenCLTranslator() =
             listPartsASTPartialAst.Add((partialAst :> Statement<_>))
             listPartsASTContext.Add(context)
             //Body.dictionaryFun.Add(partAST.FunVar.Name, partialAst)
-        let AST = buildFullAst (listPartsASTVars) translatedStructs (listPartsASTPartialAst) listPartsASTContext
+        let AST = buildFullAst listPartsASTVars translatedTypes listPartsASTPartialAst listPartsASTContext
         AST, newAST
 
     member this.Translate qExpr translatorOptions =

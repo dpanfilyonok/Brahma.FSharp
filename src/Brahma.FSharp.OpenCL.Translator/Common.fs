@@ -40,7 +40,8 @@ type TargetContext<'lang, 'vDecl>() =
     member val tupleList = List<StructType<Lang>>()
     member val UserDefinedTypes = ResizeArray<System.Type>()
     member val InLocal = false with get, set
-    member val UserDefinedTypesOpenCLDeclaration = Dictionary<string, StructType<'lang>>()
+    member val UserDefinedStructsOpenCLDeclaration = Dictionary<string, StructType<'lang>>()
+    member val UserDefinedUnionsOpenCLDeclaration = Dictionary<string, DiscriminatedUnionType<'lang>>()
     member this.tupleNumber
         with get() = tn
         and set tn2 = tn <- tn2
