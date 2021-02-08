@@ -31,9 +31,8 @@ let private clearContext (targetContext:TargetContext<'a,'b>) =
     c.tupleNumber <- targetContext.tupleNumber
     c.UserDefinedTypes.AddRange(targetContext.UserDefinedTypes)
     for kvp in targetContext.UserDefinedStructsOpenCLDeclaration do c.UserDefinedStructsOpenCLDeclaration.Add (kvp.Key,kvp.Value)
+    for kvp in targetContext.UserDefinedUnionsOpenCLDeclaration do c.UserDefinedUnionsOpenCLDeclaration.Add (kvp.Key,kvp.Value)
     c
-
-
 
 let mutable dictionaryFun = new System.Collections.Generic.Dictionary<string,StatementBlock<Lang>>()
 
@@ -487,8 +486,6 @@ and Translate expr (targetContext:TargetContext<_,_>) =
                 [data :> Expression<_>]
 
         NewStruct(unionInfo, tag :: args) :> Node<_>, targetContext
-//        failwith ":D"
-
     | Patterns.PropertyGet(exprOpt,propInfo,exprs) ->
         let res, tContext = transletaPropGet exprOpt propInfo exprs targetContext
         (res :> Node<_>), tContext
@@ -503,8 +500,16 @@ and Translate expr (targetContext:TargetContext<_,_>) =
     | Patterns.TupleGet(expr,i) ->
         let r,tContext =  translateFieldGet expr  ("_" + (string (i + 1))) targetContext
         r :> Node<_>,tContext
-    | Patterns.TypeTest(expr,sType) -> "TypeTest is not suported:" + string expr|> failwith
-    | Patterns.UnionCaseTest(expr,unionCaseInfo) -> "UnionCaseTest is not suported:" + string expr|> failwith
+    | Patterns.TypeTest(expr, sType) -> "TypeTest is not suported:" + string expr|> failwith
+    | Patterns.UnionCaseTest(expr, unionCaseInfo) ->
+        let unionTypeName = expr.Type.Name.ToLowerInvariant()
+        let unionDecl = targetContext.UserDefinedUnionsOpenCLDeclaration.[unionTypeName]
+
+        let unionVarExpr, tc = TranslateAsExpr expr targetContext
+        let unionGetTagExpr = FieldGet(unionVarExpr, unionDecl.Tag.Name) :> Expression<_>
+        let tagExpr = Const(unionDecl.Tag.Type, string unionCaseInfo.Tag) :> Expression<_>
+
+        Binop(BOp.EQ, unionGetTagExpr, tagExpr) :> Node<_>, tc
     | Patterns.ValueWithName(_obj,sType,name) ->
         // Here is the only use of TargetContext.InLocal
         if sType.ToString().EndsWith "[]" && not targetContext.InLocal

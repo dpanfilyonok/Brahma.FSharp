@@ -21,6 +21,11 @@ type TranslateTest =
     | B of double
     | C
 
+type TranslateMatchTestUnion =
+    | Case1
+    | Case2 of int
+    | Case3 of int * int
+
 [<Tests>]
 let unionTestCases =
     let defaultMsg = "Should be equal"
@@ -81,8 +86,8 @@ let unionTestCases =
                 System.IO.File.WriteAllText(outFile, !code)
                 filesAreEqual outFile <| System.IO.Path.Combine(basePath, expectedFile)
 
-        testList "Compile creation of union."
-            [
+        let newUnionTestList =
+            testList "NewUnion" [
                 testGen testCase "Test 1: TranslateTest.A" "Union.Compile.Test1.gen" "Union.Compile.Test1.cl"
                     <@
                         fun (range: _1D) ->
@@ -122,6 +127,28 @@ let unionTestCases =
                             let mutable y = 5
                             y <- 7
                     @>
+            ]
+
+        let testUnionCaseTestLists =
+            testList "TestUnionCase" [
+                testGen testCase "Test 1: simple pattern matching" "Union.Compile.Test6.gen" "Union.Compile.Test6.cl"
+                    <@
+                    fun (range: _1D) ->
+                        let t = Case1
+                        let mutable x = 5
+
+                        match t with
+                        | Case1 -> x <- 5
+                        | Case2(_) -> x <- 6
+                        | Case3(_) -> x <- 7
+                    @>
+            ]
+
+
+        testList "Union Compile tests"
+            [
+                newUnionTestList
+                testUnionCaseTestLists
             ]
 
     testList "Tests for translator"

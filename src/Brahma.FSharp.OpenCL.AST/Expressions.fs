@@ -72,7 +72,7 @@ type BOp<'lang> =
      | NEQ
      | Remainder
 
-type Binop<'lang>(op:BOp<'lang>,l:Expression<'lang>,r:Expression<'lang>) =
+type Binop<'lang>(op:BOp<'lang>, l:Expression<'lang>, r:Expression<'lang>) =
     inherit Expression<'lang>()
     override this.Children = []
     member this.Left = l

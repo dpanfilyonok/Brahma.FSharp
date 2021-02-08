@@ -196,6 +196,9 @@
       <Content Include="UnionExpected\Union.Compile.Test5.cl">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
+      <Content Include="UnionExpected\Union.Compile.Test6.cl">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
     </ItemGroup>
     <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
