@@ -144,11 +144,28 @@ let unionTestCases =
                     @>
             ]
 
+        let unionPropertyGetTestLists =
+            testList "UnionPropertyGet" [
+                testGen testCase "Test 1: simple pattern matching bindings" "Union.Compile.Test7.gen" "Union.Compile.Test7.cl"
+                    <@
+                    fun (range: _1D) ->
+                        let t = Case1
+                        let mutable m = 5
+
+                        match t with
+                        | Case1 -> m <- 5
+                        | Case2(x) -> m <- x
+                        | Case3(y, z) -> m <- y + z
+                @>
+
+            ]
+
 
         testList "Union Compile tests"
             [
                 newUnionTestList
                 testUnionCaseTestLists
+                unionPropertyGetTestLists
             ]
 
     testList "Tests for translator"

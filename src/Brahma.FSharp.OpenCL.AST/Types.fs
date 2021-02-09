@@ -131,8 +131,12 @@ type DiscriminatedUnionType<'lang>(name: string, fields: List<int * Field<'lang>
     member this.Tag = this.Fields.[0]
     member this.Data = this.Fields.[1]
 
-    member this.GetCase (tag: int) =
+    member this.GetCaseByTag (tag: int) =
         List.tryFind (fun (id, _) -> id = tag) fields
+        |> Option.map snd
+
+    member this.GetCaseByName (case: string) =
+        List.tryFind (fun (_, f) -> f.Name = case) fields
         |> Option.map snd
 
 type TupleType<'lang>(baseStruct: StructType<'lang>, number:int)=
