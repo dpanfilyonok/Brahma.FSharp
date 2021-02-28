@@ -7,6 +7,7 @@ sudo: false  # use the new container-based Travis infrastructure
 
 before_install:
   - chmod +x build.sh
+  - dotnet tool install -g dotnet-fsharplint
  
 script: 
   - ./build.sh All

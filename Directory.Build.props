@@ -15,4 +15,11 @@
         <RepositoryUrl>https://github.com/YaccConstructor/Brahma.FSharp</RepositoryUrl>
         <!-- owners is not supported in MSBuild -->
     </PropertyGroup>
+    <Target Name="FSharpLint" AfterTargets="BeforeBuild">
+        <Exec
+            Command="dotnet fsharplint -f msbuild lint --lint-config $(MSBuildThisFileDirectory)/fsharplint.json $(MSBuildProjectFullPath)"
+            ConsoleToMsBuild="true"
+            IgnoreExitCode="false"
+        />
+    </Target>
 </Project>
