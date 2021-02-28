@@ -13,7 +13,7 @@ Translator supports only subset of F# language and tis subset is described here.
 ### Array access
 Array "by index" access is supported.
 
-```fsharp
+```
 let command = 
     <@ 
         fun (range:_1D) (buf:array<_>) ->
@@ -24,7 +24,7 @@ let command =
 ### Binding
 Basic "let" binding is supported. Note, that now we support only "variable bindings". Nested functions, closures are not supported.
 
-```fsharp
+```
 let command = 
     <@ 
         fun (range:_1D) (buf:array<_>) ->
@@ -37,7 +37,7 @@ let command =
 ### Mutable binding
 Mutability is available by using of "let mutable" binding.
 
-```fsharp
+```
 let command = 
     <@ 
         fun (range:_1D) (buf:array<_>) ->
@@ -48,7 +48,7 @@ let command =
 
 Note, that scopes are supported. So, you can "rebind" any name and "F#-style" visibility will be emuleted in target code. For example, next code will be translated correctly.
 
-```fsharp
+```
 let command = 
     <@ 
         fun (range:_1D) (buf:array<_>) ->
@@ -71,7 +71,7 @@ let command =
 
 ### Sequential operations
 
-```fsharp
+```
 let command = 
     <@ 
         fun (range:_1D) (buf:array<int>) ->
@@ -82,7 +82,7 @@ let command =
 
 ### WHILE loop
 
-```fsharp
+```
 let command = 
     <@ 
         fun (range:_1D) (buf:array<_>) ->
@@ -93,7 +93,7 @@ let command =
 
 ### FOR integer range loop
 
-```fsharp
+```
 let command = 
     <@ 
         fun (range:_1D) (buf:array<_>) -> 
@@ -104,7 +104,7 @@ let command =
 ### Quotations injection
 You can use "quotations injection" for code reusing or parameterization. For example, you can write something like this:
 
-```fsharp
+```
 let myFun = <@ fun x y -> y - x @>
 let command = 
     <@ 
@@ -131,7 +131,7 @@ Structs and tuples transferring and using in kernel code are supported.
 
 ### Structs
 
-```fsharp
+```
 [<Struct>]
 type c =
     val x: int 
@@ -160,7 +160,7 @@ let command =
 Tuples support are limited. Single tuple trunsfer to GPU is supported, but methods Array.ToHost and Array.ToGPU is not.
 Also you can use tuples in kernel code.
 
-```fsharp
+```
 let command = 
     <@ 
         fun (range:_1D) (buf:array<int>) (k1:int*int) (k2:int64*byte) (k3:float32*int) -> 

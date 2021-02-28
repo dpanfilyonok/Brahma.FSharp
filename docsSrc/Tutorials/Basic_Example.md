@@ -1,8 +1,6 @@
 # Basic example
 
-This example demonstrates using a function defined in this library.
-
-```fsharp
+```
 module MatrixMultiply
 
 open OpenCL.Net
@@ -100,5 +98,6 @@ let Main platformName mSize =
     provider.Dispose()    
             
 Main "NVIDIA*" 300
-
 ```
+
+This example demonstrates using a function defined in this library.
