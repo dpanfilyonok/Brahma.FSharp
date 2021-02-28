@@ -4,12 +4,14 @@
 
 ## What is Brahma.FSharp?
 
-Brahma.FSharp is a library that does this specific thing.  
+Brahma.FSharp is a tool for utilization GPGPU in your F# project by F# quotations to OpenCL translation.
 
 ## Why use Brahma.FSharp?
 
-I created it because I had to solve an issue with this other thing.
-
+ * We use OpenCL for communication with GPU. So, you can work not only with NVIDIA hardware but with any device, which supports OpenCL (e.g. with AMD or Intel devices).
+ * We are aimed to translate native F# code to OpenCL with minimization of different wrappers and custom types.
+ * We support tuples and structures.
+ 
 ---
 
 <div class="row row-cols-1 row-cols-md-2">
@@ -39,7 +41,7 @@ I created it because I had to solve an issue with this other thing.
     <div class="card h-100">
       <div class="card-body">
         <h5 class="card-title">Explanations</h5>
-        <p class="card-text">Discusses key topics and concepts at a fairly high level and provide useful background information and explanation..</p>
+        <p class="card-text">Discusses key topics and concepts at a fairly high level and provide useful background information and explanation.</p>
       </div>
       <div class="card-footer text-right   border-top-0">
         <a href="{{siteBaseUrl}}/Explanations/Background.html" class="btn btn-primary">Dive Deeper</a>
@@ -53,7 +55,7 @@ I created it because I had to solve an issue with this other thing.
         <p class="card-text">Contain technical reference for APIs.</p>
       </div>
       <div class="card-footer text-right   border-top-0">
-        <a href="{{siteBaseUrl}}/Api_Reference/Brahma.FSharp/Brahma.FSharp.html" class="btn btn-primary">Read Api Docs</a>
+        <a href="{{siteBaseUrl}}/Api_Reference/Brahma.FSharp/Brahma.FSharp.OpenCL.Translator/Brahma.FSharp.OpenCL.Translator.html" class="btn btn-primary">Read Api Docs</a>
       </div>
     </div>
   </div>
