@@ -279,10 +279,10 @@ module GenerateDocs =
             FSharp.Literate.Literate.FormatLiterateNodes(doc, OutputKind.Html, "", true, true)
 
         let format (doc: LiterateDocument) =
-            if not <| Seq.isEmpty doc.Errors
-            then
-                failwithf "error while formatting file %s. Errors are:\n%A" doc.SourceFile doc.Errors
-            else
+            //if not <| Seq.isEmpty doc.Errors
+            //then
+            //    failwithf "error while formatting file %s. Errors are:\n%A" doc.SourceFile doc.Errors
+            //else
                 Formatting.format doc.MarkdownDocument true OutputKind.Html
                 + doc.FormattedTips
 
