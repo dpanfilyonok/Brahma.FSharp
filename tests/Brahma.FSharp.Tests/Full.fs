@@ -193,6 +193,73 @@ let FullTranslatorTests =
                     let initInArr = [|0UL; 1UL|]
                     run _1d initInArr
                     check initInArr [|1UL; 1UL|]
+
+                testCase "Byte type support" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<byte>) ->
+                                if range.GlobalID0 = 0
+                                then
+                                    buf.[0] <- buf.[0] + 1uy
+                                    buf.[1] <- buf.[1] + 1uy
+                                    buf.[2] <- buf.[2] + 1uy
+                        @>
+
+                    let run,check = checkResult command
+                    let inByteArray = [|0uy;255uy;254uy|]
+                    run _1d inByteArray
+                    check inByteArray [|1uy;0uy;255uy|]
+
+                testCase "Byte and float32" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<byte>) ->
+                                if range.GlobalID0 = 0
+                                then
+                                    buf.[0] <- byte (float buf.[0])
+                                    buf.[1] <- byte (float buf.[1])
+                                    buf.[2] <- byte (float buf.[2])
+                        @>
+
+                    let run,check = checkResult command
+                    let inByteArray = [|0uy;255uy;254uy|]
+                    run _1d inByteArray
+                    check inByteArray [|0uy;255uy;254uy|]
+
+                testCase "Byte and float 2" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<byte>) ->
+                                if range.GlobalID0 = 0
+                                then
+                                    buf.[0] <- byte ((float buf.[0]) + 1.0)
+                                    buf.[1] <- byte ((float buf.[1]) + 1.0)
+                                    buf.[2] <- byte ((float buf.[2]) + 1.0)
+                        @>
+
+                    let run,check = checkResult command
+                    let inByteArray = [|0uy;255uy;254uy|]
+                    run _1d inByteArray
+                    check inByteArray [|1uy;0uy;255uy|]
+
+                testCase "Byte and float in condition" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<byte>) ->
+                                if range.GlobalID0 = 0
+                                then
+                                    let x = if true then buf.[0] + 1uy else buf.[0] + 1uy
+                                    buf.[0] <- x
+                                    let y = if true then buf.[1] + 1uy else buf.[1] + 1uy
+                                    buf.[1] <- y
+                                    let z = if true then buf.[2] + 1uy else buf.[2] + 1uy
+                                    buf.[2] <- z
+                        @>
+
+                    let run,check = checkResult command
+                    let inByteArray = [|0uy;255uy;254uy|]
+                    run _1d inByteArray
+                    check inByteArray [|1uy;0uy;255uy|]
           ]
 
 
@@ -597,7 +664,6 @@ let FullTranslatorTests =
                     check initInArr [|1L; 1L; 2L; 3L|]
             ]
 
-
     testList "System tests with running kernels"
         [
             atomicsTests
@@ -614,21 +680,6 @@ let FullTranslatorTests =
     |> (fun x -> Expecto.Sequenced (Expecto.SequenceMethod.Synchronous, x))
 
 (*
-    [<Test>]
-    member this.``Byte type support``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<byte>) ->
-                    if range.GlobalID0 = 0
-                    then
-                        buf.[0] <- buf.[0] + 1uy
-                        buf.[1] <- buf.[1] + 1uy
-                        buf.[2] <- buf.[2] + 1uy
-            @>
-        let run,check = checkResult command
-        let inByteArray = [|0uy;255uy;254uy|]
-        run _1d inByteArray
-        check inByteArray [|1uy;0uy;255uy|]
 
     [<Test>]
     member this.``Write buffer``() =
