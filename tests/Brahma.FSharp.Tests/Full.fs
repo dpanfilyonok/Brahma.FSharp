@@ -260,6 +260,40 @@ let FullTranslatorTests =
                     let inByteArray = [|0uy;255uy;254uy|]
                     run _1d inByteArray
                     check inByteArray [|1uy;0uy;255uy|]
+
+                testCase "Byte and float in condition 2" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<byte>) ->
+                                if range.GlobalID0 = 0
+                                then
+                                    let x =
+                                        if true
+                                        then
+                                            let g = 1uy
+                                            buf.[0] + g
+                                        else buf.[0] + 1uy
+                                    buf.[0] <- x
+                                    let y =
+                                        if true
+                                        then
+                                            let g = 1uy
+                                            buf.[1] + g
+                                        else buf.[1] + 1uy
+                                    buf.[1] <- y
+                                    let z =
+                                        if true
+                                        then
+                                            let g = 1uy
+                                            buf.[2] + g
+                                        else buf.[2] + 1uy
+                                    buf.[2] <- z
+                        @>
+
+                    let run,check = checkResult command
+                    let inByteArray = [|0uy;255uy;254uy|]
+                    run _1d inByteArray
+                    check inByteArray [|1uy;0uy;255uy|]
           ]
 
 
