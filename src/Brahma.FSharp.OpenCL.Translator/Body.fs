@@ -17,6 +17,7 @@ module Brahma.FSharp.OpenCL.Translator.Body
 
 open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.AST
+open Brahma.FSharp.OpenCL.QuotationsTransformer.Common
 open Microsoft.FSharp.Collections
 open FSharpx.Collections
 open System.Collections.Generic
@@ -46,10 +47,15 @@ let rec private translateBinding (var:Var) newName (expr:Expr) (targetContext:Ta
         | _ -> Type.Translate var.Type false None targetContext
     new VarDecl<Lang>(vType,newName,Some body)
 
-and private translateCall exprOpt (mInfo:System.Reflection.MethodInfo) _args targetContext =
-    let args,tContext =
-        let a,c = _args |> List.fold (fun (res,tc) a -> let r,tc = translateCond a tc in r::res,tc) ([],targetContext)
+and private translateListOfArgs (args: list<Expr>) targetContext =
+    let args', targetContext' =
+        let a,c = args |> List.fold (fun (res,tc) a -> let r,tc = translateCond a tc in r::res,tc) ([],targetContext)
         a |> List.rev , c
+    args', targetContext'
+
+and private translateCall exprOpt (mInfo:System.Reflection.MethodInfo) _args targetContext =
+    let args,tContext = translateListOfArgs _args targetContext
+
     match mInfo.Name.ToLowerInvariant() with
     | "op_multiply"            -> new Binop<_>(Mult,args.[0],args.[1]) :> Statement<_>,tContext
     | "op_addition"            -> new Binop<_>(Plus,args.[0],args.[1]) :> Statement<_>,tContext
@@ -384,7 +390,6 @@ and translateFieldGet host (*fldInfo:System.Reflection.FieldInfo*)name context =
     res, tc
 
 and Translate expr (targetContext:TargetContext<_,_>) =
-    //printfn "%A" expr
     match expr with
     | Patterns.AddressOf expr -> "AdressOf is not suported:" + string expr|> failwith
     | Patterns.AddressSet expr -> "AdressSet is not suported:" + string expr|> failwith
@@ -395,6 +400,18 @@ and Translate expr (targetContext:TargetContext<_,_>) =
         else
             let r, tContext= translateApplicationFun expr1 expr2 targetContext
             r :> Node<_>,tContext
+    | DerivedPatterns.SpecificCall <@@ print @@>(_, _, args) ->
+        match args with
+        | [Patterns.ValueWithName(argTypes, _, _)
+           Patterns.ValueWithName(formatStr, _, _)
+           Patterns.ValueWithName(argValues, _, _)] ->
+                let formatStrArg =
+                    Const(PrimitiveType ConstStringLiteral,
+                          formatStr :?> string)
+                    :> Expression<_>
+                let args', targetContext' = translateListOfArgs (argValues :?> list<Expr>) targetContext
+                FunCall("printf", formatStrArg :: args') :> Node<_>, targetContext'
+        | _ -> failwith "printf: something going wrong."
     | Patterns.Call (exprOpt,mInfo,args) ->
         let r,tContext = translateCall exprOpt mInfo args targetContext
         r :> Node<_>,tContext

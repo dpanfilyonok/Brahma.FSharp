@@ -82,7 +82,7 @@ and printFunCall (fc:FunCall<_>) =
 and printBarrier (b:Barrier<_>) =
     wordL "barrier(CLK_LOCAL_MEM_FENCE)"
 
-and printRetun (r:Return<_>) =
+and printReturn (r:Return<_>) =
     wordL "return" ++ Expressions.Print r.Expression
 
 and printFieldSet (fs:FieldSet<_>) =
@@ -109,7 +109,7 @@ and Print isToplevel (stmt:Statement<'lang>) =
         | :? FunCall<'lang> as fc -> printFunCall fc
         | :? Barrier<'lang> as b -> printBarrier b
         | :? FieldSet<'lang> as fs -> printFieldSet fs
-        | :? Return<'lang> as r -> printRetun r
+        | :? Return<'lang> as r -> printReturn r
         //| :? Variable<'lang> as v -> printVar v
         | t -> failwithf "Printer. Unsupported statement: %A" t
     if isToplevel

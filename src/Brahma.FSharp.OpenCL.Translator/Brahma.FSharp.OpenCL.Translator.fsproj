@@ -18,8 +18,10 @@
     <Compile Include="Namer.fs" />
     <Compile Include="Common.fs" />
     <Compile Include="Type.fs" />
+    <Compile Include="QuotationsTransformer\Common.fs" />
+    <Compile Include="QuotationsTransformer\ActivePatterns.fs" />
+    <Compile Include="QuotationsTransformer\QuotationsTransformer.fs" />
     <Compile Include="Array.fs" />
-    <Compile Include="QuotationsTransformer.fs" />
     <Compile Include="Body.fs" />
     <Compile Include="Translator.fs" />
   </ItemGroup>

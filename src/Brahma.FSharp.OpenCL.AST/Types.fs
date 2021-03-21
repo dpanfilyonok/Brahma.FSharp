@@ -29,6 +29,7 @@ type PTypes<'lang> =
     | Double
     | Half
     | Void
+    | ConstStringLiteral
     | TypeName of string
 
 [<AbstractClass>]
@@ -115,12 +116,12 @@ type StructType<'lang>(decl)=
             | _ -> false
             // NB: size is omitted in this check
         | _ -> false
-        
-type TupleType<'lang>(baseStruct:StructType<'lang>, number:int)=    
+
+type TupleType<'lang>(baseStruct:StructType<'lang>, number:int)=
     inherit Type<'lang>()
     override this.Children = []
     override this.Size = baseStruct.Size
-    member this.Number = number        
+    member this.Number = number
     override this.Matches(other) = failwith "Not implemented: matches for tuples"
 
 type RefType<'lang>(baseType:Type<'lang>, typeQuals:TypeQualifier<'lang> list) =

@@ -16,9 +16,11 @@
 module Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
 
 open Microsoft.FSharp.Quotations
-open Brahma.FSharp.OpenCL.Translator.Type
 open Microsoft.FSharp.Collections
 open FSharpx.Collections
+
+open Brahma.FSharp.OpenCL.QuotationsTransformer.ActivePatterns
+open Brahma.FSharp.OpenCL.QuotationsTransformer.Common
 
 let mainKernelName = "brahmaKernel"
 
@@ -340,10 +342,26 @@ let getListLet expr =
             | Patterns.Lambda(lv, lb) ->
                 let newVar = new Var(mainKernelName, lv.Type, false)
                 new Method(newVar, elem)
-            | x -> failwithf "Anexpected element: %A" x
+            | x -> failwithf "An expected element: %A" x
        )
 
-let quontationTransformer expr translatorOptions =
+let rec replacePrintf (expr: Expr) =
+    match expr with
+    | Printf (tpArgs, value, bindArgs) ->
+        <@@
+            print tpArgs value bindArgs
+        @@>
+    | ExprShape.ShapeVar _ ->
+        expr
+    | ExprShape.ShapeLambda (x, body) ->
+        Expr.Lambda(x, replacePrintf body)
+    | ExprShape.ShapeCombination(combo, exprList) ->
+        ExprShape.RebuildShapeCombination(combo, List.map replacePrintf exprList)
+
+let preprocessQuotation expr =
+    replacePrintf expr
+
+let quotationTransformer expr translatorOptions =
     let renamedTree = renameTree expr
     let qTransformed = transform renamedTree
     let addedLam =
