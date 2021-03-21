@@ -17,6 +17,7 @@ namespace Brahma.FSharp.OpenCL.Translator
 
 open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.AST
+open Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
 open System.Collections.Generic
 
 type FSQuotationToOpenCLTranslator() =
@@ -136,11 +137,12 @@ type FSQuotationToOpenCLTranslator() =
         new AST<_>(listCLFun)
 
     let translate qExpr translatorOptions =
+        let qExpr' = preprocessQuotation qExpr
 
-        let structs = CollectStructs qExpr
+        let structs = CollectStructs qExpr'
         let context = new TargetContext<_,_>()
         let translatedStructs = Type.TransleteStructDecls structs.Keys context |> Seq.cast<_> |> List.ofSeq
-        newAST <- QuotationsTransformer.quontationTransformer qExpr translatorOptions
+        newAST <- quotationTransformer qExpr' translatorOptions
 
         //let qExpr = expand Map.empty qExpr
         let rec go expr vars  =

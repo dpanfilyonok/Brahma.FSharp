@@ -36,6 +36,7 @@ let private printConst (c:Const<'lang>) =
         | Double
         | Half -> wordL c.Val
         | Void -> wordL ""
+        | ConstStringLiteral -> wordL <| sprintf "\"%s\"" c.Val
         | TypeName tname -> failwithf "Printer. Unsupported const with type: %A" tname
     | :? RefType<'lang> as rt
         -> wordL c.Val

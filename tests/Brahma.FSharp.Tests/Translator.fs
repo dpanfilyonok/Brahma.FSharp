@@ -682,6 +682,36 @@ let translatorTest =
 
         ]
 
+    let printfTests =
+        testList "Translation of printf" [
+            testCase "Printf test 1" <| fun _ ->
+                let command =
+                    <@ fun (range:_1D) ->
+                        printf "%d %f" 10 15.0
+                    @>
+                checkCode command "Printf test 1.gen" "Printf test 1.cl"
+
+            testCase "Printf test 2" <| fun _ ->
+                let command =
+                    <@ fun (range:_1D) (xs: array<int>) ->
+                        let gid = range.GlobalID0
+                        let x = 10
+
+                        printf "%d %d" x xs.[gid]
+                    @>
+                checkCode command "Printf test 2.gen" "Printf test 2.cl"
+
+            testCase "Printf test 3" <| fun _ ->
+                let command =
+                    <@ fun (range:_1D) (xs: array<int>) ->
+                        let mutable i = 0
+                        while i < 10 do
+                            xs.[0] <- i*2
+                            printf "i = %d, xs.[0]*10 = %d\n" i (xs.[0] + 10)
+                    @>
+                checkCode command "Printf test 3.gen" "Printf test 3.cl"
+        ]
+
     testList "Tests for translator"
         [
             basicLocalIdTests
@@ -694,6 +724,7 @@ let translatorTest =
             curryingTests
             localMemoryTests
             localMemoryAllocationTests
+            printfTests
         ]
     |> (fun x -> Expecto.Sequenced (Expecto.SequenceMethod.Synchronous, x))
 
