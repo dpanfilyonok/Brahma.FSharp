@@ -5,19 +5,19 @@ open System.Reflection
 [<assembly: AssemblyTitleAttribute("Brahma.FSharp.OpenCL.Core")>]
 [<assembly: AssemblyProductAttribute("Brahma.FSharp")>]
 [<assembly: AssemblyVersionAttribute("2.0.0")>]
-[<assembly: AssemblyMetadataAttribute("ReleaseDate","2021-01-27T00:00:00.0000000+03:00")>]
+[<assembly: AssemblyMetadataAttribute("ReleaseDate","2021-03-22T00:00:00.0000000+03:00")>]
 [<assembly: AssemblyFileVersionAttribute("2.0.0")>]
 [<assembly: AssemblyInformationalVersionAttribute("2.0.0")>]
 [<assembly: AssemblyMetadataAttribute("ReleaseChannel","alpha")>]
-[<assembly: AssemblyMetadataAttribute("GitHash","329ab18dbaa9a0ecb6b0b14174eb805b68708e2f")>]
+[<assembly: AssemblyMetadataAttribute("GitHash","e1d4dc9c83b45ce347a1b2f2549401c57a931c8c")>]
 do ()
 
 module internal AssemblyVersionInformation =
     let [<Literal>] AssemblyTitle = "Brahma.FSharp.OpenCL.Core"
     let [<Literal>] AssemblyProduct = "Brahma.FSharp"
     let [<Literal>] AssemblyVersion = "2.0.0"
-    let [<Literal>] AssemblyMetadata_ReleaseDate = "2021-01-27T00:00:00.0000000+03:00"
+    let [<Literal>] AssemblyMetadata_ReleaseDate = "2021-03-22T00:00:00.0000000+03:00"
     let [<Literal>] AssemblyFileVersion = "2.0.0"
     let [<Literal>] AssemblyInformationalVersion = "2.0.0"
     let [<Literal>] AssemblyMetadata_ReleaseChannel = "alpha"
-    let [<Literal>] AssemblyMetadata_GitHash = "329ab18dbaa9a0ecb6b0b14174eb805b68708e2f"
+    let [<Literal>] AssemblyMetadata_GitHash = "e1d4dc9c83b45ce347a1b2f2549401c57a931c8c"
