@@ -710,6 +710,14 @@ let translatorTest =
                             printf "i = %d, xs.[0]*10 = %d\n" i (xs.[0] + 10)
                     @>
                 checkCode command "Printf test 3.gen" "Printf test 3.cl"
+
+            testCase "Printf test 4: printfn" <| fun _ ->
+                let command =
+                    <@ fun (range:_1D) ->
+                        printfn "%d %f" 10 15.0
+                    @>
+                checkCode command "Printf test 4.gen" "Printf test 4.cl"
+
         ]
 
     testList "Tests for translator"

@@ -22,18 +22,19 @@ let rec (|HasSubExpr|_|) ((|Pattern|_|) : Expr -> 'a Option) expr =
 let (|HasValueAsSubExpr|_|) (expr: Expr) = (|HasSubExpr|_|) (|Value|_|) expr
 
 /// An active pattern to recognize lambda expression,
-/// that obtained from printf function.
+/// that obtained from printf/printfn function.
 /// Example: printf "%d %f" -> ([Int, Float], "%d %f")
 let (|NewPrintfFormat|_|) (expr: Expr) =
     match expr with
     | Call (None, mInfo, args) ->
         match mInfo.Name with
-        | "PrintFormat" ->
+        | "PrintFormat" | "printfn" ->
             let bindTypes = getFunctionArgTypes <| mInfo.ReturnType
             match args with
             | [HasValueAsSubExpr (s, _)] ->
                 let s' = (s :?> string).Replace("\n", "\\n")
-                Some (bindTypes, s')
+                let s'' = if mInfo.Name = "printfn" then s' + "\\n" else s'
+                Some (bindTypes, s'')
             | _ -> failwith "..."
         | _ -> None
     | _ -> None
