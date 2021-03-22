@@ -2,6 +2,7 @@ module Brahma.FSharp.OpenCL.QuotationsTransformer.ActivePatterns
 
 open FSharp.Quotations
 open FSharp.Quotations.Patterns
+open FSharp.Reflection
 
 open Brahma.FSharp.OpenCL.QuotationsTransformer.Common
 
@@ -29,13 +30,20 @@ let (|NewPrintfFormat|_|) (expr: Expr) =
     | Call (None, mInfo, args) ->
         match mInfo.Name with
         | "PrintFormat" | "printfn" ->
-            let bindTypes = getFunctionArgTypes <| mInfo.ReturnType
+            let retType = mInfo.ReturnType
+            let bindTypes =
+                match retType with
+                | _ when retType = typeof<unit> -> []
+                | _ when FSharpType.IsFunction retType ->
+                    getFunctionArgTypes <| mInfo.ReturnType
+                | _ -> failwithf "printf: returned type %A of NewPrintfFormat is not expected" retType
+
             match args with
             | [HasValueAsSubExpr (s, _)] ->
                 let s' = (s :?> string).Replace("\n", "\\n")
                 let s'' = if mInfo.Name = "printfn" then s' + "\\n" else s'
                 Some (bindTypes, s'')
-            | _ -> failwith "..."
+            | _ -> failwithf "printf: argument %A of NewPrintfFormat call is not expected" args
         | _ -> None
     | _ -> None
 
@@ -52,6 +60,8 @@ let rec (|PartialPrintf|_|) (expr: Expr) =
         | PartialPrintf(tpArgs, value, bindArgs) ->
             Some (tpArgs, value, bindArgs @ [arg])
         | _ -> None
+    | NewPrintfFormat(tpArgs, formatStr) ->
+        Some (tpArgs, formatStr, [])
     | _ -> None
 
 let (|Printf|_|) (expr: Expr) =

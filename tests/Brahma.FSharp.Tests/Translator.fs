@@ -718,6 +718,21 @@ let translatorTest =
                     @>
                 checkCode command "Printf test 4.gen" "Printf test 4.cl"
 
+            testCase "Printf test 5: printf without args" <| fun _ ->
+                let command =
+                    <@ fun (range:_1D) ->
+                        printf "I am complied"
+                    @>
+                checkCode command "Printf test 5.gen" "Printf test 5.cl"
+
+            testCase "Printf test 6: printfn without args" <| fun _ ->
+                let command =
+                    <@ fun (range:_1D) ->
+                        printfn "I am complied too"
+                    @>
+                checkCode command "Printf test 6.gen" "Printf test 6.cl"
+
+
         ]
 
     testList "Tests for translator"
