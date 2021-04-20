@@ -17,7 +17,7 @@ module Brahma.FSharp.OpenCL.Translator.Body
 
 open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.AST
-open Brahma.FSharp.OpenCL.QuotationsTransformer.Common
+open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.PrintfReplacer
 open Microsoft.FSharp.Collections
 open FSharpx.Collections
 open System.Collections.Generic

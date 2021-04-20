@@ -19,8 +19,7 @@ open Microsoft.FSharp.Quotations
 open Microsoft.FSharp.Collections
 open FSharpx.Collections
 
-open Brahma.FSharp.OpenCL.QuotationsTransformer.ActivePatterns
-open Brahma.FSharp.OpenCL.QuotationsTransformer.Common
+open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.PrintfReplacer
 
 let mainKernelName = "brahmaKernel"
 
@@ -344,19 +343,6 @@ let getListLet expr =
                 new Method(newVar, elem)
             | x -> failwithf "An expected element: %A" x
        )
-
-let rec replacePrintf (expr: Expr) =
-    match expr with
-    | Printf (tpArgs, value, bindArgs) ->
-        <@@
-            print tpArgs value bindArgs
-        @@>
-    | ExprShape.ShapeVar _ ->
-        expr
-    | ExprShape.ShapeLambda (x, body) ->
-        Expr.Lambda(x, replacePrintf body)
-    | ExprShape.ShapeCombination(combo, exprList) ->
-        ExprShape.RebuildShapeCombination(combo, List.map replacePrintf exprList)
 
 let preprocessQuotation expr =
     replacePrintf expr

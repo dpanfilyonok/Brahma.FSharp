@@ -1,10 +1,10 @@
-module Brahma.FSharp.OpenCL.QuotationsTransformer.ActivePatterns
+module Brahma.FSharp.OpenCL.QuotationsTransformer.Utils.Patterns
+
+open Brahma.FSharp.OpenCL.QuotationsTransformer.Utils.Common
 
 open FSharp.Quotations
 open FSharp.Quotations.Patterns
 open FSharp.Reflection
-
-open Brahma.FSharp.OpenCL.QuotationsTransformer.Common
 
 let rec (|HasSubExpr|_|) ((|Pattern|_|) : Expr -> 'a Option) expr =
     match expr with
@@ -73,3 +73,20 @@ let (|Printf|_|) (expr: Expr) =
         else
             None
     | _ -> None
+
+
+let private letDefinition (predicate: Var -> bool) (expr: Expr) =
+    match expr with
+    | Let (var, expr, inExpr) ->
+        if predicate var
+        then
+            Some (var, expr, inExpr)
+        else
+            None
+    | _ -> None
+
+let (|LetFunc|_|) (expr: Expr) =
+    letDefinition isFunction expr
+
+let (|LetVar|_|) (expr:Expr) =
+    letDefinition (not << isFunction) expr

@@ -18,9 +18,14 @@
     <Compile Include="Namer.fs" />
     <Compile Include="Common.fs" />
     <Compile Include="Type.fs" />
-    <Compile Include="QuotationsTransformer\Common.fs" />
-    <Compile Include="QuotationsTransformer\ActivePatterns.fs" />
+      
+    <Compile Include="QuotationsTransformer\Utils\Common.fs" />
+    <Compile Include="QuotationsTransformer\Utils\Patterns.fs" />
+    <Compile Include="QuotationsTransformer\Transformers\PrintfReplacer.fs" />
+    <Compile Include="QuotationsTransformer\Transformers\LambdaLifting\Context.fs" />
+    <Compile Include="QuotationsTransformer\Transformers\LambdaLifting\ParameterLifting.fs" />
     <Compile Include="QuotationsTransformer\QuotationsTransformer.fs" />
+    
     <Compile Include="Array.fs" />
     <Compile Include="Body.fs" />
     <Compile Include="Translator.fs" />
