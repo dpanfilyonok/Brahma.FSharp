@@ -15,6 +15,7 @@
 
 namespace Brahma.FSharp.OpenCL.Translator
 
+open FSharpx.Collections
 open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.AST
 open Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
@@ -102,7 +103,6 @@ type FSQuotationToOpenCLTranslator() =
                 varsList.[i] |> List.filter (fun (v:Var) -> bdts |> List.exists((=) (v.Type.FullName.ToLowerInvariant())) |> not)
                 |> List.map
                     (fun v ->
-
                         let t = Type.Translate v.Type true None (contextList.[i])
                         let declSpecs = new DeclSpecifierPack<_>(typeSpec=t)
                         if t :? RefType<_> then declSpecs.AddressSpaceQual <- Global
@@ -140,7 +140,7 @@ type FSQuotationToOpenCLTranslator() =
         let qExpr' = preprocessQuotation qExpr
 
         let structs = CollectStructs qExpr'
-        let context = new TargetContext<_,_>()
+        let context = TargetContext<_,_>()
         let translatedStructs = Type.TransleteStructDecls structs.Keys context |> Seq.cast<_> |> List.ofSeq
         newAST <- quotationTransformer qExpr' translatorOptions
 

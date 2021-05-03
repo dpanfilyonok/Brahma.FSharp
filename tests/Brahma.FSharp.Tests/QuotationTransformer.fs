@@ -1,7 +1,7 @@
 module Brahma.FSharp.Tests.QuotationTransformer
 
 open Expecto
-open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.LambdaLifting.ParameterLifting
+open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.LambdaLifting.LambdaLifting
 
 [<Tests>]
 let quotationTransformerTests =

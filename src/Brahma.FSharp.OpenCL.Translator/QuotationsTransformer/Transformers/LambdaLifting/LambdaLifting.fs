@@ -1,5 +1,6 @@
-module Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.LambdaLifting.ParameterLifting
+module Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.LambdaLifting.LambdaLifting
 
+open Brahma.FSharp.OpenCL.Translator
 open FSharp.Quotations
 open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.LambdaLifting.Context
 open Brahma.FSharp.OpenCL.QuotationsTransformer.Utils.Common
@@ -58,3 +59,25 @@ let rec parameterLiftExprImpl (ctx: Context) (expr: Expr): Expr =
 
 let parameterLiftExpr: Expr -> Expr =
     parameterLiftExprImpl Context.empty
+
+let rec blockFloating (expr: Expr) : Expr * List<Method> =
+    match expr with
+    | LetFunc(var, body, inExpr) ->
+        let body', bodyMethods = blockFloating body
+        let inExpr', inExprMethods = blockFloating inExpr
+        inExpr', [Method(var, body')] @ bodyMethods @ inExprMethods
+
+    | ExprShape.ShapeLambda (var, body) ->
+        let body', methods = blockFloating body
+        Expr.Lambda(var, body'), methods
+
+    | ExprShape.ShapeVar var ->
+        Expr.Var(var), List.empty
+
+    | ExprShape.ShapeCombination(shapeComboObject, exprList) ->
+        let exprList', methods = exprList |> List.map blockFloating |> List.unzip
+        ExprShape.RebuildShapeCombination(shapeComboObject , exprList'), List.concat methods
+
+let lambdaLifting (expr: Expr) : Expr * List<Method> =
+    let lifted = parameterLiftExpr expr
+    blockFloating lifted

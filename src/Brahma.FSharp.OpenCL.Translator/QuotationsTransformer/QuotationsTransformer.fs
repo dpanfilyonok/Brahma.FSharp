@@ -20,6 +20,7 @@ open Microsoft.FSharp.Collections
 open FSharpx.Collections
 
 open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.PrintfReplacer
+open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.LambdaLifting.LambdaLifting
 
 let mainKernelName = "brahmaKernel"
 
@@ -347,15 +348,7 @@ let getListLet expr =
 let preprocessQuotation expr =
     replacePrintf expr
 
-let quotationTransformer expr translatorOptions =
-    let renamedTree = renameTree expr
-    let qTransformed = transform renamedTree
-    let addedLam =
-        addNeededLamAndAppicatins qTransformed
-        |> (fun x ->
-                lets.Clear()
-                letToExtend.Clear()
-                addNeededLamAndAppicatins x)
-
-    let listExpr = getListLet addedLam
-    listExpr
+let quotationTransformer expr translatorOptions : ResizeArray<Method> =
+    let lastExpr, methods = lambdaLifting expr
+    let brahmaKernel = Method(Var(mainKernelName, lastExpr.Type), lastExpr)
+    methods @ [brahmaKernel] |> ResizeArray.ofList
