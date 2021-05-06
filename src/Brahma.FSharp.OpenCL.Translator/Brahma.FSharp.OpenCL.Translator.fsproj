@@ -24,6 +24,7 @@
     <Compile Include="QuotationsTransformer\Transformers\PrintfReplacer.fs" />
     <Compile Include="QuotationsTransformer\Transformers\LambdaLifting\Context.fs" />
     <Compile Include="QuotationsTransformer\Transformers\LambdaLifting\LambdaLifting.fs" />
+    <Compile Include="QuotationsTransformer\Transformers\VarDefsToLambda.fs" />
     <Compile Include="QuotationsTransformer\QuotationsTransformer.fs" />
     
     <Compile Include="Array.fs" />

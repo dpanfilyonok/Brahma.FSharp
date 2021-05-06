@@ -65,7 +65,7 @@ let rec blockFloating (expr: Expr) : Expr * List<Method> =
     | LetFunc(var, body, inExpr) ->
         let body', bodyMethods = blockFloating body
         let inExpr', inExprMethods = blockFloating inExpr
-        inExpr', [Method(var, body')] @ bodyMethods @ inExprMethods
+        inExpr', bodyMethods @ [Method(var, body')] @ inExprMethods
 
     | ExprShape.ShapeLambda (var, body) ->
         let body', methods = blockFloating body

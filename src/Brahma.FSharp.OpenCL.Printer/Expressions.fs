@@ -15,6 +15,7 @@
 
 module Brahma.FSharp.OpenCL.Printer.Expressions
 
+open System
 open Brahma.FSharp.OpenCL.AST
 open Microsoft.FSharp.Text.StructuredFormat.LayoutOps
 open Brahma.FSharp.OpenCL.Printer
@@ -83,8 +84,23 @@ and private printProperty (prop:Property<'lang>) =
     | PropertyType.Var v -> printVar v
     | PropertyType.Item i -> printItem i
 
-and private printFunCall (fc:FunCall<'lang>) =
-    wordL fc.Name ++ (fc.Args |> List.map Print |> commaListL |> bracketL)
+and private printFunCall (fc: FunCall<'lang>) =
+    let isVoidArg (expr: Expression<_>) =
+        match expr with
+        | :? Const<_> as c ->
+            match c.Type with
+            | :? PrimitiveType<_> as pt -> pt.Type = Void
+            | _ -> false
+        | _ -> false
+
+    // TODO: move filtration into translator
+    let argsLayout =
+        fc.Args
+        |> List.filter (not << isVoidArg)
+        |> List.map Print
+        |> commaListL
+        |> bracketL
+    wordL fc.Name ++ argsLayout
 
 and private printUnOp (uo:Unop<'lang>) =
     match uo.Op with

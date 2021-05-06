@@ -34,6 +34,15 @@ let private printFunFormalParam (param:FunFormalArg<_>) =
     ] |> spaceListL
 
 let Print<'lang> (funDecl:FunDecl<'lang>) =
+    let isVoidArg (arg: FunFormalArg<_>) =
+        match arg.DeclSpecs.Type with
+        | Some x ->
+            match x with
+            | :? PrimitiveType<_> as p ->
+                p.Type = Void
+            | _ -> false
+        | None -> false
+
     let header =
         [ match funDecl.DeclSpecs.FunQual with
           | Some Kernel -> yield wordL "__kernel"
@@ -43,6 +52,11 @@ let Print<'lang> (funDecl:FunDecl<'lang>) =
           | None -> failwith "Could not print a func declaration with undefined return type"
         ; yield wordL funDecl.Name
         ] |> spaceListL
-    let formalParams = funDecl.Args |> List.map printFunFormalParam |> commaListL |> bracketL
+    let formalParams =
+        funDecl.Args
+        |> List.filter (not << isVoidArg)
+        |> List.map printFunFormalParam
+        |> commaListL
+        |> bracketL
     let body = Statements.Print true funDecl.Body
     aboveL (header ++ formalParams) body

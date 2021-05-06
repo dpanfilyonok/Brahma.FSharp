@@ -703,8 +703,362 @@ let FullTranslatorTests =
                     check initInArr [|1L; 1L; 2L; 3L|]
             ]
 
+    let letTransformationTests =
+        testList "Let Transformation Tests"
+            [
+                testCase "Template Let Transformation Test 0" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                let f = 3
+                                buf.[0] <- f
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|3; 1; 2; 3|]
+
+                testCase "Template Let Transformation Test 1" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                let x = 4
+                                let f =
+                                    let x = 3
+                                    x
+                                buf.[0] <- x + f
+                        @>
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|7; 1; 2; 3|]
+
+                testCase "Template Let Transformation Test 1.2" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                let f y =
+                                    let x c b = b + c + 4 + y
+                                    x 2 3
+                                buf.[0] <- f 1
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|10; 1; 2; 3|]
+
+                testCase "Template Let Transformation Test 2" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                let f =
+                                    let x =
+                                        let y = 3
+                                        y
+                                    x
+                                buf.[0] <- f
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|3; 1; 2; 3|]
+
+                testCase "Template Let Transformation Test 3" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                let f =
+                                    let f = 5
+                                    f
+                                buf.[0] <- f
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|5; 1; 2; 3|]
+
+                // TODO: Renamer
+                ptestCase "Template Let Transformation Test 4" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                let f =
+                                    let f =
+                                        let f = 5
+                                        f
+                                    f
+                                buf.[0] <- f
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|5; 1; 2; 3|]
+
+                testCase "Template Let Transformation Test 5" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                let f a b =
+                                    let x y z = y + z
+                                    x a b
+                                buf.[0] <- f 1 7
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|8; 1; 2; 3|]
+
+                testCase "Template Let Transformation Test 6" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                let f x y =
+                                    let x = x
+                                    x + y
+                                buf.[0] <- f 7 8
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|15; 1; 2; 3|]
+
+                testCase "Template Let Transformation Test 7" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                let f y =
+                                    let x y = 6 - y
+                                    x y
+                                buf.[0] <- f 7
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|-1; 1; 2; 3|]
+
+                testCase "Template Let Transformation Test 8" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (m:array<int>) ->
+                                let p = m.[0]
+                                let x n =
+                                    let l = m.[3]
+                                    let g k = k + m.[0] + m.[1]
+                                    let r =
+                                        let y a =
+                                            let x = 5 - n + (g 4)
+                                            let z t = m.[2] + a - t
+                                            z (a + x + l)
+                                        y 6
+                                    r + m.[3]
+                                if range.GlobalID0 = 0
+                                then m.[0] <- x 7
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|-1; 1; 2; 3|]
+
+                testCase "Template Let Transformation Test 9" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                let x n =
+                                    let r = 8
+                                    let h = r + n
+                                    h
+                                buf.[0] <- x 9
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|17; 1; 2; 3|]
+
+                testCase "Template Let Transformation Test 10" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                let p = 9
+                                let x n b =
+                                    let t = 0
+                                    n + b + t
+                                buf.[0] <- x 7 9
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|16; 1; 2; 3|]
+
+                testCase "Template Let Transformation Test 11" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                let p = 1
+                                let m =
+                                    let r (l:int) = l
+                                    r 9
+                                let z (k:int) = k
+                                buf.[0] <- m
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|9; 1; 2; 3|]
+
+                testCase "Template Let Transformation Test 12" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                let f x y =
+                                    let y = y
+                                    let y = y
+                                    let g x m = m + x
+                                    g x y
+                                buf.[0] <- f 1 7
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|8; 1; 2; 3|]
+
+                testCase "Template Let Transformation Test 13" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                let f y =
+                                    let y = y
+                                    let y = y
+                                    let g (m:int) = m
+                                    g y
+                                buf.[0] <- f 7
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|7; 1; 2; 3|]
+
+                // TODO: Renamer
+                ptestCase "Template Let Transformation Test 14" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                let f y =
+                                    let y = y
+                                    let y = y
+                                    let g (m:int) =
+                                        let g r t = r + y - t
+                                        let n o = o - (g y 2)
+                                        n 5
+                                    g y
+                                let z y = y - 2
+                                buf.[0] <- f (z 7)
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|-3; 1; 2; 3|]
+
+                testCase "Template Let Transformation Test 15" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                let f y =
+                                    let Argi index =
+                                        if index = 0
+                                        then buf.[1]
+                                        else buf.[2]
+                                    Argi y
+                                buf.[0] <- f 0
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|1; 1; 2; 3|]
+
+                testCase "Template Let Transformation Test 16" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                let f y =
+                                    if y = 0
+                                    then
+                                        let z (a:int) = a
+                                        z 9
+                                    else buf.[2]
+                                buf.[0] <- f 0
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|9; 1; 2; 3|]
+
+                testCase "Template Let Transformation Test 17" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                if range.GlobalID0 = 0
+                                then
+                                    let f y =
+                                        let g = buf.[1] + 1
+                                        y + g
+                                    for i in 0..3 do
+                                       buf.[i] <- f i
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|2; 3; 6; 7|]
+
+                testCase "Template Let Transformation Test 18" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                for i in 0..3 do
+                                    let f =
+                                        let g = buf.[1] + 1
+                                        i + g
+                                    if range.GlobalID0 = 0
+                                    then buf.[i] <- f
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|2; 3; 6; 7|]
+
+                testCase "Template Let Transformation Test 19" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                if range.GlobalID0 = 0
+                                then
+                                    for i in 0..3 do
+                                        let f x =
+                                            let g = buf.[1] + x
+                                            i + g
+                                        buf.[i] <- f 1
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|2; 3; 6; 7|]
+
+                // TODO: perform range (1D, 2D, 3D) erasure when range is lifted.
+                ptestCase "Template Let Transformation Test 20" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (m:array<int>) ->
+                                let f x =
+                                    range.GlobalID0 + x
+                                m.[0] <- f 2
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|2; 3; 6; 7|]
+            ]
+
     testList "System tests with running kernels"
         [
+            letTransformationTests
             atomicsTests
             arrayItemSetTests
             typeCastingTests
@@ -1220,333 +1574,6 @@ let FullTranslatorTests =
         Assert.AreEqual(expectedResult, r)
 
         provider.CloseAllBuffers()
-
-    [<Test>]
-    member this.``Template Let Transformation Test 0``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    let f = 3
-                    buf.[0] <- f
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|3;1;2;3|]
-
-    [<Test>]
-    member this.``Template Let Transformation Test 1``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    let x = 4
-                    let f =
-                        let x = 3
-                        x
-                    buf.[0] <- x + f
-            @>
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|7;1;2;3|]
-
-    [<Test>]
-    member this.``Template Let Transformation Test 1.2``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    let f y =
-                        let x c b = b + c + 4 + y
-                        x 2 3
-                    buf.[0] <- f 1
-            @>
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|10;1;2;3|]
-
-    [<Test>]
-    member this.``Template Let Transformation Test 2``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    let f =
-                        let x =
-                            let y = 3
-                            y
-                        x
-                    buf.[0] <- f
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|3;1;2;3|]
-
-    [<Test>]
-    member this.``Template Let Transformation Test 3``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    let f =
-                        let f = 5
-                        f
-                    buf.[0] <- f
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|5;1;2;3|]
-
-    [<Test>]
-    member this.``Template Let Transformation Test 4``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    let f =
-                        let f =
-                            let f = 5
-                            f
-                        f
-                    buf.[0] <- f
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|5;1;2;3|]
-
-    [<Test>]
-    member this.``Template Let Transformation Test 5``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    let f a b =
-                        let x y z = y + z
-                        x a b
-                    buf.[0] <- f 1 7
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|8;1;2;3|]
-
-    [<Test>]
-    member this.``Template Let Transformation Test 6``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    let f x y =
-                        let x = x
-                        x + y
-                    buf.[0] <- f 7 8
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|15;1;2;3|]
-
-    [<Test>]
-    member this.``Template Let Transformation Test 7``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<int>) ->
-                    let f y =
-                        let x y = 6 - y
-                        x y
-                    buf.[0] <- f 7
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|-1;1;2;3|]
-
-    [<Test>]
-    member this.``Template Let Transformation Test 8``() =
-        let command =
-            <@ fun (range:_1D) (m:array<int>) ->
-                    let p = m.[0]
-                    let x n =
-                        let l = m.[3]
-                        let g k = k + m.[0] + m.[1]
-                        let r =
-                            let y a =
-                                let x = 5 - n + (g 4)
-                                let z t = m.[2] + a - t
-                                z (a + x + l)
-                            y 6
-                        r + m.[3]
-                    if range.GlobalID0 = 0
-                    then m.[0] <- x 7
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|-1;1;2;3|]
-
-    [<Test>]
-    member this.``Template Let Transformation Test 10``() =
-        let command =
-            <@ fun (range:_1D) (buf:array<int>) ->
-                    let p = 9
-                    let x n b =
-                        let t = 0
-                        n + b + t
-                    buf.[0] <- x 7 9
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|16;1;2;3|]
-
-
-    [<Test>]
-    member this.``Template Let Transformation Test 11``() =
-        let command =
-            <@ fun (range:_1D) (buf:array<int>) ->
-                    let p = 1
-                    let m =
-                        let r (l:int) = l
-                        r 9
-                    let z (k:int) = k
-                    buf.[0] <- m
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|9;1;2;3|]
-
-    [<Test>]
-    member this.``Template Let Transformation Test 12``() =
-        let command =
-            <@ fun (range:_1D) (buf:array<int>) ->
-                    let f x y =
-                        let y = y
-                        let y = y
-                        let g x m = m + x
-                        g x y
-                    buf.[0] <- f 1 7
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|8;1;2;3|]
-
-    [<Test>]
-    member this.``Template Let Transformation Test 13``() =
-        let command =
-            <@ fun (range:_1D) (buf:array<int>) ->
-                    let f y =
-                        let y = y
-                        let y = y
-                        let g (m:int) = m
-                        g y
-                    buf.[0] <- f 7
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|7;1;2;3|]
-
-    [<Test>]
-    member this.``Template Let Transformation Test 14``() =
-        let command =
-            <@ fun (range:_1D) (buf:array<int>) ->
-                    let f y =
-                        let y = y
-                        let y = y
-                        let g (m:int) =
-                            let g r t = r + y - t
-                            let n o = o - (g y 2)
-                            n 5
-                        g y
-                    let z y = y - 2
-                    buf.[0] <- f (z 7)
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|-3;1;2;3|]
-
-    [<Test>]
-    member this.``Template Let Transformation Test 15``() =
-        let command =
-            <@ fun (range:_1D) (buf:array<int>) ->
-                    let f y =
-                        let Argi index =
-                            if index = 0
-                            then buf.[1]
-                            else buf.[2]
-                        Argi y
-                    buf.[0] <- f 0
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|1;1;2;3|]
-
-    [<Test>]
-    member this.``Template Let Transformation Test 16``() =
-        let command =
-            <@ fun (range:_1D) (buf:array<int>) ->
-                    let f y =
-                        if y = 0
-                        then
-                            let z (a:int) = a
-                            z 9
-                        else buf.[2]
-                    buf.[0] <- f 0
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|9;1;2;3|]
-
-    [<Test>]
-    member this.``Template Let Transformation Test 17``() =
-        let command =
-            <@ fun (range:_1D) (buf:array<int>) ->
-                if range.GlobalID0 = 0
-                then
-                    let f y =
-                        let g = buf.[1] + 1
-                        y + g
-                    for i in 0..3 do
-                       buf.[i] <- f i
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|2;3;6;7|]
-
-    [<Test>]
-    member this.``Template Let Transformation Test 18``() =
-        let command =
-            <@ fun (range:_1D) (buf:array<int>) ->
-                    for i in 0..3 do
-                        let f =
-                            let g = buf.[1] + 1
-                            i + g
-                        if range.GlobalID0 = 0
-                        then buf.[i] <- f
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|2;3;6;7|]
-
-    [<Test>]
-    member this.``Template Let Transformation Test 19``() =
-        let command =
-            <@ fun (range:_1D) (buf:array<int>) ->
-                if range.GlobalID0 = 0
-                then
-                    for i in 0..3 do
-                        let f x =
-                            let g = buf.[1] + x
-                            i + g
-                        buf.[i] <- f 1
-            @>
-
-        let run,check = checkResult command
-        run _1d intInArr
-        check intInArr [|2;3;6;7|]
 
     [<Test>]
     [<Ignore("Image 2D not finished")>]
