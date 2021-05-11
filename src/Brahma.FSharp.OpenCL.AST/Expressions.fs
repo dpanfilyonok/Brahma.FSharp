@@ -42,10 +42,16 @@ type Item<'lang>(arr:Expression<'lang>,idx:Expression<'lang>) =
     member this.Arr = arr
     member this.Idx = idx
 
+type IndirectionOp<'lang>(expr: Expression<'lang>) =
+    inherit Expression<'lang>()
+    override this.Children = []
+    member this.Expr = expr
+
 [<RequireQualifiedAccess>]
 type PropertyType<'lang>=
     | Var of Variable<'lang>
     | Item of Item<'lang>
+    | VarReference of IndirectionOp<'lang>
 
 type Property<'lang>(property:PropertyType<'lang>) =
     inherit Expression<'lang>()
@@ -92,7 +98,7 @@ type Unop<'lang>(op:UOp<'lang>,expr:Expression<'lang>) =
     member this.Expr = expr
     member this.Op = op
 
-type Cast<'lang>(expr:Expression<'lang>,_type:Type<'lang>)=
+type Cast<'lang>(expr:Expression<'lang>,_type:Type<'lang>) =
     inherit Expression<'lang>()
     override this.Children = []
     member this.Expr = expr

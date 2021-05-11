@@ -19,6 +19,7 @@ open FSharpx.Collections
 open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.AST
 open Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
+open Brahma.FSharp.OpenCL.QuotationsTransformer.Utils.Common
 open System.Collections.Generic
 
 type FSQuotationToOpenCLTranslator() =
@@ -96,27 +97,35 @@ type FSQuotationToOpenCLTranslator() =
     let brahmaDimensionsTypes = ["_1d";"_2d";"_3d"]
     let brahmaDimensionsTypesPrefix = "brahma.opencl."
     let bdts = brahmaDimensionsTypes |> List.map (fun s -> brahmaDimensionsTypesPrefix + s)
-    let buildFullAst (varsList:ResizeArray<_>) types (partialAstList:ResizeArray<_>) (contextList:ResizeArray<TargetContext<_,_>>) =
+    let buildFullAst
+      (varsList:ResizeArray<_>) types (partialAstList:ResizeArray<_>)
+      (contextList:ResizeArray<TargetContext<_,_>>) (kernelArgumentsNames: list<string>) =
         let mutable listCLFun = []
         for i in 0..(varsList.Count-1) do
             let formalArgs =
-                varsList.[i] |> List.filter (fun (v:Var) -> bdts |> List.exists((=) (v.Type.FullName.ToLowerInvariant())) |> not)
+                varsList.[i]
+                |> List.filter (fun (v:Var) -> bdts |> List.exists((=) (v.Type.FullName.ToLowerInvariant())) |> not)
                 |> List.map
                     (fun v ->
                         let t = Type.Translate v.Type true None (contextList.[i])
                         let declSpecs = new DeclSpecifierPack<_>(typeSpec=t)
-                        if t :? RefType<_> then declSpecs.AddressSpaceQual <- Global
-                        new FunFormalArg<_>(declSpecs, v.Name))
-            let nameFun:Var = ((newAST.[i]).FunVar)
+                        if t :? RefType<_> && List.contains v.Name kernelArgumentsNames
+                        then
+                            declSpecs.AddressSpaceQual <- Global
+                        FunFormalArg<_>(declSpecs, v.Name))
+
+            let nameFun:Var = newAST.[i].FunVar
             let mutable retFunType = new PrimitiveType<_>(Void) :> Type<_>
             if i <> varsList.Count-1 then
                 let typeFun = newAST.[i].FunVar.Type
                 retFunType <- Type.Translate typeFun  false  None (contextList.[i])
             let typeRet = retFunType :?> PrimitiveType<_>
-            let partAST, isKernel =
+            let partAST =
                 if typeRet.Type <> PTypes.Void
-                then addReturn partialAstList.[i], false
-                else partialAstList.[i], true
+                then addReturn partialAstList.[i]
+                else partialAstList.[i]
+
+            let isKernel = (nameFun.Name = mainKernelName)
 
             let declSpecs = new DeclSpecifierPack<_>(typeSpec=retFunType)
             if isKernel then declSpecs.FunQual <- Some Kernel
@@ -142,9 +151,14 @@ type FSQuotationToOpenCLTranslator() =
         let structs = CollectStructs qExpr'
         let context = TargetContext<_,_>()
         let translatedStructs = Type.TransleteStructDecls structs.Keys context |> Seq.cast<_> |> List.ofSeq
-        newAST <- quotationTransformer qExpr' translatorOptions
 
-        //let qExpr = expand Map.empty qExpr
+        let kernelMethod, methods = quotationTransformer qExpr' translatorOptions
+        let kernelArgumentsNames =
+            kernelMethod.FunExpr
+            |> collectLambdaArguments
+            |> List.map (fun var -> var.Name)
+
+        newAST <- methods @ [kernelMethod] |> ResizeArray.ofList
         let rec go expr vars  =
             match expr with
             | Patterns.Lambda (v, body) -> go body (v::vars)
@@ -163,7 +177,7 @@ type FSQuotationToOpenCLTranslator() =
                         c.Namer.LetIn()
                         c.TranslatorOptions.AddRange translatorOptions
                         vars |> List.iter (fun v -> c.Namer.AddVar v.Name)
-                        //printfn "%A" e
+
                         Body.Translate e c
                     match b  with
                     | :? StatementBlock<Lang> as sb -> sb
@@ -177,13 +191,14 @@ type FSQuotationToOpenCLTranslator() =
         let listPartsASTPartialAst = new ResizeArray<_>()
         let listPartsASTContext = new ResizeArray<_>()
         Body.dictionaryFun.Clear()
+
         for partAST in  newAST do
-            let vars,(partialAst,context) = go partAST.FunExpr []
+            let vars, (partialAst,context) = go partAST.FunExpr []
             listPartsASTVars.Add(List.rev vars)
             listPartsASTPartialAst.Add((partialAst :> Statement<_>))
             listPartsASTContext.Add(context)
             //Body.dictionaryFun.Add(partAST.FunVar.Name, partialAst)
-        let AST = buildFullAst (listPartsASTVars) translatedStructs (listPartsASTPartialAst) listPartsASTContext
+        let AST = buildFullAst listPartsASTVars translatedStructs listPartsASTPartialAst listPartsASTContext kernelArgumentsNames
         AST, newAST
 
     member this.Translate qExpr translatorOptions =

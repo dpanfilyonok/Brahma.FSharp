@@ -124,7 +124,7 @@ type TupleType<'lang>(baseStruct:StructType<'lang>, number:int)=
     member this.Number = number
     override this.Matches(other) = failwith "Not implemented: matches for tuples"
 
-type RefType<'lang>(baseType:Type<'lang>, typeQuals:TypeQualifier<'lang> list) =
+type RefType<'lang>(baseType:Type<'lang>, typeQuals: TypeQualifier<'lang> list) =
     inherit Type<'lang>()
     override this.Size = baseType.Size
     override this.Children = []

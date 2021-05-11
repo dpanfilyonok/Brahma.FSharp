@@ -19,9 +19,11 @@ open Microsoft.FSharp.Quotations
 open Microsoft.FSharp.Collections
 open FSharpx.Collections
 
+open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.MutableVarsToRef
 open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.PrintfReplacer
 open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.LetVarAbstracter
 open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.LambdaLifting.LambdaLifting
+open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.UniqueVarRenaming
 
 let mainKernelName = "brahmaKernel"
 
@@ -362,12 +364,15 @@ let quotationTransformerOld expr translatorOptions =
     let listExpr = getListLet addedLam
     listExpr
 
-let quotationTransformer expr translatorOptions : ResizeArray<Method> =
+/// Returns kernel and other methods
+let quotationTransformer expr translatorOptions : Method * List<Method> =
     let preprocessedExpr =
         expr
         |> replacePrintf
+        |> makeVarNameUnique
+        |> mutableVarsToRefs
         |> varDefsToLambda
 
     let lastExpr, methods = lambdaLifting preprocessedExpr
     let brahmaKernel = Method(Var(mainKernelName, lastExpr.Type), lastExpr)
-    methods @ [brahmaKernel] |> ResizeArray.ofList
+    brahmaKernel, methods

@@ -39,3 +39,34 @@ let collectFreeVars: Expr -> Set<Var> =
 
 let collectFreeFunctionVars: Expr -> Set<Var> =
     collectFreeVarsWithPredicate isFunction
+
+let rec collectLambdaArguments (expr: Expr) : List<Var> =
+    match expr with
+    | ExprShape.ShapeLambda (var, body) ->
+        var :: collectLambdaArguments body
+    | _ -> []
+
+let createRefCall (value: Expr) =
+    match <@@ ref () @@> with
+    | Patterns.Call(obj, methodInfo, _) ->
+        let newMethodInfo = methodInfo.GetGenericMethodDefinition().MakeGenericMethod([|value.Type|])
+        match obj with
+        | Some obj -> Expr.Call(obj, newMethodInfo, [value])
+        | None -> Expr.Call(newMethodInfo, [value])
+    | _ -> failwithf "createRefCall: ref () is not more a Call expression"
+
+let createDereferenceCall (reference: Expr) =
+    match <@@ ! (ref ()) @@> with
+    | Patterns.Call(None, methodInfo, _) ->
+        let tp = reference.Type.GenericTypeArguments.[0]
+        let newMethodInfo = methodInfo.GetGenericMethodDefinition().MakeGenericMethod([|tp|])
+        Expr.Call (newMethodInfo, [reference])
+    | _ -> failwithf "createDereferenceCall: ! is not more a Call expression"
+
+let createReferenceSetCall (reference: Expr) (value: Expr) =
+    match <@@ ref () := () @@> with
+    | Patterns.Call (None, methodInfo, _) ->
+        let tp = reference.Type.GenericTypeArguments.[0]
+        let newMethodInfo = methodInfo.GetGenericMethodDefinition().MakeGenericMethod(tp)
+        Expr.Call (newMethodInfo, [reference; value])
+    | _ -> failwithf "createReferenceSetCall: (:=) is not more a Call expression"

@@ -51,6 +51,9 @@ let private printVar (varible:Variable<'lang>) =
 let rec private printItem (itm:Item<'lang>) =
     (Print itm.Arr) ++ squareBracketL (Print itm.Idx)
 
+and private printIndirectionOp (deref: IndirectionOp<'lang>) =
+    wordL "*" ++ (Print deref.Expr |> bracketL)
+
 and private printBop (op:BOp<'lang>) =
     match op with
     | Plus -> "+"
@@ -83,6 +86,7 @@ and private printProperty (prop:Property<'lang>) =
     match prop.Property with
     | PropertyType.Var v -> printVar v
     | PropertyType.Item i -> printItem i
+    | PropertyType.VarReference p -> printIndirectionOp p
 
 and private printFunCall (fc: FunCall<'lang>) =
     let isVoidArg (expr: Expression<_>) =
@@ -165,4 +169,5 @@ and Print (expr:Expression<'lang>) =
     | :? ArrayInitializer<'lang> as ai -> printArrayInitializer ai
     | :? NewStruct<'lang> as ns -> printNewStruct ns
     | :? FieldGet<'lang> as fg -> printFfieldGet fg
+    | :? IndirectionOp<'lang> as ip -> printIndirectionOp ip
     | c -> failwithf "Printer. Unsupported expression: %A" c

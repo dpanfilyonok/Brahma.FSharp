@@ -52,7 +52,7 @@ let printElementType (_type: string) (context:TargetContext<_,_>) =
 
 
 let rec Translate (_type:System.Type) isKernelArg size (context:TargetContext<_,_>) : Type<Lang> =
-    let rec go (str:string)=
+    let rec go (str:string) =
         let mutable low = str.ToLowerInvariant()
         match low with
         | "int"| "int32" -> PrimitiveType<Lang>(Int) :> Type<Lang>
@@ -76,7 +76,7 @@ let rec Translate (_type:System.Type) isKernelArg size (context:TargetContext<_,
             then RefType<_>(go baseT, []) :> Type<Lang>
             else ArrayType<_>(go baseT, size |> Option.get) :> Type<Lang>
         | s when s.StartsWith "fsharpref" ->
-            go (_type.GetGenericArguments().[0].Name)
+            RefType<_> (go (_type.GetGenericArguments().[0].Name), []) :> Type<Lang>
         | f when f.StartsWith "fsharpfunc" ->
 //            go (_type.GetGenericArguments().[1].Name)
             Translate (_type.GetGenericArguments().[1]) isKernelArg size context

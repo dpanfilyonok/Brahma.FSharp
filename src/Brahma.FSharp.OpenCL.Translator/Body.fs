@@ -129,11 +129,12 @@ and private translateCall exprOpt (mInfo:System.Reflection.MethodInfo) _args tar
         if mInfo.DeclaringType.AssemblyQualifiedName.StartsWith("Microsoft.FSharp.Core.Operators")
         then FunCall<_>("powr",args) :> Statement<_>,tContext
         else failwithf "Seems, thet you use math function with name %s not from System.Math. or Microsoft.FSharp.Core.Operators" fName
-
-    | "ref"      -> args.[0] :> Statement<_>, tContext
-    | "op_dereference" -> args.[0] :> Statement<_>, tContext
-    | "op_colonequals" -> new Assignment<_>(new Property<_>(PropertyType.Var(args.[0] :?> Variable<_>)),args.[1]) :> Statement<_>, tContext
-
+    | "ref" ->
+        Pointer<_> args.[0] :> Statement<_>, tContext
+    | "op_dereference" ->
+        IndirectionOp<_> args.[0] :> Statement<_>, tContext
+    | "op_colonequals" ->
+        Assignment<_>(Property<_>(PropertyType.VarReference(IndirectionOp<_> args.[0])), args.[1]) :> Statement<_>, tContext
     | "setarray" ->
         let item = new Item<_>(args.[0],args.[1])
         new Assignment<_>(new Property<_>(PropertyType.Item(item)),args.[2]) :> Statement<_>

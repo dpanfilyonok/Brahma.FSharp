@@ -640,7 +640,8 @@ let FullTranslatorTests =
     let localMemTests =
         testList "Local memory tests"
             [
-                testCase "Local int. Work item counting" <| fun _ ->
+                // TODO: pointers to local data must be local too.
+                ptestCase "Local int. Work item counting" <| fun _ ->
                     let command =
                         <@
                             fun (range:_1D) (output: array<int>) ->
@@ -776,8 +777,8 @@ let FullTranslatorTests =
                     run _1d intInArr
                     check intInArr [|5; 1; 2; 3|]
 
-                // TODO: Renamer
-                ptestCase "Template Let Transformation Test 4" <| fun _ ->
+
+                testCase "Template Let Transformation Test 4" <| fun _ ->
                     let command =
                         <@
                             fun (range:_1D) (buf:array<int>) ->
@@ -936,8 +937,7 @@ let FullTranslatorTests =
                     run _1d intInArr
                     check intInArr [|7; 1; 2; 3|]
 
-                // TODO: Renamer
-                ptestCase "Template Let Transformation Test 14" <| fun _ ->
+                testCase "Template Let Transformation Test 14" <| fun _ ->
                     let command =
                         <@
                             fun (range:_1D) (buf:array<int>) ->
@@ -1056,9 +1056,44 @@ let FullTranslatorTests =
                     check intInArr [|2; 3; 6; 7|]
             ]
 
+    let letTransformationTestsMutableVars =
+        testList "Let Transformation Tests Mutable Vars"
+            [
+                testCase "Test 0" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                let mutable x = 1
+                                let f y =
+                                    x <- y
+                                f 10
+                                buf.[0] <- x
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|10; 1; 2; 3|]
+
+                testCase "Test 1" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<int>) ->
+                                let mutable x = 1
+                                let f y =
+                                    x <- x + y
+                                f 10
+                                buf.[0] <- x
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|11; 1; 2; 3|]
+            ]
+
     testList "System tests with running kernels"
         [
             letTransformationTests
+            letTransformationTestsMutableVars
             atomicsTests
             arrayItemSetTests
             typeCastingTests
