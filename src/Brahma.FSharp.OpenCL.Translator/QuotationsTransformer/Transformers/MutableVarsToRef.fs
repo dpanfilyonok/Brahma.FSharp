@@ -4,10 +4,10 @@ open Brahma.FSharp.OpenCL.QuotationsTransformer.Utils
 
 open FSharp.Quotations
 
-let rec mutableVarsToRefsImpl (refMap: Map<Var, Expr>) (expr: Expr) =
+let rec varsToRefsWithPredicateImpl (refMap: Map<Var, Expr>) (predicate: Var -> bool) (expr: Expr) =
     match expr with
     | Patterns.LetVar (var, letExpr, body) ->
-        if var.IsMutable
+        if predicate var
         then
             let refName = var.Name + "Ref"
             let refType = typedefof<ref<_>>.MakeGenericType(var.Type)
@@ -16,31 +16,31 @@ let rec mutableVarsToRefsImpl (refMap: Map<Var, Expr>) (expr: Expr) =
             let newRefMap =
                 refMap.Add (var, Expr.Var(refVar))
 
-            Expr.Let(var, mutableVarsToRefsImpl refMap letExpr,
+            Expr.Let(var, varsToRefsWithPredicateImpl refMap predicate letExpr,
                 Expr.Let(
                     refVar, Common.createRefCall <| Expr.Var(var),
-                    mutableVarsToRefsImpl newRefMap body
+                    varsToRefsWithPredicateImpl newRefMap predicate body
                 )
             )
         else
             Expr.Let(
-                var, mutableVarsToRefsImpl refMap letExpr,
-                mutableVarsToRefsImpl refMap body
+                var, varsToRefsWithPredicateImpl refMap predicate letExpr,
+                varsToRefsWithPredicateImpl refMap predicate body
             )
     | Patterns.VarSet (var, valueExpr) ->
         match refMap.TryFind var with
         | Some refExpr ->
-            Common.createReferenceSetCall refExpr <| mutableVarsToRefsImpl refMap valueExpr
+            Common.createReferenceSetCall refExpr <| varsToRefsWithPredicateImpl refMap predicate valueExpr
         | None -> expr
     | ExprShape.ShapeVar var ->
         match refMap.TryFind var with
         | Some refExpr -> Common.createDereferenceCall refExpr
         | None -> expr
     | ExprShape.ShapeLambda (var, body) ->
-        Expr.Lambda (var, mutableVarsToRefsImpl refMap body)
+        Expr.Lambda (var, varsToRefsWithPredicateImpl refMap predicate body)
     | ExprShape.ShapeCombination (shapeComboObject, exprList) ->
-        let exprList' = List.map (mutableVarsToRefsImpl refMap) exprList
+        let exprList' = List.map (varsToRefsWithPredicateImpl refMap predicate) exprList
         ExprShape.RebuildShapeCombination(shapeComboObject, exprList')
 
-let mutableVarsToRefs (expr: Expr) =
-    mutableVarsToRefsImpl Map.empty expr
+let varsToRefsWithPredicate (predicate: Var -> bool) (expr: Expr) =
+    varsToRefsWithPredicateImpl Map.empty predicate expr

@@ -27,6 +27,7 @@
     <Compile Include="QuotationsTransformer\Transformers\VarDefsToLambda.fs" />
     <Compile Include="QuotationsTransformer\Transformers\MutableVarsToRef.fs" />
     <Compile Include="QuotationsTransformer\Transformers\UniqueVarRenaming.fs" />
+    <Compile Include="QuotationsTransformer\Transformers\MutableVarsInClosureCollector.fs" />
     <Compile Include="QuotationsTransformer\QuotationsTransformer.fs" />
     
     <Compile Include="Array.fs" />

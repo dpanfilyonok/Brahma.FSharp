@@ -641,7 +641,7 @@ let FullTranslatorTests =
         testList "Local memory tests"
             [
                 // TODO: pointers to local data must be local too.
-                ptestCase "Local int. Work item counting" <| fun _ ->
+                testCase "Local int. Work item counting" <| fun _ ->
                     let command =
                         <@
                             fun (range:_1D) (output: array<int>) ->
@@ -1077,7 +1077,7 @@ let FullTranslatorTests =
                 testCase "Test 1" <| fun _ ->
                     let command =
                         <@
-                            fun (range:_1D) (buf:array<int>) ->
+                            fun (range: _1D) (buf: array<int>) ->
                                 let mutable x = 1
                                 let f y =
                                     x <- x + y
@@ -1088,6 +1088,15 @@ let FullTranslatorTests =
                     let run, check = checkResult command
                     run _1d intInArr
                     check intInArr [|11; 1; 2; 3|]
+
+                    (*<@
+                        fun (range: _1D) ->
+                            let mutable x = 1
+                            let mutable y = 2
+                            let f z =
+                                x <- z + 1
+                            f y
+                    @>*)
             ]
 
     testList "System tests with running kernels"

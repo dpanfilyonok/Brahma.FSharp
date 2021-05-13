@@ -13,7 +13,7 @@ let rec getFunctionArgTypes (funType: System.Type) =
 let isFunction (var: Var) =
     FSharpType.IsFunction var.Type
 
-/// Collect free variables of expression, that satisfies predicate.
+/// Collect free variables of expression that satisfies predicate.
 let rec collectFreeVarsWithPredicate (predicate: Var -> bool) (expr: Expr): Set<Var> =
     match expr with
     | Patterns.Let (var, expr, inExpr) ->

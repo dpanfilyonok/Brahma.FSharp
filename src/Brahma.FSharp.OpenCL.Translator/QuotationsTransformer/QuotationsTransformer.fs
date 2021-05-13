@@ -24,6 +24,7 @@ open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.PrintfReplacer
 open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.LetVarAbstracter
 open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.LambdaLifting.LambdaLifting
 open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.UniqueVarRenaming
+open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.MutableVarsInClosureCollector
 
 let mainKernelName = "brahmaKernel"
 
@@ -370,8 +371,10 @@ let quotationTransformer expr translatorOptions : Method * List<Method> =
         expr
         |> replacePrintf
         |> makeVarNameUnique
-        |> mutableVarsToRefs
         |> varDefsToLambda
+        |> fun expr ->
+            let mutableVarsInClosure = collectMutableVarsInClosure expr
+            varsToRefsWithPredicate mutableVarsInClosure.Contains expr
 
     let lastExpr, methods = lambdaLifting preprocessedExpr
     let brahmaKernel = Method(Var(mainKernelName, lastExpr.Type), lastExpr)
