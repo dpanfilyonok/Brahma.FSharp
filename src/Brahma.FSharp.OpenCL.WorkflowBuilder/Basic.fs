@@ -20,10 +20,18 @@ type OpenCLEvaluationContext with
     member this.RunAsync (OpenCLEvaluation f) =
         fun () -> this.RunSync <| OpenCLEvaluation f
 
+
+/// If array is associated with gpu memory, then ToHost
+/// transfers it to host memory and returns a ordinary F# array.
+/// Otherwise ToHost simply returns the array passed to it, like
+/// the identity function.
 let ToHost (xs : array<'a>) : OpenCLEvaluation<array<'a>> =
     opencl {
         let! ctx = getEvaluationContext
-        ctx.CommandQueue.Add(xs.ToHost ctx.Provider) |> ignore
+
+        if ctx.Provider.AutoconfiguredBuffers.ContainsKey xs then
+            ctx.CommandQueue.Add(xs.ToHost ctx.Provider) |> ignore
+
         return xs
     }
 

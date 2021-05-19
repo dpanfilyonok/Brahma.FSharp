@@ -163,10 +163,26 @@ let WorkflowTests =
                     Expect.equal result expected eqMsg
             ]
 
+    let commonAPITests =
+        testList "Tests of async workflow"
+            [
+                testCase "Test 1: ToHost non-gpu array" <| fun _ ->
+                    let eval =
+                        opencl {
+                            let input = [|1, 2, 3, 4|]
+
+                            return! ToHost input
+                        }
+
+                    let res = ctx.RunSync eval
+                    Expect.equal res [|1, 2, 3, 4|] eqMsg
+            ]
+
     testList "System tests with running kernels"
         [
             bindTests
             loopTests
             asyncRunTests
+            commonAPITests
         ]
     |> (fun x -> Expecto.Sequenced (Expecto.SequenceMethod.Synchronous, x))
