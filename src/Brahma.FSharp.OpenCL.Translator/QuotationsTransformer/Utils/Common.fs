@@ -10,6 +10,17 @@ let rec getFunctionArgTypes (funType: System.Type) =
         argType :: getFunctionArgTypes retType
     | _ ->  [argType]
 
+let makeFunctionType (retType: System.Type) (argTypes: List<System.Type>) =
+    List.foldBack (fun tp acc ->  FSharpType.MakeFunctionType (tp, acc)) argTypes retType
+
+let rec makeLambdaExpr (args: list<Var>) (body: Expr) =
+    let mkLambda var expr = Expr.Lambda(var, expr)
+    List.foldBack mkLambda args body
+
+let rec makeApplicationExpr (head: Expr) (exprs: list<Expr>) =
+    let mkApplication l r = Expr.Application(l, r)
+    List.fold mkApplication head exprs
+
 let isFunction (var: Var) =
     FSharpType.IsFunction var.Type
 
@@ -45,6 +56,9 @@ let rec collectLambdaArguments (expr: Expr) : List<Var> =
     | ExprShape.ShapeLambda (var, body) ->
         var :: collectLambdaArguments body
     | _ -> []
+
+let isTypeOf<'tp> (var: Var) =
+    var.Type = typeof<'tp>
 
 let createRefCall (value: Expr) =
     match <@@ ref () @@> with

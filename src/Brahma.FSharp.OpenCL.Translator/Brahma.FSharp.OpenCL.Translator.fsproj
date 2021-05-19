@@ -23,6 +23,7 @@
     <Compile Include="QuotationsTransformer\Utils\Patterns.fs" />
     <Compile Include="QuotationsTransformer\Transformers\PrintfReplacer.fs" />
     <Compile Include="QuotationsTransformer\Transformers\LambdaLifting\Context.fs" />
+    <Compile Include="QuotationsTransformer\Transformers\LambdaLifting\VoidArgumentsCleanUp.fs" />
     <Compile Include="QuotationsTransformer\Transformers\LambdaLifting\LambdaLifting.fs" />
     <Compile Include="QuotationsTransformer\Transformers\VarDefsToLambda.fs" />
     <Compile Include="QuotationsTransformer\Transformers\MutableVarsToRef.fs" />

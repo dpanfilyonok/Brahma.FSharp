@@ -3,6 +3,7 @@ module Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.LambdaLifting.Lam
 open Brahma.FSharp.OpenCL.Translator
 open FSharp.Quotations
 open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.LambdaLifting.Context
+open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.LambdaLifting.VoidArgumentsCleanUp
 open Brahma.FSharp.OpenCL.QuotationsTransformer.Utils.Common
 open Brahma.FSharp.OpenCL.QuotationsTransformer.Utils.Patterns
 
@@ -79,5 +80,7 @@ let rec blockFloating (expr: Expr) : Expr * List<Method> =
         ExprShape.RebuildShapeCombination(shapeComboObject , exprList'), List.concat methods
 
 let lambdaLifting (expr: Expr) : Expr * List<Method> =
-    let lifted = parameterLiftExpr expr
-    blockFloating lifted
+    expr
+    |> parameterLiftExpr
+    |> cleanUpVoidArguments
+    |> blockFloating

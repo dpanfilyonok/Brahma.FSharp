@@ -1,17 +1,13 @@
 module Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.LambdaLifting.Context
 
-open System
 open FSharp.Quotations
-open FSharp.Reflection
-
-let makeFunctionType (retType: Type) (argTypes: List<Type>) =
-    List.foldBack (fun tp acc ->  FSharpType.MakeFunctionType (tp, acc)) argTypes retType
+open Brahma.FSharp.OpenCL.QuotationsTransformer.Utils
 
 /// head: t, args: [x1: t1; x2: t2; x3: t3]
 /// result: (newHead: t1 -> t2 -> t3 -> t) x1 x2 x3
 let makeApplication (head: Var) (args: List<Var>) =
     let argTypes = List.map (fun (x: Var) -> x.Type) args
-    let newHeadType = makeFunctionType head.Type argTypes
+    let newHeadType = Common.makeFunctionType head.Type argTypes
 
     let newHead = Var(head.Name, newHeadType, head.IsMutable)
     let application =

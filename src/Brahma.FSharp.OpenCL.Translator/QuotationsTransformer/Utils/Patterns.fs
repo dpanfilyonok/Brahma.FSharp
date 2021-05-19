@@ -88,5 +88,40 @@ let private letDefinition (predicate: Var -> bool) (expr: Expr) =
 let (|LetFunc|_|) (expr: Expr) =
     letDefinition isFunction expr
 
-let (|LetVar|_|) (expr:Expr) =
+let (|LetVar|_|) (expr: Expr) =
     letDefinition (not << isFunction) expr
+
+let rec private uncurryLambda (expr: Expr) =
+    match expr with
+    | ExprShape.ShapeLambda (var, body) ->
+        let args, innerBody = uncurryLambda body
+        var :: args, innerBody
+    | _ -> [], expr
+
+let private uncurryApplication (expr: Expr) =
+    let rec uncurryApplicationImpl (acc: list<Expr>) (expr: Expr) =
+        match expr with
+        | Application (l, r) ->
+            uncurryApplicationImpl (r :: acc) l
+        | _ ->
+            expr, acc
+    uncurryApplicationImpl [] expr
+
+
+/// let f x1 x2 x3 = body in e
+/// => LetFuncUncurry(f, [x1; x2, x3], body, e)
+let (|LetFuncUncurry|_|) (expr: Expr) =
+    match expr with
+    | LetFunc (var, body, inExpr) ->
+        let args, body' = uncurryLambda body
+        Some (var, args, body', inExpr)
+    | _ -> None
+
+/// e0 e1 e2 e3
+/// => (e0, [e1; e2; e3])
+let (|ApplicationUncurry|_|) (expr: Expr) =
+    // TODO: think about partial function, we should to raise exception somewhere
+    match expr with
+    | Application _ ->
+        Some <| uncurryApplication expr
+    | _ -> None

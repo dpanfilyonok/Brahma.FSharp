@@ -1,17 +1,42 @@
 module Brahma.FSharp.Tests.QuotationTransformer
 
+open Brahma.FSharp.Tests
+
 open Expecto
 open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.LambdaLifting.LambdaLifting
+open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.LetVarAbstracter
+open Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
+
+open FSharp.Quotations
 
 [<Tests>]
 let quotationTransformerTests =
     let eqMsg = "Values should be equal"
 
+    let rec renameUnitVar (expr: Expr) =
+        let replaceUnitVar (var: Var) =
+            if var.Type = typeof<unit>
+                then Var("unitVar", var.Type, var.IsMutable)
+                else var
+
+        match expr with
+        | ExprShape.ShapeVar var ->
+            Expr.Var(replaceUnitVar var)
+        | ExprShape.ShapeLambda (var, body) ->
+            Expr.Lambda(replaceUnitVar var, renameUnitVar body)
+        | ExprShape.ShapeCombination (shapeComboObj, exprList) ->
+            ExprShape.RebuildShapeCombination(shapeComboObj, List.map renameUnitVar exprList)
+
+    let assertActual (actual: Expr) (expected: Expr) =
+        let actual' = renameUnitVar actual
+        let expected' = renameUnitVar expected
+        Expect.equal <| actual'.ToString() <| expected'.ToString() <| eqMsg
+
     let lambdaLiftingTests =
         let genParameterLiftTest testCase name expr expected =
             testCase name <| fun _ ->
                 let actual = parameterLiftExpr expr
-                Expect.equal <| actual.ToString() <| expected.ToString() <| eqMsg
+                assertActual actual expected
 
         testList "Parameter lifting test" [
             genParameterLiftTest testCase "Test 1"
@@ -99,4 +124,79 @@ let quotationTransformerTests =
                 @>
         ]
 
-    lambdaLiftingTests
+    let varDefsToLambdaTest =
+        let genVarDefToLambdaTest testCase name expr expected =
+            testCase name <| fun _ ->
+                let actual = varDefsToLambda expr
+                assertActual actual expected
+
+        testList "Var defs to lambda test" [
+            genVarDefToLambdaTest testCase "Test 1"
+                <@
+                    let x =
+                        let mutable y = 0
+                        for i in 1..10 do
+                            y <- y + i
+                        y
+                    x
+                @>
+                <@
+                    let x =
+                        let xUnitFunc () =
+                            let mutable y = 0
+                            for i in 1..10 do
+                                y <- y + i
+                            y
+                        xUnitFunc ()
+                    x
+                @>
+
+            genVarDefToLambdaTest testCase "Test 2: we need to go deeper"
+                <@
+                    let x =
+                        let mutable y =
+                            if true
+                            then
+                                let z = 10
+                                z + 1
+                            else
+                                let z = 20
+                                z + 2
+
+                        for i in 1..10 do
+                            let z = if false then 10 else 20
+                            y <- y + i + z
+                        y
+                    x
+                @>
+                <@
+                    let x =
+                        let xUnitFunc () =
+                            let mutable y =
+                                let yUnitFunc () =
+                                    if true
+                                    then
+                                        let z = 10
+                                        z + 1
+                                    else
+                                        let z = 20
+                                        z + 2
+                                yUnitFunc ()
+
+                            for i in 1..10 do
+                                let z =
+                                    let zUnitFunc () =
+                                        if false then 10 else 20
+                                    zUnitFunc ()
+                                y <- y + i + z
+                            y
+                        xUnitFunc ()
+                    x
+                @>
+        ]
+
+    testList "Quotation transformer tests"
+        [
+            lambdaLiftingTests
+            varDefsToLambdaTest
+        ]
