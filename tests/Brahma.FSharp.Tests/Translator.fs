@@ -735,7 +735,7 @@ let translatorTest =
 
         ]
 
-    testList "Tests for translator"
+    ptestList "Tests for translator"
         [
             basicLocalIdTests
             basicBinOpsTests
