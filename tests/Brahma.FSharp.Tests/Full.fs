@@ -1,4 +1,4 @@
-﻿module Brahma.FSharp.OpenCL.Full
+﻿module Brahma.FSharp.Tests.Full
 
 open Brahma.FSharp.OpenCL.WorkflowBuilder.Evaluation
 open Expecto
@@ -16,7 +16,7 @@ type TestStruct =
     new (x,y) = {x=x; y=y}
 
 [<Tests>]
-let FullTranslatorTests =
+let fullTranslatorTests =
     let defaultInArrayLength = 4
     let intInArr = [|0..defaultInArrayLength-1|]
     let float32Arr = Array.init defaultInArrayLength (fun i -> float32 i)
@@ -1056,7 +1056,7 @@ let FullTranslatorTests =
                     check intInArr [|2; 3; 6; 7|]
             ]
 
-    let letTransformationTestsMutableVars =
+    let letQuotationTransformerSystemTests =
         testList "Let Transformation Tests Mutable Vars"
             [
                 testCase "Test 0" <| fun _ ->
@@ -1089,20 +1089,89 @@ let FullTranslatorTests =
                     run _1d intInArr
                     check intInArr [|11; 1; 2; 3|]
 
-                    (*<@
-                        fun (range: _1D) ->
-                            let mutable x = 1
-                            let mutable y = 2
-                            let f z =
-                                x <- z + 1
-                            f y
-                    @>*)
+                testCase "Test 2" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range: _1D) (arr: array<int>) ->
+                                let f x =
+                                    let g y = y + 1
+                                    g x
+                                arr.[0] <- f 2
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|3; 1; 2; 3|]
+
+                testCase "Test 3" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range: _1D) (arr: array<int>)->
+                                let f x =
+                                    let g y =
+                                        y + x
+                                    g (x + 1)
+                                arr.[0] <- f 2
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|5; 1; 2; 3|]
+
+                testCase "Test 4" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range: _1D) (arr: array<int>) ->
+                                let gid = range.GlobalID0
+                                let x =
+                                    let mutable y = 0
+
+                                    let addToY x =
+                                        y <- y + x
+
+                                    for i in 0..5 do
+                                        addToY arr.[gid]
+                                    y
+                                arr.[gid] <- x
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|0; 6; 12; 18|]
+
+                testCase "Test 5" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range: _1D) (arr: array<int>) ->
+                                let gid = range.GlobalID0
+
+                                let mutable x =
+                                    if 0 > 1 then 2 else 3
+
+                                let mutable y =
+                                    for i in 0..4 do
+                                        x <- x + 1
+                                    x + 1
+
+                                let z =
+                                    x + y
+
+                                let f () =
+                                    arr.[gid] <- x + y + z
+                                f ()
+                        @>
+
+                    let run, check = checkResult command
+                    run _1d intInArr
+                    check intInArr [|34; 34; 34; 34|]
+
+
             ]
 
     testList "System tests with running kernels"
         [
             letTransformationTests
-            letTransformationTestsMutableVars
+            letQuotationTransformerSystemTests
             atomicsTests
             arrayItemSetTests
             typeCastingTests

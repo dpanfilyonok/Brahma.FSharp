@@ -366,7 +366,7 @@ let quotationTransformerOld expr translatorOptions =
     listExpr
 
 /// Returns kernel and other methods
-let quotationTransformer expr translatorOptions : Method * List<Method> =
+let quotationTransformer expr translatorOptions : Expr * List<Method> =
     let preprocessedExpr =
         expr
         |> replacePrintf
@@ -377,5 +377,4 @@ let quotationTransformer expr translatorOptions : Method * List<Method> =
             varsToRefsWithPredicate mutableVarsInClosure.Contains expr
 
     let lastExpr, methods = lambdaLifting preprocessedExpr
-    let brahmaKernel = Method(Var(mainKernelName, lastExpr.Type), lastExpr)
-    brahmaKernel, methods
+    lastExpr, methods

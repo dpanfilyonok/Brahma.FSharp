@@ -152,7 +152,9 @@ type FSQuotationToOpenCLTranslator() =
         let context = TargetContext<_,_>()
         let translatedStructs = Type.TransleteStructDecls structs.Keys context |> Seq.cast<_> |> List.ofSeq
 
-        let kernelMethod, methods = quotationTransformer qExpr' translatorOptions
+        let kernelExpr, methods = quotationTransformer qExpr' translatorOptions
+        let kernelMethod = Method(Var(mainKernelName, kernelExpr.Type), kernelExpr)
+
         let kernelArgumentsNames =
             kernelMethod.FunExpr
             |> collectLambdaArguments
