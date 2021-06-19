@@ -1168,6 +1168,65 @@ let fullTranslatorTests =
 
             ]
 
+    let structTests =
+        testList "Struct tests"
+            [
+                testCase "Simple seq of struct." <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<TestStruct>) ->
+                                if range.GlobalID0 = 0
+                                then
+                                    let b = buf.[0]
+                                    buf.[0] <- buf.[1]
+                                    buf.[1] <- b
+                        @>
+
+                    let run,check = checkResult command
+                    let inByteArray = [|TestStruct(1, 2.0); TestStruct(3, 4.0)|]
+                    run _1d inByteArray
+                    check inByteArray [|TestStruct(3, 4.0); TestStruct(1, 2.0)|]
+
+                ptestCase "Simple seq of struct changes." <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<TestStruct>) ->
+                                buf.[0] <- TestStruct(5,6.0)
+                        @>
+
+                    let run,check = checkResult command
+                    let inByteArray = [|TestStruct(1, 2.0);TestStruct(3, 4.0)|]
+                    run _1d inByteArray
+                    check inByteArray [|TestStruct(3, 4.0); TestStruct(1, 2.0)|]
+
+                testCase "Simple seq of struct prop set" <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<TestStruct>) ->
+                                buf.[0].x <- 5
+                        @>
+
+                    let run,check = checkResult command
+                    let inByteArray = [|TestStruct(1, 2.0)|]
+                    run _1d inByteArray
+                    check inByteArray [|TestStruct(5, 2.0)|]
+
+                testCase "Simple seq of struct prop get." <| fun _ ->
+                    let command =
+                        <@
+                            fun (range:_1D) (buf:array<TestStruct>) ->
+                                buf.[0].x <- buf.[1].x + 1
+                        @>
+
+                    let run,check = checkResult command
+                    let inByteArray = [|TestStruct(1, 2.0);TestStruct(3, 4.0)|]
+                    run _1d inByteArray
+                    check inByteArray [|TestStruct(4, 2.0); TestStruct(3, 4.0)|]
+
+                testCase "Nested structs 1." <| fun _ ->
+                    ()
+            ]
+
     testList "System tests with running kernels"
         [
             letTransformationTests
@@ -1182,6 +1241,7 @@ let fullTranslatorTests =
             kernelArgumentsTests
             quotationInjectionTests
             localMemTests
+            structTests
         ]
     |> (fun x -> Expecto.Sequenced (Expecto.SequenceMethod.Synchronous, x))
 
@@ -1286,59 +1346,6 @@ let fullTranslatorTests =
         with e ->
             commandQueue.Dispose()
             Assert.Fail e.Message
-
-    [<Test>]
-    member this.``Simple seq of struct.``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<TestStruct>) ->
-                    if range.GlobalID0 = 0
-                    then
-                        let b = buf.[0]
-                        buf.[0] <- buf.[1]
-                        buf.[1] <- b
-            @>
-        let run,check = checkResult command
-        let inByteArray = [|new TestStruct(1, 2.0);new TestStruct(3, 4.0)|]
-        run _1d inByteArray
-        check inByteArray [|new TestStruct(3, 4.0); new TestStruct(1, 2.0)|]
-
-    [<Ignore("Strange test...")>]
-    [<Test>]
-    member this.``Simple seq of struct changes.``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<TestStruct>) ->
-                    buf.[0] <- new TestStruct(5,6.0)
-            @>
-        let run,check = checkResult command
-        let inByteArray = [|new TestStruct(1, 2.0);new TestStruct(3, 4.0)|]
-        run _1d inByteArray
-        check inByteArray [|new TestStruct(3, 4.0); new TestStruct(1, 2.0)|]
-
-    [<Test>]
-    member this.``Simple seq of struct prop set.``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<TestStruct>) ->
-                    buf.[0].x <- 5
-            @>
-        let run,check = checkResult command
-        let inByteArray = [|new TestStruct(1, 2.0)|]
-        run _1d inByteArray
-        check inByteArray [|new TestStruct(5, 2.0)|]
-
-    [<Test>]
-    member this.``Simple seq of struct prop get.``() =
-        let command =
-            <@
-                fun (range:_1D) (buf:array<TestStruct>) ->
-                    buf.[0].x <- buf.[1].x + 1
-            @>
-        let run,check = checkResult command
-        let inByteArray = [|new TestStruct(1, 2.0);new TestStruct(3, 4.0)|]
-        run _1d inByteArray
-        check inByteArray [|new TestStruct(4, 2.0); new TestStruct(3, 4.0)|]
 
     [<Test>]
     member this.``Atomic max.``() =

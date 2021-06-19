@@ -16,7 +16,6 @@
 module Brahma.FSharp.OpenCL.Printer.Types
 
 open Brahma.FSharp.OpenCL.AST
-open Microsoft.FSharp.Text.StructuredFormat
 open Microsoft.FSharp.Text.StructuredFormat.LayoutOps
 
 let private printPrimitiveType (pType:PrimitiveType<'lang>) =
@@ -47,7 +46,36 @@ let rec Print<'lang> (_type:Type<'lang>) =
             match imgt.Modifier with
             | true -> wordL "read_only image2D"
             | false -> wordL "write_only image2D"
-    | :? StructType<'lang> as s -> wordL s.Declaration.Value.Name
+    | :? StructInplaceType<'lang> as s -> PrintStructInplaceType s
+    | :? StructType<'lang> as s -> wordL s.Name
+    | :? UnionClInplaceType<'lang> as u -> PrintUnionInplaceType u
     | :? TupleType<'lang> as t ->  wordL ("tuple" + t.Number.ToString())
     | t -> failwithf "Printer. Unsupported type: %A" t
 
+and PrintAggregatingInplaceType keyword typeName fields=
+    let header =
+        [
+            wordL keyword
+            wordL typeName
+        ]
+        |> spaceListL
+
+    let body =
+        [
+            for field in fields ->
+            [
+                Print field.Type
+                wordL field.Name
+                wordL ";"
+            ]
+            |> spaceListL
+        ]
+        |> aboveListL
+        |> braceL
+    header ^^ body
+
+and PrintUnionInplaceType (t: UnionClInplaceType<_>) =
+    PrintAggregatingInplaceType "union" t.Name t.Fields
+
+and PrintStructInplaceType (t: StructInplaceType<_>) =
+    PrintAggregatingInplaceType "struct" t.Name t.Fields

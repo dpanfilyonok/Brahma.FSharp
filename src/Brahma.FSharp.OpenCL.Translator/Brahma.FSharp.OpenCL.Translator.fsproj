@@ -33,6 +33,7 @@
     
     <Compile Include="Array.fs" />
     <Compile Include="Body.fs" />
+    <Compile Include="TypeReflection.fs" />
     <Compile Include="Translator.fs" />
   </ItemGroup>
   <ItemGroup>

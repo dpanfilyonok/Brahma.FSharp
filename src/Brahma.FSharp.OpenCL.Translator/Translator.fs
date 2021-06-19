@@ -21,27 +21,9 @@ open Brahma.FSharp.OpenCL.AST
 open Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
 open Brahma.FSharp.OpenCL.QuotationsTransformer.Utils.Common
 open System.Collections.Generic
+open Brahma.FSharp.OpenCL.Translator.TypeReflection
 
 type FSQuotationToOpenCLTranslator() =
-
-    let CollectStructs e =
-        let escapeNames = [|"_1D";"_2D";"_3D"|]
-        let structs = new System.Collections.Generic.Dictionary<System.Type, _> ()
-        let  add (t:System.Type) =
-            if ((t.IsValueType && not t.IsPrimitive && not t.IsEnum)) && not (structs.ContainsKey t)
-               && not (Array.exists ((=)t.Name) escapeNames )
-            then structs.Add(t, ())
-        let rec go (e: Expr) =
-            add e.Type
-            match e with
-            | ExprShape.ShapeVar(v) -> ()
-            | ExprShape.ShapeLambda(v, body) -> go body
-            | ExprShape.ShapeCombination(o, l) ->
-                o.GetType() |> add
-                List.iter go l
-        go e
-        structs
-
     /// The parameter 'vars' is an immutable map that assigns expressions to variables
     /// (as we recursively process the tree, we replace all known variables)
     let rec expand vars expr =
@@ -88,7 +70,7 @@ type FSQuotationToOpenCLTranslator() =
                     else
                         Some((adding (ite.Else.Value)) :?> StatementBlock<_> )
                 (new IfThenElse<_>(ite.Condition,newThen, newElse)) :> Statement<_>
-            | _ -> failwithf "Unsapported statement to add Return: %A" stmt
+            | _ -> failwithf "Unsupported statement to add Return: %A" stmt
 
         adding subAST
 
@@ -146,11 +128,22 @@ type FSQuotationToOpenCLTranslator() =
         new AST<_>(listCLFun)
 
     let translate qExpr translatorOptions =
+        let context = TargetContext<_,_>()
+
         let qExpr' = preprocessQuotation qExpr
 
         let structs = CollectStructs qExpr'
-        let context = TargetContext<_,_>()
-        let translatedStructs = Type.TransleteStructDecls structs.Keys context |> Seq.cast<_> |> List.ofSeq
+        let translatedStructs =
+            Type.TranslateStructDecls structs context
+            |> List.map (fun x -> x :> TopDef<_>)
+
+        let unions = CollectDiscriminatedUnions qExpr
+        let translatedUnions =
+            Type.translateDiscriminatedUnionDecls unions context
+            |> List.map (fun x -> x :> TopDef<_>)
+
+        let translatedTypes = List.concat [translatedStructs; translatedUnions]
+
 
         let kernelExpr, methods = quotationTransformer qExpr' translatorOptions
         let kernelMethod = Method(Var(mainKernelName, kernelExpr.Type), kernelExpr)
@@ -167,10 +160,12 @@ type FSQuotationToOpenCLTranslator() =
             | e ->
                 let body =
                     let b,context =
-                        let c = new TargetContext<_,_>()
+                        let c = TargetContext<_,_>()
                         c.UserDefinedTypes.AddRange context.UserDefinedTypes
-                        c.UserDefinedTypesOpenCLDeclaration.Clear()
-                        for x in context.UserDefinedTypesOpenCLDeclaration do c.UserDefinedTypesOpenCLDeclaration.Add (x.Key,x.Value)
+                        c.UserDefinedStructsOpenCLDeclaration.Clear()
+                        c.UserDefinedUnionsOpenCLDeclaration.Clear()
+                        for x in context.UserDefinedStructsOpenCLDeclaration do c.UserDefinedStructsOpenCLDeclaration.Add (x.Key,x.Value)
+                        for x in context.UserDefinedUnionsOpenCLDeclaration do c.UserDefinedUnionsOpenCLDeclaration.Add (x.Key,x.Value)
                         for x in context.tupleDecls do c.tupleDecls.Add(x.Key,x.Value)
                         for x in context.tupleList do c.tupleList.Add(x)
                         c.tupleNumber <- context.tupleNumber
@@ -200,7 +195,7 @@ type FSQuotationToOpenCLTranslator() =
             listPartsASTPartialAst.Add((partialAst :> Statement<_>))
             listPartsASTContext.Add(context)
             //Body.dictionaryFun.Add(partAST.FunVar.Name, partialAst)
-        let AST = buildFullAst listPartsASTVars translatedStructs listPartsASTPartialAst listPartsASTContext kernelArgumentsNames
+        let AST = buildFullAst listPartsASTVars translatedTypes listPartsASTPartialAst listPartsASTContext kernelArgumentsNames
         AST, newAST
 
     member this.Translate qExpr translatorOptions =

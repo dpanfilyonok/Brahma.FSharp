@@ -78,7 +78,7 @@ type BOp<'lang> =
      | NEQ
      | Remainder
 
-type Binop<'lang>(op:BOp<'lang>,l:Expression<'lang>,r:Expression<'lang>) =
+type Binop<'lang>(op:BOp<'lang>, l:Expression<'lang>, r:Expression<'lang>) =
     inherit Expression<'lang>()
     override this.Children = []
     member this.Left = l
@@ -119,11 +119,19 @@ type ZeroArray<'lang>(length:int) =
     inherit ArrayInitializer<'lang>()
     override this.Length = length
 
-type NewStruct<'lang>(structInfo:Struct<'lang>, cArgs:List<Expression<'lang>>) =
+type NewStruct<'lang>(structInfo: StructType<'lang>, cArgs: List<Expression<'lang>>) =
     inherit Expression<'lang>()
     override this.Children = structInfo :> _ :: List.ofSeq (Seq.cast<_> cArgs)
     member this.Struct = structInfo
     member this.ConstructorArgs = cArgs
+
+type NewUnion<'lang>(unionInfo: UnionClInplaceType<'lang>, fieldName: string, arg: Expression<'lang>) =
+    inherit Expression<'lang>()
+
+    override this.Children = [arg :> Node<'lang>]
+    member this.Union = unionInfo
+    member this.ConstructorArg = arg
+    member this.ConstructorArgName = fieldName
 
 type FieldGet<'lang>(host:Expression<'lang>, field:string) =
     inherit Expression<'lang>()

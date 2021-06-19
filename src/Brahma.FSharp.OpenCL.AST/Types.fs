@@ -35,14 +35,15 @@ type PTypes<'lang> =
 [<AbstractClass>]
 type Type<'lang>()=
     inherit Node<'lang>()
+    override this.Children = []
+
     abstract Size:int
     abstract Matches: obj -> bool
 
 type PrimitiveType<'lang>(pType:PTypes<'lang>) =
     inherit Type<'lang>()
+
     override this.Size = 32
-    override this.Children = []
-    member this.Type = pType
 
     override this.Matches(other) =
         match other with
@@ -50,13 +51,16 @@ type PrimitiveType<'lang>(pType:PTypes<'lang>) =
             this.Type.Equals(o.Type)
         | _ -> false
 
+    member this.Type = pType
+
 type ArrayType<'lang>(baseType:Type<'lang>, ?size:int) =
     inherit Type<'lang>()
+
     override this.Size =
         match size with
         | Some size -> size
         | None -> 0
-    override this.Children = []
+
     member this.BaseType = baseType
 
     override this.Matches(other) =
@@ -68,9 +72,9 @@ type ArrayType<'lang>(baseType:Type<'lang>, ?size:int) =
 
 type Image2DType<'lang>(modifier:bool) =
     inherit Type<'lang>()
+
     override this.Size = 32
-    override this.Children = []
-    member this.Modifier = modifier
+
     override this.Matches(other:obj) =
         match other with
         | :? Image2DType<'lang> as o ->
@@ -78,51 +82,70 @@ type Image2DType<'lang>(modifier:bool) =
             // NB: fields are omitted in this check
         | _ -> false
 
-[<Struct>]
-type StructField<'lang> =
-    val FName: string
-    val FType: Type<'lang>
+    member this.Modifier = modifier
 
-    new (fName, fType) = {FName = fName; FType = fType}
+type Field<'lang> =
+    { Name: string;
+      Type: Type<'lang> }
 
-type Struct<'lang>(name: string, fields: List<StructField<'lang>>) =
-    inherit Node<'lang>()
-    interface TopDef<'lang>
-    override this.Children = []
+type StructType<'lang>(name: string, fields: List<Field<'lang>>) =
+    inherit Type<'lang>()
+
     member this.Fields = fields
     member this.Name = name
-    member this.Matches(other:obj) =
+
+    override this.Size =
+        this.Fields |> List.sumBy (fun f -> f.Type.Size)
+
+    override this.Matches(other:obj) =
         match other with
-        | :? Struct<'lang> as o ->
+        | :? StructType<'lang> as o ->
             this.Name.Equals(o.Name)
             // NB: fields are omitted in this check
         | _ -> false
 
-type StructType<'lang>(decl)=
+type UnionClInplaceType<'lang>(name: string, fields: List<Field<'lang>>) =
     inherit Type<'lang>()
-    member val Declaration : Option<Struct<'lang>> = decl with get, set
-    override this.Children = []
+
+    member this.Fields = fields
+    member this.Name = name
+
     override this.Size =
-        match  this.Declaration with
-        | Some decl -> decl.Fields |> List.sumBy (fun f -> f.FType.Size)
-        | None -> 0
+        this.Fields
+        |> List.map (fun f -> f.Type.Size)
+        |> List.fold max 0
 
-    override this.Matches(other) =
-        match other with
-        | :? StructType<'lang> as o ->
-            match this.Declaration, o.Declaration with
-            | Some x, Some y -> x.Matches(y)
-            | None, None -> true
-            | _ -> false
-            // NB: size is omitted in this check
-        | _ -> false
+    override this.Matches _ = failwith "Not implemented"
 
-type TupleType<'lang>(baseStruct:StructType<'lang>, number:int)=
+type StructInplaceType<'lang>(name: string, fields: List<Field<'lang>>) =
+    inherit StructType<'lang>(name, fields)
+
+type DiscriminatedUnionType<'lang>(name: string, fields: List<int * Field<'lang>>) =
+    inherit StructType<'lang> (
+        name,
+        [
+          { Name = "tag"; Type = PrimitiveType(Int) }
+          { Name = "data"; Type = UnionClInplaceType(name + "_Data", List.map snd fields) }
+        ]
+    )
+
+    member this.Tag = this.Fields.[0]
+    member this.Data = this.Fields.[1]
+
+    member this.GetCaseByTag (tag: int) =
+        List.tryFind (fun (id, _) -> id = tag) fields
+        |> Option.map snd
+
+    member this.GetCaseByName (case: string) =
+        List.tryFind (fun (_, f) -> f.Name = case) fields
+        |> Option.map snd
+
+type TupleType<'lang>(baseStruct: StructType<'lang>, number:int)=
     inherit Type<'lang>()
-    override this.Children = []
+
     override this.Size = baseStruct.Size
     member this.Number = number
-    override this.Matches(other) = failwith "Not implemented: matches for tuples"
+    override this.Matches _ = failwith "Not implemented: matches for tuples"
 
 type RefType<'lang>(baseType:Type<'lang>, typeQuals: TypeQualifier<'lang> list) =
     inherit Type<'lang>()
@@ -137,3 +160,10 @@ type RefType<'lang>(baseType:Type<'lang>, typeQuals: TypeQualifier<'lang> list) 
             this.BaseType.Matches(o.BaseType)
             && this.TypeQuals.Equals(o.TypeQuals)
         | _ -> false
+
+type StructDecl<'lang>(structType: StructType<'lang>) =
+    inherit Node<'lang>()
+    interface TopDef<'lang>
+
+    member val StructType: StructType<'lang> = structType with get, set
+    override this.Children = []

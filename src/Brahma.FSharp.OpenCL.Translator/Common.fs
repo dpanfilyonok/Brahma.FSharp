@@ -30,17 +30,20 @@ type TranslatorOption =
 type TargetContext<'lang, 'vDecl>() =
     let mutable topLevelVarsDeclarations = new ResizeArray<'vDecl>()
     let varDecls = new ResizeArray<'vDecl>()
-    let mutable flags = new Flags()
-    let mutable namer = new Namer()
+    let mutable flags = Flags()
+    let mutable namer = Namer()
     let mutable tn = 0
     //let userDefinedTypes = new ResizeArray<System.Type>()
     //let userDeefinedTypeOpenCLDeclarations  = new System.Collections.Generic.Dictionary<System.Type,_>()
-    let mutable translatorOptions = new ResizeArray<TranslatorOption>()
-    member val tupleDecls = new Dictionary<string, int>()
-    member val tupleList = new List<Struct<Lang>>()
-    member val UserDefinedTypes = new ResizeArray<System.Type>()
+    let mutable translatorOptions = ResizeArray<TranslatorOption>()
+    member val tupleDecls = Dictionary<string, int>()
+    member val tupleList = List<StructType<Lang>>()
+    member val UserDefinedTypes = ResizeArray<System.Type>()
     member val InLocal = false with get, set
-    member val UserDefinedTypesOpenCLDeclaration = new System.Collections.Generic.Dictionary<string,Brahma.FSharp.OpenCL.AST.Struct<'lang>>()
+
+    member val UserDefinedStructsOpenCLDeclaration = Dictionary<string, StructType<'lang>>()
+    member val UserDefinedUnionsOpenCLDeclaration = Dictionary<string, DiscriminatedUnionType<'lang>>()
+
     member this.tupleNumber
         with get() = tn
         and set tn2 = tn <- tn2

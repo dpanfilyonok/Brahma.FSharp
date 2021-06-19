@@ -19,6 +19,7 @@ let rec isPrimitiveExpression (expr: Expr) =
         let isPrimitiveArgs =
             List.forall isPrimitiveExpression args
         isPrimitiveInstance && isPrimitiveArgs
+    | Patterns.NewUnionCase _ -> true
     | _ -> false
 
 let rec varDefsToLambda (expr: Expr) =

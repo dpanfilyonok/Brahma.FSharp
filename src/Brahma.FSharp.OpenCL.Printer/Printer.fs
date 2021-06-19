@@ -28,7 +28,7 @@ let Print (ast:AST<'lang>) =
                 match d with
                 | :? FunDecl<'lang> as fd -> FunDecl.Print fd
                 | :? CLPragma<'lang> as clp -> Pragmas.Print clp
-                | :? Struct<'lang> as s -> TypeDecl.PrintStructDeclaration s
+                | :? StructDecl<'lang> as s -> TypeDecl.PrintStructDeclaration s
                 | :? VarDecl<'lang> as s -> Statements.Print false s
                 | _ -> failwithf "Printer. Unsupported toplevel declaration: %A"  d)
         |> aboveListL
