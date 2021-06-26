@@ -60,7 +60,7 @@ type TargetContext<'lang, 'vDecl>() =
         with get() = namer
         and set v = namer <- v
 
-type Method(var:Var, expr:Expr) =
+type Method(var: Var, expr: Expr) =
     let funVar = var
     let funExpr = expr
 
