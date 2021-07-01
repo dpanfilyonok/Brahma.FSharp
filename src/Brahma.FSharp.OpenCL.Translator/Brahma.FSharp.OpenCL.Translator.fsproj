@@ -13,7 +13,8 @@
     <Optimize>true</Optimize>
     <Tailcalls>true</Tailcalls>
   </PropertyGroup>
-  <ItemGroup>
+  <ItemGroup>   
+    <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Namer.fs" />
     <Compile Include="Common.fs" />
     <Compile Include="Type.fs" />

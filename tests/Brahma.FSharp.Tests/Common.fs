@@ -3,12 +3,11 @@ namespace Brahma.FSharp.Tests
 open System.IO
 open Brahma.OpenCL
 open Expecto
-open Expecto
-open OpenCL.Net
-open Brahma.OpenCL
 open Brahma.FSharp.OpenCL.Core
-open Brahma.FSharp.OpenCL.Extensions
 open Brahma.FSharp.OpenCL.WorkflowBuilder
+open Brahma.FSharp.OpenCL.Translator
+open Brahma.FSharp.OpenCL.Printer.AST
+open FSharp.Quotations
 
 module CustomDatatypes =
     // TODO заменить рекорд на структуру ??
@@ -32,5 +31,15 @@ module Utils =
 
     let platformMessage (provider: ComputeProvider) testName =
         printfn "Run %s on %A" testName provider
+
+    let openclCompile (command: Expr<('a -> 'b)>) =
+        let code = ref ""
+        context.Provider.Compile(command, _outCode=code) |> ignore
+        !code
+
+    let openclTranslate (expr: Expr) =
+        let translator = FSQuotationToOpenCLTranslator()
+        let (ast, methods) = translator.Translate expr []
+        Print ast
 
 
