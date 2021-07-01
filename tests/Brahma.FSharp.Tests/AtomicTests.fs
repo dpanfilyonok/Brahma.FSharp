@@ -26,6 +26,7 @@ let stressTest<'a when 'a : equality> f size =
         <@
             fun (range: _1D) (result: 'a[]) ->
                 atomic %f result.[0] |> ignore
+                barrier ()
         @>
 
     let expected =
@@ -229,6 +230,7 @@ let atomicInsideQuotTest = testCase "Operation definition inside quotation" <| f
             fun (range: _1D) (result: int[]) ->
                 let incx2 x = x + 2
                 atomic incx2 result.[0] |> ignore
+                barrier ()
         @>
 
     let size = Settings.wgSize * 2
@@ -257,10 +259,64 @@ let atomicInsideQuotTest = testCase "Operation definition inside quotation" <| f
     "Results should be equal"
     |> Expect.equal actual expected
 
+let perfomanceTest = testCase "" <| fun () ->
+    // use native atomic_inc for int
+    let kernelUsingNativeInc () =
+        opencl {
+            let kernel =
+                <@
+                    fun (range: _1D) (result: int[]) ->
+                        let localAcc = local<int> ()
+                        atomic inc localAcc |> ignore
+                        barrier ()
+
+                        if range.LocalID0 = 0 then
+                            result.[0] <- localAcc
+                @>
+
+            let result = Array.zeroCreate<int> 1
+            do! runCommand kernel <| fun kernelPrepare ->
+                kernelPrepare
+                <| _1D(Settings.wgSize, Settings.wgSize)
+                <| result
+
+            return! toHost result
+        }
+        |> context.RunSync
+
+    // generate spin lock
+    let kernelUsingCustomInc () =
+        opencl {
+            let inc = <@ fun x -> x + 1 @>
+            let kernel =
+                <@
+                    fun (range: _1D) (result: int[]) ->
+                        let localAcc = local<int> ()
+                        atomic %inc localAcc |> ignore
+                        barrier ()
+
+                        if range.LocalID0 = 0 then
+                            result.[0] <- localAcc
+                @>
+
+            let result = Array.zeroCreate<int> 1
+            do! runCommand kernel <| fun kernelPrepare ->
+                kernelPrepare
+                <| _1D(Settings.wgSize, Settings.wgSize)
+                <| result
+
+            return! toHost result
+        }
+        |> context.RunSync
+
+    "Kernel wich uses native inc shold be faster than with custom one"
+    |> Expect.isFasterThan kernelUsingNativeInc kernelUsingCustomInc
+
 let tests =
     testList "Tests on atomic functions" [
         stressTestCases
         foldTestCases
         reduceTestCases
         atomicInsideQuotTest
+        perfomanceTest
     ] |> testSequenced
