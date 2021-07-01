@@ -33,8 +33,7 @@ type TargetContext<'lang, 'vDecl>() =
     let mutable flags = Flags()
     let mutable namer = Namer()
     let mutable tn = 0
-    //let userDefinedTypes = new ResizeArray<System.Type>()
-    //let userDeefinedTypeOpenCLDeclarations  = new System.Collections.Generic.Dictionary<System.Type,_>()
+
     let mutable translatorOptions = ResizeArray<TranslatorOption>()
     member val tupleDecls = Dictionary<string, int>()
     member val tupleList = List<StructType<Lang>>()
@@ -60,7 +59,25 @@ type TargetContext<'lang, 'vDecl>() =
         with get() = namer
         and set v = namer <- v
 
-type Method(var:Var, expr:Expr) =
+    member this.Clone () =
+        let c = TargetContext<_,_>()
+
+        c.UserDefinedTypes.AddRange this.UserDefinedTypes
+
+        for x in this.UserDefinedStructsOpenCLDeclaration do
+            c.UserDefinedStructsOpenCLDeclaration.Add (x.Key,x.Value)
+        for x in this.UserDefinedUnionsOpenCLDeclaration do
+            c.UserDefinedUnionsOpenCLDeclaration.Add (x.Key,x.Value)
+        for x in this.tupleDecls do
+            c.tupleDecls.Add(x.Key,x.Value)
+        for x in this.tupleList do
+            c.tupleList.Add(x)
+        c.tupleNumber <- this.tupleNumber
+        c.Flags.enableFP64 <- this.Flags.enableFP64
+        c.TranslatorOptions.AddRange translatorOptions
+        c
+
+type Method(var: Var, expr: Expr) =
     let funVar = var
     let funExpr = expr
 

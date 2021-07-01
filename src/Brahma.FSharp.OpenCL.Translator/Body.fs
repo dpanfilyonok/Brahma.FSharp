@@ -36,8 +36,6 @@ let private clearContext (targetContext:TargetContext<'a,'b>) =
     for kvp in targetContext.UserDefinedUnionsOpenCLDeclaration do c.UserDefinedUnionsOpenCLDeclaration.Add (kvp.Key,kvp.Value)
     c
 
-let mutable dictionaryFun = new System.Collections.Generic.Dictionary<string,StatementBlock<Lang>>()
-
 let rec private translateBinding (var:Var) newName (expr:Expr) (targetContext:TargetContext<_,_>) =
     let body,tContext = (*TranslateAsExpr*) translateCond expr targetContext
     let vType =
