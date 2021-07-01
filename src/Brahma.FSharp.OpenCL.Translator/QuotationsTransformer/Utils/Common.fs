@@ -4,7 +4,7 @@ open FSharp.Reflection
 open FSharp.Quotations
 
 let rec getFunctionArgTypes (funType: System.Type) =
-    let (argType, retType) = FSharpType.GetFunctionElements(funType)
+    let argType, retType = FSharpType.GetFunctionElements(funType)
     match retType with
     | _ when FSharpType.IsFunction retType ->
         argType :: getFunctionArgTypes retType
@@ -20,6 +20,13 @@ let rec makeLambdaExpr (args: list<Var>) (body: Expr) =
 let rec makeApplicationExpr (head: Expr) (exprs: list<Expr>) =
     let mkApplication l r = Expr.Application(l, r)
     List.fold mkApplication head exprs
+
+let rec extractLambdaArguments (expr: Expr): list<Var> * Expr =
+    match expr with
+    | Patterns.Lambda(var, body) ->
+        let vars, body' = extractLambdaArguments body
+        var :: vars, body'
+    | _ -> [], expr
 
 let isFunction (var: Var) =
     FSharpType.IsFunction var.Type

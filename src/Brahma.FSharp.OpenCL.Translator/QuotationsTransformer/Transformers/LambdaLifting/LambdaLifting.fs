@@ -77,7 +77,7 @@ let rec blockFloating (expr: Expr) : Expr * List<Method> =
 
     | ExprShape.ShapeCombination(shapeComboObject, exprList) ->
         let exprList', methods = exprList |> List.map blockFloating |> List.unzip
-        ExprShape.RebuildShapeCombination(shapeComboObject , exprList'), List.concat methods
+        ExprShape.RebuildShapeCombination(shapeComboObject, exprList'), List.concat methods
 
 let lambdaLifting (expr: Expr) : Expr * List<Method> =
     expr

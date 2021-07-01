@@ -68,7 +68,7 @@ type FSQuotationToOpenCLTranslator() =
                         None
                     else
                         Some((adding (ite.Else.Value)) :?> StatementBlock<_> )
-                (new IfThenElse<_>(ite.Condition,newThen, newElse)) :> Statement<_>
+                (IfThenElse<_>(ite.Condition,newThen, newElse)) :> Statement<_>
             | _ -> failwithf "Unsupported statement to add Return: %A" stmt
 
         adding subAST
@@ -80,6 +80,8 @@ type FSQuotationToOpenCLTranslator() =
     let buildFullAst
       (methodArgumentVarsList: ResizeArray<_>) (methodVarList: ResizeArray<Var>) types (partialAstList: ResizeArray<_>)
       (contextList:ResizeArray<TargetContext<_,_>>) (kernelArgumentsNames: list<string>) =
+        // extract pragmas
+
         let mutable listCLFun = []
         for i in 0..(methodArgumentVarsList.Count-1) do
             let formalArgs =
@@ -87,7 +89,7 @@ type FSQuotationToOpenCLTranslator() =
                 |> List.filter (fun (v:Var) -> bdts |> List.exists((=) (v.Type.FullName.ToLowerInvariant())) |> not)
                 |> List.map
                     (fun v ->
-                        let t = Type.Translate v.Type true None (contextList.[i])
+                        let t = Type.Translate v.Type true None contextList.[i]
                         let declSpecs = DeclSpecifierPack<_>(typeSpec=t)
                         if t :? RefType<_> && List.contains v.Name kernelArgumentsNames
                         then
@@ -112,35 +114,34 @@ type FSQuotationToOpenCLTranslator() =
             let mainKernelFun = FunDecl<_>(declSpecs, funVar.Name, formalArgs, partAST)
 
             let pragmas =
-                let res = new ResizeArray<_>()
+                let res = ResizeArray<_>()
                 if contextList.[i].Flags.enableAtomic
                 then
-                    res.Add(new CLPragma<_>(CLGlobalInt32BaseAtomics) :> TopDef<_>)
-                    res.Add(new CLPragma<_>(CLLocalInt32BaseAtomics) :> TopDef<_>)
+                    res.Add(CLPragma<_>(CLGlobalInt32BaseAtomics) :> TopDef<_>)
+                    res.Add(CLPragma<_>(CLLocalInt32BaseAtomics) :> TopDef<_>)
                 if contextList.[i].Flags.enableFP64
-                then res.Add(new CLPragma<_>(CLFP64))
+                then res.Add(CLPragma<_>(CLFP64))
                 List.ofSeq res
             let topLevelVarDecls = contextList.[i].TopLevelVarsDeclarations |> Seq.cast<_> |> List.ofSeq
             let translatedTuples = contextList.[i].tupleList |> Seq.cast<_> |> List.ofSeq
-            listCLFun <- pragmas@translatedTuples@topLevelVarDecls@types@listCLFun@[mainKernelFun]
+            listCLFun <- listCLFun@pragmas@translatedTuples@topLevelVarDecls@types@[mainKernelFun]
         AST<_>(listCLFun)
 
     let translate qExpr translatorOptions =
-        let context = TargetContext<_,_>()
         let qExpr' = preprocessQuotation qExpr
 
         let structs = CollectStructs qExpr'
+        let unions = CollectDiscriminatedUnions qExpr
+
+        let context = TargetContext<_,_>()
+
         let translatedStructs =
             Type.TranslateStructDecls structs context
             |> List.map (fun x -> x :> TopDef<_>)
-
-        let unions = CollectDiscriminatedUnions qExpr
         let translatedUnions =
             Type.translateDiscriminatedUnionDecls unions context
             |> List.map (fun x -> x :> TopDef<_>)
-
         let translatedTypes = List.concat [translatedStructs; translatedUnions]
-
 
         // TODO: Extract quotationTransformer to translator
         let kernelExpr, methods = quotationTransformer qExpr' translatorOptions
@@ -158,18 +159,7 @@ type FSQuotationToOpenCLTranslator() =
             | e ->
                 let body =
                     let b,context =
-                        let c = TargetContext<_,_>()
-                        // Extract copy of context
-                        c.UserDefinedTypes.AddRange context.UserDefinedTypes
-                        c.UserDefinedStructsOpenCLDeclaration.Clear()
-                        c.UserDefinedUnionsOpenCLDeclaration.Clear()
-                        for x in context.UserDefinedStructsOpenCLDeclaration do c.UserDefinedStructsOpenCLDeclaration.Add (x.Key,x.Value)
-                        for x in context.UserDefinedUnionsOpenCLDeclaration do c.UserDefinedUnionsOpenCLDeclaration.Add (x.Key,x.Value)
-                        for x in context.tupleDecls do c.tupleDecls.Add(x.Key,x.Value)
-                        for x in context.tupleList do c.tupleList.Add(x)
-                        c.tupleNumber <- context.tupleNumber
-                        c.Flags.enableFP64 <- context.Flags.enableFP64
-                        c.TranslatorOptions.AddRange translatorOptions
+                        let c = context.Clone()
 
                         c.Namer.LetIn()
                         vars |> List.iter (fun v -> c.Namer.AddVar v.Name)
