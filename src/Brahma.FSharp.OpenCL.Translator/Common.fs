@@ -60,7 +60,7 @@ type TargetContext<'lang, 'vDecl>() =
         and set v = namer <- v
 
     member this.Clone () =
-        let c = TargetContext<_,_>()
+        let c = TargetContext()
 
         c.UserDefinedTypes.AddRange this.UserDefinedTypes
 

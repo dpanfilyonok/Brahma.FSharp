@@ -4,7 +4,7 @@ open Expecto
 open Brahma.OpenCL
 open Brahma.FSharp.OpenCL.Core
 open OpenCL.Net
-open Brahma.FSharp.Tests.Common
+open Brahma.FSharp.Tests.Utils
 
 [<Tests>]
 let translatorTest =

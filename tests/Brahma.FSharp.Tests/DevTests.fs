@@ -1,7 +1,7 @@
 module Brahma.FSharp.Tests.DevTests
 
 open Brahma.FSharp.OpenCL.Translator
-open Brahma.FSharp.OpenCL.WorkflowBuilder.Evaluation
+open Brahma.FSharp.OpenCL.WorkflowBuilder
 open Expecto
 open OpenCL.Net
 open Brahma.OpenCL
@@ -18,22 +18,22 @@ let deviceType = DeviceType.Gpu
 let platformName = "Intel*"
 
 let provider =
-        try ComputeProvider.Create(platformName, deviceType)
-        with ex -> failwith ex.Message
+    try ComputeProvider.Create(platformName, deviceType)
+    with ex -> failwith ex.Message
 
-let context = OpenCLEvaluationContext(device_type=deviceType)
+let context = OpenCLEvaluationContext(platformName, deviceType)
 
-let opencl_compile (command: Quotations.Expr<('a -> 'b)>): string =
+let openclCompile (command: Quotations.Expr<('a -> 'b)>): string =
         let code = ref ""
         provider.Compile(command, _outCode=code) |> ignore
         !code
 
-let opencl_translate (expr: Expr) =
+let openclTranslate (expr: Expr) =
     let translator = FSQuotationToOpenCLTranslator()
     let ast, methods = translator.Translate expr []
     Print ast
 
 [<Tests>]
-let dev_tests =
+let devTests =
     testCase "devtest" <| fun _ ->
         printf ":)"

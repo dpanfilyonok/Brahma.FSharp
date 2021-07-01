@@ -3,12 +3,10 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <RootNamespace>OpenCL.NET</RootNamespace>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
   <ItemGroup>
-    <Content Include="app.config"
-             Pack="true"
-             PackagePath="lib/$(TargetFramework)/$(TargetFileName).config"
-             PackageCopyToOutput="true">
+    <Content Include="app.config" Pack="true" PackagePath="lib/$(TargetFramework)/$(TargetFileName).config" PackageCopyToOutput="true">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

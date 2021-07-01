@@ -1,7 +1,7 @@
 module Brahma.FSharp.Tests.Union
 
 open Expecto
-open Brahma.FSharp.Tests.Common
+open Brahma.FSharp.Tests.Utils
 open Brahma.FSharp.OpenCL.Translator
 open Brahma.FSharp.OpenCL.AST
 open Brahma.FSharp.OpenCL.Printer

@@ -1,116 +1,134 @@
 ﻿[<AutoOpen>]
 module OpenCL
 
-let (*private*) kFail () = failwith "Seems that you try to use openCL kernel function as regular F# function!"
+let kernelFail () = failwith "Seems that you try to use openCL kernel function as regular F# function!"
+
+let barrier () = ignore null
+
+let local<'a when 'a: struct> () =
+    kernelFail ()
+    Unchecked.defaultof<'a>
+
+let localArray<'a> (size: int) =
+    kernelFail ()
+    Unchecked.defaultof<array<'a>>
+
+let atomic (f: 'a -> 'b) =
+    kernelFail ()
+    f
+
+// returns old
+let inline add (p: 'a) (value: 'a) = p + value
+let inline sub (p: 'a) (value: 'a) = p - value
+let inline inc (p: 'a) = p + p
+let inline dec (p: 'a) = p - p
+let inline xchg (p: 'a) (value: 'a) = p
+let inline cmpxchg (p: 'a) (cmp: 'a) (value: 'a) = if p = cmp then value else p
+let inline min (p: 'a) (value: 'a) = min p value
+let inline max (p: 'a) (value: 'a) = max p value
+let inline and' (p: 'a) (value: 'a) = p &&& value
+let inline or' (p: 'a) (value: 'a) = p ||| value
+let inline xor (p: 'a) (value: 'a) = p ^^^ value
+
+// let _byte (x: bool) = 0uy
+
+// let as_uint (b1: byte) (b2: byte) (b3: byte) (b4: byte) = uint32 1
+
 
 /// Alias for atom_add. Not returns old value in F#.
 /// ### Example
 /// a.[i] <!+ buf
 let inline (<!+) a b =
-    kFail ()
+    kernelFail ()
     a + b |> ignore
 
 /// Alias for atom_add. Returns old value.
 /// ### Example
 /// let oldV = a.[i] <!+> buf
 let inline (<!+>) a b =
-    kFail ()
+    kernelFail ()
     a + b
 
 /// Alias for atom_sub. Not returns old value in F#.
 /// ### Example
 /// a.[i] <!- buf
 let inline (<!-) a b =
-    kFail ()
+    kernelFail ()
     a - b |> ignore
 
 /// Alias for atom_sub. Returns old value.
 /// ### Example
 /// let oldV = a.[i] <!-> buf
 let inline (<!->) a b =
-    kFail ()
+    kernelFail ()
     a - b
 
 /// Alias for atom_xchg. Not returns old value in F#
 /// ### Example
 /// a.[i] <! buf
 let inline (<!) (a:'a) (b:'a) =
-    kFail ()
+    kernelFail ()
     b |> ignore
 
 /// Alias for atom_xchg. Returns old value.
 /// ### Example
 /// let oldV = a.[i] <!> buf
 let inline (<!>) (a:'a) (b:'a) =
-    kFail ()
+    kernelFail ()
     b
 
 //let (<&&>) (a:uint16) b =
-//    kFail ()
+//    kernelFail ()
 //    a &&& b
 //
 //let (<&&>) (a:int) b =
-//    kFail ()
+//    kernelFail ()
 //    a &&& b
 let aIncrR a =
-    kFail ()
+    kernelFail ()
     a + 1
 
 let aIncr a =
-    kFail ()
+    kernelFail ()
     a + 1
     |> ignore
 
 let aDecr a =
-    kFail ()
+    kernelFail ()
     a - 1
     |> ignore
 
 let aDecrR a =
-    kFail ()
+    kernelFail ()
     a - 1
 
 let aMax a b =
-    kFail ()
+    kernelFail ()
     max a b |> ignore
 
 let aMaxR a b =
-    kFail ()
+    kernelFail ()
     max a b
 
 let aMin a b =
-    kFail ()
+    kernelFail ()
     min a b |> ignore
 
 let aMinR a b =
-    kFail ()
+    kernelFail ()
     min a b
 
 let aCompExch a b c =
-    kFail ()
+    kernelFail ()
     if a = b
     then c
     else a
     |> ignore
 
 let aCompExchR a b c =
-    kFail ()
+    kernelFail ()
     if a = b
     then c
     else a
     |> ignore
     a
-
-let local<'a when 'a : struct> () =
-    kFail()
-    Unchecked.defaultof<'a>
-
-let localArray<'a> (size : int) =
-    kFail()
-    Unchecked.defaultof<array<'a>>
-
-let barrier () = ignore(null)
-
-let _byte (x:bool) = 0uy
-
-let as_uint (b1:byte) (b2:byte) (b3:byte) (b4:byte) = uint32 1

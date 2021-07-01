@@ -1,13 +1,13 @@
 ﻿module Brahma.FSharp.Tests.Full
 
-open Brahma.FSharp.OpenCL.WorkflowBuilder.Evaluation
+open Brahma.FSharp.OpenCL.WorkflowBuilder
 open Expecto
 open OpenCL.Net
 open Brahma.OpenCL
 open Brahma.FSharp.OpenCL.Core
 open Brahma.FSharp.OpenCL.Extensions
-open Brahma.FSharp.OpenCL.WorkflowBuilder.Basic
 open FSharp.Quotations
+open Brahma.FSharp.Tests.CustomDatatypes
 
 [<Struct>]
 type TestStruct =
@@ -18,10 +18,10 @@ type TestStruct =
 [<Tests>]
 let fullTranslatorTests =
     let defaultInArrayLength = 4
-    let intInArr = [|0..defaultInArrayLength-1|]
-    let float32Arr = Array.init defaultInArrayLength (fun i -> float32 i)
-    let _1d = new _1D(defaultInArrayLength, 1)
-    let _2d = new _2D(defaultInArrayLength, 1)
+    let intInArr = [| 0 .. defaultInArrayLength - 1 |]
+    let float32Arr = Array.init defaultInArrayLength float32
+    let default1D = _1D(defaultInArrayLength, 1)
+    let default2D = _2D(defaultInArrayLength, 1)
     let deviceType = DeviceType.Default
     let platformName = "*"
 
@@ -30,8 +30,10 @@ let fullTranslatorTests =
         with
         | ex -> failwith ex.Message
 
+    let clContext = OpenCLEvaluationContext(platformName, deviceType)
+
     let checkResult command =
-        let kernel,kernelPrepareF, kernelRunF = provider.Compile command
+        let (kernel, kernelPrepareF, kernelRunF) = provider.Compile command
         let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.head)
 
         let check (outArray:array<'a>) (expected:array<'a>) =
@@ -45,63 +47,7 @@ let fullTranslatorTests =
 
             Expect.sequenceEqual r expected "Arrays should be equals"
 
-        kernelPrepareF,check
-
-    let atomicsTests =
-        testList "Tests on atomic functions."
-            [
-                testCase "Atomic exchange int" <| fun _ ->
-                    let command =
-                        <@
-                            fun (range:_1D) (buf:array<_>) ->
-                                buf.[0] <! 1
-                        @>
-
-                    let run,check = checkResult command
-                    let initInArr = [|0; 1; 2; 3|]
-                    run _1d initInArr
-                    check initInArr [|1; 1; 2; 3|]
-
-                ptestCase "Atomic exchange float" <| fun _ ->
-                    let command =
-                        <@
-                            fun (range:_1D) (buf:array<_>) ->
-                                buf.[0] <! 1.0f
-                        @>
-
-                    let run,check = checkResult command
-                    let initInArr = [|0.0f; 1.0f; 2.0f; 3.0f|]
-                    run _1d initInArr
-                    check initInArr [|1.0f; 1.0f; 2.0f; 3.0f|]
-
-                ptestCase "Atomic exchange int and float" <| fun _ ->
-                    let command =
-                        <@
-                            fun (range:_1D) (buf:array<_>) ->
-                                let local_buf = localArray 1
-                                let x = local_buf.[0] <!> int buf.[0]
-                                buf.[0] <! float32 x + 1.0f
-                        @>
-
-                    let run,check = checkResult command
-                    let initInArr = [|0.0f; 1.0f; 2.0f; 3.0f|]
-                    run _1d initInArr
-                    check initInArr [|1.0f; 1.0f; 2.0f; 3.0f|]
-
-                testCase "Atomic min and max int" <| fun _ ->
-                    let command =
-                        <@
-                            fun (range:_1D) (buf:array<_>) ->
-                                let local_buf = localArray 1
-                                let x = aMinR local_buf.[0] (int buf.[0])
-                                aMax buf.[0] (x + 1)
-                        @>
-
-                    let run,check = checkResult command
-                    let initInArr = [|0; 1; 2; 3|]
-                    run _1d initInArr
-                    check initInArr [|1; 1; 2; 3|]
-            ]
+        kernelPrepareF, check
 
     let arrayItemSetTests =
         testList "Array item set tests."
@@ -114,7 +60,7 @@ let fullTranslatorTests =
                         @>
 
                     let run,check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|1;1;2;3|]
 
                 testCase "Array item set. Long" <| fun _ ->
@@ -126,7 +72,7 @@ let fullTranslatorTests =
 
                     let run,check = checkResult command
                     let initInArr = [|0L; 1L; 2L; 3L|]
-                    run _1d initInArr
+                    run default1D initInArr
                     check initInArr [|1L; 1L; 2L; 3L|]
 
                 testCase "Array item set. ULong" <| fun _ ->
@@ -138,7 +84,7 @@ let fullTranslatorTests =
 
                     let run,check = checkResult command
                     let initInArr = [|0UL; 1UL; 2UL; 3UL|]
-                    run _1d initInArr
+                    run default1D initInArr
                     check initInArr [|1UL; 1UL; 2UL; 3UL|]
 
                 testCase "Array item set. Sequential operations." <| fun _ ->
@@ -150,7 +96,7 @@ let fullTranslatorTests =
                         @>
 
                     let run,check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|2;4;2;3|]
 
             ]
@@ -167,7 +113,7 @@ let fullTranslatorTests =
 
                     let run,check = checkResult command
                     let initInArr = [|0L; 1L|]
-                    run _1d initInArr
+                    run default1D initInArr
                     check initInArr [|1L; 1L|]
 
                 testCase "Type casting. Ulong" <| fun _ ->
@@ -179,7 +125,7 @@ let fullTranslatorTests =
 
                     let run,check = checkResult command
                     let initInArr = [|0UL; 1UL; 2UL; 3UL|]
-                    run _1d initInArr
+                    run default1D initInArr
                     check initInArr [|1UL; 1UL; 2UL; 3UL|]
 
                 testCase "Type casting. ULong" <| fun _ ->
@@ -191,7 +137,7 @@ let fullTranslatorTests =
 
                     let run,check = checkResult command
                     let initInArr = [|0UL; 1UL|]
-                    run _1d initInArr
+                    run default1D initInArr
                     check initInArr [|1UL; 1UL|]
 
                 testCase "Byte type support" <| fun _ ->
@@ -207,7 +153,7 @@ let fullTranslatorTests =
 
                     let run,check = checkResult command
                     let inByteArray = [|0uy;255uy;254uy|]
-                    run _1d inByteArray
+                    run default1D inByteArray
                     check inByteArray [|1uy;0uy;255uy|]
 
                 testCase "Byte and float32" <| fun _ ->
@@ -223,7 +169,7 @@ let fullTranslatorTests =
 
                     let run,check = checkResult command
                     let inByteArray = [|0uy;255uy;254uy|]
-                    run _1d inByteArray
+                    run default1D inByteArray
                     check inByteArray [|0uy;255uy;254uy|]
 
                 // test fail on Intel platform:
@@ -241,7 +187,7 @@ let fullTranslatorTests =
 
                     let run,check = checkResult command
                     let inByteArray = [|0uy;255uy;254uy|]
-                    run _1d inByteArray
+                    run default1D inByteArray
                     check inByteArray [|1uy;0uy;255uy|]
 
                 // test failed on Intel platform:
@@ -262,7 +208,7 @@ let fullTranslatorTests =
 
                     let run,check = checkResult command
                     let inByteArray = [|0uy;255uy;254uy|]
-                    run _1d inByteArray
+                    run default1D inByteArray
                     check inByteArray [|1uy;0uy;255uy|]
 
                 // test failed on Intel platform due to exception
@@ -297,7 +243,7 @@ let fullTranslatorTests =
 
                     let run,check = checkResult command
                     let inByteArray = [|0uy;255uy;254uy|]
-                    run _1d inByteArray
+                    run default1D inByteArray
                     check inByteArray [|1uy;0uy;255uy|]
           ]
 
@@ -314,7 +260,7 @@ let fullTranslatorTests =
                         @>
 
                     let run,check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|1;1;2;3|]
 
                 testCase "Bindings. Sequential bindings." <| fun _ ->
@@ -327,7 +273,7 @@ let fullTranslatorTests =
                         @>
 
                     let run,check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|2;1;2;3|]
 
                 testCase "Bindings. Binding in IF." <| fun _ ->
@@ -344,7 +290,7 @@ let fullTranslatorTests =
                         @>
 
                     let run,check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|2;1;2;3|]
 
                 testCase "Bindings. Binding in FOR." <| fun _ ->
@@ -357,7 +303,7 @@ let fullTranslatorTests =
                         @>
 
                     let run,check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|0;1;4;9|]
 
                 testCase "Bindings. Binding in WHILE." <| fun _ ->
@@ -370,7 +316,7 @@ let fullTranslatorTests =
                         @>
 
                     let run,check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|25;1;2;3|]
             ]
 
@@ -393,8 +339,8 @@ let fullTranslatorTests =
                 let zs = Array.zeroCreate <| Array.length expected
 
                 let eval = opencl {
-                    do! RunCommand command (fun binder -> binder range xs ys zs)
-                    return! ToHost zs
+                    do! runCommand command (fun binder -> binder range xs ys zs)
+                    return! toHost zs
                 }
 
                 let ctx = OpenCLEvaluationContext()
@@ -434,7 +380,7 @@ let fullTranslatorTests =
 
                     let run,check = checkResult command
                     let inA = [|0.0;1.0;2.0;3.0|]
-                    run _1d inA
+                    run default1D inA
                     check inA (inA |> Array.map System.Math.Sin)  //[|0.0; 0.841471; 0.9092974; 0.14112|]
             ]
 
@@ -449,7 +395,7 @@ let fullTranslatorTests =
                                 buf.[0] <- (1.25f |> int)
                         @>
                     let run,check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|1;1;2;3|]
 
                 // Lambda is not supported.
@@ -460,7 +406,7 @@ let fullTranslatorTests =
                                 buf.[0] <- int <| 1.25f + 2.34f
                         @>
                     let run,check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|3;1;2;3|]
             ]
 
@@ -475,7 +421,7 @@ let fullTranslatorTests =
                         @>
 
                     let run,check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|0;1;2;3|]
 
                 testCase "Control flow. If Then Else." <| fun _ ->
@@ -486,7 +432,7 @@ let fullTranslatorTests =
                         @>
 
                     let run,check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|2;1;2;3|]
 
                 testCase "Control flow. For Integer Loop." <| fun _ ->
@@ -498,7 +444,7 @@ let fullTranslatorTests =
                         @>
 
                     let run,check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|0;0;0;0|]
 
                 testCase "Control flow. WHILE loop simple test." <| fun _ ->
@@ -510,7 +456,7 @@ let fullTranslatorTests =
                         @>
 
                     let run,check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|5;1;2;3|]
 
                 testCase "Control flow. WHILE in FOR." <| fun _ ->
@@ -523,7 +469,7 @@ let fullTranslatorTests =
                         @>
 
                     let run,check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|26;26;26;10|]
             ]
 
@@ -539,7 +485,7 @@ let fullTranslatorTests =
                         @>
 
                     let run,check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|0;2;4;6|]
 
                 testCase "Kernel arguments. Simple 1D with copy." <| fun _ ->
@@ -552,7 +498,7 @@ let fullTranslatorTests =
 
                     let run,check = checkResult command
                     let outA = [|0;0;0;0|]
-                    run _1d intInArr outA
+                    run default1D intInArr outA
                     check outA [|0;1;2;3|]
 
                 testCase "Kernel arguments. Simple 1D float." <| fun _ ->
@@ -564,7 +510,7 @@ let fullTranslatorTests =
                         @>
 
                     let run,check = checkResult command
-                    run _1d float32Arr
+                    run default1D float32Arr
                     check float32Arr [|0.0f;1.0f;4.0f;9.0f|]
 
                 testCase "Kernel arguments. Int as arg." <| fun _ ->
@@ -576,7 +522,7 @@ let fullTranslatorTests =
                         @>
 
                     let run,check = checkResult command
-                    run _1d 2 intInArr
+                    run default1D 2 intInArr
                     check intInArr [|4;4;4;4|]
 
                 testCase "Kernel arguments. Sequential commands over single buffer." <| fun _ ->
@@ -589,10 +535,10 @@ let fullTranslatorTests =
                     let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.head)
                     let _, kernelPrepareF, kernelRunF = provider.Compile command
 
-                    kernelPrepareF _1d 0 2 intInArr
+                    kernelPrepareF default1D 0 2 intInArr
                     commandQueue.Add(kernelRunF()) |> ignore
 
-                    kernelPrepareF _1d 2 2 intInArr
+                    kernelPrepareF default1D 2 2 intInArr
                     commandQueue.Add(kernelRunF()) |> ignore
                     commandQueue.Finish() |> ignore
 
@@ -619,7 +565,7 @@ let fullTranslatorTests =
                         @>
 
                     let run,check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|4;16;2;3|]
 
                 testCase "Quotations injections. Quotations injections 2." <| fun _ ->
@@ -633,7 +579,7 @@ let fullTranslatorTests =
                         @>
 
                     let run,check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|3;5;2;3|]
             ]
 
@@ -700,7 +646,7 @@ let fullTranslatorTests =
 
                     let run,check = checkResult command
                     let initInArr = [|0L; 1L; 2L; 3L|]
-                    run _1d initInArr
+                    run default1D initInArr
                     check initInArr [|1L; 1L; 2L; 3L|]
             ]
 
@@ -716,7 +662,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|3; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 1" <| fun _ ->
@@ -730,7 +676,7 @@ let fullTranslatorTests =
                                 buf.[0] <- x + f
                         @>
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|7; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 1.2" <| fun _ ->
@@ -744,7 +690,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|10; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 2" <| fun _ ->
@@ -760,7 +706,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|3; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 3" <| fun _ ->
@@ -774,7 +720,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|5; 1; 2; 3|]
 
 
@@ -791,7 +737,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|5; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 5" <| fun _ ->
@@ -805,7 +751,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|8; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 6" <| fun _ ->
@@ -819,7 +765,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|15; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 7" <| fun _ ->
@@ -833,7 +779,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|-1; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 8" <| fun _ ->
@@ -856,7 +802,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|-1; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 9" <| fun _ ->
@@ -871,7 +817,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|17; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 10" <| fun _ ->
@@ -886,7 +832,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|16; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 11" <| fun _ ->
@@ -902,7 +848,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|9; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 12" <| fun _ ->
@@ -918,7 +864,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|8; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 13" <| fun _ ->
@@ -934,7 +880,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|7; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 14" <| fun _ ->
@@ -954,7 +900,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|-3; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 15" <| fun _ ->
@@ -971,7 +917,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|1; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 16" <| fun _ ->
@@ -988,7 +934,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|9; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 17" <| fun _ ->
@@ -1005,7 +951,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|2; 3; 6; 7|]
 
                 testCase "Template Let Transformation Test 18" <| fun _ ->
@@ -1021,7 +967,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|2; 3; 6; 7|]
 
                 testCase "Template Let Transformation Test 19" <| fun _ ->
@@ -1038,7 +984,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|2; 3; 6; 7|]
 
                 // TODO: perform range (1D, 2D, 3D) erasure when range is lifted.
@@ -1052,7 +998,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|2; 3; 6; 7|]
             ]
 
@@ -1071,7 +1017,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|10; 1; 2; 3|]
 
                 testCase "Test 1" <| fun _ ->
@@ -1086,7 +1032,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|11; 1; 2; 3|]
 
                 testCase "Test 2" <| fun _ ->
@@ -1100,7 +1046,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|3; 1; 2; 3|]
 
                 testCase "Test 3" <| fun _ ->
@@ -1115,7 +1061,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|5; 1; 2; 3|]
 
                 testCase "Test 4" <| fun _ ->
@@ -1136,7 +1082,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|0; 6; 12; 18|]
 
                 testCase "Test 5" <| fun _ ->
@@ -1162,7 +1108,7 @@ let fullTranslatorTests =
                         @>
 
                     let run, check = checkResult command
-                    run _1d intInArr
+                    run default1D intInArr
                     check intInArr [|34; 34; 34; 34|]
 
 
@@ -1184,7 +1130,7 @@ let fullTranslatorTests =
 
                     let run,check = checkResult command
                     let inByteArray = [|TestStruct(1, 2.0); TestStruct(3, 4.0)|]
-                    run _1d inByteArray
+                    run default1D inByteArray
                     check inByteArray [|TestStruct(3, 4.0); TestStruct(1, 2.0)|]
 
                 ptestCase "Simple seq of struct changes." <| fun _ ->
@@ -1196,7 +1142,7 @@ let fullTranslatorTests =
 
                     let run,check = checkResult command
                     let inByteArray = [|TestStruct(1, 2.0);TestStruct(3, 4.0)|]
-                    run _1d inByteArray
+                    run default1D inByteArray
                     check inByteArray [|TestStruct(3, 4.0); TestStruct(1, 2.0)|]
 
                 testCase "Simple seq of struct prop set" <| fun _ ->
@@ -1208,7 +1154,7 @@ let fullTranslatorTests =
 
                     let run,check = checkResult command
                     let inByteArray = [|TestStruct(1, 2.0)|]
-                    run _1d inByteArray
+                    run default1D inByteArray
                     check inByteArray [|TestStruct(5, 2.0)|]
 
                 testCase "Simple seq of struct prop get." <| fun _ ->
@@ -1220,30 +1166,30 @@ let fullTranslatorTests =
 
                     let run,check = checkResult command
                     let inByteArray = [|TestStruct(1, 2.0);TestStruct(3, 4.0)|]
-                    run _1d inByteArray
+                    run default1D inByteArray
                     check inByteArray [|TestStruct(4, 2.0); TestStruct(3, 4.0)|]
 
                 testCase "Nested structs 1." <| fun _ ->
                     ()
             ]
 
-    testList "System tests with running kernels"
-        [
-            letTransformationTests
-            letQuotationTransformerSystemTests
-            atomicsTests
-            arrayItemSetTests
-            typeCastingTests
-            bindingTests
-            operatorsAndMathFunctionsTests
-            pipeTests
-            controlFlowTests
-            kernelArgumentsTests
-            quotationInjectionTests
-            localMemTests
-            structTests
-        ]
-    |> (fun x -> Expecto.Sequenced (Expecto.SequenceMethod.Synchronous, x))
+
+    [
+        letTransformationTests
+        letQuotationTransformerSystemTests
+        arrayItemSetTests
+        typeCastingTests
+        bindingTests
+        operatorsAndMathFunctionsTests
+        pipeTests
+        controlFlowTests
+        kernelArgumentsTests
+        quotationInjectionTests
+        localMemTests
+        structTests
+    ]
+    |> testList "System tests with running kernels"
+    |> fun x -> Expecto.Sequenced(Expecto.SequenceMethod.Synchronous, x)
 
 (*
 
@@ -1260,7 +1206,7 @@ let fullTranslatorTests =
             @>
         let kernel,kernelPrepareF, kernelRunF = provider.Compile command
         let inArray = [|1uy;2uy;3uy|]
-        kernelPrepareF _1d inArray
+        kernelPrepareF default1D inArray
         let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.head)
         let _ = commandQueue.Add(kernelRunF())
         let _ = commandQueue.Add(inArray.ToHost provider).Finish()
@@ -1288,7 +1234,7 @@ let fullTranslatorTests =
             @>
         let kernel,kernelPrepareF, kernelRunF = provider.Compile command
         let inArray = [|1uy;2uy;3uy|]
-        kernelPrepareF _1d inArray
+        kernelPrepareF default1D inArray
         let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.head)
         let _ = commandQueue.Add(inArray.ToGpu(provider,[|2uy;3uy;4uy|]))
         let _ = commandQueue.Add(kernelRunF())
@@ -1313,7 +1259,7 @@ let fullTranslatorTests =
 
         let kernel,kernelPrepare, kernelRun = provider.Compile command
         let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.head)
-        kernelPrepare _1d
+        kernelPrepare default1D
         try
             commandQueue.Add(kernelRun()).Finish()
             |> ignore
@@ -1338,7 +1284,7 @@ let fullTranslatorTests =
 
         let kernel,kernelPrepare, kernelRun = provider.Compile command
         let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.head)
-        kernelPrepare _2d
+        kernelPrepare default2D
         try
             commandQueue.Add(kernelRun()).Finish()
             |> ignore
@@ -1356,7 +1302,7 @@ let fullTranslatorTests =
             @>
         let run,check = checkResult command
         let inByteArray = [|1|]
-        run _1d inByteArray [|0|]
+        run default1D inByteArray [|0|]
         check inByteArray [|2|]
 
     [<Test>]
@@ -1368,7 +1314,7 @@ let fullTranslatorTests =
             @>
         let run,check = checkResult command
         let inByteArray = [|2|]
-        run _1d inByteArray [|0|]
+        run default1D inByteArray [|0|]
         check inByteArray [|2|]
 
     [<Test>]
@@ -1380,7 +1326,7 @@ let fullTranslatorTests =
             @>
         let run,check = checkResult command
         let inByteArray = [|1|]
-        run _1d inByteArray [|0|]
+        run default1D inByteArray [|0|]
         check inByteArray [|1|]
 
     [<Test>]
@@ -1392,7 +1338,7 @@ let fullTranslatorTests =
             @>
         let run,check = checkResult command
         let inByteArray = [|2|]
-        run _1d inByteArray [|0|]
+        run default1D inByteArray [|0|]
         check inByteArray [|1|]
 
     [<Test>]
@@ -1404,7 +1350,7 @@ let fullTranslatorTests =
             @>
         let run,check = checkResult command
         let inByteArray = [|1|]
-        run _1d inByteArray [|0|]
+        run default1D inByteArray [|0|]
         check inByteArray [|2|]
 
     [<Test>]
@@ -1416,7 +1362,7 @@ let fullTranslatorTests =
             @>
         let run,check = checkResult command
         let inByteArray = [|1|]
-        run _1d inByteArray
+        run default1D inByteArray
         check inByteArray [|2|]
 
     [<Test>]
@@ -1428,7 +1374,7 @@ let fullTranslatorTests =
             @>
         let run,check = checkResult command
         let inByteArray = [|0;0;0;0|]
-        run _1d inByteArray
+        run default1D inByteArray
         check inByteArray [|-4;-3;0;0|]
 
     [<Test>]
@@ -1440,7 +1386,7 @@ let fullTranslatorTests =
             @>
         let run,check = checkResult command
         let inByteArray = [|0;0;0;0|]
-        run _1d inByteArray
+        run default1D inByteArray
         check inByteArray [|-4;0;0;0|]
 
     [<Test>]
@@ -1452,7 +1398,7 @@ let fullTranslatorTests =
             @>
         let run,check = checkResult command
         let inByteArray = [|1;2;0;0|]
-        run _1d inByteArray
+        run default1D inByteArray
         check inByteArray [|5;4;0;0|]
 
     [<Test>]
@@ -1464,7 +1410,7 @@ let fullTranslatorTests =
             @>
         let run,check = checkResult command
         let inByteArray = [|0;0;0;0|]
-        run _1d inByteArray
+        run default1D inByteArray
         check inByteArray [|4;0;0;0|]
 
     [<Test>]
@@ -1476,7 +1422,7 @@ let fullTranslatorTests =
             @>
         let run,check = checkResult command
         let inByteArray = [|1;0;0;0|]
-        run _1d inByteArray
+        run default1D inByteArray
         check inByteArray [|2;2;0;0|]
 
     [<Test>]
@@ -1488,7 +1434,7 @@ let fullTranslatorTests =
             @>
         let run,check = checkResult command
         let inByteArray = [|1;0;0;0|]
-        run _1d inByteArray
+        run default1D inByteArray
         check inByteArray [|2;0;0;0|]
 
     [<Test>]
@@ -1500,7 +1446,7 @@ let fullTranslatorTests =
             @>
         let run,check = checkResult command
         let inByteArray = [|3;0;0;0|]
-        run _1d inByteArray
+        run default1D inByteArray
         check inByteArray [|3;0;0;0|]
 
 
@@ -1517,7 +1463,7 @@ let fullTranslatorTests =
             @>
 
         let run,check = checkResult command
-        run _1d intInArr
+        run default1D intInArr
         check intInArr [|17;1;2;3|]
 
     [<Test>]
@@ -1569,7 +1515,7 @@ let fullTranslatorTests =
         let kernel,kernelPrepareF, kernelRunF = provider.Compile command
         let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.head)
         let run,check = checkResult command
-        run _1d intInArr
+        run default1D intInArr
         check intInArr [|1; 11; 2; 3|]
 
 
@@ -1705,7 +1651,7 @@ let fullTranslatorTests =
             @>
         let CLimg = new Image2D<_>(provider, Operations.ReadOnly, true, 10, 10, -1)
         let run,check = checkResult command
-        run _1d CLimg intInArr
+        run default1D CLimg intInArr
         check intInArr [|1;3;6;7|]
 
 

@@ -3,22 +3,20 @@
   <PropertyGroup>
     <TargetFrameworks>netstandard2.1;net461</TargetFrameworks>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
   <PropertyGroup>
     <Title>Brahma.FSharp.OpenCL.Translator</Title>
     <Description>Brahma.FSharp does the thing!</Description>
-
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <Optimize>true</Optimize>
     <Tailcalls>true</Tailcalls>
-    
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Namer.fs" />
     <Compile Include="Common.fs" />
     <Compile Include="Type.fs" />
-      
     <Compile Include="QuotationsTransformer\Utils\Common.fs" />
     <Compile Include="QuotationsTransformer\Utils\Patterns.fs" />
     <Compile Include="QuotationsTransformer\Transformers\PrintfReplacer.fs" />
@@ -30,7 +28,6 @@
     <Compile Include="QuotationsTransformer\Transformers\UniqueVarRenaming.fs" />
     <Compile Include="QuotationsTransformer\Transformers\MutableVarsInClosureCollector.fs" />
     <Compile Include="QuotationsTransformer\QuotationsTransformer.fs" />
-    
     <Compile Include="Array.fs" />
     <Compile Include="Body.fs" />
     <Compile Include="TypeReflection.fs" />

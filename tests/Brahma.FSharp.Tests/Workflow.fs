@@ -6,8 +6,7 @@ open Expecto
 open System.Collections.Generic
 
 open Brahma.OpenCL
-open Brahma.FSharp.OpenCL.WorkflowBuilder.Evaluation
-open Brahma.FSharp.OpenCL.WorkflowBuilder.Basic
+open Brahma.FSharp.OpenCL.WorkflowBuilder
 
 [<Tests>]
 let WorkflowTests =
@@ -31,7 +30,7 @@ let WorkflowTests =
                 let range = _1D <| input.Length
                 kernelP range input res
 
-            do! RunCommand code binder
+            do! runCommand code binder
             return res
         }
 
@@ -44,7 +43,7 @@ let WorkflowTests =
                         opencl {
                             let! ys = GpuMap <@ fun x -> x * x + 10 @> xs
                             let! zs = GpuMap <@ fun x -> x + 1 @> ys
-                            return! ToHost zs
+                            return! toHost zs
                         }
                     let output = ctx.RunSync workflow
                     Expect.equal output [|12; 15; 20; 27|] eqMsg
@@ -83,7 +82,7 @@ let WorkflowTests =
                             xs <- res
                             i <- i + 1
 
-                        return! ToHost xs
+                        return! toHost xs
                     }
                     let output = ctx.RunSync workflow
                     Expect.equal output expected eqMsg
@@ -102,7 +101,7 @@ let WorkflowTests =
                         while i < 10 do
                             do! GpuMapInplace <@ fun x -> x + 1 @> xs
                             i <- i + 1
-                        return! ToHost !xs
+                        return! toHost !xs
                     }
                     let output = ctx.RunSync workflow
                     Expect.equal output [|11; 12; 13; 14|] eqMsg
@@ -126,7 +125,7 @@ let WorkflowTests =
                         for y in [|10; 20; 30|] do
                             let! res = GpuMap <@ fun x -> x + y @> xs
                             xs <- res
-                        return! ToHost xs
+                        return! toHost xs
                     }
                     let output = ctx.RunSync workflow
                     Expect.equal output [|61; 62; 63; 64|] eqMsg
@@ -150,8 +149,8 @@ let WorkflowTests =
                             let binder prepareF =
                                 prepareF range xs
 
-                            do! RunCommand command binder
-                            return! ToHost xs
+                            do! runCommand command binder
+                            return! toHost xs
                         }
 
                     let get_result = ctx.RunAsync <| workflow (32*10000) 32
@@ -171,7 +170,7 @@ let WorkflowTests =
                         opencl {
                             let input = [|1, 2, 3, 4|]
 
-                            return! ToHost input
+                            return! toHost input
                         }
 
                     let res = ctx.RunSync eval
