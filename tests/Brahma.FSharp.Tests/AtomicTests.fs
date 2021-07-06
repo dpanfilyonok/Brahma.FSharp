@@ -1,11 +1,8 @@
 module Atomic
 
 open Expecto
-open OpenCL.Net
 open Brahma.OpenCL
-open Brahma.FSharp.OpenCL.Core
 open Brahma.FSharp.OpenCL.WorkflowBuilder
-open FSharp.Quotations
 open FSharp.Quotations.Evaluator
 open Brahma.FSharp.Tests.Utils
 open Brahma.FSharp.Tests.CustomDatatypes
@@ -103,10 +100,10 @@ let reduceTest<'a when 'a : equality> f (array: 'a[]) =
     let localSize = Settings.wgSize
     let kernel =
         <@
-            fun (ndRange: _1D) (array: 'a[]) (result: 'a[]) ->
+            fun (range: _1D) (array: 'a[]) (result: 'a[]) ->
 
-                let lid = ndRange.LocalID0
-                let gid = ndRange.GlobalID0
+                let lid = range.LocalID0
+                let gid = range.GlobalID0
 
                 let localBuffer = localArray<'a> localSize
                 localBuffer.[lid] <- array.[gid]
@@ -153,34 +150,36 @@ let reduceTest<'a when 'a : equality> f (array: 'a[]) =
 
 // TODO Tests for xchg и cmpxchg
 
-
-// TODO remake cause ptestCase
 let stressTestCases = testList "Stress tests" [
     let range = [0 .. 10 .. 100]
-    let makeTestCaseWithName name =
-        fun testBody -> (fun () -> testBody)
-        >> testCase name
 
     // int
-    yield! range |> List.map ((stressTest<int> <@ inc @>) >> makeTestCaseWithName "Smoke stress test atomic inc on int")
-    yield! range |> List.map ((stressTest<int> <@ dec @>) >> makeTestCaseWithName "Smoke stress test atomic dec on int")
+    yield! range |> List.map (fun size ->
+    testCase "Smoke stress test atomic inc on int" <| fun () -> stressTest<int> <@ inc @> size)
+    yield! range |> List.map (fun size ->
+    testCase "Smoke stress test atomic dec on int" <| fun () -> stressTest<int> <@ dec @> size)
 
     // float
-    yield! range |> List.map ((stressTest<float32> <@ inc @>) >> makeTestCaseWithName "Stress test atomic inc on float32")
+    yield! range |> List.map (fun size ->
+    testCase "Stress test atomic inc on float32" <| fun () -> stressTest<float32> <@ inc @> size)
 
     // double
-    yield! range |> List.map ((stressTest<float> <@ inc @>) >> makeTestCaseWithName "Stress test atomic inc on float")
+    yield! range |> List.map (fun size ->
+    testCase "Stress test atomic inc on float" <| fun () -> stressTest<float> <@ inc @> size)
 
     // bool
-    yield! range |> List.map ((stressTest<bool> <@ not @>) >> makeTestCaseWithName "Stress test atomic 'not' on bool")
+    yield! range |> List.map (fun size ->
+    testCase "Stress test atomic 'not' on bool" <| fun () -> stressTest<bool> <@ not @> size)
 
     // WrappedInt (???)
     let wrappedIntInc = <@ fun x -> x + { InnerValue = 1 } @>
-    yield! range |> List.map ((stressTest<WrappedInt> wrappedIntInc) >> makeTestCaseWithName "Stress test custom atomic inc on WrappedInt")
+    yield! range |> List.map (fun size ->
+    testCase "Stress test custom atomic inc on WrappedInt" <| fun () -> stressTest<WrappedInt> wrappedIntInc size)
 
     // custom int op
     let incx2 = <@ fun x -> x + 2 @>
-    yield! range |> List.map ((stressTest<int> incx2) >> makeTestCaseWithName "Stress test custom atomic unary func on int")
+    yield! range |> List.map (fun size ->
+    testCase "Stress test custom atomic unary func on int" <| fun () -> stressTest<int> incx2 size)
 ]
 
 let foldTestCases = testList "Fold tests" [
@@ -259,7 +258,7 @@ let atomicInsideQuotTest = testCase "Operation definition inside quotation" <| f
     "Results should be equal"
     |> Expect.equal actual expected
 
-let perfomanceTest = testCase "" <| fun () ->
+let perfomanceTest = testCase "Perfomance test on inc" <| fun () ->
     // use native atomic_inc for int
     let kernelUsingNativeInc () =
         opencl {
@@ -312,6 +311,9 @@ let perfomanceTest = testCase "" <| fun () ->
     "Kernel wich uses native inc shold be faster than with custom one"
     |> Expect.isFasterThan kernelUsingNativeInc kernelUsingCustomInc
 
+// TODO deadlock test
+// TODO custom op with 3 parameters ??
+
 let tests =
     testList "Tests on atomic functions" [
         stressTestCases
@@ -319,4 +321,5 @@ let tests =
         reduceTestCases
         atomicInsideQuotTest
         perfomanceTest
-    ] |> testSequenced
+    ]
+    |> testSequenced

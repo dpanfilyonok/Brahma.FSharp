@@ -1,7 +1,8 @@
 ﻿[<AutoOpen>]
 module OpenCL
 
-let kernelFail () = failwith "Seems that you try to use openCL kernel function as regular F# function!"
+let kernelFail () =
+    failwith "Seems that you try to use openCL kernel function as regular F# function!"
 
 let barrier () = ignore null
 
@@ -66,14 +67,14 @@ let inline (<!->) a b =
 /// Alias for atom_xchg. Not returns old value in F#
 /// ### Example
 /// a.[i] <! buf
-let inline (<!) (a:'a) (b:'a) =
+let inline (<!) (a: 'a) (b: 'a) =
     kernelFail ()
     b |> ignore
 
 /// Alias for atom_xchg. Returns old value.
 /// ### Example
 /// let oldV = a.[i] <!> buf
-let inline (<!>) (a:'a) (b:'a) =
+let inline (<!>) (a: 'a) (b: 'a) =
     kernelFail ()
     b
 
@@ -90,13 +91,11 @@ let aIncrR a =
 
 let aIncr a =
     kernelFail ()
-    a + 1
-    |> ignore
+    a + 1 |> ignore
 
 let aDecr a =
     kernelFail ()
-    a - 1
-    |> ignore
+    a - 1 |> ignore
 
 let aDecrR a =
     kernelFail ()
@@ -120,15 +119,9 @@ let aMinR a b =
 
 let aCompExch a b c =
     kernelFail ()
-    if a = b
-    then c
-    else a
-    |> ignore
+    if a = b then c else a |> ignore
 
 let aCompExchR a b c =
     kernelFail ()
-    if a = b
-    then c
-    else a
-    |> ignore
+    if a = b then c else a |> ignore
     a

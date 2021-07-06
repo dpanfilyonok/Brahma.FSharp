@@ -13,33 +13,26 @@
 // By using this software in any fashion, you are agreeing to be bound by the
 // terms of the License.
 
-module Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
+namespace Brahma.FSharp.OpenCL.Translator
 
 open Microsoft.FSharp.Quotations
 open Microsoft.FSharp.Collections
+open Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
 
-open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.MutableVarsToRef
-open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.PrintfReplacer
-open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.LetVarAbstracter
-open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.LambdaLifting.LambdaLifting
-open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.UniqueVarRenaming
-open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.MutableVarsInClosureCollector
+module Transformer =
+    let mainKernelName = "brahmaKernel"
 
-let mainKernelName = "brahmaKernel"
+    let preprocessQuotation expr = PrintfReplacer.replacePrintf expr
 
-let preprocessQuotation expr =
-    replacePrintf expr
-
-/// Returns kernel and other methods
-let quotationTransformer expr translatorOptions : Expr * List<Method> =
-    let preprocessedExpr =
+    /// Returns kernel and other methods
+    let quotationTransformer expr (translatorOptions: TranslatorOption list) =
         expr
-        |> replacePrintf
-        |> makeVarNameUnique
-        |> varDefsToLambda
-        |> fun expr ->
-            let mutableVarsInClosure = collectMutableVarsInClosure expr
-            varsToRefsWithPredicate mutableVarsInClosure.Contains expr
-
-    let lastExpr, methods = lambdaLifting preprocessedExpr
-    lastExpr, methods
+        |> PrintfReplacer.replacePrintf
+        |> UniqueVarRenaming.makeVarNameUnique
+        |> LetVarAbstracter.varDefsToLambda
+        |>
+            (fun expr ->
+                let mutableVarsInClosure = MutableVarsInClosureCollector.collectMutableVarsInClosure expr
+                MutableVarsToRef.varsToRefsWithPredicate mutableVarsInClosure.Contains expr
+            )
+        |> LambdaLifting.lambdaLifting

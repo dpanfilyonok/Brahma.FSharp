@@ -1,0 +1,8 @@
+AssemblyInfo.fs
+Brahma.FSharp.OpenCL.Translator
+Brahma.FSharp.OpenCL.WorkflowBuilder
+Core.fs
+Printer.fs
+AtomicTests.fs
+docsTool/
+build.fsx

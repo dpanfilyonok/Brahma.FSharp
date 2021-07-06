@@ -15,12 +15,16 @@
 
 namespace Brahma.FSharp.OpenCL.AST
 
-type DeclSpecifierPack<'lang> (?funQual:FunQualifier<'lang>,
-                               ?addrSpaceQual:AddressSpaceQualifier<'lang>,
-                               ?accessQual:AccessQualifier<'lang>,
-                               ?storClassSpec:StorageClassSpecifier<'lang>,
-                               ?typeSpec:Type<'lang>,
-                               ?typeQuals:TypeQualifier<'lang> list) =
+type DeclSpecifierPack<'lang>
+    (
+        ?funQual: FunQualifier<'lang>,
+        ?addrSpaceQual: AddressSpaceQualifier<'lang>,
+        ?accessQual: AccessQualifier<'lang>,
+        ?storClassSpec: StorageClassSpecifier<'lang>,
+        ?typeSpec: Type<'lang>,
+        ?typeQuals: TypeQualifier<'lang> list
+    )
+     =
     inherit Node<'lang>()
     override this.Children = []
     member val FunQual = funQual with get, set
@@ -30,17 +34,17 @@ type DeclSpecifierPack<'lang> (?funQual:FunQualifier<'lang>,
     member val Type = typeSpec with get, set
     member val TypeQuals = defaultArg typeQuals [] with get, set
 
-    member this.AddTypeQual tq =
-        this.TypeQuals <- tq :: this.TypeQuals
+    member this.AddTypeQual tq = this.TypeQuals <- tq :: this.TypeQuals
 
-    member this.Matches(other:obj) =
+    member this.Matches(other: obj) =
         match other with
-        | :? DeclSpecifierPack<'lang> as o ->
+        | :? (DeclSpecifierPack<'lang>) as o ->
             let areTypesMatching =
                 match this.Type, o.Type with
                 | Some x, Some y -> x.Matches(y)
                 | None, None -> true
                 | _ -> false
+
             this.FunQual = o.FunQual
             && this.AddressSpaceQual = o.AddressSpaceQual
             && this.AccessQual = o.AccessQual

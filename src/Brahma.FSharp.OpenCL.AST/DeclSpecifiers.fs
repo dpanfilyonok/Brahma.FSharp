@@ -15,8 +15,7 @@
 
 namespace Brahma.FSharp.OpenCL.AST
 
-type FunQualifier<'lang> =
-    | Kernel
+type FunQualifier<'lang> = | Kernel
 
 type AddressSpaceQualifier<'lang> =
     | Global
