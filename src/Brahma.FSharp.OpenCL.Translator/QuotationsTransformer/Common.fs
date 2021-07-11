@@ -65,6 +65,18 @@ module Utils =
             var :: collectLambdaArguments body
         | _ -> []
 
+    let rec collectLocalVars (expr: Expr) : Var list =
+        match expr with
+        | Patterns.Let (variable, DerivedPatterns.SpecificCall <@ local @> (_, _, _), cont)
+        | Patterns.Let (variable, DerivedPatterns.SpecificCall <@ localArray @> (_, _, _), cont) ->
+            variable :: collectLocalVars cont
+        | ExprShape.ShapeVar var -> []
+        | ExprShape.ShapeLambda (var, lambda) ->
+            collectLocalVars lambda
+        | ExprShape.ShapeCombination (_, exprs) ->
+            exprs
+            |> List.collect collectLocalVars
+
     let isTypeOf<'tp> (var: Var) =
         var.Type = typeof<'tp>
 

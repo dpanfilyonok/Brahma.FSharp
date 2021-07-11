@@ -114,7 +114,7 @@ and private printCast (c: Cast<'lang>) =
     let expr = Print c.Expr
     (t |> bracketL) ++ expr
 
-and private printPointer (p: Pointer<'lang>) =
+and private printPointer (p: Ptr<'lang>) =
     let expr = Print p.Expr
     wordL "&" ^^ expr
 
@@ -163,7 +163,7 @@ and Print (expr: Expression<'lang>) =
     | :? (FunCall<'lang>) as fc -> printFunCall fc
     | :? (Unop<'lang>) as uo -> printUnOp uo
     | :? (Cast<'lang>) as c -> printCast c
-    | :? (Pointer<'lang>) as p -> printPointer p
+    | :? (Ptr<'lang>) as p -> printPointer p
     | :? (ArrayInitializer<'lang>) as ai -> printArrayInitializer ai
     | :? (NewStruct<'lang>) as ns -> printNewStruct ns
     | :? (NewUnion<'lang>) as nu -> printNewUnion nu

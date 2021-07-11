@@ -23,32 +23,35 @@ type DeclSpecifierPack<'lang>
         ?storClassSpec: StorageClassSpecifier<'lang>,
         ?typeSpec: Type<'lang>,
         ?typeQuals: TypeQualifier<'lang> list
-    )
-     =
+    ) =
+
     inherit Node<'lang>()
+
     override this.Children = []
+
     member val FunQual = funQual with get, set
-    member val AddressSpaceQual = defaultArg addrSpaceQual Default with get, set
+    member val AddressSpaceQualifier = defaultArg addrSpaceQual Default with get, set
     member val AccessQual = accessQual with get, set
     member val StorageClassSpec = storClassSpec with get, set
     member val Type = typeSpec with get, set
     member val TypeQuals = defaultArg typeQuals [] with get, set
 
-    member this.AddTypeQual tq = this.TypeQuals <- tq :: this.TypeQuals
+    member this.AddTypeQual tq =
+        this.TypeQuals <- tq :: this.TypeQuals
 
     member this.Matches(other: obj) =
         match other with
-        | :? (DeclSpecifierPack<'lang>) as o ->
+        | :? DeclSpecifierPack<'lang> as other ->
             let areTypesMatching =
-                match this.Type, o.Type with
+                match this.Type, other.Type with
                 | Some x, Some y -> x.Matches(y)
                 | None, None -> true
                 | _ -> false
 
-            this.FunQual = o.FunQual
-            && this.AddressSpaceQual = o.AddressSpaceQual
-            && this.AccessQual = o.AccessQual
-            && this.StorageClassSpec = o.StorageClassSpec
+            this.FunQual = other.FunQual
+            && this.AddressSpaceQualifier = other.AddressSpaceQualifier
+            && this.AccessQual = other.AccessQual
+            && this.StorageClassSpec = other.StorageClassSpec
             && areTypesMatching
-            && this.TypeQuals = o.TypeQuals
+            && this.TypeQuals = other.TypeQuals
         | _ -> false

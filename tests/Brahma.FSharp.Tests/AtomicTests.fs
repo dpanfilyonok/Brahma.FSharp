@@ -313,6 +313,49 @@ let perfomanceTest = testCase "Perfomance test on inc" <| fun () ->
 
 // TODO deadlock test
 // TODO custom op with 3 parameters ??
+// TODO particial application tests (let g = atomic (+); g 1. 2.)
+
+// TODO srtp on types with (+) (generic atomic (+)) test
+let srtpTest = testCase "Srtp test on inc" <| fun () ->
+    let inline kernel () =
+        <@
+            fun (range: _1D) (result: 'a[]) ->
+                atomic inc result.[0] |> ignore
+                barrier ()
+        @>
+
+    let srtpOnIntActual =
+        try
+            opencl {
+                let result = Array.zeroCreate<int> 1
+                do! runCommand (kernel ()) <| fun kernelPrepare ->
+                    kernelPrepare
+                    <| _1D(Settings.wgSize, Settings.wgSize)
+                    <| result
+
+                return! toHost result
+            }
+
+        finally
+            context.Provider.CloseAllBuffers()
+
+    let srtpOnFloatActual =
+        try
+            opencl {
+                let result = Array.zeroCreate<float> 1
+                do! runCommand (kernel ()) <| fun kernelPrepare ->
+                    kernelPrepare
+                    <| _1D(Settings.wgSize, Settings.wgSize)
+                    <| result
+
+                return! toHost result
+            }
+            |> context.RunSync
+
+        finally
+            context.Provider.CloseAllBuffers()
+
+    ()
 
 let tests =
     testList "Tests on atomic functions" [
@@ -321,5 +364,6 @@ let tests =
         reduceTestCases
         atomicInsideQuotTest
         perfomanceTest
+        srtpTest
     ]
     |> testSequenced

@@ -114,17 +114,13 @@ type StructInplaceType<'lang>(name: string, fields: List<Field<'lang>>) =
     inherit StructType<'lang>(name, fields)
 
 type DiscriminatedUnionType<'lang>(name: string, fields: List<int * Field<'lang>>) =
-    inherit StructType<'lang>(name,
-                              [
-                                  {
-                                      Name = "tag"
-                                      Type = PrimitiveType(Int)
-                                  }
-                                  {
-                                      Name = "data"
-                                      Type = UnionClInplaceType(name + "_Data", List.map snd fields)
-                                  }
-                              ])
+    inherit StructType<'lang>(
+        name,
+        [
+            { Name = "tag"; Type = PrimitiveType(Int) }
+            { Name = "data"; Type = UnionClInplaceType(name + "_Data", List.map snd fields) }
+        ]
+    )
 
     member this.Tag = this.Fields.[0]
     member this.Data = this.Fields.[1]

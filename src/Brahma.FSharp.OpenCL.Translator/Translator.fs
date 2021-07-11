@@ -22,38 +22,41 @@ open Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
 open Brahma.FSharp.OpenCL.Translator.Transformer
 open Brahma.FSharp.OpenCL.Translator.TypeReflection
 
+#nowarn "3390"
+
 type FSQuotationToOpenCLTranslator() =
+    // http://www.fssnip.net/bx/title/Expanding-quotations
     /// The parameter 'vars' is an immutable map that assigns expressions to variables
     /// (as we recursively process the tree, we replace all known variables)
-    let rec expand vars expr =
+    // let rec expand vars expr =
 
-        // First recursively process & replace variables
-        let expanded =
-            match expr with
-            // If the variable has an assignment, then replace it with the expression
-            | ExprShape.ShapeVar v when Map.containsKey v vars -> vars.[v]
-            // Apply 'expand' recursively on all sub-expressions
-            | ExprShape.ShapeVar v -> Expr.Var v
-            | Patterns.Call (body, DerivedPatterns.MethodWithReflectedDefinition meth, args) ->
-                let this =
-                    match body with
-                    | Some b -> Expr.Application(meth, b)
-                    | _ -> meth
+    //     // First recursively process & replace variables
+    //     let expanded =
+    //         match expr with
+    //         // If the variable has an assignment, then replace it with the expression
+    //         | ExprShape.ShapeVar v when Map.containsKey v vars -> vars.[v]
+    //         // Apply 'expand' recursively on all sub-expressions
+    //         | ExprShape.ShapeVar v -> Expr.Var v
+    //         | Patterns.Call (body, DerivedPatterns.MethodWithReflectedDefinition meth, args) ->
+    //             let this =
+    //                 match body with
+    //                 | Some b -> Expr.Application(meth, b)
+    //                 | _ -> meth
 
-                let res =
-                    Expr.Applications(this, [ for a in args -> [ a ] ])
+    //             let res =
+    //                 Expr.Applications(this, [ for a in args -> [ a ] ])
 
-                expand vars res
-            | ExprShape.ShapeLambda (v, expr) -> Expr.Lambda(v, expand vars expr)
-            | ExprShape.ShapeCombination (o, exprs) ->
-                ExprShape.RebuildShapeCombination(o, List.map (expand vars) exprs)
+    //             expand vars res
+    //         | ExprShape.ShapeLambda (v, expr) -> Expr.Lambda(v, expand vars expr)
+    //         | ExprShape.ShapeCombination (o, exprs) ->
+    //             ExprShape.RebuildShapeCombination(o, List.map (expand vars) exprs)
 
-        // After expanding, try reducing the expression - we can replace 'let'
-        // expressions and applications where the first argument is lambda
-        match expanded with
-        | Patterns.Application (ExprShape.ShapeLambda (v, body), assign)
-        | Patterns.Let (v, assign, body) -> expand (Map.add v (expand vars assign) vars) body
-        | _ -> expanded
+    //     // After expanding, try reducing the expression - we can replace 'let'
+    //     // expressions and applications where the first argument is lambda
+    //     match expanded with
+    //     | Patterns.Application (ExprShape.ShapeLambda (v, body), assign)
+    //     | Patterns.Let (v, assign, body) -> expand (Map.add v (expand vars assign) vars) body
+    //     | _ -> expanded
 
     let addReturn subAST =
         let rec adding (stmt: Statement<'lang>) =
@@ -64,99 +67,117 @@ type FSQuotationToOpenCLTranslator() =
                 sb.Remove(listStaments.Count - 1)
                 sb.Append(adding lastStatement)
                 sb :> Statement<_>
-            | :? Expression<'lang> as ex -> (new Return<_>(ex)) :> Statement<_>
+            | :? Expression<'lang> as ex -> Return ex :> Statement<_>
             | :? IfThenElse<'lang> as ite ->
                 let newThen =
-                    (adding (ite.Then)) :?> StatementBlock<_>
+                    adding ite.Then :?> StatementBlock<_>
 
                 let newElse =
-                    if (ite.Else = None) then
+                    if Option.isNone ite.Else then
                         None
                     else
-                        Some((adding (ite.Else.Value)) :?> StatementBlock<_>)
+                        Some (adding ite.Else.Value :?> StatementBlock<_>)
 
-                (IfThenElse<_>(ite.Condition, newThen, newElse)) :> Statement<_>
+                IfThenElse(ite.Condition, newThen, newElse) :> Statement<_>
             | _ -> failwithf "Unsupported statement to add Return: %A" stmt
 
         adding subAST
 
-    let brahmaDimensionsTypes = [ "_1d"; "_2d"; "_3d" ]
-    let brahmaDimensionsTypesPrefix = "brahma.opencl."
+    // let brahmaDimensionsTypes = [ "_1d"; "_2d"; "_3d" ]
+    // let brahmaDimensionsTypesPrefix = "brahma.opencl."
 
-    let bdts =
-        brahmaDimensionsTypes
-        |> List.map (fun s -> brahmaDimensionsTypesPrefix + s)
+    let brahmaDimensionsTypes =
+        ["_1d"; "_2d"; "_3d"]
+        |> List.map (fun s -> "brahma.opencl." + s)
 
+    /// <param name="methodArgumentVarsList">Arguments for each method</param>
+    /// <param name="methodVarList">Methods to vars bindings</param>
     let buildFullAst
         (methodArgumentVarsList: ResizeArray<_>)
         (methodVarList: ResizeArray<Var>)
         types
         (partialAstList: ResizeArray<_>)
-        (contextList: ResizeArray<TargetContext<_,_>>)
-        (kernelArgumentsNames: list<string>)
-        =
+        (contextList: ResizeArray<TargetContext<_, _>>)
+        (kernelArgumentsNames: string list)
+        (localVarsNames: string list) =
         // extract pragmas
 
-        let mutable listCLFun = []
+        let listCLFun = ResizeArray()
 
-        for i in 0 .. (methodArgumentVarsList.Count - 1) do
+        for i in 0 .. methodArgumentVarsList.Count - 1 do
+            // фргументы функции
             let formalArgs =
                 methodArgumentVarsList.[i]
+                // отфильтровываем аргументы типа ndrange
                 |> List.filter
-                    (fun (v: Var) ->
-                        bdts
-                        |> List.contains (v.Type.FullName.ToLowerInvariant())
-                        |> not
+                    (fun (variable: Var) ->
+                        brahmaDimensionsTypes
+                        |> (not << List.contains (variable.Type.FullName.ToLowerInvariant()))
                     )
                 |> List.map
-                    (fun v ->
-                        let t = Type.Translate v.Type true None contextList.[i]
-                        let declSpecs = DeclSpecifierPack<_>(typeSpec = t)
+                    (fun variable ->
+                        let vType = Type.translate variable.Type true None contextList.[i]
+                        let declSpecs = DeclSpecifierPack(typeSpec = vType)
 
-                        if t :? RefType<_>
-                        && List.contains v.Name kernelArgumentsNames then
-                            declSpecs.AddressSpaceQual <- Global
+                        // по сути мы посто взяли тиена аргументов у кернела и отметили их глобал
+                        // этими же именами названы и соответствующие аргументы в функциях, поэтому все норм
+                        if
+                            vType :? RefType<_> &&
+                            kernelArgumentsNames |> List.contains variable.Name
+                        then
+                            declSpecs.AddressSpaceQualifier <- Global
+                        elif
+                            vType :? RefType<_> &&
+                            localVarsNames |> List.contains variable.Name
+                        then
+                            declSpecs.AddressSpaceQualifier <- Local
 
-                        FunFormalArg<_>(declSpecs, v.Name)
+                        FunFormalArg(declSpecs, variable.Name)
                     )
 
-            let funVar : Var = methodVarList.[i]
-            let mutable retFunType = PrimitiveType<_>(Void) :> Type<_>
+            // биндинг переменной
+            let funVar = methodVarList.[i]
 
-            if i <> methodArgumentVarsList.Count - 1 then
-                let funType = funVar.Type
-                retFunType <- Type.Translate funType false None (contextList.[i])
+            // тип возвращаемого знчения
+            let retFunType =
+                // если текущий метод  не ядро
+                if i <> methodArgumentVarsList.Count - 1 then
+                    Type.translate funVar.Type false None contextList.[i]
+                else
+                    PrimitiveType Void :> Type<_>
 
-            let typeRet = retFunType :?> PrimitiveType<_>
-
+            // ??? тело метода?
             let partAST =
-                if typeRet.Type <> PTypes.Void then
+                if (retFunType :?> PrimitiveType<_>).Type <> Void then
                     addReturn partialAstList.[i]
                 else
                     partialAstList.[i]
 
-            let isKernel = (funVar.Name = mainKernelName)
-
+            // спеки для функции
             let declSpecs =
-                DeclSpecifierPack<_>(typeSpec = retFunType)
+                let declSpecs = DeclSpecifierPack(typeSpec = retFunType)
 
-            if isKernel then
-                declSpecs.FunQual <- Some Kernel
+                // if isKernel
+                if funVar.Name = mainKernelName then
+                    declSpecs.FunQual <- Some Kernel
 
+                declSpecs
+
+            // wtf?? это просто тело функции?
             let mainKernelFun =
-                FunDecl<_>(declSpecs, funVar.Name, formalArgs, partAST)
+                FunDecl(declSpecs, funVar.Name, formalArgs, partAST)
 
             let pragmas =
-                let res = ResizeArray<_>()
+                let pragmas = ResizeArray()
 
                 if contextList.[i].Flags.enableAtomic then
-                    res.Add(CLPragma<_>(CLGlobalInt32BaseAtomics) :> TopDef<_>)
-                    res.Add(CLPragma<_>(CLLocalInt32BaseAtomics) :> TopDef<_>)
+                    pragmas.Add(CLPragma CLGlobalInt32BaseAtomics :> TopDef<_>)
+                    pragmas.Add(CLPragma CLLocalInt32BaseAtomics :> TopDef<_>)
 
                 if contextList.[i].Flags.enableFP64 then
-                    res.Add(CLPragma<_>(CLFP64))
+                    pragmas.Add(CLPragma CLFP64)
 
-                List.ofSeq res
+                List.ofSeq pragmas
 
             let topLevelVarDecls =
                 contextList.[i].TopLevelVarsDeclarations
@@ -168,15 +189,14 @@ type FSQuotationToOpenCLTranslator() =
                 |> Seq.cast<_>
                 |> List.ofSeq
 
-            listCLFun <-
-                listCLFun
-                @ pragmas
-                @ translatedTuples
-                @ topLevelVarDecls
-                @ types
-                @ [ mainKernelFun ]
+            // почему тут mainKernelFun припысываем всегда?
+            listCLFun.AddRange pragmas
+            listCLFun.AddRange translatedTuples
+            listCLFun.AddRange topLevelVarDecls
+            listCLFun.AddRange types
+            listCLFun.Add mainKernelFun
 
-        AST<_>(listCLFun)
+        AST <| List.ofSeq listCLFun
 
     let translate qExpr translatorOptions =
         let qExpr' = preprocessQuotation qExpr
@@ -210,6 +230,11 @@ type FSQuotationToOpenCLTranslator() =
             |> Utils.collectLambdaArguments
             |> List.map (fun var -> var.Name)
 
+        let localVarsNames =
+            kernelExpr
+            |> Utils.collectLocalVars
+            |> List.map (fun var -> var.Name)
+
         // ядро + функции
         let methods =
             methods @ [ kernelMethod ] |> ResizeArray.ofList
@@ -217,7 +242,9 @@ type FSQuotationToOpenCLTranslator() =
         // что тут?
         let rec go expr vars =
             match expr with
+            // собираем параметры верхнего уровня
             | Patterns.Lambda (v, body) -> go body (v :: vars)
+            // | DerivedPatterns.Lambdas (args, body) -> // ???
             | expr ->
                 let body =
                     let (b, context) =
@@ -230,24 +257,31 @@ type FSQuotationToOpenCLTranslator() =
 
                     match b with
                     | :? StatementBlock<Lang> as sb -> sb
-                    | :? Statement<Lang> as s -> StatementBlock<_>(ResizeArray<_>([ s ]))
+                    | :? Statement<Lang> as s -> StatementBlock <| ResizeArray [s]
                     | _ -> failwithf "Incorrect function body: %A" b
                     , context
 
-                vars, body
+                List.rev vars, body
 
             // TODO wtf?
             | other ->
                 failwithf "Incorrect OpenCL quotation: %A" other
 
+        // аргументы методов
         let listPartsASTMethodArgumentVars = ResizeArray()
+
+        // биндинг метода к переменной
         let listPartsASTMethodVar = ResizeArray()
+
+        // тела методов
         let listPartsASTMethodBody = ResizeArray()
+
+        // контексты методов
         let listPartsASTContext = ResizeArray()
 
         for method in methods do
             let (vars, (partialAst, context)) = go method.FunExpr []
-            listPartsASTMethodArgumentVars.Add(List.rev vars)
+            listPartsASTMethodArgumentVars.Add(vars)
             listPartsASTMethodVar.Add(method.FunVar)
             listPartsASTMethodBody.Add(partialAst :> Statement<_>)
             listPartsASTContext.Add(context)
@@ -260,11 +294,12 @@ type FSQuotationToOpenCLTranslator() =
                 listPartsASTMethodBody
                 listPartsASTContext
                 kernelArgumentsNames
+                localVarsNames
 
         ast, methods
 
     member this.Translate(qExpr, translatorOptions: TranslatorOption list) =
         let lockObject = obj ()
 
-        lock lockObject
-        <| fun _ -> translate qExpr translatorOptions
+        lock lockObject <| fun () ->
+            translate qExpr translatorOptions

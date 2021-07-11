@@ -19,7 +19,8 @@ let atomic (f: 'a -> 'b) =
     f
 
 // returns old
-let inline add (p: 'a) (value: 'a) = p + value
+// TODO мб стоит убрать все эти функции кроме xchg, cmpxchg, inc и dec и пользоваться обычными операторами
+let inline add (p: 'a) (value: 'a) : 'a = p + value
 let inline sub (p: 'a) (value: 'a) = p - value
 let inline inc (p: 'a) = p + p
 let inline dec (p: 'a) = p - p

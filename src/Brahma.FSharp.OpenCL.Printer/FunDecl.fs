@@ -22,16 +22,20 @@ open Brahma.FSharp.OpenCL.Printer
 
 let private printFunFormalParam (param: FunFormalArg<_>) =
     [
-        match param.DeclSpecs.AddressSpaceQual with
+        match param.DeclSpecs.AddressSpaceQualifier with
         | Global ->
+            // TODO wtf
             if param.Name.[0] <> '_' then
                 yield wordL "__global"
             else
                 yield wordL "__global"
+        | Local -> yield wordL "__local"
         | _ -> yield wordL "private"
+
         match param.DeclSpecs.Type with
         | Some t -> yield Types.Print t
         | None -> failwith "Could not print a formal arg with undefined type"
+
         yield wordL param.Name
     ]
     |> spaceListL

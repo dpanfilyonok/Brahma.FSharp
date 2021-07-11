@@ -19,9 +19,9 @@ open System.Collections.Generic
 
 type Namer() =
     let mutable counter = 0
-    let scopes = Stack<_>(10)
-    let allVars = ResizeArray<_>()
-    let forAdd = Dictionary<_,_>()
+    let scopes = Stack<Dictionary<string, string>> 10
+    let allVars = ResizeArray<string>()
+    let forAdd = Dictionary<string, string>()
 
     let newName vName =
         if allVars.Contains vName then
@@ -29,10 +29,10 @@ type Namer() =
             counter <- counter + 1
             n
         else
-            allVars.Add(vName)
+            allVars.Add vName
             vName
 
-    member this.LetIn() = scopes.Push(Dictionary<_,_>())
+    member this.LetIn() = scopes.Push <| Dictionary()
 
     member this.LetStart bindingName =
         let newName = newName bindingName
@@ -41,23 +41,25 @@ type Namer() =
         newName
 
     member this.LetIn bindingName =
-        scopes.Push(new Dictionary<_,_>())
+        scopes.Push <| Dictionary()
         this.AddVar bindingName
 
     member this.LetOut() = scopes.Pop() |> ignore
 
     member this.AddVar vName =
         let newName =
-            if forAdd.ContainsKey vName
-            then
+            if forAdd.ContainsKey vName then
                 let n = forAdd.[vName]
                 forAdd.Remove vName |> ignore
                 n
-            else newName vName
-        scopes.Peek().Add(vName,newName)
+            else
+                newName vName
+
+        scopes.Peek().Add(vName, newName)
 
     member this.GetCLVarName vName =
-        let scope = scopes.ToArray() |> Array.tryFind (fun d -> d.ContainsKey vName)
-        scope |> Option.map(fun s -> s.[vName])
+        scopes.ToArray()
+        |> Array.tryFind (fun scope -> scope.ContainsKey vName)
+        |> Option.map (fun scope -> scope.[vName])
 
     member this.GetUnicName name = newName name

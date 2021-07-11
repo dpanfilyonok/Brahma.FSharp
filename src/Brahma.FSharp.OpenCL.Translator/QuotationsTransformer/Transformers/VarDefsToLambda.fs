@@ -23,6 +23,7 @@ module LetVarAbstracter =
         | Patterns.NewUnionCase _ -> true
         | _ -> false
 
+    // let x = expr -> let x = let init () = expr in init ()
     let rec varDefsToLambda (expr: Expr) =
         match expr with
         | Patterns.LetVar (var, letExpr, inExpr) ->

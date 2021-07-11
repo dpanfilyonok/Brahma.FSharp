@@ -14,8 +14,7 @@ module VoidArgumentsCleanUp =
         match expr with
         | Patterns.LetFuncUncurry (var, args, body, inExpr) ->
             let args' =
-                if isConsistOfVoidVarOnly args
-                then args
+                if isConsistOfVoidVarOnly args then args
                 else List.filter (not << Utils.isTypeOf<unit>) args
 
             let newFuncVarType = Utils.makeFunctionType body.Type <| List.map (fun (var: Var) -> var.Type) args'
@@ -34,9 +33,11 @@ module VoidArgumentsCleanUp =
                     let exprs' =
                         if isConsistOfVoidExprOnly exprs then exprs
                         else List.filter (fun (exp: Expr) -> exp.Type <> typeof<unit>) exprs
+
                     Utils.makeApplicationExpr
-                        <| Expr.Var var'
-                        <| List.map (cleanUpVoidArgumentsImpl subst) exprs'
+                    <| Expr.Var var'
+                    <| List.map (cleanUpVoidArgumentsImpl subst) exprs'
+
                 | _ -> expr
             | _ -> expr
         | ExprShape.ShapeLambda (var, body) ->

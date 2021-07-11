@@ -3,6 +3,6 @@ Brahma.FSharp.OpenCL.Translator
 Brahma.FSharp.OpenCL.WorkflowBuilder
 Core.fs
 Printer.fs
-AtomicTests.fs
+tests/
 docsTool/
 build.fsx
