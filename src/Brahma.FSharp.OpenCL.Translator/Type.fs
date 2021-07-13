@@ -79,10 +79,10 @@ module Type =
             | t when t.EndsWith "[]" ->
                 let baseT = t.Substring(0, t.Length - 2)
                 if isKernelArg then
-                    RefType<_>(go baseT, []) :> Type<Lang>
+                    RefType(go baseT, []) :> Type<Lang>
                 else
-                    ArrayType<_>(go baseT, size |> Option.get) :> Type<Lang>
-            | s when s.StartsWith "fsharpref" -> RefType<_>(go (_type.GetGenericArguments().[0].Name), []) :> Type<Lang>
+                    ArrayType(go baseT, size |> Option.get) :> Type<Lang>
+            | s when s.StartsWith "fsharpref" -> RefType(go (_type.GetGenericArguments().[0].Name), []) :> Type<Lang>
             | f when f.StartsWith "fsharpfunc" ->
                 //            go (_type.GetGenericArguments().[1].Name)
                 translate (_type.GetGenericArguments().[1]) isKernelArg size context
@@ -113,13 +113,13 @@ module Type =
                     context.TupleNumber <- context.TupleNumber + 1
                     n <- context.TupleNumber
                     context.TupleDecls.Add(s, n)
-                    let a = StructType<_>("tuple" + n.ToString(), elements)
+                    let a = StructType("tuple" + n.ToString(), elements)
                     context.TupleList.Add(a)
-                    TupleType<_>(a, n) :> Type<_>
+                    TupleType(a, n) :> Type<_>
                 else
                     n <- context.TupleDecls.Item(s)
-                    let a = StructType<_>("tuple" + n.ToString(), elements)
-                    TupleType<_>(a, n) :> Type<_>
+                    let a = StructType("tuple" + n.ToString(), elements)
+                    TupleType(a, n) :> Type<_>
             | x when context.UserDefinedTypes.Exists(fun t -> t.Name.ToLowerInvariant() = x) ->
                 let structType =
                     if context.UserDefinedStructsOpenCLDeclaration.ContainsKey x then
@@ -147,7 +147,7 @@ module Type =
                         { Name = f.Name; Type = translate f.FieldType true None targetContext }
                 ]
 
-            StructType<_>(name, fields)
+            StructType(name, fields)
 
         let translated =
             targetContext.UserDefinedTypes.AddRange(structs)

@@ -184,20 +184,20 @@ let stressTestCases = testList "Stress tests" [
 
 let foldTestCases = testList "Fold tests" [
     // int, smoke tests
-    foldTest<int> <@ add @> |> testProperty "Smoke fold test atomic add on int"
-    foldTest<int> <@ sub @> |> testProperty "Smoke fold test atomic sub on int"
+    foldTest<int> <@ (+) @> |> testProperty "Smoke fold test atomic add on int"
+    foldTest<int> <@ (-) @> |> testProperty "Smoke fold test atomic sub on int"
 
     // float
-    foldTest<float32> <@ add @> |> testProperty "Fold test atomic add on float32"
+    foldTest<float32> <@ (+) @> |> testProperty "Fold test atomic add on float32"
 
     // double
-    foldTest<float> <@ add @> |> testProperty "Fold test atomic add on float"
+    foldTest<float> <@ (+) @> |> testProperty "Fold test atomic add on float"
 
     // bool
     foldTest<bool> <@ (&&) @> |> testProperty "Fold test atomic && on bool"
 
     // WrappedInt
-    foldTest<WrappedInt> <@ add @> |> testProperty "Fold test atomic add on WrappedInt"
+    foldTest<WrappedInt> <@ (+) @> |> testProperty "Fold test atomic add on WrappedInt"
 
     // custom int op
     let y2x = <@ fun x y -> y + x + x @>
@@ -213,14 +213,14 @@ let reduceTestCases = testList "Reduce tests" [
     reduceTest<float32> <@ max @> |> testProperty "Reduce test atomic max on float32"
     reduceTest<float> <@ max @> |> testProperty "Reduce test atomic max on float"
 
-    reduceTest<int> <@ and' @> |> testProperty "Reduce test atomic &&& on int"
-    reduceTest<int64> <@ and' @> |> testProperty "Reduce test atomic &&& on int64"
+    reduceTest<int> <@ (&&&) @> |> testProperty "Reduce test atomic &&& on int"
+    reduceTest<int64> <@ (&&&) @> |> testProperty "Reduce test atomic &&& on int64"
 
-    reduceTest<int> <@ or' @> |> testProperty "Reduce test atomic ||| on int"
-    reduceTest<int64> <@ or' @> |> testProperty "Reduce test atomic ||| on int64"
+    reduceTest<int> <@ (|||) @> |> testProperty "Reduce test atomic ||| on int"
+    reduceTest<int64> <@ (|||) @> |> testProperty "Reduce test atomic ||| on int64"
 
-    reduceTest<int> <@ xor @> |> testProperty "Reduce test atomic ^^^ on int"
-    reduceTest<int64> <@ xor @> |> testProperty "Reduce test atomic ^^^ on int64"
+    reduceTest<int> <@ (^^^) @> |> testProperty "Reduce test atomic ^^^ on int"
+    reduceTest<int64> <@ (^^^) @> |> testProperty "Reduce test atomic ^^^ on int64"
 ]
 
 let atomicInsideQuotTest = testCase "Operation definition inside quotation" <| fun () ->

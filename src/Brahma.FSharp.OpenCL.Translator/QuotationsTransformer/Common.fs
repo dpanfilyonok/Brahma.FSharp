@@ -104,3 +104,8 @@ module Utils =
             let newMethodInfo = methodInfo.GetGenericMethodDefinition().MakeGenericMethod(tp)
             Expr.Call (newMethodInfo, [reference; value])
         | _ -> failwithf "createReferenceSetCall: (:=) is not more a Call expression"
+
+    let getMethodInfoOfLambda (expr: Expr) =
+        match expr with
+        | DerivedPatterns.Lambdas (args, Patterns.Call (_, mInfo, _)) -> mInfo
+        | _ -> failwithf "Expression is not lambda, but %O" expr

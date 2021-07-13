@@ -20,17 +20,17 @@ let atomic (f: 'a -> 'b) =
 
 // returns old
 // TODO мб стоит убрать все эти функции кроме xchg, cmpxchg, inc и dec и пользоваться обычными операторами
-let inline add (p: 'a) (value: 'a) : 'a = p + value
-let inline sub (p: 'a) (value: 'a) = p - value
+// let inline add (p: 'a) (value: 'a) : 'a = p + value
+// let inline sub (p: 'a) (value: 'a) = p - value
 let inline inc (p: 'a) = p + p
 let inline dec (p: 'a) = p - p
 let inline xchg (p: 'a) (value: 'a) = p
 let inline cmpxchg (p: 'a) (cmp: 'a) (value: 'a) = if p = cmp then value else p
-let inline min (p: 'a) (value: 'a) = min p value
-let inline max (p: 'a) (value: 'a) = max p value
-let inline and' (p: 'a) (value: 'a) = p &&& value
-let inline or' (p: 'a) (value: 'a) = p ||| value
-let inline xor (p: 'a) (value: 'a) = p ^^^ value
+// let inline min (p: 'a) (value: 'a) = min p value
+// let inline max (p: 'a) (value: 'a) = max p value
+// let inline and' (p: 'a) (value: 'a) = p &&& value
+// let inline or' (p: 'a) (value: 'a) = p ||| value
+// let inline xor (p: 'a) (value: 'a) = p ^^^ value
 
 // let _byte (x: bool) = 0uy
 

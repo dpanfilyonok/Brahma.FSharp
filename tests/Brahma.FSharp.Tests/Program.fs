@@ -35,21 +35,38 @@ let main argv =
                 array.[0] <- g 4
         @>
 
-    let a (e: Expr) =
-        match e with
-        | ShapeLambda (v, expr) -> printfn "yes"
-        | Lambdas (v, body) ->
-            printfn "%A %A" v body
-        | SpecificCall <@ (+) @> (_, t, args) -> printfn "%A" t
+    // let a (e: Expr) =
+    //     match e with
+    //     | ShapeLambda (v, expr) -> printfn "yes"
+    //     | Lambdas (v, body) ->
+    //         printfn "%A %A" v body
+    //     | SpecificCall <@ (+) @> (_, t, args) -> printfn "%A" t
 
     let kernel =
         <@
             fun (range: _1D) (array: int[]) ->
-                let gid = range.GlobalID0
-                let g x y = atomic add x y
-                let a = g array.[gid] 5
+                // TODO что-то не то с тем, что парамет атомарной функции должнен быть указателем
+                let g x y = atomic (+) x y
+                let a = g array.[0] 5
                 array.[0] <- 1
                 // () -- error
+        @>
+
+    let kernel2 =
+        <@
+            fun (range: _1D) (array: int[]) ->
+                // NOTE тут все норм
+                let a = atomic (+) array.[0] 5
+                array.[0] <- 1
+                // () -- error
+        @>
+
+    let kernel3 =
+        <@
+            fun (range: _1D) (array: int[]) ->
+                while atomic (+) array.[0] 6 = 7 do
+                    array.[0] <- 1
+                array.[0] <- 1
         @>
 
     let command =
@@ -74,8 +91,24 @@ let main argv =
             buf.[0] <- f 0
         @>
 
-    printfn "%A" <| Transformer.quotationTransformer kernel []
-    printfn "%A" <| Utils.openclTranslate kernel
+    let k4 =
+        <@
+            // не работает, тк у лямбды больше аргументов
+            fun (range: _1D) (buf: array<int>) ->
+                let a = atomic (fun x y -> x + 1) buf.[0]
+                buf.[0] <- 0
+        @>
+
+    let k4 =
+        <@
+            fun (range: _1D) (buf: array<int>) ->
+                let a = atomic (fun x -> x / 2) buf.[0]
+                buf.[0] <- 0
+        @>
+
+    printfn "%A" <| kernel2
+    printfn "%A" <| Transformer.quotationTransformer kernel2 []
+    printfn "%A" <| Utils.openclTranslate kernel2
     // printfn "%A" <| e
     // a e
     0

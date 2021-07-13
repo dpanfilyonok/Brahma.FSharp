@@ -13,13 +13,15 @@
     <Optimize>true</Optimize>
     <Tailcalls>true</Tailcalls>
   </PropertyGroup>
-  <ItemGroup>   
+  <ItemGroup>
+    
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Namer.fs" />
-    <Compile Include="Common.fs" />    
+    <Compile Include="Common.fs" />
     <Compile Include="Type.fs" />
     <Compile Include="QuotationsTransformer\Common.fs" />
     <Compile Include="QuotationsTransformer\Patterns.fs" />
+    <Compile Include="QuotationsTransformer\Transformers\ProcessAtomic.fs" />
     <Compile Include="QuotationsTransformer\Transformers\PrintfReplacer.fs" />
     <Compile Include="QuotationsTransformer\Transformers\VarDefsToLambda.fs" />
     <Compile Include="QuotationsTransformer\Transformers\MutableVarsToRef.fs" />

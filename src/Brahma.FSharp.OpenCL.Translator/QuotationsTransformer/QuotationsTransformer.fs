@@ -27,6 +27,7 @@ module Transformer =
     /// Returns kernel and other methods
     let quotationTransformer expr (translatorOptions: TranslatorOption list) =
         expr
+        |> ProcessAtomic.processA
         |> PrintfReplacer.replacePrintf
         |> UniqueVarRenaming.makeVarNameUnique
         |> LetVarAbstracter.varDefsToLambda

@@ -24,6 +24,7 @@ open System.Collections.Generic
 open Brahma.FSharp.OpenCL.Translator.QuotationsTransformer.PrintfReplacer
 
 module Body =
+    // TODO is it really clear context?
     let private clearContext (targetContext: TargetContext<'a, 'b>) =
         let context =
             TargetContext<'a, 'b>(
@@ -91,37 +92,54 @@ module Body =
         | "op_booleanand" -> Binop(And, args.[0], args.[1]) :> Statement<_>, tContext
         | "op_booleanor" -> Binop(Or, args.[0], args.[1]) :> Statement<_>, tContext
         | "op_lessbangplusgreater"
-        | "op_lessbangplus" ->
+        | "op_lessbangplus"
+        | "atomicadd" ->
             tContext.Flags.enableAtomic <- true
             FunCall("atom_add", [Ptr args.[0]; args.[1]]) :> Statement<_>, tContext
         | "op_lessbangmunus"
-        | "op_lessbangmunusgreater" ->
+        | "op_lessbangmunusgreater"
+        | "atomicsub" ->
             tContext.Flags.enableAtomic <- true
             FunCall("atom_sub", [Ptr args.[0]; args.[1]]) :> Statement<_>, tContext
         | "op_lessbanggreater"
-        | "op_lessbang" ->
+        | "op_lessbang"
+        | "atomicxchg" ->
             tContext.Flags.enableAtomic <- true
             FunCall("atom_xchg", [Ptr args.[0]; args.[1]]) :> Statement<_>, tContext
         | "amax"
-        | "amaxr" ->
+        | "amaxr"
+        | "atomicmax" ->
             tContext.Flags.enableAtomic <- true
             FunCall("atom_max", [Ptr args.[0]; args.[1]]) :> Statement<_>, tContext
         | "amin"
-        | "aminr" ->
+        | "aminr"
+        | "atomicmin" ->
             tContext.Flags.enableAtomic <- true
             FunCall("atom_min", [Ptr args.[0]; args.[1]]) :> Statement<_>, tContext
         | "aincr"
-        | "aincrr" ->
+        | "aincrr"
+        | "atomicinc" ->
             tContext.Flags.enableAtomic <- true
             FunCall("atom_inc", [Ptr args.[0]]) :> Statement<_>, tContext
         | "adecr"
-        | "adecrr" ->
+        | "adecrr"
+        | "atomicdec" ->
             tContext.Flags.enableAtomic <- true
             FunCall("atom_dec", [Ptr args.[0]]) :> Statement<_>, tContext
         | "acompexch"
-        | "acompexchr" ->
+        | "acompexchr"
+        | "atomiccmpxchg" ->
             tContext.Flags.enableAtomic <- true
             FunCall("atom_cmpxchg", [Ptr args.[0]; args.[1]; args.[2]]) :> Statement<_>, tContext
+        | "atomicand" ->
+            tContext.Flags.enableAtomic <- true
+            FunCall("atom_and", [Ptr args.[0]; args.[1]]) :> Statement<_>, tContext
+        | "atomicor" ->
+            tContext.Flags.enableAtomic <- true
+            FunCall("atom_or", [Ptr args.[0]; args.[1]]) :> Statement<_>, tContext
+        | "atomicxor" ->
+            tContext.Flags.enableAtomic <- true
+            FunCall("atom_xor", [Ptr args.[0]; args.[1]]) :> Statement<_>, tContext
 
         | "todouble" -> Cast(args.[0], PrimitiveType Float) :> Statement<_>, tContext
         | "toint" -> Cast(args.[0], PrimitiveType Int) :> Statement<_>, tContext
@@ -154,21 +172,21 @@ module Body =
                 FunCall(fName, args) :> Statement<_>, tContext
             else
                 failwithf
-                    "Seems, thet you use math function with name %s not from System.Math. or Microsoft.FSharp.Core.Operators"
+                    "Seems, that you use math function with name %s not from System.Math or Microsoft.FSharp.Core.Operators"
                     fName
         | "abs" as fName ->
             if mInfo.DeclaringType.AssemblyQualifiedName.StartsWith("Microsoft.FSharp.Core.Operators") then
                 FunCall("fabs", args) :> Statement<_>, tContext
             else
                 failwithf
-                    "Seems, thet you use math function with name %s not from System.Math. or Microsoft.FSharp.Core.Operators"
+                    "Seems, that you use math function with name %s not from System.Math or Microsoft.FSharp.Core.Operators"
                     fName
         | "powinteger" as fName ->
             if mInfo.DeclaringType.AssemblyQualifiedName.StartsWith("Microsoft.FSharp.Core.Operators") then
                 FunCall("powr", args) :> Statement<_>, tContext
             else
                 failwithf
-                    "Seems, thet you use math function with name %s not from System.Math. or Microsoft.FSharp.Core.Operators"
+                    "Seems, that you use math function with name %s not from System.Math or Microsoft.FSharp.Core.Operators"
                     fName
         | "ref" -> Ptr args.[0] :> Statement<_>, tContext
         | "op_dereference" -> IndirectionOp args.[0] :> Statement<_>, tContext
@@ -402,47 +420,45 @@ module Body =
         stmt, tContext
 
     and translateApplication expr1 expr2 targetContext =
-        let rec go expr _vals args =
+        let rec go expr vals args =
             match expr with
-            | Patterns.Lambda (v, e) -> go e _vals (v :: args)
-            | Patterns.Application (e1, e2) -> go e1 (e2 :: _vals) args
-            | e ->
-                if _vals.Length = args.Length then
-                    let d = List.zip (List.rev args) _vals |> dict
+            | Patterns.Lambda (v, e) -> go e vals (v :: args)
+            | Patterns.Application (e1, e2) -> go e1 (e2 :: vals) args
+            | expr ->
+                if vals.Length = args.Length then
+                    let d =
+                        vals
+                        |> List.zip (List.rev args)
+                        |> dict
 
                     //failwith "Partial evaluation is not supported in kernel function."
-                    e.Substitute(fun v -> if d.ContainsKey v then Some d.[v] else None), true
+                    expr.Substitute(fun v -> if d.ContainsKey v then Some d.[v] else None), true
                 else
-                    e, false
-        let body, doing = go expr1 [expr2] []
-        body, doing, targetContext
-    //if(body = null) then
-    //    translateApplicationFun expr1 expr2 targetContext
-    //else
+                    expr, false
 
-    //else
-    //let getStatementFun = dictionaryFun.[expr.
-    //FunCall(expr.ToString(), _vals) :> Statement<_>,targetContext
-    //failwith "-Partial evaluation is not supported in kernel function."
+        let (body, doing) = go expr1 [expr2] []
+        body, doing, targetContext
 
     and translateApplicationFun expr1 expr2 targetContext =
-        let rec go expr _vals args =
+        let rec go expr vals =
             match expr with
-            | Patterns.Lambda (v, e) -> go e _vals (v :: args)
+            // | Patterns.Lambda (v, e) -> go e vals (v :: args)
             | Patterns.Application (e1, e2) ->
-                let exp, tc = (translateAsExpr(e2) targetContext)
-                go e1 (exp :: _vals) args
-            | e ->
-                let listArg = List.rev _vals
+                let (exp, tc) = translateAsExpr e2 targetContext
+                go e1 (exp :: vals)
+            | _ ->
+                // TODO fix it
+                // NOTE не поддерживается частичное применение
+                // NOTE не поддерживается композиция функций (или функции высшего порядка)
                 let funName =
                     match expr with
                     | Patterns.ValueWithName (_, _, name) -> name
                     | _ -> expr.ToString()
-                let funCall = FunCall(funName, _vals) :> Statement<_>
-                funCall, targetContext
-        //failwith "-Partial evaluation is not supported in kernel function."
-        let exp, tc = translateAsExpr expr2 targetContext
-        go expr1 [exp] []
+
+                FunCall(funName, vals) :> Statement<_>, targetContext
+
+        let (exp, tc) = translateAsExpr expr2 targetContext
+        go expr1 [exp]
 
     and translateFieldSet host name _val context =
         let hostE, tc = translateAsExpr host context
@@ -475,8 +491,11 @@ module Body =
                 caseName
         | Some unionCaseField ->
             let r =
-                FieldGet<_>(
-                    FieldGet<_>(FieldGet<_>(unionValueExpr, unionType.Data.Name), unionCaseField.Name),
+                FieldGet(
+                    FieldGet(
+                        FieldGet(unionValueExpr, unionType.Data.Name),
+                        unionCaseField.Name
+                    ),
                     propInfo.Name
                 )
                 :> Expression<_>
@@ -484,8 +503,9 @@ module Body =
 
     and translate expr (targetContext: TargetContext<_, _>) =
         match expr with
-        | Patterns.AddressOf expr -> "AdressOf is not suported:" + string expr |> failwith
-        | Patterns.AddressSet expr -> "AdressSet is not suported:" + string expr |> failwith
+        | Patterns.AddressOf expr -> failwithf "AdressOf is not suported: %O" expr
+        | Patterns.AddressSet expr -> failwithf "AdressSet is not suported: %O" expr
+
         | Patterns.Application (expr1, expr2) ->
             let (e, appling, targetContext) = translateApplication expr1 expr2 targetContext
             if appling then
@@ -493,6 +513,7 @@ module Body =
             else
                 let (r, tContext) = translateApplicationFun expr1 expr2 targetContext
                 r :> Node<_>, tContext
+
         | DerivedPatterns.SpecificCall <@@ print @@> (_, _, args) ->
             match args with
             | [ Patterns.ValueWithName (argTypes, _, _);
@@ -503,9 +524,9 @@ module Body =
                 FunCall("printf", formatStrArg :: args') :> Node<_>, targetContext'
             | _ -> failwith "printf: something going wrong."
 
-        | DerivedPatterns.SpecificCall <@ atomic @> (_, _, [func]) ->
-            targetContext.Flags.enableAtomic <- true
-            FunCall("atom_add", [Ptr <| Variable("x"); Variable("y")]) :> Node<_>, targetContext
+        // | DerivedPatterns.SpecificCall <@ atomic @> (_, _, [func]) ->
+        //     targetContext.Flags.enableAtomic <- true
+        //     FunCall("atom_add", [Ptr <| Variable("x"); Variable("y")]) :> Node<_>, targetContext
             // match func with
             // // list of tupled params; (+) -> [[x];[y]], ...
             // | DerivedPatterns.Lambdas (args, body) ->

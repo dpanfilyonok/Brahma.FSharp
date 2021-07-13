@@ -63,7 +63,8 @@ type TargetContext<'lang, 'vDecl>() =
         with get() = namer
         and set v = namer <- v
 
-    member this.Clone () =
+    // TODO is it really clone context (is it fully clone)
+    member this.Clone() =
         let context = TargetContext()
 
         context.UserDefinedTypes.AddRange this.UserDefinedTypes
@@ -77,6 +78,7 @@ type TargetContext<'lang, 'vDecl>() =
         for x in this.TupleList do
             context.TupleList.Add(x)
         context.TupleNumber <- this.TupleNumber
+        // TODO why only enableFP64 clones
         context.Flags.enableFP64 <- this.Flags.enableFP64
         context.TranslatorOptions.AddRange translatorOptions
         context
@@ -130,9 +132,9 @@ type Method(var: Var, expr: Expr) =
 // /// (in StateBuilder()). In other words, you implicitly pass around an implicit
 // /// state that gets transformed along its journey through pipelined code.
 // type StateBuilder() =
-//     member this.Zero () = State(fun s -> (), s)
+//     member this.Zero() = State(fun s -> (), s)
 //     member this.Return x = State(fun s -> x, s)
-//     member inline this.ReturnFrom x = x
+//     member this.ReturnFrom x = x
 //     member this.Bind (x, f) =
 //         State(fun state ->
 //             let (result: 'a), state = State.run state x
@@ -152,6 +154,7 @@ type Method(var: Var, expr: Expr) =
 
 // type TranslationContext<'a> = State<TargetContext<Lang, Statement<Lang>>, 'a>
 
+
 // [<AutoOpen>]
 // module StateBuilder =
 //     let state = StateBuilder()
@@ -160,3 +163,17 @@ type Method(var: Var, expr: Expr) =
 //         state {
 //             return ()
 //         }
+
+// type A() =
+//     member this.Zero() : TranslationContext<_> = state.Zero()
+//     member this.Return x : TranslationContext<_> = state.Return x
+//     member this.Bind(x, f) : TranslationContext<_> = state.Bind(x, f)
+
+// module A =
+//     let a = A()
+
+//     let s =
+//         a {
+//             return ()
+//         }
+//         |> State.run (TargetContext())
