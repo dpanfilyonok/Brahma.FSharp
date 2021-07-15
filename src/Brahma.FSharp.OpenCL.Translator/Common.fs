@@ -90,90 +90,69 @@ type Method(var: Var, expr: Expr) =
     override this.ToString() =
         sprintf "%A\n%A" var expr
 
-// type State<'state, 'result> = State of ('state -> 'result * 'state)
+type Context = TargetContext<Lang, Statement<Lang>>
+type TranslationContext<'a> = TranslationContext of (Context -> 'a * Context)
 
-// module State =
-//     let run state (State f) =
-//         f state
+module Translator =
+    let run context (TranslationContext f) =
+        f context
 
-//     let exec state (State f) =
-//         snd (f state)
+    let exec context (TranslationContext f) =
+        snd (f context)
 
-//     let eval state (State f) =
-//         fst (f state)
+    let eval context (TranslationContext f) =
+        fst (f context)
 
-//     let return' x = State <| fun state ->
-//         (x, state)
+    let return' x = TranslationContext <| fun context ->
+        (x, context)
 
-//     let (>>=) x f = State <| fun state ->
-//         let (y, state') = run state x
-//         run state' (f y)
+    let (>>=) x f = TranslationContext <| fun context ->
+        let (y, context') = run context x
+        run context' (f y)
 
-//     let get = State (fun s -> s, s)
+module TranslationContext =
+    open Translator
 
-//     let put newState = State <| fun _ ->
-//         (), newState
+    let get = TranslationContext (fun context -> context, context)
 
-//     // modify state
-//     let modify f =
-//         get >>= (f >> put)
+    let put newContext = TranslationContext <| fun _ ->
+        (), newContext
 
-//     // apply f to state to produce value
-//     let gets f =
-//         get >>= (f >> return')
+    // modify state
+    let modify f =
+        get >>= (f >> put)
 
-//     let map f s = State <| fun state ->
-//         let (x, state) = run state s
-//         f x, state
+    // apply f to state to produce value
+    let gets f =
+        get >>= (f >> return')
 
-// /// The state monad passes around an explicit internal state that can be
-// /// updated along the way. It enables the appearance of mutability in a purely
-// /// functional context by hiding away the state when used with its proper operators
-// /// (in StateBuilder()). In other words, you implicitly pass around an implicit
-// /// state that gets transformed along its journey through pipelined code.
-// type StateBuilder() =
-//     member this.Zero() = State(fun s -> (), s)
-//     member this.Return x = State(fun s -> x, s)
-//     member this.ReturnFrom x = x
-//     member this.Bind (x, f) =
-//         State(fun state ->
-//             let (result: 'a), state = State.run state x
-//             State.run state (f result))
-//     member this.Combine(x1, x2) =
-//         State(fun state ->
-//             let result, state = State.run state x1
-//             State.run state x2)
-//     member this.Delay f = f ()
-//     member this.For(seq, f) =
-//         seq
-//         |> Seq.map f
-//         |> Seq.reduceBack (fun x1 x2 -> this.Combine (x1, x2))
-//     member this.While (f, x) =
-//         if f () then this.Combine (x, this.While (f, x))
-//         else this.Zero ()
+    let map f s = TranslationContext <| fun context ->
+        let (x, context') = run context s
+        f x, context'
 
-// type TranslationContext<'a> = State<TargetContext<Lang, Statement<Lang>>, 'a>
+type TranslatorBuilder() =
+    member this.Zero() = Translator.return' ()
+    member this.Return x = Translator.return' x
+    member this.ReturnFrom x = x
+    member this.Bind(x, f) = Translator.(>>=) x f
 
+    member this.Combine(x1, x2) =
+        TranslationContext <| fun context ->
+            let (_, context) = Translator.run context x1
+            Translator.run context x2
 
-// [<AutoOpen>]
-// module StateBuilder =
-//     let state = StateBuilder()
+    member this.Delay f = f ()
 
-//     let a : TranslationContext<_> =
-//         state {
-//             return ()
-//         }
+    member this.For(seq, f) =
+        seq
+        |> Seq.map f
+        |> Seq.reduceBack (fun x1 x2 -> this.Combine(x1, x2))
 
-// type A() =
-//     member this.Zero() : TranslationContext<_> = state.Zero()
-//     member this.Return x : TranslationContext<_> = state.Return x
-//     member this.Bind(x, f) : TranslationContext<_> = state.Bind(x, f)
+    member this.While(f, x) =
+        if f () then this.Combine(x, this.While(f, x))
+        else this.Zero()
 
-// module A =
-//     let a = A()
-
-//     let s =
-//         a {
-//             return ()
-//         }
-//         |> State.run (TargetContext())
+[<AutoOpen>]
+module TranslatorBuilder =
+    let translator = TranslatorBuilder()
+    let (>>=) = Translator.(>>=)
