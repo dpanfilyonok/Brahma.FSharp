@@ -31,9 +31,7 @@ module Transformer =
         |> PrintfReplacer.replacePrintf
         |> UniqueVarRenaming.makeVarNameUnique
         |> LetVarAbstracter.varDefsToLambda
-        |>
-            (fun expr ->
-                let mutableVarsInClosure = MutableVarsInClosureCollector.collectMutableVarsInClosure expr
-                MutableVarsToRef.varsToRefsWithPredicate mutableVarsInClosure.Contains expr
-            )
+        |> fun expr ->
+            let mutableVarsInClosure = MutableVarsInClosureCollector.collectMutableVarsInClosure expr
+            MutableVarsToRef.varsToRefsWithPredicate mutableVarsInClosure.Contains expr
         |> LambdaLifting.lambdaLifting

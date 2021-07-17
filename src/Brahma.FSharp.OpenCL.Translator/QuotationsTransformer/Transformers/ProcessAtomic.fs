@@ -1,6 +1,11 @@
 namespace Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
 
 open FSharp.Quotations
+open FSharp.Reflection
+open System.Reflection
+open System
+open Brahma.FSharp.OpenCL.Extensions
+
 // open FSharp.Quotations.Patterns
 // open FSharp.Quotations.DerivedPatterns
 // open FSharp.Quotations.ExprShape
@@ -122,8 +127,36 @@ module ProcessAtomic =
                 Expr.Call(Utils.getMethodInfoOfLambda <@ atomicXor @>, List.collect id applicationArgs)
 
             | _ ->
-                let f = Var("f", typeof<_>)
-                let g = Var("g", typeof<_>)
+                let makeLambdaType domain range =
+                    FSharpType.MakeFunctionType(domain, range)
+
+                let collectedArgTypes =
+                    lambdaArgs
+                    |> List.collect id
+                    |> List.map (fun var -> var.Type)
+                    |> fun args -> args @ [args.[0]]
+
+                let lambdaType =
+                    collectedArgTypes
+                    |> List.reduceBack makeLambdaType
+
+                let atomicMInfo =
+                    AppDomain.CurrentDomain.GetAssemblies()
+                    |> Seq.find (fun assembly -> assembly.FullName.Contains "Brahma.FSharp.OpenCL.Extensions")
+                    |> fun assembly -> assembly.GetTypes()
+                    |> Seq.find (fun type' -> type'.Name = "OpenCL")
+                    |> fun type' -> type'.GetMethods()
+                    |> Seq.find (fun mInfo -> mInfo.Name = "atomic")
+                    |> fun mInfo ->
+                        mInfo.MakeGenericMethod(
+                            collectedArgTypes
+                            |> fun types -> types.Head :: [List.reduceBack makeLambdaType types.Tail]
+                            |> List.toArray
+                        )
+
+                // TODO need renaming
+                let f = Var("f", lambdaType)
+                let g = Var("g", lambdaType)
                 Expr.Let(
                     f,
                     Expr.Lambdas(lambdaArgs, lambdaBody),
@@ -132,8 +165,8 @@ module ProcessAtomic =
                         Expr.Lambdas(
                             lambdaArgs,
                             Expr.Applications(
-                                Expr.Call(Utils.getMethodInfoOfLambda <@@ atomicF @@>, [Expr.Var f]),
-                                lambdaArgs |> List.map (List.map Expr.Var)
+                                Expr.Call(atomicMInfo, [Expr.Var f]),
+                                List.map (List.map Expr.Var) lambdaArgs
                             )
                         ),
                         Expr.Applications(

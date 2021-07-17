@@ -7,6 +7,8 @@ open Microsoft.FSharp.Quotations
 open Microsoft.FSharp.Quotations.DerivedPatterns
 open Microsoft.FSharp.Quotations.Patterns
 open Microsoft.FSharp.Quotations.ExprShape
+open FSharp.Reflection
+open System.Reflection
 
 // TODO format tests
 // [<EntryPoint>]
@@ -56,7 +58,7 @@ let main argv =
         <@
             fun (range: _1D) (array: int[]) ->
                 // NOTE тут все норм
-                let a = atomic (+) array.[0] 5
+                let a = atomic (/) array.[0] 5
                 array.[0] <- 1
                 // () -- error
         @>
@@ -106,9 +108,48 @@ let main argv =
                 buf.[0] <- 0
         @>
 
+    // let assembly = System.AppDomain.CurrentDomain.GetAssemblies()
+
+    // let makeLambdaType domain range =
+    //     FSharpType.MakeFunctionType(domain, range)
+
+    // let lambdaType =
+    //     lambdaArgs
+    //     |> List.collect id
+    //     |> List.map (fun var -> var.Type)
+    //     |> fun args -> args @ [args.[0]]
+    //     |> List.reduceBack makeLambdaType
+
+    // printfn "%A" <| AppDomain.CurrentDomain.GetAssemblies()
+    // printfn "%A" <| (AppDomain.CurrentDomain.GetAssemblies() |> Seq.map (fun ass -> ass.FullName))
+
+    // let s = OpenCL.
+    // let assembly =
+    //     System.AppDomain.CurrentDomain.GetAssemblies()
+    //     |> Array.find (fun ass -> ass.FullName.Contains "Brahma.FSharp.OpenCL.Extensions")
+
+    // // printfn "%A" <| assembly.GetTypes()
+
+    // let functions =
+    //     assembly.GetTypes()
+    //     |> Array.find (fun t -> t.Name = "OpenCL")
+    //     |> fun t -> t.GetMethods()
+    //     |> Seq.find (fun mi -> mi.Name = "atomic")
+    //     |> fun mi ->
+    //         mi.MakeGenericMethod(
+    //             // lambdaArgs
+    //             // |> List.collect id
+    //             // |> List.map (fun var -> var.Type)
+    //             // |> fun args -> (args @ [args.[0]]).Tail
+    //             // |> fun types -> types.Head :: [(List.reduceBack makeLambdaType types.Tail)]
+    //             // |> List.toArray
+    //             typeof<int>,
+    //             typeof<int->int>
+    //         )
+
     printfn "%A" <| kernel2
     printfn "%A" <| Transformer.quotationTransformer kernel2 []
     printfn "%A" <| Utils.openclTranslate kernel2
-    // printfn "%A" <| e
+    // printfn "%A" <| functions
     // a e
     0

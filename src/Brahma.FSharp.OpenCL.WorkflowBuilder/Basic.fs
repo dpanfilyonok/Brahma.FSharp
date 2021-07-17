@@ -39,7 +39,7 @@ module ClEvaluation =
     let runCommand (command : Expr<'range -> 'a>) (binder : ('range -> 'a) -> unit) : OpenCLEvaluation<unit> =
         opencl {
             let! ctx = getEvaluationContext
-            let _, kernelP, kernelR = ctx.Provider.Compile command
+            let (_, kernelP, kernelR) = ctx.Provider.Compile command
 
             binder kernelP
             ctx.CommandQueue.Add(kernelR()) |> ignore
