@@ -38,8 +38,21 @@ let ToHost (xs : array<'a>) : OpenCLEvaluation<array<'a>> =
 let RunCommand (command : Expr<'range -> 'a>) (binder : ('range -> 'a) -> unit) : OpenCLEvaluation<unit> =
     opencl {
         let! ctx = getEvaluationContext
-        let _, kernelP, kernelR = ctx.Provider.Compile command
 
-        binder kernelP
-        ctx.CommandQueue.Add(kernelR()) |> ignore
+        let (_, kernelPrepare, kernelRun) =
+            if not ctx.IsCachingEnabled then
+                ctx.Provider.Compile command
+            else
+                match ctx.CompilingCache.TryGetValue <| ExprWrapper command.Raw with
+                | true, (kernel, kernelPrepare, kernelRun) ->
+                    unbox<Brahma.OpenCL.Kernel<'range>> kernel,
+                    unbox<'range -> 'a> kernelPrepare,
+                    unbox<unit -> Brahma.OpenCL.Commands.Run<'range>> kernelRun
+                | false, _ ->
+                    let (kernel, kernelPrepare, kernelRun) = ctx.Provider.Compile command
+                    ctx.CompilingCache.Add(ExprWrapper command.Raw, (box kernel, box kernelPrepare, box kernelRun))
+                    kernel, kernelPrepare, kernelRun
+
+        binder kernelPrepare
+        ctx.CommandQueue.Add(kernelRun()) |> ignore
     }
