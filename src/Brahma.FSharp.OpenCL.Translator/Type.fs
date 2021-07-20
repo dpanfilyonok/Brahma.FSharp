@@ -54,84 +54,89 @@ module Type =
         | Bool -> "bool"
         | other -> failwithf "Unsuported tuple type: %O" other
 
-    let rec translate (_type: System.Type) isKernelArg size (context: TargetContext<_, _>) : Type<Lang> =
+    let rec translate (_type: System.Type) isKernelArg size =
         let rec go (str: string) =
-            let mutable low = str.ToLowerInvariant()
-            match low with
-            | "int"
-            | "int32" -> PrimitiveType<Lang>(Int) :> Type<Lang>
-            | "int16" -> PrimitiveType<Lang>(Short) :> Type<Lang>
-            | "uint16" -> PrimitiveType<Lang>(UShort) :> Type<Lang>
-            | "uint32" -> PrimitiveType<Lang>(UInt) :> Type<Lang>
-            | "float32"
-            | "single" -> PrimitiveType<Lang>(Float) :> Type<Lang>
-            | "byte" -> PrimitiveType<Lang>(UChar) :> Type<Lang>
-            | "int64" -> PrimitiveType<Lang>(Long) :> Type<Lang>
-            | "uint64" -> PrimitiveType<Lang>(ULong) :> Type<Lang>
-            | "boolean" -> PrimitiveType<Lang>(Bool) :> Type<Lang>
-            | "float"
-            | "double" ->
-                context.Flags.enableFP64 <- true
-                PrimitiveType<Lang>(Double) :> Type<Lang>
-            | "unit" -> PrimitiveType<Lang>(Void) :> Type<Lang>
-            | "read_only image2D" -> Image2DType(true) :> Type<Lang>
-            | "write_only image2D" -> Image2DType(false) :> Type<Lang>
-            | t when t.EndsWith "[]" ->
-                let baseT = t.Substring(0, t.Length - 2)
-                if isKernelArg then
-                    RefType(go baseT, []) :> Type<Lang>
-                else
-                    ArrayType(go baseT, size |> Option.get) :> Type<Lang>
-            | s when s.StartsWith "fsharpref" -> RefType(go (_type.GetGenericArguments().[0].Name), []) :> Type<Lang>
-            | f when f.StartsWith "fsharpfunc" ->
-                //            go (_type.GetGenericArguments().[1].Name)
-                translate (_type.GetGenericArguments().[1]) isKernelArg size context
-            | tp when tp.Contains("tuple") ->
-                let types =
-                    if _type.Name.EndsWith("[]") then
-                        _type
-                            .UnderlyingSystemType
-                            .ToString()
-                            .Substring(15, _type.UnderlyingSystemType.ToString().Length - 18)
-                            .Split(',')
+            translation {
+                match str.ToLowerInvariant() with
+                | "int"
+                | "int32" -> return PrimitiveType<Lang>(Int) :> Type<Lang>
+                | "int16" -> return PrimitiveType<Lang>(Short) :> Type<Lang>
+                | "uint16" -> return PrimitiveType<Lang>(UShort) :> Type<Lang>
+                | "uint32" -> return PrimitiveType<Lang>(UInt) :> Type<Lang>
+                | "float32"
+                | "single" -> return PrimitiveType<Lang>(Float) :> Type<Lang>
+                | "byte" -> return PrimitiveType<Lang>(UChar) :> Type<Lang>
+                | "int64" -> return PrimitiveType<Lang>(Long) :> Type<Lang>
+                | "uint64" -> return PrimitiveType<Lang>(ULong) :> Type<Lang>
+                | "boolean" -> return PrimitiveType<Lang>(Bool) :> Type<Lang>
+                | "float"
+                | "double" ->
+                    do! TranslationContext.modify (fun context -> context.Flags.enableFP64 <- true; context)
+                    return PrimitiveType<Lang>(Double) :> Type<Lang>
+                | "unit" -> return PrimitiveType<Lang>(Void) :> Type<Lang>
+                | "read_only image2D" -> return Image2DType(true) :> Type<Lang>
+                | "write_only image2D" -> return Image2DType(false) :> Type<Lang>
+                | t when t.EndsWith "[]" ->
+                    let baseT = t.Substring(0, t.Length - 2)
+                    if isKernelArg then
+                        let! t = go baseT
+                        return RefType(t, []) :> Type<Lang>
                     else
-                        _type
-                            .UnderlyingSystemType
-                            .ToString()
-                            .Substring(15, _type.UnderlyingSystemType.ToString().Length - 16)
-                            .Split(',')
-                let mutable n = 0
-                let baseTypes = [| for i in 0 .. types.Length - 1 -> types.[i].Substring(7) |]
-                let elements =
-                    [
-                        for i in 0 .. types.Length - 1 -> { Name = "_" + (i + 1).ToString(); Type = go baseTypes.[i] }
-                    ]
-                let mutable s = ""
-                for i in 0 .. baseTypes.Length - 1 do
-                    s <- s + baseTypes.[i]
-                if not (context.TupleDecls.ContainsKey(s)) then
-                    context.TupleNumber <- context.TupleNumber + 1
-                    n <- context.TupleNumber
-                    context.TupleDecls.Add(s, n)
-                    let a = StructType("tuple" + n.ToString(), elements)
-                    context.TupleList.Add(a)
-                    TupleType(a, n) :> Type<_>
-                else
-                    n <- context.TupleDecls.Item(s)
-                    let a = StructType("tuple" + n.ToString(), elements)
-                    TupleType(a, n) :> Type<_>
-            | x when context.UserDefinedTypes.Exists(fun t -> t.Name.ToLowerInvariant() = x) ->
-                let structType =
-                    if context.UserDefinedStructsOpenCLDeclaration.ContainsKey x then
-                        context.UserDefinedStructsOpenCLDeclaration.[x]
-                    elif context.UserDefinedUnionsOpenCLDeclaration.ContainsKey x then
-                        context.UserDefinedUnionsOpenCLDeclaration.[x] :> StructType<_>
-                    else
-                        failwithf "Declaration of struct %s doesn't exists" x
-                structType :> Type<_>
-            | other -> failwithf "Unsupported kernel type: %s" other
+                        let! t = go baseT
+                        return ArrayType(t, size |> Option.get) :> Type<Lang>
+                | s when s.StartsWith "fsharpref" ->
+                    let! t = go (_type.GetGenericArguments().[0].Name)
+                    return RefType(t, []) :> Type<Lang>
+                | f when f.StartsWith "fsharpfunc" ->
+                    //            go (_type.GetGenericArguments().[1].Name)
+                    return! translate (_type.GetGenericArguments().[1]) isKernelArg size
+                // | tp when tp.Contains("tuple") ->
+                //     let types =
+                //         if _type.Name.EndsWith("[]") then
+                //             _type
+                //                 .UnderlyingSystemType
+                //                 .ToString()
+                //                 .Substring(15, _type.UnderlyingSystemType.ToString().Length - 18)
+                //                 .Split(',')
+                //         else
+                //             _type
+                //                 .UnderlyingSystemType
+                //                 .ToString()
+                //                 .Substring(15, _type.UnderlyingSystemType.ToString().Length - 16)
+                //                 .Split(',')
+                //     let mutable n = 0
+                //     let baseTypes = [| for i in 0 .. types.Length - 1 -> types.[i].Substring(7) |]
+                //     let elements =
+                //         [
+                //             for i in 0 .. types.Length - 1 -> { Name = "_" + (i + 1).ToString(); Type = go baseTypes.[i] }
+                //         ]
+                //     let mutable s = ""
+                //     for i in 0 .. baseTypes.Length - 1 do
+                //         s <- s + baseTypes.[i]
+                //     if not (context.TupleDecls.ContainsKey(s)) then
+                //         context.TupleNumber <- context.TupleNumber + 1
+                //         n <- context.TupleNumber
+                //         context.TupleDecls.Add(s, n)
+                //         let a = StructType("tuple" + n.ToString(), elements)
+                //         context.TupleList.Add(a)
+                //         TupleType(a, n) :> Type<_>
+                //     else
+                //         n <- context.TupleDecls.Item(s)
+                //         let a = StructType("tuple" + n.ToString(), elements)
+                //         TupleType(a, n) :> Type<_>
+                // | x when context.UserDefinedTypes.Exists(fun t -> t.Name.ToLowerInvariant() = x) ->
+                //     let structType =
+                //         if context.UserDefinedStructsOpenCLDeclaration.ContainsKey x then
+                //             context.UserDefinedStructsOpenCLDeclaration.[x]
+                //         elif context.UserDefinedUnionsOpenCLDeclaration.ContainsKey x then
+                //             context.UserDefinedUnionsOpenCLDeclaration.[x] :> StructType<_>
+                //         else
+                //             failwithf "Declaration of struct %s doesn't exists" x
+                //     structType :> Type<_>
+                // | other -> failwithf "Unsupported kernel type: %s" other
+            }
 
-        go _type.Name
+        translation { return! go _type.Name }
 
     let translateStructDecls structs (targetContext: TargetContext<_, _>) =
         let translateStruct (t: System.Type) =

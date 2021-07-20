@@ -90,32 +90,32 @@ type Method(var: Var, expr: Expr) =
     override this.ToString() =
         sprintf "%A\n%A" var expr
 
-type Context = TargetContext<Lang, Statement<Lang>>
-type TranslationContext<'a> = TranslationContext of (Context -> 'a * Context)
+type TranslationContext = TargetContext<Lang, Statement<Lang>>
+type Translation<'a> = Translation of (TranslationContext -> 'a * TranslationContext)
 
-module Translator =
-    let run context (TranslationContext f) =
+module Translation =
+    let run context (Translation f) =
         f context
 
-    let exec context (TranslationContext f) =
+    let exec context (Translation f) =
         snd (f context)
 
-    let eval context (TranslationContext f) =
+    let eval context (Translation f) =
         fst (f context)
 
-    let return' x = TranslationContext <| fun context ->
+    let return' x = Translation <| fun context ->
         (x, context)
 
-    let (>>=) x f = TranslationContext <| fun context ->
+    let (>>=) x f = Translation <| fun context ->
         let (y, context') = run context x
         run context' (f y)
 
 module TranslationContext =
-    open Translator
+    open Translation
 
-    let get = TranslationContext (fun context -> context, context)
+    let get = Translation (fun context -> context, context)
 
-    let put newContext = TranslationContext <| fun _ ->
+    let put newContext = Translation <| fun _ ->
         (), newContext
 
     // modify state
@@ -126,20 +126,23 @@ module TranslationContext =
     let gets f =
         get >>= (f >> return')
 
-    let map f s = TranslationContext <| fun context ->
-        let (x, context') = run context s
+    let map f x = Translation <| fun context ->
+        let (x, context') = run context x
         f x, context'
 
-type TranslatorBuilder() =
-    member this.Zero() = Translator.return' ()
-    member this.Return x = Translator.return' x
+    let using (f: TranslationContext -> TranslationContext) x = Translation <| fun context ->
+        eval (f context) x, context
+
+type TranslationBuilder() =
+    member this.Zero() = Translation.return' ()
+    member this.Return x = Translation.return' x
     member this.ReturnFrom x = x
-    member this.Bind(x, f) = Translator.(>>=) x f
+    member this.Bind(x, f) = Translation.(>>=) x f
 
     member this.Combine(x1, x2) =
-        TranslationContext <| fun context ->
-            let (_, context) = Translator.run context x1
-            Translator.run context x2
+        Translation <| fun context ->
+            let (_, context) = Translation.run context x1
+            Translation.run context x2
 
     member this.Delay f = f ()
 
@@ -154,5 +157,5 @@ type TranslatorBuilder() =
 
 [<AutoOpen>]
 module TranslatorBuilder =
-    let translator = TranslatorBuilder()
-    let (>>=) = Translator.(>>=)
+    let translation = TranslationBuilder()
+    let (>>=) = Translation.(>>=)
