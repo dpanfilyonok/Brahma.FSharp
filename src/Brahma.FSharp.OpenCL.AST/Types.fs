@@ -156,7 +156,7 @@ type RefType<'lang>(baseType: Type<'lang>, typeQuals: TypeQualifier<'lang> list)
 
 type StructDecl<'lang>(structType: StructType<'lang>) =
     inherit Node<'lang>()
-    interface TopDef<'lang>
+    interface ITopDef<'lang>
 
     member val StructType: StructType<'lang> = structType with get, set
     override this.Children = []

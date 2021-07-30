@@ -97,7 +97,7 @@ type FSQuotationToOpenCLTranslator() =
         (methodVarList: ResizeArray<Var>)
         types
         (partialAstList: ResizeArray<_>)
-        (contextList: ResizeArray<TargetContext<_, _>>)
+        (contextList: ResizeArray<TargetContext<_,_>>)
         (kernelArgumentsNames: string list)
         (localVarsNames: string list) =
         // extract pragmas
@@ -108,7 +108,7 @@ type FSQuotationToOpenCLTranslator() =
             // фргументы функции
             let formalArgs =
                 methodArgumentVarsList.[i]
-                // отфильтровываем аргументы типа ndrange
+                // обрабатываем все кроме аргументов типа ndrange
                 |> List.filter
                     (fun (variable: Var) ->
                         brahmaDimensionsTypes
@@ -171,8 +171,8 @@ type FSQuotationToOpenCLTranslator() =
                 let pragmas = ResizeArray()
 
                 if contextList.[i].Flags.enableAtomic then
-                    pragmas.Add(CLPragma CLGlobalInt32BaseAtomics :> TopDef<_>)
-                    pragmas.Add(CLPragma CLLocalInt32BaseAtomics :> TopDef<_>)
+                    pragmas.Add(CLPragma CLGlobalInt32BaseAtomics :> ITopDef<_>)
+                    pragmas.Add(CLPragma CLLocalInt32BaseAtomics :> ITopDef<_>)
 
                 if contextList.[i].Flags.enableFP64 then
                     pragmas.Add(CLPragma CLFP64)
@@ -208,11 +208,11 @@ type FSQuotationToOpenCLTranslator() =
 
         let translatedStructs =
             Type.translateStructDecls structs context
-            |> List.map (fun x -> x :> TopDef<_>)
+            |> List.map (fun x -> x :> ITopDef<_>)
 
         let translatedUnions =
             Type.translateDiscriminatedUnionDecls unions context
-            |> List.map (fun x -> x :> TopDef<_>)
+            |> List.map (fun x -> x :> ITopDef<_>)
 
         let translatedTypes =
             List.concat [ translatedStructs
@@ -225,11 +225,13 @@ type FSQuotationToOpenCLTranslator() =
         let kernelMethod =
             Method(Var(mainKernelName, kernelExpr.Type), kernelExpr)
 
+        // глобальные переменные
         let kernelArgumentsNames =
             kernelMethod.FunExpr
             |> Utils.collectLambdaArguments
             |> List.map (fun var -> var.Name)
 
+        // локальные переменные
         let localVarsNames =
             kernelExpr
             |> Utils.collectLocalVars
@@ -239,21 +241,19 @@ type FSQuotationToOpenCLTranslator() =
         let methods =
             methods @ [ kernelMethod ] |> ResizeArray.ofList
 
-        // что тут?
-        let rec go expr vars =
+        let translateMethod expr =
             match expr with
             // собираем параметры верхнего уровня
-            | Patterns.Lambda (v, body) -> go body (v :: vars)
-            // | DerivedPatterns.Lambdas (args, body) -> // ???
-            | expr ->
+            | DerivedPatterns.Lambdas (args, body) ->
+                let args = List.collect id args
                 let body =
                     let (b, context) =
                         let clonedContext = context.Clone()
 
                         clonedContext.Namer.LetIn()
-                        vars |> List.iter (fun v -> clonedContext.Namer.AddVar v.Name)
+                        args |> List.iter (fun v -> clonedContext.Namer.AddVar v.Name)
 
-                        Body.translate expr clonedContext
+                        Body.translate body clonedContext
 
                     match b with
                     | :? StatementBlock<Lang> as sb -> sb
@@ -261,11 +261,8 @@ type FSQuotationToOpenCLTranslator() =
                     | _ -> failwithf "Incorrect function body: %A" b
                     , context
 
-                List.rev vars, body
-
-            // TODO wtf?
-            | other ->
-                failwithf "Incorrect OpenCL quotation: %A" other
+                args, body
+            | _ -> failwithf "Incorrect OpenCL quotation: %A" expr
 
         // аргументы методов
         let listPartsASTMethodArgumentVars = ResizeArray()
@@ -280,7 +277,7 @@ type FSQuotationToOpenCLTranslator() =
         let listPartsASTContext = ResizeArray()
 
         for method in methods do
-            let (vars, (partialAst, context)) = go method.FunExpr []
+            let (vars, (partialAst, context)) = translateMethod method.FunExpr
             listPartsASTMethodArgumentVars.Add(vars)
             listPartsASTMethodVar.Add(method.FunVar)
             listPartsASTMethodBody.Add(partialAst :> Statement<_>)

@@ -56,8 +56,7 @@ type ComputeProvider with
                     |> string
                 )
             |> String.concat "\n"
-            |> fun s -> s + sprintf "\nError code: %A" errCode
-            |> failwith
+            |> fun s -> failwithf "%s\nError code: %A" s errCode
 
         let kernel = System.Activator.CreateInstance<'T>()
         let r = CLCodeGenerator.GenerateKernel(lambda, this, kernel, translatorOptions)
@@ -110,6 +109,7 @@ type ComputeProvider with
         let run = ref Unchecked.defaultof<Commands.Run<'TRange>>
 
         let getStarterFuncton qExpr =
+            // TODO to flat Lambdas
             let rec go expr vars =
                 match expr with
                 | Patterns.Lambda (v, body) -> Expr.Lambda(v, go body (v :: vars))
@@ -136,10 +136,7 @@ type ComputeProvider with
                         run := kernel.Run(!rng, !args)
                     @@>
 
-            let res =
-                <@ %%(go qExpr []): 'TRange -> 'a @>.Compile()
-
-            res
+            <@ %%(go qExpr []): 'TRange -> 'a @>.Compile()
 
         if outCode.IsSome then
             (outCode.Value) := (kernel :> ICLKernel).Source.ToString()

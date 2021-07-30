@@ -3,6 +3,7 @@ namespace Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
 open Brahma.FSharp.OpenCL.Translator
 open FSharp.Quotations
 
+[<AutoOpen>]
 module LambdaLifting =
     let rec parameterLiftExprImpl (ctx: Context) (expr: Expr) =
         match expr with

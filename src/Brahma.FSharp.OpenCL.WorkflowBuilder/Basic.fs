@@ -26,7 +26,7 @@ module ClEvaluation =
     /// transfers it to host memory and returns a ordinary F# array.
     /// Otherwise ToHost simply returns the array passed to it, like
     /// the identity function.
-    let toHost (xs : array<'a>) : OpenCLEvaluation<array<'a>> =
+    let toHost (xs: array<'a>) : OpenCLEvaluation<array<'a>> =
         opencl {
             let! ctx = getEvaluationContext
 
@@ -36,7 +36,7 @@ module ClEvaluation =
             return xs
         }
 
-    let runCommand (command : Expr<'range -> 'a>) (binder : ('range -> 'a) -> unit) : OpenCLEvaluation<unit> =
+    let runCommand (command: Expr<'range -> 'a>) (binder: ('range -> 'a) -> unit) : OpenCLEvaluation<unit> =
         opencl {
             let! ctx = getEvaluationContext
             let (_, kernelP, kernelR) = ctx.Provider.Compile command

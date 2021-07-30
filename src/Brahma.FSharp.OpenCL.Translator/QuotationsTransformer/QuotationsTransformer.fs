@@ -27,11 +27,11 @@ module Transformer =
     /// Returns kernel and other methods
     let quotationTransformer expr (translatorOptions: TranslatorOption list) =
         expr
-        |> ProcessAtomic.processA
-        |> PrintfReplacer.replacePrintf
-        |> UniqueVarRenaming.makeVarNameUnique
-        |> LetVarAbstracter.varDefsToLambda
+        |> processAtomic
+        |> replacePrintf
+        |> makeVarNameUnique
+        |> varDefsToLambda
         |> fun expr ->
-            let mutableVarsInClosure = MutableVarsInClosureCollector.collectMutableVarsInClosure expr
-            MutableVarsToRef.varsToRefsWithPredicate mutableVarsInClosure.Contains expr
-        |> LambdaLifting.lambdaLifting
+            let mutableVarsInClosure = collectMutableVarsInClosure expr
+            varsToRefsWithPredicate mutableVarsInClosure.Contains expr
+        |> lambdaLifting

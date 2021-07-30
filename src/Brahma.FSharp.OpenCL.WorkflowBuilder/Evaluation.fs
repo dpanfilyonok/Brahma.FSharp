@@ -12,8 +12,8 @@ type OpenCLEvaluationContext(provider: ComputeProvider, ?deviceId: int) =
         if deviceId >= devices.Length then
             raise <| EmptyDevicesException (sprintf "Provider:\n%Ahas not device with id %i." provider deviceId)
 
-    // let device = devices.[deviceId]
-    // let commandQueue = new Brahma.OpenCL.CommandQueue(provider, device)
+    let device = devices.[deviceId]
+    let commandQueue = new Brahma.OpenCL.CommandQueue(provider, device)
 
     new(?platformName, ?deviceType: DeviceType) =
         let platformName = defaultArg platformName "*"
@@ -22,8 +22,8 @@ type OpenCLEvaluationContext(provider: ComputeProvider, ?deviceId: int) =
         OpenCLEvaluationContext(provider)
 
     member this.Provider = provider
-    member this.Device = devices.[deviceId]
-    member this.CommandQueue = new Brahma.OpenCL.CommandQueue(provider, this.Device)
+    member this.Device = device
+    member this.CommandQueue = commandQueue
 
     override this.ToString() =
         let mutable e = ErrorCode.Unknown

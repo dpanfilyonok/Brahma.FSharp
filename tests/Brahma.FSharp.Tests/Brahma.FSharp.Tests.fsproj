@@ -7,13 +7,13 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Common.fs" />
-    <Compile Include="Translator.fs" />
-    <Compile Include="Full.fs" />
+    <Compile Include="TranslatorTests.fs" />
+    <Compile Include="FullTests.fs" />
     <Compile Include="AtomicTests.fs" />
     <Compile Include="StructAndTuple.fs" />
-    <Compile Include="Workflow.fs" />
-    <Compile Include="QuotationTransformer.fs" />
-    <Compile Include="Union.fs" />
+    <Compile Include="WorkflowTests.fs" />
+    <Compile Include="QuotationsTransformerTests.fs" />
+    <Compile Include="UnionTests.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>

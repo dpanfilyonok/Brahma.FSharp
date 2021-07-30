@@ -3,50 +3,58 @@ namespace Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
 open FSharp.Quotations
 open FSharp.Reflection
 open System.Reflection
+open Brahma.FSharp.OpenCL.Translator
 open System
 open Brahma.FSharp.OpenCL.Extensions
+open FSharp.Core.LanguagePrimitives
 
-// open FSharp.Quotations.Patterns
-// open FSharp.Quotations.DerivedPatterns
-// open FSharp.Quotations.ExprShape
+type Mutex = int
 
+[<AutoOpen>]
 module ProcessAtomic =
-    let inline atomicAdd p v = (+) p v
-    let inline atomicSub p v = (-) p v
-    let inline atomicInc p = inc p
-    let inline atomicDec p = dec p
-    let inline atomicXchg p v = xchg p v
-    let inline atomicCmpxchg p cmp v = cmpxchg p cmp v
-    let inline atomicMin p v = min p v
-    let inline atomicMax p v = max p v
-    let inline atomicAnd p v = (&&&) p v
-    let inline atomicOr p v = (|||) p v
-    let inline atomicXor p v = (^^^) p v
-    let atomicF (f: obj) = f
+    let inline private atomicAdd p v = (+) !p v
+    let inline private atomicSub p v = (-) !p v
+    let inline private atomicInc p = inc !p
+    let inline private atomicDec p = dec !p
+    let inline private atomicXchg p v = xchg !p v
+    let inline private atomicCmpxchg p cmp v = cmpxchg !p cmp v
+    let inline private atomicMin p v = min !p v
+    let inline private atomicMax p v = max !p v
+    let inline private atomicAnd p v = (&&&) !p v
+    let inline private atomicOr p v = (|||) !p v
+    let inline private atomicXor p v = (^^^) !p v
+    let private atomicF (mutex: Mutex ref) f = atomic f
 
-    type Expr with
-        // TODO
-        static member Lambdas(args: Var list list, body: Expr) =
-            let mkRLinear mk (vs, body) = List.foldBack (fun v acc -> mk(v, acc)) vs body
+    // let processP (expr: Expr) =
+    //     match expr with
+    //     | DerivedPatterns.SpecificCall <@ IntrinsicFunctions.GetArray @> (_, _, [Patterns.Var array; idx]) ->
+    //         expr.Substitute <| function v | v when v.Name =
 
-            let mkTupledLambda (args, body) =
-                match args with
-                // | [] -> Expr.Application (f, mkUnit())
-                | [x] -> Expr.Lambda (x, body)
-                // | _ -> Expr.Application (f, mkNewTuple args)
-                | _ -> failwith "lol"
+    let private modifyFirstOfList f lst =
+        match lst with
+        | x :: tail -> f x :: tail
+        | _ -> failwithf "Empty list"
 
-            let mkLambdas (args: Var list list) (body: Expr) =
-                mkRLinear mkTupledLambda (args, body)
+    let private modifyFirstOfListList f lst =
+        match lst with
+        | [x] :: tail -> [f x] :: tail
+        | _ -> failwithf "meh"
 
-            mkLambdas args body
+    let private getFirstOfListListWith f lst =
+        match lst with
+        | [x] :: _ -> f x
+        | _ -> failwith "aaa"
 
-    // atomic (fun x y -> ...) a b
-    // -> atomicAdd a b
-    // -> let f = (fun x y -> ...) in
-    //    let g x y = atomicF f x y in
-    //    g a b
-    let rec processA (expr: Expr) =
+    /// <summary>
+    /// <code>
+    /// atomic (fun x y -> x + y) a b
+    /// -> atomicAdd a b
+    /// -> let f = (fun x y -> x + y) in
+    ///    let atomicFunc x y = atomicF aMutex f x y in
+    ///    atomicFunc a b
+    /// </code>
+    /// </summary>
+    let rec processAtomic (expr: Expr) =
         match expr with
         | DerivedPatterns.Applications
             (
@@ -127,60 +135,99 @@ module ProcessAtomic =
                 Expr.Call(Utils.getMethodInfoOfLambda <@ atomicXor @>, List.collect id applicationArgs)
 
             | _ ->
-                let makeLambdaType domain range =
-                    FSharpType.MakeFunctionType(domain, range)
-
-                let collectedArgTypes =
+                let collectedLambdaTypes =
                     lambdaArgs
                     |> List.collect id
                     |> List.map (fun var -> var.Type)
-                    |> fun args -> args @ [args.[0]]
+                    |> fun args -> args @ [lambdaBody.Type]
 
-                let lambdaType =
-                    collectedArgTypes
-                    |> List.reduceBack makeLambdaType
+                let baseFuncType =
+                    collectedLambdaTypes
+                    |> Utils.makeLambdaType
 
-                let atomicMInfo =
-                    AppDomain.CurrentDomain.GetAssemblies()
-                    |> Seq.find (fun assembly -> assembly.FullName.Contains "Brahma.FSharp.OpenCL.Extensions")
-                    |> fun assembly -> assembly.GetTypes()
-                    |> Seq.find (fun type' -> type'.Name = "OpenCL")
-                    |> fun type' -> type'.GetMethods()
-                    |> Seq.find (fun mInfo -> mInfo.Name = "atomic")
-                    |> fun mInfo ->
-                        mInfo.MakeGenericMethod(
-                            collectedArgTypes
-                            |> fun types -> types.Head :: [List.reduceBack makeLambdaType types.Tail]
-                            |> List.toArray
+                let atomicFuncType =
+                    collectedLambdaTypes
+                    |> modifyFirstOfList (fun x -> typeof<ref<_>>.GetGenericTypeDefinition().MakeGenericType(x))
+                    |> Utils.makeLambdaType
+
+                // let atomicFInfo =
+                //     Utils.getMethodInfoOfLambda <@ atomicF @>
+                //     |> fun mInfo ->
+                //         mInfo.GetGenericMethodDefinition().MakeGenericMethod(
+                //             collectedLambdaTypes
+                //             |> fun types -> types.Head :: [Utils.makeLambdaType types.Tail]
+                //             |> List.toArray
+                //         )
+
+                let baseFuncVar = Var("baseFunc", baseFuncType)
+                let atomicFuncVar = Var("atomicFunc", atomicFuncType)
+
+                let atomicArgs =
+                    lambdaArgs
+                    |> modifyFirstOfListList
+                        (fun x ->
+                            Var(
+                                x.Name,
+                                typeof<ref<_>>.GetGenericTypeDefinition().MakeGenericType(x.Type),
+                                x.IsMutable
+                            )
                         )
 
-                // TODO need renaming
-                let f = Var("f", lambdaType)
-                let g = Var("g", lambdaType)
+                let atomicBody =
+                    let mutex = Utils.createRefCall <| Expr.Value 5
+                    let atomicApplicaionArgs =
+                        atomicArgs
+                        |> List.map (List.map Expr.Var)
+                        |> modifyFirstOfListList Utils.createDereferenceCall
+
+                    let oldValueVar =
+                        Var(
+                            "oldValue",
+                            getFirstOfListListWith (fun (x: Var) -> x.Type.GenericTypeArguments.[0]) atomicArgs,
+                            true
+                        )
+
+                    Expr.Let(
+                        oldValueVar,
+                        // Expr.DefaultValue <| getFirstOfListListWith (fun (x: Var) -> x.Type.GenericTypeArguments.[0]) atomicArgs,
+                        Expr.Value 10,
+                        <@@
+                            let mutable flag = true
+                            while flag do
+                                let old = atomicXchg %%mutex 1
+                                if old = 0 then
+                                    %%Expr.VarSet(
+                                        oldValueVar,
+                                        getFirstOfListListWith id atomicApplicaionArgs
+                                    )
+                                    %%(
+                                        Utils.createReferenceSetCall
+                                        <| getFirstOfListListWith Expr.Var atomicArgs
+                                        <| Expr.Applications(Expr.Var baseFuncVar, atomicApplicaionArgs)
+                                    )
+                                    atomicXchg %%mutex 0
+                                    flag <- false
+                            barrier ()
+                            // тут он как то криво тип выозвращаемого значения выводит (не выводит сосвсем)
+                            (%%Expr.Var oldValueVar : int)
+                        @@>
+                    )
+
                 Expr.Let(
-                    f,
+                    baseFuncVar,
                     Expr.Lambdas(lambdaArgs, lambdaBody),
                     Expr.Let(
-                        g,
-                        Expr.Lambdas(
-                            lambdaArgs,
-                            Expr.Applications(
-                                Expr.Call(atomicMInfo, [Expr.Var f]),
-                                List.map (List.map Expr.Var) lambdaArgs
-                            )
-                        ),
+                        atomicFuncVar,
+                        Expr.Lambdas(atomicArgs, atomicBody),
                         Expr.Applications(
-                            Expr.Var g,
-                            applicationArgs
+                            Expr.Var atomicFuncVar,
+                            applicationArgs |> modifyFirstOfListList Utils.createRefCall
                         )
                     )
                 )
 
         | ExprShape.ShapeVar var -> Expr.Var var
         | ExprShape.ShapeLambda (var, lambda) ->
-            Expr.Lambda(var, processA lambda)
+            Expr.Lambda(var, processAtomic lambda)
         | ExprShape.ShapeCombination (combo, exprs) ->
-            ExprShape.RebuildShapeCombination(combo, List.map processA exprs)
-
-
-
+            ExprShape.RebuildShapeCombination(combo, List.map processAtomic exprs)

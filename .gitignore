@@ -276,3 +276,5 @@ coverage.*.xml
 *.blob
 
 docs/coverage/
+
+tests/Brahma.FSharp.Tests/Generated

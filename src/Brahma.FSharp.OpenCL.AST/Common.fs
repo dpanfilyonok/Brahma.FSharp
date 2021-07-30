@@ -23,8 +23,7 @@ type Node<'lang>() =
 type Statement<'lang>() =
     inherit Node<'lang>()
 
-type TopDef<'lang> =
-    interface
-    end
+type ITopDef<'lang> =
+    interface end
 
 type Lang = | OpenCL

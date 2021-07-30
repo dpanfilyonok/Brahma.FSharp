@@ -90,6 +90,25 @@ type Method(var: Var, expr: Expr) =
     override this.ToString() =
         sprintf "%A\n%A" var expr
 
+[<AutoOpen>]
+module Extensions =
+    type Expr with
+        // TODO
+        static member Lambdas(args: Var list list, body: Expr) =
+            let mkRLinear mk (vs, body) = List.foldBack (fun v acc -> mk(v, acc)) vs body
+
+            let mkTupledLambda (args, body) =
+                match args with
+                // | [] -> Expr.Application (f, mkUnit())
+                | [x] -> Expr.Lambda (x, body)
+                // | _ -> Expr.Application (f, mkNewTuple args)
+                | _ -> failwith "Unsupported"
+
+            let mkLambdas (args: Var list list) (body: Expr) =
+                mkRLinear mkTupledLambda (args, body)
+
+            mkLambdas args body
+
 // type State<'state, 'result> = State of ('state -> 'result * 'state)
 
 // module State =

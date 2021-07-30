@@ -37,7 +37,7 @@ type FunDecl<'lang>
     )
      =
     inherit Node<'lang>()
-    interface TopDef<'lang>
+    interface ITopDef<'lang>
     override this.Children = []
     member this.DeclSpecs = declSpecs
     member this.Name = name

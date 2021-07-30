@@ -2,35 +2,41 @@ namespace Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
 
 open FSharp.Quotations
 
+[<AutoOpen>]
 module MutableVarsToRef =
     let rec varsToRefsWithPredicateImpl (refMap: Map<Var, Expr>) (predicate: Var -> bool) (expr: Expr) =
         match expr with
-        | Patterns.LetVar (var, letExpr, body) ->
-            if predicate var
-            then
+        | Patterns.LetVar (var, body, inExpr) ->
+            if predicate var then
                 let refName = var.Name + "Ref"
                 let refType = typedefof<ref<_>>.MakeGenericType(var.Type)
                 let refVar = Var(refName, refType, false)
 
                 let newRefMap =
-                    refMap.Add (var, Expr.Var(refVar))
+                    refMap.Add(var, Expr.Var refVar)
 
-                Expr.Let(var, varsToRefsWithPredicateImpl refMap predicate letExpr,
+                Expr.Let(
+                    var,
+                    varsToRefsWithPredicateImpl refMap predicate body,
                     Expr.Let(
-                        refVar, Utils.createRefCall <| Expr.Var(var),
-                        varsToRefsWithPredicateImpl newRefMap predicate body
+                        refVar,
+                        Utils.createRefCall <| Expr.Var var,
+                        varsToRefsWithPredicateImpl newRefMap predicate inExpr
                     )
                 )
             else
                 Expr.Let(
-                    var, varsToRefsWithPredicateImpl refMap predicate letExpr,
-                    varsToRefsWithPredicateImpl refMap predicate body
+                    var,
+                    varsToRefsWithPredicateImpl refMap predicate body,
+                    varsToRefsWithPredicateImpl refMap predicate inExpr
                 )
+
         | Patterns.VarSet (var, valueExpr) ->
             match refMap.TryFind var with
             | Some refExpr ->
                 Utils.createReferenceSetCall refExpr <| varsToRefsWithPredicateImpl refMap predicate valueExpr
             | None -> expr
+
         | ExprShape.ShapeVar var ->
             match refMap.TryFind var with
             | Some refExpr -> Utils.createDereferenceCall refExpr

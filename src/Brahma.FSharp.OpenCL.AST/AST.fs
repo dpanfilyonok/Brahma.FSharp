@@ -15,7 +15,7 @@
 
 namespace Brahma.FSharp.OpenCL.AST
 
-type AST<'lang>(topDefs: List<TopDef<'lang>>) =
+type AST<'lang>(topDefs: List<ITopDef<'lang>>) =
     member this.TopDefs = topDefs
 
 //type TopLevelVarDecl<'lang>(name: string, _type:Type<'lang>, spaceModifier:AddressSpaceQualifier<'lang>, ?value: obj) =

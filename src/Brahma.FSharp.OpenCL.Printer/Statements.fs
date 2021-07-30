@@ -145,7 +145,7 @@ and Print isToplevel (stmt: Statement<'lang>) =
         | :? (FieldSet<'lang>) as fs -> printFieldSet fs
         | :? (Return<'lang>) as r -> printReturn r
         //| :? Variable<'lang> as v -> printVar v
-        | t -> failwithf "Printer. Unsupported statement: %A" t
+        | _ -> failwithf "Printer. Unsupported statement: %O" stmt
 
     if isToplevel then
         res

@@ -26,8 +26,9 @@ type RenamingContext() =
 
     member this.Mapper = varMapper
 
+[<AutoOpen>]
 module UniqueVarRenaming =
-    let rec makeVarNamesUniqueImpl (ctx: RenamingContext) (expr: Expr) =
+    let rec private makeVarNamesUniqueImpl (ctx: RenamingContext) (expr: Expr) =
         match expr with
         | ExprShape.ShapeVar var ->
             let newVar = ctx.Add var

@@ -5,14 +5,17 @@ open FSharp.Quotations
 
 module Utils =
     let rec getFunctionArgTypes (funType: System.Type) =
-        let argType, retType = FSharpType.GetFunctionElements(funType)
+        let (argType, retType) = FSharpType.GetFunctionElements(funType)
         match retType with
         | _ when FSharpType.IsFunction retType ->
             argType :: getFunctionArgTypes retType
         | _ ->  [argType]
 
     let makeFunctionType (retType: System.Type) (argTypes: List<System.Type>) =
-        List.foldBack (fun tp acc ->  FSharpType.MakeFunctionType (tp, acc)) argTypes retType
+        List.foldBack (fun tp acc ->  FSharpType.MakeFunctionType(tp, acc)) argTypes retType
+
+    let makeLambdaType types =
+        List.reduceBack (fun domain range -> FSharpType.MakeFunctionType(domain, range)) types
 
     let rec makeLambdaExpr (args: list<Var>) (body: Expr) =
         let mkLambda var expr = Expr.Lambda(var, expr)

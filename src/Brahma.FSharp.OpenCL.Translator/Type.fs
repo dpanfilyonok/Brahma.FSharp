@@ -54,6 +54,7 @@ module Type =
         | Bool -> "bool"
         | other -> failwithf "Unsuported tuple type: %O" other
 
+    // как указатель транслируем только массивы и refType
     let rec translate (_type: System.Type) isKernelArg size (context: TargetContext<_, _>) : Type<Lang> =
         let rec go (str: string) =
             let mutable low = str.ToLowerInvariant()
@@ -81,6 +82,7 @@ module Type =
                 if isKernelArg then
                     RefType(go baseT, []) :> Type<Lang>
                 else
+                    // TODO зачем??
                     ArrayType(go baseT, size |> Option.get) :> Type<Lang>
             | s when s.StartsWith "fsharpref" -> RefType(go (_type.GetGenericArguments().[0].Name), []) :> Type<Lang>
             | f when f.StartsWith "fsharpfunc" ->

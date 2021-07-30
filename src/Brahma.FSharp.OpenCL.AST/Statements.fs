@@ -25,7 +25,7 @@ type VarDecl<'lang>
      =
     inherit Statement<'lang>()
     let mutable spaceModifier = spaceModifier
-    interface TopDef<'lang>
+    interface ITopDef<'lang>
     override this.Children = []
     member this.Type = vType
     member this.Name = name

@@ -2,6 +2,7 @@ namespace Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
 
 open FSharp.Quotations
 
+[<AutoOpen>]
 module PrintfReplacer =
     /// Function for replacing printf call
     let print (tpArgs: System.Type list) (value: string) (bindArgs: Expr list) = ()

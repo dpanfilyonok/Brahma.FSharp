@@ -21,7 +21,7 @@ open Brahma.FSharp.OpenCL.AST
 open Microsoft.FSharp.Collections
 open FSharpx.Collections
 open System.Collections.Generic
-open Brahma.FSharp.OpenCL.Translator.QuotationsTransformer.PrintfReplacer
+open Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
 
 module Body =
     // TODO is it really clear context?
@@ -524,34 +524,8 @@ module Body =
                 FunCall("printf", formatStrArg :: args') :> Node<_>, targetContext'
             | _ -> failwith "printf: something going wrong."
 
-        // | DerivedPatterns.SpecificCall <@ atomic @> (_, _, [func]) ->
-        //     targetContext.Flags.enableAtomic <- true
-        //     FunCall("atom_add", [Ptr <| Variable("x"); Variable("y")]) :> Node<_>, targetContext
-            // match func with
-            // // list of tupled params; (+) -> [[x];[y]], ...
-            // | DerivedPatterns.Lambdas (args, body) ->
-            //     // тут нужно параметры лямбды в контекст вносить
-            //     // let ([x; y], tContext) = translateListOfArgs args targetContext
-            //     match body with
-            //     | DerivedPatterns.SpecificCall <@ add @> (_, opType :: _, [x; y]) ->
-            //         let ([x; y], tContext) = translateListOfArgs [x; y] targetContext
-            //         match opType with
-            //         // как мы тут определяем доступно ли расширение на доп атомики или нет??
-            //         | t when t = typeof<int> || t = typeof<uint32> ->
-            //             FunCall("atom_add", [Ptr x; y]) :> Node<_>, tContext
-            //         | _ -> failwith "atomic: incorrect type"
-            //     | DerivedPatterns.SpecificCall <@ sub @> (_, types, [x; y]) -> failwith "Not implemented"
-            //     | DerivedPatterns.SpecificCall <@ inc @> (_, types, [x; y]) -> failwith "Not implemented"
-            //     | DerivedPatterns.SpecificCall <@ dec @> (_, types, [x; y]) -> failwith "Not implemented"
-            //     | DerivedPatterns.SpecificCall <@ xchg @> (_, types, [x; y]) -> failwith "Not implemented"
-            //     | DerivedPatterns.SpecificCall <@ cmpxchg @> (_, types, [x; y]) -> failwith "Not implemented"
-            //     | DerivedPatterns.SpecificCall <@ min @> (_, types, [x; y]) -> failwith "Not implemented"
-            //     | DerivedPatterns.SpecificCall <@ max @> (_, types, [x; y]) -> failwith "Not implemented"
-            //     | DerivedPatterns.SpecificCall <@ and' @> (_, types, [x; y]) -> failwith "Not implemented"
-            //     | DerivedPatterns.SpecificCall <@ or' @> (_, types, [x; y]) -> failwith "Not implemented"
-            //     | DerivedPatterns.SpecificCall <@ xor @> (_, types, [x; y]) -> failwith "Not implemented"
-            //     | _ -> failwith "atomic: something going wrong."
-            // | _ -> failwith "atomic: arg should be lambda"
+        // | DerivedPatterns.SpecificCall <@ atomicF @> (_, _, [mutex; func]) ->
+
 
         | Patterns.Call (exprOpt, mInfo, args) ->
             let r, tContext = translateCall exprOpt mInfo args targetContext
