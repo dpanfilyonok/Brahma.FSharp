@@ -18,8 +18,7 @@ namespace Brahma.FSharp.OpenCL.Translator
 open FSharpx.Collections
 open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.AST
-open Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
-open Brahma.FSharp.OpenCL.Translator.Transformer
+open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 open Brahma.FSharp.OpenCL.Translator.TypeReflection
 
 #nowarn "3390"

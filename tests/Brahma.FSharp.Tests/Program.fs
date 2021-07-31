@@ -1,6 +1,6 @@
 open Expecto
 open Brahma.FSharp.OpenCL.Translator
-open Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
+open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 open Brahma.FSharp.OpenCL.Extensions
 open Brahma.FSharp.Tests
 open Brahma.OpenCL
@@ -163,8 +163,8 @@ let main argv =
         @>
 
     printfn "%A" <| k4
-    printfn "%A" <| ProcessAtomic.processAtomic k4
-    printfn "%A" <| Transformer.quotationTransformer k4 []
+    // printfn "%A" <| processAtomic k4
+    printfn "%A" <| quotationTransformer k4 []
     printfn "%A" <| Utils.openclTranslate k4
     // printfn "%A" <| a <@ [|1|].[0] @>
     // a e

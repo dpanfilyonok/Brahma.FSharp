@@ -1,4 +1,4 @@
-namespace Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
+namespace Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 
 open System.Collections.Generic
 open FSharp.Quotations

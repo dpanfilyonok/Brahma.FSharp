@@ -1,4 +1,4 @@
-namespace Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
+namespace Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 
 open Brahma.FSharp.OpenCL.Translator
 open FSharp.Quotations
@@ -16,7 +16,6 @@ module LambdaLifting =
 
         | Patterns.LetFunc (f, definition, inExpr) ->
             let localFreeVars = Utils.collectFreeVars definition
-
             let freeFunctionVars = Utils.collectFreeFunctionVars definition
 
             let getSetFreeVars (fVar: Var) =

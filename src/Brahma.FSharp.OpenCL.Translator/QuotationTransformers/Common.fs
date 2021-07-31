@@ -1,10 +1,11 @@
-namespace Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
+namespace Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 
 open FSharp.Reflection
 open FSharp.Quotations
 
 module Utils =
     let rec getFunctionArgTypes (funType: System.Type) =
+        // NOTE с помощью этой функции можно модифицировать агумнты лямбды
         let (argType, retType) = FSharpType.GetFunctionElements(funType)
         match retType with
         | _ when FSharpType.IsFunction retType ->
@@ -17,31 +18,35 @@ module Utils =
     let makeLambdaType types =
         List.reduceBack (fun domain range -> FSharpType.MakeFunctionType(domain, range)) types
 
-    let rec makeLambdaExpr (args: list<Var>) (body: Expr) =
+    let rec makeLambdaExpr (args: Var list) (body: Expr) =
         let mkLambda var expr = Expr.Lambda(var, expr)
         List.foldBack mkLambda args body
 
-    let rec makeApplicationExpr (head: Expr) (exprs: list<Expr>) =
+    let rec makeApplicationExpr (head: Expr) (exprs: Expr list) =
         let mkApplication l r = Expr.Application(l, r)
         List.fold mkApplication head exprs
 
-    let rec extractLambdaArguments (expr: Expr): list<Var> * Expr =
+    let rec extractLambdaArguments (expr: Expr) =
         match expr with
-        | Patterns.Lambda(var, body) ->
+        | Patterns.Lambda (var, body) ->
             let vars, body' = extractLambdaArguments body
             var :: vars, body'
         | _ -> [], expr
 
-    let isFunction (var: Var) =
-        FSharpType.IsFunction var.Type
+    let rec collectLambdaArguments (expr: Expr) : List<Var> =
+        match expr with
+        | ExprShape.ShapeLambda (var, body) ->
+            var :: collectLambdaArguments body
+        | _ -> []
 
+    // Это из замыкания переменные?
     /// Collect free variables of expression that satisfies predicate.
-    let rec collectFreeVarsWithPredicate (predicate: Var -> bool) (expr: Expr): Set<Var> =
+    let rec collectFreeVarsWithPredicate (predicate: Var -> bool) (expr: Expr) : Set<Var> =
         match expr with
         | Patterns.Let (var, expr, inExpr) ->
-            Set.union <|
-                collectFreeVarsWithPredicate predicate expr <|
-                Set.remove var (collectFreeVarsWithPredicate predicate inExpr)
+            Set.union
+            <| collectFreeVarsWithPredicate predicate expr
+            <| Set.remove var (collectFreeVarsWithPredicate predicate inExpr)
 
         | ExprShape.ShapeVar var ->
             if predicate var then Set.singleton var else Set.empty
@@ -56,23 +61,21 @@ module Utils =
             |> List.map (collectFreeVarsWithPredicate predicate)
             |> Set.unionMany
 
-    let collectFreeVars: Expr -> Set<Var> =
+    let isFunction (var: Var) =
+        FSharpType.IsFunction var.Type
+
+    let collectFreeVars : Expr -> Set<Var> =
         collectFreeVarsWithPredicate (not << isFunction)
 
-    let collectFreeFunctionVars: Expr -> Set<Var> =
+    let collectFreeFunctionVars : Expr -> Set<Var> =
         collectFreeVarsWithPredicate isFunction
-
-    let rec collectLambdaArguments (expr: Expr) : List<Var> =
-        match expr with
-        | ExprShape.ShapeLambda (var, body) ->
-            var :: collectLambdaArguments body
-        | _ -> []
 
     let rec collectLocalVars (expr: Expr) : Var list =
         match expr with
         | Patterns.Let (variable, DerivedPatterns.SpecificCall <@ local @> (_, _, _), cont)
         | Patterns.Let (variable, DerivedPatterns.SpecificCall <@ localArray @> (_, _, _), cont) ->
             variable :: collectLocalVars cont
+
         | ExprShape.ShapeVar var -> []
         | ExprShape.ShapeLambda (var, lambda) ->
             collectLocalVars lambda

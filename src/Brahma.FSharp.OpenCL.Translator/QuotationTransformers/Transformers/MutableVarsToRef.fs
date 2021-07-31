@@ -1,9 +1,30 @@
-namespace Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
+namespace Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 
 open FSharp.Quotations
 
 [<AutoOpen>]
 module MutableVarsToRef =
+    let private isMutableVar (var: Var) =
+        var.IsMutable && not (Utils.isFunction var)
+
+    let rec collectMutableVarsInClosure (expr: Expr) =
+        match expr with
+        | Patterns.LetFunc (_, body, inExpr) ->
+            let mutableFreeVars = body |> Utils.collectFreeVarsWithPredicate isMutableVar
+            Set.unionMany [
+                mutableFreeVars
+                collectMutableVarsInClosure body
+                collectMutableVarsInClosure inExpr
+            ]
+        | ExprShape.ShapeLambda (_, body) ->
+            collectMutableVarsInClosure body
+        | ExprShape.ShapeVar _ ->
+            Set.empty
+        | ExprShape.ShapeCombination(_, exprList) ->
+            exprList
+            |> List.map collectMutableVarsInClosure
+            |> Set.unionMany
+
     let rec varsToRefsWithPredicateImpl (refMap: Map<Var, Expr>) (predicate: Var -> bool) (expr: Expr) =
         match expr with
         | Patterns.LetVar (var, body, inExpr) ->
@@ -49,3 +70,7 @@ module MutableVarsToRef =
 
     let varsToRefsWithPredicate (predicate: Var -> bool) (expr: Expr) =
         varsToRefsWithPredicateImpl Map.empty predicate expr
+
+    let mutableVarsToRef (expr: Expr) =
+        let mutableVarsInClosure = collectMutableVarsInClosure expr
+        varsToRefsWithPredicate mutableVarsInClosure.Contains expr

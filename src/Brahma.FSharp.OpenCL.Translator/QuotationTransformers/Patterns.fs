@@ -1,6 +1,6 @@
-namespace Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
+namespace Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 
-open Brahma.FSharp.OpenCL.Translator.QuotationsTransformer.Utils
+// open Brahma.FSharp.OpenCL.Translator.QuotationsTransformer.Utils
 
 open FSharp.Quotations
 open FSharp.Quotations.Patterns
@@ -38,7 +38,7 @@ module Patterns =
                     match retType with
                     | _ when retType = typeof<unit> -> []
                     | _ when FSharpType.IsFunction retType ->
-                        getFunctionArgTypes <| mInfo.ReturnType
+                        Utils.getFunctionArgTypes <| mInfo.ReturnType
                     | _ -> failwithf "printf: returned type %A of NewPrintfFormat is not expected" retType
 
                 match args with
@@ -55,7 +55,7 @@ module Patterns =
         | Let(_, value, inExpr) ->
             match value with
             | NewPrintfFormat (tpArgs, value) ->
-                assert (tpArgs = getFunctionArgTypes inExpr.Type)
+                assert (tpArgs = Utils.getFunctionArgTypes inExpr.Type)
                 Some (tpArgs, value, [])
             | _ -> None
         | Application(f, arg) ->
@@ -83,11 +83,12 @@ module Patterns =
         | _ -> None
 
     let (|LetFunc|_|) (expr: Expr) =
-        letDefinition isFunction expr
+        letDefinition Utils.isFunction expr
 
     let (|LetVar|_|) (expr: Expr) =
-        letDefinition (not << isFunction) expr
+        letDefinition (not << Utils.isFunction) expr
 
+    // HACK это все можно DerrivedPatterns.Lambdas и DerrivedPatterns.Applications заменить же
     let rec private uncurryLambda (expr: Expr) =
         match expr with
         | ExprShape.ShapeLambda (var, body) ->
@@ -103,7 +104,6 @@ module Patterns =
             | _ ->
                 expr, acc
         uncurryApplicationImpl [] expr
-
 
     /// let f x1 x2 x3 = body in e
     /// => LetFuncUncurry(f, [x1; x2, x3], body, e)

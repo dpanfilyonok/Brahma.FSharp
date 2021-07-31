@@ -13,16 +13,17 @@
 // By using this software in any fashion, you are agreeing to be bound by the
 // terms of the License.
 
-namespace Brahma.FSharp.OpenCL.Translator
+namespace Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 
 open Microsoft.FSharp.Quotations
 open Microsoft.FSharp.Collections
-open Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
+open Brahma.FSharp.OpenCL.Translator
 
+[<AutoOpen>]
 module Transformer =
     let mainKernelName = "brahmaKernel"
 
-    let preprocessQuotation expr = PrintfReplacer.replacePrintf expr
+    let preprocessQuotation expr = replacePrintf expr
 
     /// Returns kernel and other methods
     let quotationTransformer expr (translatorOptions: TranslatorOption list) =
@@ -31,7 +32,5 @@ module Transformer =
         |> replacePrintf
         |> makeVarNameUnique
         |> varDefsToLambda
-        |> fun expr ->
-            let mutableVarsInClosure = collectMutableVarsInClosure expr
-            varsToRefsWithPredicate mutableVarsInClosure.Contains expr
+        |> mutableVarsToRef
         |> lambdaLifting

@@ -1,10 +1,10 @@
-module QuotationTransformer
+module QuotationTransformers
 
 open Brahma.OpenCL
 open Expecto
 open FSharp.Quotations
 open Brahma.FSharp.OpenCL.Translator
-open Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
+open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 
 let eqMsg = "Values should be equal"
 

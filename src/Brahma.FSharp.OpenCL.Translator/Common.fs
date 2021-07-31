@@ -109,90 +109,79 @@ module Extensions =
 
             mkLambdas args body
 
-// type State<'state, 'result> = State of ('state -> 'result * 'state)
+type State<'state, 'result> = State of ('state -> 'result * 'state)
 
-// module State =
-//     let run state (State f) =
-//         f state
+module State =
+    let run state (State f) =
+        f state
 
-//     let exec state (State f) =
-//         snd (f state)
+    let exec state (State f) =
+        snd (f state)
 
-//     let eval state (State f) =
-//         fst (f state)
+    let eval state (State f) =
+        fst (f state)
 
-//     let return' x = State <| fun state ->
-//         (x, state)
+    let return' x = State <| fun state ->
+        (x, state)
 
-//     let (>>=) x f = State <| fun state ->
-//         let (y, state') = run state x
-//         run state' (f y)
+    let (>>=) x f = State <| fun state ->
+        let (y, state') = run state x
+        run state' (f y)
 
-//     let get = State (fun s -> s, s)
+    let get = State (fun s -> s, s)
 
-//     let put newState = State <| fun _ ->
-//         (), newState
+    let put newState = State <| fun _ ->
+        (), newState
 
-//     // modify state
-//     let modify f =
-//         get >>= (f >> put)
+    // modify state
+    let modify f =
+        get >>= (f >> put)
 
-//     // apply f to state to produce value
-//     let gets f =
-//         get >>= (f >> return')
+    // apply f to state to produce value
+    let gets f =
+        get >>= (f >> return')
 
-//     let map f s = State <| fun state ->
-//         let (x, state) = run state s
-//         f x, state
+    let map f s = State <| fun state ->
+        let (x, state) = run state s
+        f x, state
 
-// /// The state monad passes around an explicit internal state that can be
-// /// updated along the way. It enables the appearance of mutability in a purely
-// /// functional context by hiding away the state when used with its proper operators
-// /// (in StateBuilder()). In other words, you implicitly pass around an implicit
-// /// state that gets transformed along its journey through pipelined code.
-// type StateBuilder() =
-//     member this.Zero() = State(fun s -> (), s)
-//     member this.Return x = State(fun s -> x, s)
-//     member this.ReturnFrom x = x
-//     member this.Bind (x, f) =
-//         State(fun state ->
-//             let (result: 'a), state = State.run state x
-//             State.run state (f result))
-//     member this.Combine(x1, x2) =
-//         State(fun state ->
-//             let result, state = State.run state x1
-//             State.run state x2)
-//     member this.Delay f = f ()
-//     member this.For(seq, f) =
-//         seq
-//         |> Seq.map f
-//         |> Seq.reduceBack (fun x1 x2 -> this.Combine (x1, x2))
-//     member this.While (f, x) =
-//         if f () then this.Combine (x, this.While (f, x))
-//         else this.Zero ()
+    let collect (list: State<'s, 'a> list) =
+        list
+        |> List.fold
+            (fun state elem ->
+                state >>= fun state ->
+                elem >>= fun elem ->
+                return' (elem :: state)
+            ) (return' List.empty)
+        |> fun args -> map List.rev args
 
-// type TranslationContext<'a> = State<TargetContext<Lang, Statement<Lang>>, 'a>
+/// The state monad passes around an explicit internal state that can be
+/// updated along the way. It enables the appearance of mutability in a purely
+/// functional context by hiding away the state when used with its proper operators
+/// (in StateBuilder()). In other words, you implicitly pass around an implicit
+/// state that gets transformed along its journey through pipelined code.
+type StateBuilder() =
+    member this.Zero() = State(fun s -> (), s)
+    member this.Return x = State(fun s -> x, s)
+    member this.ReturnFrom x = x
+    member this.Bind (x, f) =
+        State(fun state ->
+            let (result: 'a), state = State.run state x
+            State.run state (f result))
+    member this.Combine(x1, x2) =
+        State(fun state ->
+            let result, state = State.run state x1
+            State.run state x2)
+    member this.Delay f = f ()
+    member this.For(seq, f) =
+        seq
+        |> Seq.map f
+        |> Seq.reduceBack (fun x1 x2 -> this.Combine (x1, x2))
+    member this.While (f, x) =
+        if f () then this.Combine (x, this.While (f, x))
+        else this.Zero ()
 
-
-// [<AutoOpen>]
-// module StateBuilder =
-//     let state = StateBuilder()
-
-//     let a : TranslationContext<_> =
-//         state {
-//             return ()
-//         }
-
-// type A() =
-//     member this.Zero() : TranslationContext<_> = state.Zero()
-//     member this.Return x : TranslationContext<_> = state.Return x
-//     member this.Bind(x, f) : TranslationContext<_> = state.Bind(x, f)
-
-// module A =
-//     let a = A()
-
-//     let s =
-//         a {
-//             return ()
-//         }
-//         |> State.run (TargetContext())
+[<AutoOpen>]
+module StateBuilder =
+    let state = StateBuilder()
+    let (>>=) = State.(>>=)

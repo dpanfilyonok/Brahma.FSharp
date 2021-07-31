@@ -21,7 +21,7 @@ open Brahma.FSharp.OpenCL.AST
 open Microsoft.FSharp.Collections
 open FSharpx.Collections
 open System.Collections.Generic
-open Brahma.FSharp.OpenCL.Translator.QuotationsTransformer
+open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 
 module Body =
     // TODO is it really clear context?
