@@ -110,6 +110,20 @@ module Translation =
         let (y, context') = run context x
         run context' (f y)
 
+    let map f x = Translation <| fun context ->
+        let (x, context') = run context x
+        f x, context'
+
+    let collect (list: list<Translation<'a>>) =
+        list
+        |> List.fold
+            (fun state elem ->
+                state >>= fun state ->
+                elem >>= fun elem ->
+                return' (elem :: state)
+            ) (return' List.empty)
+        |> fun args -> map List.rev args
+
 module TranslationContext =
     open Translation
 
@@ -126,18 +140,14 @@ module TranslationContext =
     let gets f =
         get >>= (f >> return')
 
-    let map f x = Translation <| fun context ->
-        let (x, context') = run context x
-        f x, context'
-
     let using (f: TranslationContext -> TranslationContext) x = Translation <| fun context ->
         eval (f context) x, context
 
 type TranslationBuilder() =
-    member this.Zero() = Translation.return' ()
+    member this.Bind(x, f) = Translation.(>>=) x f
     member this.Return x = Translation.return' x
     member this.ReturnFrom x = x
-    member this.Bind(x, f) = Translation.(>>=) x f
+    member this.Zero() = Translation.return' ()
 
     member this.Combine(x1, x2) =
         Translation <| fun context ->
@@ -152,7 +162,8 @@ type TranslationBuilder() =
         |> Seq.reduceBack (fun x1 x2 -> this.Combine(x1, x2))
 
     member this.While(f, x) =
-        if f () then this.Combine(x, this.While(f, x))
+        if f () then
+            this.Combine(x, this.While(f, x))
         else this.Zero()
 
 [<AutoOpen>]

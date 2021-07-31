@@ -21,9 +21,8 @@ open Brahma.FSharp.OpenCL.AST
 open Microsoft.FSharp.Collections
 open FSharpx.Collections
 open System.Collections.Generic
-open Brahma.FSharp.OpenCL.Translator.QuotationsTransformer.PrintfReplacer
 
-module Body =
+module rec Body =
     // TODO is it really clear context?
     let private clearContext (targetContext: TargetContext<'a, 'b>) =
         let context =
@@ -50,37 +49,36 @@ module Body =
 
         context
 
-    let rec private translateBinding (var: Var) newName (expr: Expr) =
+    let private translateBinding (var: Var) newName (expr: Expr) =
         translation {
             let! body = translateCond (*TranslateAsExpr*) expr
-            let! vType =
-                translation {
-                    match (body: Expression<_>) with
-                    | :? Const<_> as c ->
-                        return c.Type
-                    | :? ArrayInitializer<_> as ai ->
-                        return! Type.translate var.Type false (Some ai.Length)
-                    | _ -> return! Type.translate var.Type false None
-                }
+            let! varType = translation {
+                match (body: Expression<_>) with
+                | :? Const<_> as c ->
+                    return c.Type
+                | :? ArrayInitializer<_> as ai ->
+                    return! Type.translate var.Type false (Some ai.Length)
+                | _ -> return! Type.translate var.Type false None
+            }
 
-            return VarDecl(vType, newName, Some body)
+            return VarDecl(varType, newName, Some body)
         }
 
-    and private translateListOfArgs (args: Expr list) =
+    let private translateListOfArgs (args: Expr list) =
         args
         |> List.fold
-            (fun res arg ->
+            (fun state arg ->
                 translation {
-                    let! res = res
-                    let! r = translateCond arg
-                    return r :: res
+                    let! state = state
+                    let! translated = translateCond arg
+                    return translated :: state
                 }
             ) (Translation.return' [])
-        |> fun args -> TranslationContext.map List.rev args
+        |> fun args -> Translation.map List.rev args
 
-    and private translateCall exprOpt (mInfo: System.Reflection.MethodInfo) _args =
+    let private translateCall exprOpt (mInfo: System.Reflection.MethodInfo) args =
         translation {
-            let! args = translateListOfArgs _args
+            let! args = translateListOfArgs args
 
             match mInfo.Name.ToLowerInvariant() with
             | "op_multiply" -> return Binop(Mult, args.[0], args.[1]) :> Statement<_>
@@ -174,39 +172,35 @@ module Body =
             | "sqrt"
             | "tan"
             | "tanh" as fName ->
-                return
-                    if
-                        mInfo.DeclaringType.AssemblyQualifiedName.StartsWith("System.Math") ||
-                        mInfo.DeclaringType.AssemblyQualifiedName.StartsWith("Microsoft.FSharp.Core.Operators")
-                    then
-                        FunCall(fName, args) :> Statement<_>
-                    else
-                        failwithf
-                            "Seems, that you use math function with name %s not from System.Math or Microsoft.FSharp.Core.Operators"
-                            fName
+                if
+                    mInfo.DeclaringType.AssemblyQualifiedName.StartsWith("System.Math") ||
+                    mInfo.DeclaringType.AssemblyQualifiedName.StartsWith("Microsoft.FSharp.Core.Operators")
+                then
+                    return FunCall(fName, args) :> Statement<_>
+                else
+                    return failwithf
+                        "Seems, that you use math function with name %s not from \
+                        System.Math or Microsoft.FSharp.Core.Operators" fName
             | "abs" as fName ->
-                return
-                    if mInfo.DeclaringType.AssemblyQualifiedName.StartsWith("Microsoft.FSharp.Core.Operators") then
-                        FunCall("fabs", args) :> Statement<_>
-                    else
-                        failwithf
-                            "Seems, that you use math function with name %s not from System.Math or Microsoft.FSharp.Core.Operators"
-                            fName
+                if mInfo.DeclaringType.AssemblyQualifiedName.StartsWith("Microsoft.FSharp.Core.Operators") then
+                    return FunCall("fabs", args) :> Statement<_>
+                else
+                    return failwithf
+                        "Seems, that you use math function with name %s not from \
+                        System.Math or Microsoft.FSharp.Core.Operators" fName
             | "powinteger" as fName ->
-                return
-                    if mInfo.DeclaringType.AssemblyQualifiedName.StartsWith("Microsoft.FSharp.Core.Operators") then
-                        FunCall("powr", args) :> Statement<_>
-                    else
-                        failwithf
-                            "Seems, that you use math function with name %s not from System.Math or Microsoft.FSharp.Core.Operators"
-                            fName
+                if mInfo.DeclaringType.AssemblyQualifiedName.StartsWith("Microsoft.FSharp.Core.Operators") then
+                    return FunCall("powr", args) :> Statement<_>
+                else
+                    return failwithf
+                        "Seems, that you use math function with name %s not from \
+                        System.Math or Microsoft.FSharp.Core.Operators" fName
             | "ref" -> return Ptr args.[0] :> Statement<_>
             | "op_dereference" -> return IndirectionOp args.[0] :> Statement<_>
             | "op_colonequals" ->
                 return Assignment(Property(PropertyType.VarReference(IndirectionOp args.[0])), args.[1]) :> Statement<_>
             | "setarray" ->
-                let item = Item(args.[0], args.[1])
-                return Assignment(Property(PropertyType.Item item), args.[2]) :> Statement<_>
+                return Assignment(Property(PropertyType.Item(Item(args.[0], args.[1]))), args.[2]) :> Statement<_>
             | "getarray" -> return Item(args.[0], args.[1]) :> Statement<_>
             | "not" -> return Unop(UOp.Not, args.[0]) :> Statement<_>
             | "_byte" -> return args.[0] :> Statement<_>
@@ -216,9 +210,9 @@ module Body =
             | "zerocreate" ->
                 let length =
                     match args.[0] with
-                    | :? Const<Lang> as c -> int c.Val
+                    | :? Const<Lang> as c ->
+                        int c.Val
                     | other -> failwithf "Calling Array.zeroCreate with a non-const argument: %A" other
-
                 return ZeroArray length :> Statement<_>
             | "fst" -> return FieldGet(args.[0], "_1") :> Statement<_>
             | "snd" -> return FieldGet(args.[0], "_2") :> Statement<_>
@@ -228,22 +222,20 @@ module Body =
             | other -> return failwithf "Unsupported call: %s" other
         }
 
-    and private itemHelper exprs hostVar =
+    let private itemHelper exprs hostVar =
         translation {
-            let! idx =
-                translation {
-                    match exprs with
-                    | hd :: _ -> return! translateAsExpr hd
-                    | [] -> return failwith "Array index missed!"
-                }
+            let! idx = translation {
+                match exprs with
+                | hd :: _ -> return! translateAsExpr hd
+                | [] -> return failwith "Array index missed!"
+            }
 
             return idx, hostVar
         }
 
-    and private translateSpecificPropGet expr propName exprs =
+    let private translateSpecificPropGet expr propName exprs =
         translation {
             // TODO: Refactoring: Safe pattern matching by expr type.
-
             let! hostVar = translateAsExpr expr
             match propName with
             | "globalid0i"
@@ -267,28 +259,23 @@ module Body =
             | _ -> return failwithf "Unsupported property in kernel: %A" propName
         }
 
-    and private translatePropGet (exprOpt: Expr Option) (propInfo: PropertyInfo) exprs =
+    let private translatePropGet (exprOpt: Expr Option) (propInfo: PropertyInfo) exprs =
         translation {
             let propName = propInfo.Name.ToLowerInvariant()
 
             match exprOpt with
             | Some expr ->
-                let exprType = expr.Type
-                let! b = TranslationContext.gets (fun context -> context.UserDefinedTypes.Contains exprType)
-                if b then
+                match! TranslationContext.gets (fun context -> context.UserDefinedTypes.Contains expr.Type) with
+                | true ->
                     let exprTypeName = expr.Type.Name.ToLowerInvariant()
-                    let! b = TranslationContext.gets (fun context ->  context.UserDefinedStructsOpenCLDeclaration.ContainsKey exprTypeName)
-                    if b then
-                        return! translateStructFieldGet expr propInfo.Name
-                    else
-                        return! translateUnionFieldGet expr propInfo
-                else
-                    return! translateSpecificPropGet expr propName exprs
+                    match! TranslationContext.gets (fun context ->  context.UserDefinedStructsOpenCLDeclaration.ContainsKey exprTypeName) with
+                    | true -> return! translateStructFieldGet expr propInfo.Name
+                    | false -> return! translateUnionFieldGet expr propInfo
+                | false -> return! translateSpecificPropGet expr propName exprs
             | None -> return failwithf "Unsupported static property get in kernel: %A" propName
         }
 
-
-    and private translatePropSet exprOpt (propInfo: System.Reflection.PropertyInfo) exprs newVal =
+    let private translatePropSet exprOpt (propInfo: System.Reflection.PropertyInfo) exprs newVal =
         translation {
             // Todo: Safe pattern matching (item) by expr type
             let propName = propInfo.Name.ToLowerInvariant()
@@ -298,210 +285,188 @@ module Body =
                 let! hostVar = translateAsExpr expr
                 let! newVal = translateAsExpr newVal
 
-                return!
-                    translation {
-                        match propInfo.Name.ToLowerInvariant() with
-                        | "item" ->
-                            let! (idx, hVar) = itemHelper exprs hostVar
-                            let item = Item(hVar, idx)
-                            return Assignment(Property(PropertyType.Item item), newVal) :> Statement<_>
-                        | _ ->
-                            let! r = translateFieldSet expr propInfo.Name exprs.[0]
-                            return r :> Statement<_>
-                    }
+                return! translation {
+                    match propInfo.Name.ToLowerInvariant() with
+                    | "item" ->
+                        let! (idx, hVar) = itemHelper exprs hostVar
+                        let item = Item(hVar, idx)
+                        return Assignment(Property(PropertyType.Item item), newVal) :> Statement<_>
+                    | _ ->
+                        let! translated = translateFieldSet expr propInfo.Name exprs.[0]
+                        return translated :> Statement<_>
+                }
             | None -> return failwithf "Unsupported static property set in kernel: %A" propName
         }
 
-    and translateAsExpr expr : Translation<Expression<_>> =
+    let translateAsExpr expr : Translation<Expression<_>> =
         translation {
-            let! (r: Node<_>) = translate expr
-            return (r :?> Expression<_>)
+            let! (translated: Node<_>) = translate expr
+            return (translated :?> Expression<_>)
         }
 
-    and getVar (clVarName: string) =
+    let getVar (clVarName: string) =
         translation {
             return Variable clVarName
         }
 
-    and translateVar (var: Var) =
+    let translateVar (var: Var) =
         translation {
             //getVar var.Name targetContext
             match! TranslationContext.gets (fun context -> context.Namer.GetCLVarName var.Name) with
-            | Some n -> return! getVar n
+            | Some varName -> return! getVar varName
             | None ->
-                return
-                    failwithf
-                        "Seems, that you try to use variable with name %A, that declared out of quotation.
-                        Please, pass it as quoted function's parametaer." var.Name
+                return failwithf
+                    "Seems, that you try to use variable with name %A, that declared out of quotation. \
+                    Please, pass it as quoted function's parametaer." var.Name
         }
 
-    and translateValue (value: obj) (sType: System.Type) =
+    let translateValue (value: obj) (sType: System.Type) =
         translation {
-            let s = string value
             match sType.Name.ToLowerInvariant() with
             | "boolean" ->
-                let! t = Type.translate sType false None
-                return t, if s.ToLowerInvariant() = "false" then "0" else "1"
-
-            | t when t.EndsWith "[]" ->
-                let arr =
-                    match t with
+                let! translatedType = Type.translate sType false None
+                let stringValue = if value.ToString().ToLowerInvariant() = "false" then "0" else "1"
+                return translatedType, stringValue
+            | typeName when typeName.EndsWith "[]" ->
+                let array =
+                    match typeName with
                     | "int32[]" -> value :?> array<int> |> Array.map string
                     | "byte[]" -> value :?> array<byte> |> Array.map string
                     | "single[]" -> value :?> array<float32> |> Array.map string
                     | _ -> failwith "Unsupported array type."
-                let! t = Type.translate sType false (Some arr.Length)
-                return
-                    t,
-                    arr
+
+                let! translatedType = Type.translate sType false (Some array.Length)
+                let stringValue =
+                    array
                     |> String.concat ", "
                     |> fun s -> "{ " + s + "}"
-            | _ ->
-                let! t = Type.translate sType false None
-                return t, s
-        }
-        |> TranslationContext.map (fun (t, s) -> Const(t, s))
 
-    and translateVarSet (var: Var) (expr: Expr) =
+                return translatedType, stringValue
+            | _ ->
+                let! translatedType = Type.translate sType false None
+                let stringValue = value.ToString()
+                return translatedType, stringValue
+        }
+        |> Translation.map (fun (type', value) -> Const(type', value))
+
+    let translateVarSet (var: Var) (expr: Expr) =
         translation {
             let! var = translateVar var
             let! expr = translateCond (*TranslateAsExpr*) expr
             return Assignment(Property(PropertyType.Var var), expr)
         }
 
-    and translateCond (cond: Expr) : Translation<Expression<_>> =
+    // TODO refac
+    let translateCond (cond: Expr) =
         translation {
             match cond with
-            | Patterns.IfThenElse (cond, _then, _else) ->
-                let! l = translateCond cond
-                let! r = translateCond _then
-                let! e = translateCond _else
-                let! asBit = TranslationContext.gets <| fun context -> context.TranslatorOptions.Contains BoolAsBit
+            | Patterns.IfThenElse (if', then', else') ->
+                let! l = translateCond if'
+                let! r = translateCond then'
+                let! e = translateCond else'
+                let! isBoolAsBit = TranslationContext.gets (fun context -> context.TranslatorOptions.Contains BoolAsBit)
                 let o1 =
                     match r with
-                    | :? Const<Lang> as c when c.Val = "1" ->
-                        l
-                    | _ -> Binop((if asBit then BitAnd else And), l, r) :> Expression<_>
+                    | :? Const<Lang> as c when c.Val = "1" -> l
+                    | _ -> Binop((if isBoolAsBit then BitAnd else And), l, r) :> Expression<_>
 
-                return
-                    match e with
-                    | :? Const<Lang> as c when c.Val = "0" -> o1
-                    | _ -> Binop((if asBit then BitOr else Or), o1, e) :> Expression<_>
-            | _ ->
-                return! translateAsExpr cond
+                match e with
+                | :? Const<Lang> as c when c.Val = "0" ->
+                    return o1
+                | _ -> return Binop((if isBoolAsBit then BitOr else Or), o1, e) :> Expression<_>
+
+            | _ -> return! translateAsExpr cond
         }
 
-
-    and toStb (s: Node<_>) =
+    let toStb (s: Node<_>) =
         translation {
-            return
-                match s with
-                | :? StatementBlock<_> as s -> s
-                | x -> StatementBlock <| ResizeArray [x :?> Statement<_>]
+            match s with
+            | :? StatementBlock<_> as s ->
+                return s
+            | x -> return StatementBlock <| ResizeArray [x :?> Statement<_>]
         }
 
-    and translateIf (cond: Expr) (thenBranch: Expr) (elseBranch: Expr) =
+    let translateIf (cond: Expr) (thenBranch: Expr) (elseBranch: Expr) =
         translation {
-            let! cond = translateCond cond
-            let! _then = translate thenBranch >>= toStb |> TranslationContext.using clearContext
-            let! _else = translation {
+            let! if' = translateCond cond
+            let! then' = translate thenBranch >>= toStb |> TranslationContext.using clearContext
+            let! else' = translation {
                 match elseBranch with
                 | Patterns.Value (null, sType) -> return None
                 | _ ->
-                    let! r = translate elseBranch >>= toStb |> TranslationContext.using clearContext
-                    return Some r
+                    return!
+                        translate elseBranch >>= toStb
+                        |> TranslationContext.using clearContext
+                        |> Translation.map Some
             }
 
-            return IfThenElse(cond, _then, _else)
+            return IfThenElse(if', then', else')
         }
 
-    // and translateForIntegerRangeLoop
-    //     (i: Var)
-    //     (from: Expr)
-    //     (_to: Expr)
-    //     (_do: Expr)
-    //     (targetContext: TargetContext<_, _>)
-    //     =
-    //     let iName = targetContext.Namer.LetStart i.Name
-    //     let v = getVar iName targetContext
-    //     let var = translateBinding i iName from targetContext
-    //     let condExpr, tContext = translateAsExpr _to targetContext
-    //     targetContext.Namer.LetIn i.Name
-    //     let body, tContext = translate _do (clearContext targetContext)
-    //     let cond = Binop(LessEQ, v, condExpr)
-    //     let condModifier = Unop(UOp.Incr, v)
-    //     targetContext.Namer.LetOut()
-    //     ForIntegerLoop(var, cond, condModifier, toStb body), targetContext
-    and translateForIntegerRangeLoop
-        (i: Var)
-        (from: Expr)
-        (_to: Expr)
-        (_do: Expr) =
-
+    // TODO refac
+    let translateForIntegerRangeLoop (i: Var) (from': Expr) (to': Expr) (loopBody: Expr) =
         translation {
             let! iName = TranslationContext.gets (fun context -> context.Namer.LetStart i.Name)
             let! v = getVar iName
-            let! var = translateBinding i iName from
-            let! condExpr = translateAsExpr _to
+            let! var = translateBinding i iName from'
+            let! condExpr = translateAsExpr to'
             do! TranslationContext.modify (fun context -> context.Namer.LetIn i.Name; context)
-            let! body = translate _do >>= toStb |> TranslationContext.using clearContext
+            let! body = translate loopBody >>= toStb |> TranslationContext.using clearContext
             let cond = Binop(LessEQ, v, condExpr)
             let condModifier = Unop(UOp.Incr, v)
             do! TranslationContext.modify (fun context -> context.Namer.LetOut(); context)
             return ForIntegerLoop(var, cond, condModifier, body)
         }
 
-    and translateWhileLoop condExpr bodyExpr =
+    let translateWhileLoop condExpr bodyExpr =
         translation {
             let! nCond = translateCond condExpr
             let! nBody = translate bodyExpr >>= toStb
             return WhileLoop(nCond, nBody)
         }
 
-    and translateSeq expr1 expr2 =
+    let translateSeq expr1 expr2 =
         translation {
             let linearized = ResizeArray()
-            let rec go e =
-                match e with
+            let rec go expr =
+                match expr with
                 | Patterns.Sequential (e1, e2) ->
                     go e1
                     go e2
-                | e -> linearized.Add e
+                | _ -> linearized.Add expr
+
             go expr1
             go expr2
-            let! d = TranslationContext.gets (fun context -> context.VarDecls)
-            let decls = ResizeArray d
+
+            let! decls = TranslationContext.gets (fun context -> context.VarDecls)
             do! TranslationContext.modify (fun context -> context.VarDecls.Clear(); context)
-            do! TranslationContext.modify <| fun context ->
-                linearized
-                |> Seq.fold
-                    (fun context expr ->
-                        context.VarDecls.Clear()
-                        let nExpr = translate expr |> Translation.eval context
-                        match nExpr: Node<_> with
-                        | :? StatementBlock<Lang> as s1 -> decls.AddRange(s1.Statements)
-                        | s1 -> decls.Add(s1 :?> Statement<_>)
-                        context
-                    ) context
+
+            for expr in linearized do
+                do! TranslationContext.modify (fun context -> context.VarDecls.Clear(); context)
+                match! translate expr with
+                | :? StatementBlock<Lang> as s1 ->
+                    decls.AddRange(s1.Statements)
+                | s1 -> decls.Add(s1 :?> Statement<_>)
 
             return StatementBlock decls
         }
 
-    and translateApplication expr1 expr2 =
+    // TODO change to lambdas and applications without rec
+    let translateApplication expr1 expr2 =
         translation {
             let rec go expr vals args =
                 match expr with
                 | Patterns.Lambda (v, e) -> go e vals (v :: args)
                 | Patterns.Application (e1, e2) -> go e1 (e2 :: vals) args
-                | expr ->
+                | _ ->
                     if vals.Length = args.Length then
-                        let d =
+                        let argsDict =
                             vals
                             |> List.zip (List.rev args)
                             |> dict
 
                         //failwith "Partial evaluation is not supported in kernel function."
-                        expr.Substitute(fun v -> if d.ContainsKey v then Some d.[v] else None), true
+                        expr.Substitute(fun v -> if argsDict.ContainsKey v then Some argsDict.[v] else None), true
                     else
                         expr, false
 
@@ -510,49 +475,44 @@ module Body =
             return body, doing
         }
 
-    and translateApplicationFun expr1 expr2 =
+    // TODO change to applications without rec
+    let translateApplicationFun expr1 expr2 =
         translation {
-            let rec go expr vals =
-                translation {
-                    match expr with
-                    // | Patterns.Lambda (v, e) -> go e vals (v :: args)
-                    | Patterns.Application (e1, e2) ->
-                        let! exp = translateAsExpr e2
-                        return! go e1 (exp :: vals)
-                    | _ ->
-                        // TODO fix it
-                        // NOTE не поддерживается частичное применение
-                        // NOTE не поддерживается композиция функций (или функции высшего порядка)
-                        let funName =
-                            match expr with
-                            | Patterns.ValueWithName (_, _, name) -> name
-                            | _ -> expr.ToString()
+            let rec go expr vals = translation {
+                match expr with
+                | Patterns.Application (e1, e2) ->
+                    let! exp = translateAsExpr e2
+                    return! go e1 (exp :: vals)
+                | _ ->
+                    // TODO fix it
+                    // NOTE не поддерживается частичное применение
+                    // NOTE не поддерживается композиция функций (или функции высшего порядка)
+                    let funName =
+                        match expr with
+                        | Patterns.ValueWithName (_, _, name) -> name
+                        | _ -> expr.ToString()
 
-                        return FunCall(funName, vals) :> Statement<_>
-                }
+                    return FunCall(funName, vals) :> Statement<_>
+            }
 
             let! exp = translateAsExpr expr2
             return! go expr1 [exp]
         }
 
-    and translateFieldSet host name _val =
+    let translateFieldSet host name value =
         translation {
             let! hostE = translateAsExpr host
-            let field = name //fldInfo.Name
-            let! valE = translateAsExpr _val
-            let res = FieldSet(hostE, field, valE)
-            return res
+            let! valE = translateAsExpr value
+            return FieldSet(hostE, name, valE)
         }
 
-    and translateStructFieldGet host name =
+    let translateStructFieldGet host name =
         translation {
             let! hostE = translateAsExpr host
-            let field = name //fldInfo.Name
-            let res = FieldGet(hostE, field) :> Expression<_>
-            return res
+            return FieldGet(hostE, name) :> Expression<_>
         }
 
-    and translateUnionFieldGet expr (propInfo: PropertyInfo) =
+    let translateUnionFieldGet expr (propInfo: PropertyInfo) =
         translation {
             let exprTypeName = expr.Type.Name.ToLowerInvariant()
             let! unionType = TranslationContext.gets (fun context -> context.UserDefinedUnionsOpenCLDeclaration.[exprTypeName])
@@ -563,12 +523,6 @@ module Body =
             let unionCaseField = unionType.GetCaseByName caseName
 
             match unionCaseField with
-            | None ->
-                return
-                    failwithf
-                        "Union field get translation error: union %A doesn't have case %A"
-                        unionType.Name
-                        caseName
             | Some unionCaseField ->
                 return
                     FieldGet(
@@ -579,10 +533,12 @@ module Body =
                         propInfo.Name
                     )
                     :> Expression<_>
-
+            | None ->
+                return failwithf
+                    "Union field get translation error: union %A doesn't have case %A" unionType.Name caseName
         }
 
-    and translate expr =
+    let translate expr =
         translation {
             match expr with
             | Patterns.AddressOf expr -> return failwithf "AdressOf is not suported: %O" expr
@@ -596,11 +552,12 @@ module Body =
                     let! r = translateApplicationFun expr1 expr2
                     return r :> Node<_>
 
-            | DerivedPatterns.SpecificCall <@@ print @@> (_, _, args) ->
+            | DerivedPatterns.SpecificCall <@@ QuotationsTransformer.PrintfReplacer.print @@> (_, _, args) ->
                 match args with
                 | [ Patterns.ValueWithName (argTypes, _, _);
                     Patterns.ValueWithName (formatStr, _, _);
                     Patterns.ValueWithName (argValues, _, _) ] ->
+
                     let formatStrArg = Const(PrimitiveType ConstStringLiteral, formatStr :?> string) :> Expression<_>
                     let! args' = translateListOfArgs (argValues :?> list<Expr>)
                     return FunCall("printf", formatStrArg :: args') :> Node<_>
@@ -779,26 +736,25 @@ module Body =
         }
 
 
-    and private translateLet var expr inExpr =
+    let private translateLet var expr inExpr =
         translation {
             let! bName = TranslationContext.gets (fun context -> context.Namer.LetStart var.Name)
 
-            let! vDecl =
-                translation {
-                    match expr with
-                    | DerivedPatterns.SpecificCall <@@ local @@> (_, _, _) ->
-                        let! vType = Type.translate var.Type false None
-                        return VarDecl(vType, bName, None, spaceModifier = Local)
-                    | DerivedPatterns.SpecificCall <@@ localArray @@> (_, _, [arg]) ->
-                        let! expr = translateCond arg
-                        let arrayLength =
-                            match expr with
-                            | :? Const<Lang> as c -> Some <| int c.Val
-                            | other -> failwithf "Calling localArray with a non-const argument %A" other
-                        let! arrayType = Type.translate var.Type false arrayLength
-                        return VarDecl(arrayType, bName, None, spaceModifier = Local)
-                    | _ -> return! translateBinding var bName expr
-                }
+            let! vDecl = translation {
+                match expr with
+                | DerivedPatterns.SpecificCall <@@ local @@> (_, _, _) ->
+                    let! vType = Type.translate var.Type false None
+                    return VarDecl(vType, bName, None, spaceModifier = Local)
+                | DerivedPatterns.SpecificCall <@@ localArray @@> (_, _, [arg]) ->
+                    let! expr = translateCond arg
+                    let arrayLength =
+                        match expr with
+                        | :? Const<Lang> as c -> Some <| int c.Val
+                        | other -> failwithf "Calling localArray with a non-const argument %A" other
+                    let! arrayType = Type.translate var.Type false arrayLength
+                    return VarDecl(arrayType, bName, None, spaceModifier = Local)
+                | _ -> return! translateBinding var bName expr
+            }
 
             do! TranslationContext.modify (fun context -> context.VarDecls.Add vDecl; context)
             do! TranslationContext.modify (fun context -> context.Namer.LetIn var.Name; context)
@@ -807,7 +763,7 @@ module Body =
             let! res = translate inExpr |> TranslationContext.using clearContext
             let! sb =
                 TranslationContext.gets (fun context -> context.VarDecls |> Seq.cast<Statement<_>>)
-                |> TranslationContext.map ResizeArray
+                |> Translation.map ResizeArray
 
             do! TranslationContext.modify (fun context -> context.TupleDecls.Clear(); context)
             do! TranslationContext.modify (fun context -> context.TupleList.Clear(); context)
@@ -830,28 +786,26 @@ module Body =
             return StatementBlock sb :> Node<_>
         }
 
-    and private translateProvidedCall expr =
-        let rec traverse expr args =
-            translation {
+    let private translateProvidedCall expr =
+        translation {
+            let rec traverse expr args = translation {
                 match expr with
                 | Patterns.Value (calledName, sType) ->
                     match sType.Name.ToLowerInvariant() with
                     | "string" -> return (calledName :?> string), args
                     | _ -> return failwithf "Failed to parse provided call, expected string call name: %O" expr
                 | Patterns.Sequential (expr1, expr2) ->
-                    let! updatedArgs =
-                        translation {
-                            match expr2 with
-                            | Patterns.Value (null, _) -> return args // the last item in the sequence is null
-                            | _ ->
-                                let! a = translateAsExpr expr2
-                                return a :: args
-                        }
+                    let! updatedArgs = translation {
+                        match expr2 with
+                        | Patterns.Value (null, _) -> return args // the last item in the sequence is null
+                        | _ ->
+                            let! a = translateAsExpr expr2
+                            return a :: args
+                    }
                     return! traverse expr1 updatedArgs
                 | _ -> return "Failed to parse provided call: " + string expr |> failwith
             }
 
-        translation {
             let! m = traverse expr []
             return FunCall m :> Node<_>
         }
