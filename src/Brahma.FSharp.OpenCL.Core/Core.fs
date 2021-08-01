@@ -18,6 +18,7 @@ module Brahma.FSharp.OpenCL.Core
 open Brahma.OpenCL
 open Microsoft.FSharp.Quotations
 open FSharp.Quotations.Evaluator
+open Brahma.FSharp.OpenCL.Translator
 open Brahma.FSharp.OpenCL
 open OpenCL.Net
 open System
@@ -109,34 +110,74 @@ type ComputeProvider with
         let run = ref Unchecked.defaultof<Commands.Run<'TRange>>
 
         let getStarterFuncton qExpr =
-            // TODO to flat Lambdas
-            let rec go expr vars =
+            let rec go expr =
                 match expr with
-                | Patterns.Lambda (v, body) -> Expr.Lambda(v, go body (v :: vars))
-                | _ ->
+                | DerivedPatterns.Lambdas (lambdaArgs, body) ->
+                    let flattenArgs = List.collect id lambdaArgs
+                    let firstMutexIdx =
+                        flattenArgs
+                        |> List.tryFindIndex (fun v -> v.Name.EndsWith "Mutex")
+                        |> Option.defaultValue flattenArgs.Length
+
+                    let newArgs = flattenArgs.[0 .. firstMutexIdx - 1]
+
+                    let mutexArrayVar =
+                        Array.init<Var> (flattenArgs.Length - firstMutexIdx) <| fun i ->
+                            let mutexVar = flattenArgs.[firstMutexIdx + i]
+                            newArgs |> List.find (fun v -> mutexVar.Name.Contains v.Name)
+
+                    let mutexArray =
+                        Expr.NewArray(
+                            typeof<int>,
+                            mutexArrayVar
+                            |> Array.toList
+                            |> List.map (function
+                                | x when x.GetType().IsArray ->
+                                    let len =
+                                        Expr.PropertyGet(
+                                            Expr.Var x,
+                                            typeof<int[]>.GetProperty("Length")
+                                        )
+                                    Expr.Value len
+                                | _ -> Expr.Value 0
+                            )
+                        )
+
                     let c =
                         Expr.NewArray(
                             typeof<obj>,
-                            vars
-                            |> List.rev
-                            |> List.map (fun v -> Expr.Coerce(Expr.Var(v), typeof<obj>))
+                            newArgs
+                            |> List.map (fun v -> Expr.Coerce(Expr.Var v, typeof<obj>))
                         )
 
-                    <@@
-                        let x = %%c |> List.ofArray
-                        rng := (box x.Head) :?> 'TRange
-                        args := x.Tail |> Array.ofList
+                    Expr.Lambdas(
+                        newArgs |> List.map List.singleton,
+                        <@@
+                            let mArr = %%mutexArray |> List.ofArray |> Seq.cast<int> |> List.ofSeq
 
-                        let brahmsRunCls =
-                            new Brahma.OpenCL.Commands.Run<_>(kernel, !rng)
+                            let m =
+                                mArr
+                                |> List.map (fun n ->
+                                    if n = 0 then box 0
+                                    else box <| Array.zeroCreate<int> n
+                                )
 
-                        !args
-                        |> Array.iteri (fun i x -> brahmsRunCls.SetupArgument(1, i, x))
+                            let x = %%c |> List.ofArray
+                            rng := unbox<'TRange> x.Head
+                            args := x.Tail @ m |> Array.ofList
 
-                        run := kernel.Run(!rng, !args)
-                    @@>
+                            let brahmaRunCl = Commands.Run<_>(kernel, !rng)
 
-            <@ %%(go qExpr []): 'TRange -> 'a @>.Compile()
+                            !args
+                            |> Array.iteri (fun i x -> brahmaRunCl.SetupArgument(1, i, x))
+
+                            run := kernel.Run(!rng, !args)
+                        @@>
+                    )
+
+                | _ -> failwithf "lol"
+
+            <@ %%(go qExpr): 'TRange -> 'a @>.Compile()
 
         if outCode.IsSome then
             (outCode.Value) := (kernel :> ICLKernel).Source.ToString()

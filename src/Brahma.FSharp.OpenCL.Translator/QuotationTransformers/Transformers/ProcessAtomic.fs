@@ -155,7 +155,7 @@ module ProcessAtomic =
                             typeof<Mutex>
                     )
 
-                do! State.modify (fun state -> (v, vMutex) :: state)
+                do! State.modify (fun (state: Map<Var, Var>) -> state |> Map.add v vMutex)
 
                 let baseFuncType =
                     collectedLambdaTypes
@@ -165,15 +165,6 @@ module ProcessAtomic =
                     collectedLambdaTypes
                     |> modifyFirstOfList (fun x -> typeof<ref<_>>.GetGenericTypeDefinition().MakeGenericType(x))
                     |> Utils.makeLambdaType
-
-                // let atomicFInfo =
-                //     Utils.getMethodInfoOfLambda <@ atomicF @>
-                //     |> fun mInfo ->
-                //         mInfo.GetGenericMethodDefinition().MakeGenericMethod(
-                //             collectedLambdaTypes
-                //             |> fun types -> types.Head :: [Utils.makeLambdaType types.Tail]
-                //             |> List.toArray
-                //         )
 
                 let baseFuncVar = Var("baseFunc", baseFuncType)
                 let atomicFuncVar = Var("atomicFunc", atomicFuncType)
@@ -223,7 +214,8 @@ module ProcessAtomic =
                                         <| getFirstOfListListWith Expr.Var atomicArgs
                                         <| Expr.Applications(Expr.Var baseFuncVar, atomicApplicaionArgs)
                                     )
-                                    atomicXchg %%mutex 0
+                                    // NOTE тут если оставлять без привязки, то полсе этого выражения вставляется unit, а его транслировать не умеем
+                                    let s = atomicXchg %%mutex 0
                                     flag <- false
                             barrier ()
                             // TODO тут он как то криво тип выозвращаемого значения выводит (не выводит сосвсем)
@@ -255,31 +247,58 @@ module ProcessAtomic =
     }
 
     let insertMutexVars (expr: Expr) = state {
-        let! (st : (Var * Var) list) = State.get
+        let! (st : Map<Var, Var>) = State.get
         let (args, body) = Utils.extractLambdaArguments expr
         let ra = ResizeArray args
         st
+        |> Map.toList
         |> List.iter
             (fun (var, mutexVar) ->
                 if List.contains var args then
                     ra.Add mutexVar
             )
 
-        let locals = Utils.collectLocalVars body
-        let mutable body = body
+        let rec loop expr =
+            match expr with
+            | Patterns.Let (variable, (DerivedPatterns.SpecificCall <@ local @> (_, _, _) as body), cont) ->
+                Expr.Let(
+                    variable,
+                    body,
+                    match st |> Map.tryFind variable with
+                    | Some vMutex ->
+                        Expr.Let(
+                            vMutex,
+                            body,
+                            cont
+                        )
+                    | None ->
+                        cont
+                )
+            | Patterns.Let (variable, (DerivedPatterns.SpecificCall <@ localArray @> (_, _, _) as body), cont) ->
+                Expr.Let(
+                    variable,
+                    body,
+                    match st |> Map.tryFind variable with
+                    | Some vMutex ->
+                        Expr.Let(
+                            vMutex,
+                            body,
+                            cont
+                        )
+                    | None ->
+                        cont
+                )
 
-        // st
-        // |> List.iter
-        //     (fun (var, mutexVar) ->
-        //         if List.contains var locals then
-        //             body <-
-        //                 Expr.
-        //     )
+            | ExprShape.ShapeVar var -> Expr.Var var
+            | ExprShape.ShapeLambda (var, lambda) ->
+                Expr.Lambda(var, loop lambda)
+            | ExprShape.ShapeCombination (combo, exprs) ->
+                ExprShape.RebuildShapeCombination(combo, List.map loop exprs)
 
-        return Expr.Lambdas(Seq.toList ra |> List.map List.singleton, body)
+        return Expr.Lambdas(Seq.toList ra |> List.map List.singleton, loop body)
     }
 
     let processAtomic (expr: Expr) =
         transformAtomicsAndCollectVars expr
         >>= insertMutexVars
-        |> State.eval []
+        |> State.eval Map.empty

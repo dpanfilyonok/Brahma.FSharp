@@ -26,7 +26,7 @@ module Transformer =
     let preprocessQuotation expr = replacePrintf expr
 
     /// Returns kernel and other methods
-    let quotationTransformer expr (translatorOptions: TranslatorOption list) =
+    let quotationTransformer (expr: Expr) (translatorOptions: TranslatorOption list) =
         expr
         |> processAtomic
         |> replacePrintf

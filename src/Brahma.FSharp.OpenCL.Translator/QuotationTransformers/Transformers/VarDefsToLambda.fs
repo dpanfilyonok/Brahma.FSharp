@@ -10,15 +10,9 @@ module LetVarAbstracter =
         match expr with
         | Patterns.Value _
         | Patterns.ValueWithName _
+        | Patterns.DefaultValue _
         | Patterns.Var _ -> true
         | Patterns.Call (_, _, args) -> List.forall isPrimitiveExpression args
-        // | DerivedPatterns.Applications (func, applicationArgs) ->
-        //     // applicationArgs
-        //     // |> List.collect id
-        //     // |> List.forall isPrimitiveExpression
-        //     // &&
-        //     // isPrimitiveExpression func
-        //     true
         | Patterns.FieldGet (instance, _) ->
             instance
             |> Option.map isPrimitiveExpression

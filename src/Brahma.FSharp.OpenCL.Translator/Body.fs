@@ -91,56 +91,39 @@ module Body =
         | "op_rightshift" -> Binop(RightShift, args.[0], args.[1]) :> Statement<_>, tContext
         | "op_booleanand" -> Binop(And, args.[0], args.[1]) :> Statement<_>, tContext
         | "op_booleanor" -> Binop(Or, args.[0], args.[1]) :> Statement<_>, tContext
-        | "op_lessbangplusgreater"
-        | "op_lessbangplus"
         | "atomicadd" ->
             tContext.Flags.enableAtomic <- true
-            FunCall("atom_add", [Ptr args.[0]; args.[1]]) :> Statement<_>, tContext
-        | "op_lessbangmunus"
-        | "op_lessbangmunusgreater"
+            FunCall("atom_add", [args.[0]; args.[1]]) :> Statement<_>, tContext
         | "atomicsub" ->
             tContext.Flags.enableAtomic <- true
-            FunCall("atom_sub", [Ptr args.[0]; args.[1]]) :> Statement<_>, tContext
-        | "op_lessbanggreater"
-        | "op_lessbang"
+            FunCall("atom_sub", [args.[0]; args.[1]]) :> Statement<_>, tContext
         | "atomicxchg" ->
             tContext.Flags.enableAtomic <- true
-            FunCall("atom_xchg", [Ptr args.[0]; args.[1]]) :> Statement<_>, tContext
-        | "amax"
-        | "amaxr"
+            FunCall("atom_xchg", [args.[0]; args.[1]]) :> Statement<_>, tContext
         | "atomicmax" ->
             tContext.Flags.enableAtomic <- true
-            FunCall("atom_max", [Ptr args.[0]; args.[1]]) :> Statement<_>, tContext
-        | "amin"
-        | "aminr"
+            FunCall("atom_max", [args.[0]; args.[1]]) :> Statement<_>, tContext
         | "atomicmin" ->
             tContext.Flags.enableAtomic <- true
-            FunCall("atom_min", [Ptr args.[0]; args.[1]]) :> Statement<_>, tContext
-        | "aincr"
-        | "aincrr"
+            FunCall("atom_min", [args.[0]; args.[1]]) :> Statement<_>, tContext
         | "atomicinc" ->
             tContext.Flags.enableAtomic <- true
-            FunCall("atom_inc", [Ptr args.[0]]) :> Statement<_>, tContext
-        | "adecr"
-        | "adecrr"
+            FunCall("atom_inc", [args.[0]]) :> Statement<_>, tContext
         | "atomicdec" ->
             tContext.Flags.enableAtomic <- true
-            FunCall("atom_dec", [Ptr args.[0]]) :> Statement<_>, tContext
-        | "acompexch"
-        | "acompexchr"
+            FunCall("atom_dec", [args.[0]]) :> Statement<_>, tContext
         | "atomiccmpxchg" ->
             tContext.Flags.enableAtomic <- true
-            FunCall("atom_cmpxchg", [Ptr args.[0]; args.[1]; args.[2]]) :> Statement<_>, tContext
+            FunCall("atom_cmpxchg", [args.[0]; args.[1]; args.[2]]) :> Statement<_>, tContext
         | "atomicand" ->
             tContext.Flags.enableAtomic <- true
-            FunCall("atom_and", [Ptr args.[0]; args.[1]]) :> Statement<_>, tContext
+            FunCall("atom_and", [args.[0]; args.[1]]) :> Statement<_>, tContext
         | "atomicor" ->
             tContext.Flags.enableAtomic <- true
-            FunCall("atom_or", [Ptr args.[0]; args.[1]]) :> Statement<_>, tContext
+            FunCall("atom_or", [args.[0]; args.[1]]) :> Statement<_>, tContext
         | "atomicxor" ->
             tContext.Flags.enableAtomic <- true
-            FunCall("atom_xor", [Ptr args.[0]; args.[1]]) :> Statement<_>, tContext
-
+            FunCall("atom_xor", [args.[0]; args.[1]]) :> Statement<_>, tContext
         | "todouble" -> Cast(args.[0], PrimitiveType Float) :> Statement<_>, tContext
         | "toint" -> Cast(args.[0], PrimitiveType Int) :> Statement<_>, tContext
         | "toint16" -> Cast(args.[0], PrimitiveType Short) :> Statement<_>, tContext
@@ -524,9 +507,6 @@ module Body =
                 FunCall("printf", formatStrArg :: args') :> Node<_>, targetContext'
             | _ -> failwith "printf: something going wrong."
 
-        // | DerivedPatterns.SpecificCall <@ atomicF @> (_, _, [mutex; func]) ->
-
-
         | Patterns.Call (exprOpt, mInfo, args) ->
             let r, tContext = translateCall exprOpt mInfo args targetContext
             r :> Node<_>, tContext
@@ -685,6 +665,9 @@ module Body =
                     | other -> failwithf "Calling localArray with a non-const argument %A" other
                 let arrayType = Type.translate var.Type false arrayLength newTargetContext
                 VarDecl(arrayType, bName, None, spaceModifier = Local)
+            | Patterns.DefaultValue _ ->
+                let vType = Type.translate var.Type false None targetContext
+                VarDecl(vType, bName, None)
             | _ -> translateBinding var bName expr targetContext
 
         targetContext.VarDecls.Add vDecl
