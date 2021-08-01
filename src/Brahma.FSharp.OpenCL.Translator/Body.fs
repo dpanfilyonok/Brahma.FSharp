@@ -507,6 +507,14 @@ module Body =
                 FunCall("printf", formatStrArg :: args') :> Node<_>, targetContext'
             | _ -> failwith "printf: something going wrong."
 
+        | DerivedPatterns.SpecificCall <@ (|>) @>
+            (
+                _,
+                _,
+                [expr; Patterns.Lambda(_, DerivedPatterns.SpecificCall <@ ignore @> (_, _, _))]
+            ) ->
+            translate expr targetContext
+
         | Patterns.Call (exprOpt, mInfo, args) ->
             let r, tContext = translateCall exprOpt mInfo args targetContext
             r :> Node<_>, tContext

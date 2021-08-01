@@ -105,81 +105,86 @@ type ComputeProvider with
         let kernel =
             this.CompileQuery<Kernel<'TRange>>(query, tOptions, additionalSources)
 
+        if outCode.IsSome then
+            outCode.Value := (kernel :> ICLKernel).Source.ToString()
+
         let rng = ref Unchecked.defaultof<'TRange>
         let args = ref [||]
         let run = ref Unchecked.defaultof<Commands.Run<'TRange>>
 
         let getStarterFuncton qExpr =
-            let rec go expr =
-                match expr with
-                | DerivedPatterns.Lambdas (lambdaArgs, body) ->
-                    let flattenArgs = List.collect id lambdaArgs
-                    let firstMutexIdx =
-                        flattenArgs
-                        |> List.tryFindIndex (fun v -> v.Name.EndsWith "Mutex")
-                        |> Option.defaultValue flattenArgs.Length
+            match qExpr with
+            | DerivedPatterns.Lambdas (lambdaArgs, body) ->
+                let flattenArgs = List.collect id lambdaArgs
+                let firstMutexIdx =
+                    flattenArgs
+                    |> List.tryFindIndex (fun v -> v.Name.EndsWith "Mutex")
+                    |> Option.defaultValue flattenArgs.Length
 
-                    let newArgs = flattenArgs.[0 .. firstMutexIdx - 1]
+                let argsWithoutMutexes = flattenArgs.[0 .. firstMutexIdx - 1]
 
-                    let mutexArrayVar =
-                        Array.init<Var> (flattenArgs.Length - firstMutexIdx) <| fun i ->
-                            let mutexVar = flattenArgs.[firstMutexIdx + i]
-                            newArgs |> List.find (fun v -> mutexVar.Name.Contains v.Name)
+                let atomicVars =
+                    List.init<Var> (flattenArgs.Length - firstMutexIdx) <| fun i ->
+                        let mutexVar = flattenArgs.[firstMutexIdx + i]
+                        argsWithoutMutexes |> List.find (fun v -> mutexVar.Name.Contains v.Name)
 
-                    let mutexArray =
-                        Expr.NewArray(
-                            typeof<int>,
-                            mutexArrayVar
-                            |> Array.toList
-                            |> List.map (function
-                                | x when x.GetType().IsArray ->
-                                    let len =
-                                        Expr.PropertyGet(
-                                            Expr.Var x,
-                                            typeof<int[]>.GetProperty("Length")
-                                        )
-                                    Expr.Value len
-                                | _ -> Expr.Value 0
-                            )
-                        )
+                /// For each atomic variable returns 0 if variable's type is not array,
+                /// otherwise returns length of array
+                let mutexLengths =
+                    Expr.NewArray(
+                        typeof<int>,
 
-                    let c =
-                        Expr.NewArray(
-                            typeof<obj>,
-                            newArgs
-                            |> List.map (fun v -> Expr.Coerce(Expr.Var v, typeof<obj>))
-                        )
-
-                    Expr.Lambdas(
-                        newArgs |> List.map List.singleton,
-                        <@@
-                            let mArr = %%mutexArray |> List.ofArray |> Seq.cast<int> |> List.ofSeq
-
-                            let m =
-                                mArr
-                                |> List.map (fun n ->
-                                    if n = 0 then box 0
-                                    else box <| Array.zeroCreate<int> n
+                        atomicVars
+                        |> List.map (fun x ->
+                            match x with
+                            | x when x.GetType().IsArray ->
+                                Expr.PropertyGet(
+                                    Expr.Var x,
+                                    typeof<int[]>.GetProperty("Length")
                                 )
-
-                            let x = %%c |> List.ofArray
-                            rng := unbox<'TRange> x.Head
-                            args := x.Tail @ m |> Array.ofList
-
-                            let brahmaRunCl = Commands.Run<_>(kernel, !rng)
-
-                            !args
-                            |> Array.iteri (fun i x -> brahmaRunCl.SetupArgument(1, i, x))
-
-                            run := kernel.Run(!rng, !args)
-                        @@>
+                            | _ -> Expr.Value 0
+                        )
                     )
 
-                | _ -> failwithf "lol"
+                let newArgs =
+                    Expr.NewArray(
+                        typeof<obj>,
 
-            <@ %%(go qExpr): 'TRange -> 'a @>.Compile()
+                        argsWithoutMutexes
+                        |> List.map (fun v -> Expr.Coerce(Expr.Var v, typeof<obj>))
+                    )
 
-        if outCode.IsSome then
-            (outCode.Value) := (kernel :> ICLKernel).Source.ToString()
+                Expr.Lambdas(
+                    argsWithoutMutexes
+                    |> List.map List.singleton,
+
+                    <@@
+
+                        let mutexArgs =
+                            %%mutexLengths
+                            |> Seq.cast<int>
+                            |> List.ofSeq
+                            |> List.map (fun n ->
+                                if n = 0 then box 0
+                                else box <| Array.zeroCreate<int> n
+                            )
+
+                        let x = %%newArgs |> List.ofArray
+                        rng := unbox<'TRange> x.Head
+                        args := x.Tail @ mutexArgs |> Array.ofList
+
+                        let brahmaRunCl = Commands.Run<_>(kernel, !rng)
+
+                        !args
+                        |> Array.iteri (fun i x -> brahmaRunCl.SetupArgument(1, i, x))
+
+                        run := kernel.Run(!rng, !args)
+                    @@>
+                )
+
+            | _ -> failwithf "Invalid expression. Must be lambda, but given\n%O" qExpr
+
+            |> fun kernelPrepare ->
+                <@ %%kernelPrepare: 'TRange -> 'a @>.Compile()
 
         kernel, getStarterFuncton query, (fun () -> !run)

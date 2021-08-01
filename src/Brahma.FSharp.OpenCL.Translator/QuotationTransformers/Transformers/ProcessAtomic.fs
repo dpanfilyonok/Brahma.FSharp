@@ -215,7 +215,7 @@ module ProcessAtomic =
                                         <| Expr.Applications(Expr.Var baseFuncVar, atomicApplicaionArgs)
                                     )
                                     // NOTE тут если оставлять без привязки, то полсе этого выражения вставляется unit, а его транслировать не умеем
-                                    let s = atomicXchg %%mutex 0
+                                    atomicXchg %%mutex 0 |> ignore
                                     flag <- false
                             barrier ()
                             // TODO тут он как то криво тип выозвращаемого значения выводит (не выводит сосвсем)

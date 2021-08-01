@@ -542,14 +542,14 @@ let quotationInjectionTests = testList "Quotation injection tests" [
 
 let localMemTests = testList "Local memory tests" [
     // TODO: pointers to local data must be local too.
-    ptestCase "Local int. Work item counting" <| fun _ ->
+    testCase "Local int. Work item counting" <| fun _ ->
         let command =
             <@ fun (range: _1D) (output: array<int>) ->
                 let globalID = range.GlobalID0
                 let mutable x = local ()
 
                 if globalID = 0 then x <- 0
-                x <!+ 1
+                atomic (+) x 1 |> ignore
                 if globalID = 0 then output.[0] <- x
              @>
 
@@ -594,7 +594,7 @@ let localMemTests = testList "Local memory tests" [
         let command =
             <@ fun (range: _1D) (buf: array<int64>) ->
                 let localBuf = localArray 42
-                localBuf.[0] <! 1L
+                atomic xchg localBuf.[0] 1L |> ignore
                 buf.[0] <- localBuf.[0]
             @>
 
