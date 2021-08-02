@@ -8,12 +8,12 @@ open Brahma.FSharp.Tests.Utils
 open Brahma.FSharp.Tests.CustomDatatypes
 open Expecto.Logging
 open Expecto.Logging.Message
-open FsCheck
 
 let logger = Log.create "AtomicTests"
 
 module Settings =
     let wgSize = 256
+    let doubledWgSize = wgSize * 2
     let getValidGS = getValidGlobalSize wgSize
 
 /// Stress test for unary atomic operations.
@@ -30,22 +30,18 @@ let stressTest<'a when 'a : equality> f size =
         [0 .. size - 1]
         |> List.fold (fun state _ -> f.Evaluate() state) Unchecked.defaultof<'a>
 
-    let actual =
-        try
-            opencl {
-                let result = Array.zeroCreate<'a> 1
-                do! runCommand kernel <| fun kernelPrepare ->
-                    kernelPrepare
-                    <| _1D(Settings.getValidGS size, Settings.wgSize)
-                    <| result
+    let actual = finalize <| fun () ->
+        opencl {
+            let result = Array.zeroCreate<'a> 1
+            do! runCommand kernel <| fun kernelPrepare ->
+                kernelPrepare
+                <| _1D(Settings.getValidGS size, Settings.wgSize)
+                <| result
 
-                return! toHost result
-            }
-            |> context.RunSync
-            |> fun result -> result.[0]
-
-        finally
-            context.Provider.CloseAllBuffers()
+            return! toHost result
+        }
+        |> context.RunSync
+        |> fun result -> result.[0]
 
     "Results should be equal"
     |> Expect.equal actual expected
@@ -60,7 +56,7 @@ let foldTest<'a when 'a : equality and 'a : struct> f (array: 'a[]) =
                 let lid = range.LocalID0
 
                 let localResult = local<'a> ()
-                // NOTE array.[lid] should be called once
+                // TODO check it: array.[lid] should be called once
                 atomic %f localResult array.[lid] |> ignore
                 barrier ()
 
@@ -72,23 +68,19 @@ let foldTest<'a when 'a : equality and 'a : struct> f (array: 'a[]) =
         array
         |> Array.fold (fun state x -> f.Evaluate() state x) Unchecked.defaultof<'a>
 
-    let actual =
-        try
-            opencl {
-                let result = Array.zeroCreate<'a> 1
-                do! runCommand kernel <| fun kernelPrepare ->
-                    kernelPrepare
-                    <| _1D(Settings.getValidGS array.Length, Settings.wgSize)
-                    <| array
-                    <| result
+    let actual = finalize <| fun () ->
+        opencl {
+            let result = Array.zeroCreate<'a> 1
+            do! runCommand kernel <| fun kernelPrepare ->
+                kernelPrepare
+                <| _1D(Settings.getValidGS array.Length, Settings.wgSize)
+                <| array
+                <| result
 
-                return! toHost result
-            }
-            |> context.RunSync
-            |> fun result -> result.[0]
-
-        finally
-            context.Provider.CloseAllBuffers()
+            return! toHost result
+        }
+        |> context.RunSync
+        |> fun result -> result.[0]
 
     "Results should be equal"
     |> Expect.equal actual expected
@@ -126,27 +118,22 @@ let reduceTest<'a when 'a : equality> f (array: 'a[]) =
         array
         |> Array.reduce (fun x y -> f.Evaluate() x y)
 
-    let actual =
-        try
-            opencl {
-                let result = Array.zeroCreate<'a> 1
-                do! runCommand kernel <| fun kernelPrepare ->
-                    kernelPrepare
-                    <| _1D(Settings.getValidGS array.Length, Settings.wgSize)
-                    <| array
-                    <| result
+    let actual = finalize <| fun () ->
+        opencl {
+            let result = Array.zeroCreate<'a> 1
+            do! runCommand kernel <| fun kernelPrepare ->
+                kernelPrepare
+                <| _1D(Settings.getValidGS array.Length, Settings.wgSize)
+                <| array
+                <| result
 
-                return! toHost result
-            }
-            |> context.RunSync
-            |> fun result -> result.[0]
-
-        finally
-            context.Provider.CloseAllBuffers()
+            return! toHost result
+        }
+        |> context.RunSync
+        |> fun result -> result.[0]
 
     "Results should be equal"
     |> Expect.equal actual expected
-
 
 // TODO Tests for xchg и cmpxchg
 
@@ -223,44 +210,9 @@ let reduceTestCases = testList "Reduce tests" [
     reduceTest<int64> <@ (^^^) @> |> testProperty "Reduce test atomic ^^^ on int64"
 ]
 
-let atomicInsideQuotTest = testCase "Operation definition inside quotation" <| fun () ->
-    let kernel =
-        <@
-            fun (range: _1D) (result: int[]) ->
-                let incx2 x = x + 2
-                atomic incx2 result.[0] |> ignore
-                barrier ()
-        @>
-
-    let size = Settings.wgSize * 2
-
-    let expected =
-        [0 .. size - 1]
-        |> List.fold (fun state _ -> state + 2) 0
-
-    let actual =
-        try
-            opencl {
-                let result = Array.zeroCreate<int> 1
-                do! runCommand kernel <| fun kernelPrepare ->
-                    kernelPrepare
-                    <| _1D(Settings.getValidGS size, Settings.wgSize)
-                    <| result
-
-                return! toHost result
-            }
-            |> context.RunSync
-            |> fun result -> result.[0]
-
-        finally
-            context.Provider.CloseAllBuffers()
-
-    "Results should be equal"
-    |> Expect.equal actual expected
-
 let perfomanceTest = testCase "Perfomance test on inc" <| fun () ->
     // use native atomic_inc for int
-    let kernelUsingNativeInc () =
+    let kernelUsingNativeInc () = finalize <| fun () ->
         opencl {
             let kernel =
                 <@
@@ -284,7 +236,7 @@ let perfomanceTest = testCase "Perfomance test on inc" <| fun () ->
         |> context.RunSync
 
     // generate spin lock
-    let kernelUsingCustomInc () =
+    let kernelUsingCustomInc () = finalize <| fun () ->
         opencl {
             let inc = <@ fun x -> x + 1 @>
             let kernel =
@@ -313,37 +265,150 @@ let perfomanceTest = testCase "Perfomance test on inc" <| fun () ->
 
 // TODO deadlock test
 // TODO custom op with 3 parameters ??
-// TODO particial application tests (let g = atomic (+); g 1. 2.)
+// TODO particial application tests (let g = atomic (+); g 1. 2.) -- unsupported -- надо бы как то явн это обработать
 
-// TODO srtp on types with (+) (generic atomic (+)) test
-let srtpTest = testCase "Srtp test on inc" <| fun () ->
-    let inline kernel () =
-        <@
-            fun (range: _1D) (result: 'a[]) ->
-                atomic inc result.[0] |> ignore
-                barrier ()
-        @>
+let commonTests = testList "Behavior/semantic tests" [
+    testCase "Check operation definition inside quotation" <| fun () ->
+        let kernel =
+            <@
+                fun (range: _1D) (result: int[]) ->
+                    let incx2 x = x + 2
+                    atomic incx2 result.[0] |> ignore
+                    barrier ()
+            @>
 
-    let srtpOnIntActual =
-        try
+        let size = Settings.wgSize * 2
+
+        let expected =
+            [0 .. size - 1]
+            |> List.fold (fun state _ -> state + 2) 0
+
+        let actual = finalize <| fun () ->
             opencl {
                 let result = Array.zeroCreate<int> 1
-                do! runCommand (kernel ()) <| fun kernelPrepare ->
+                do! runCommand kernel <| fun kernelPrepare ->
                     kernelPrepare
-                    <| _1D(Settings.wgSize, Settings.wgSize)
+                    <| _1D(Settings.getValidGS size, Settings.wgSize)
                     <| result
 
                 return! toHost result
             }
+            |> context.RunSync
+            |> fun result -> result.[0]
 
-        finally
-            context.Provider.CloseAllBuffers()
+        "Results should be equal"
+        |> Expect.equal actual expected
 
-    let srtpOnFloatActual =
-        try
+    testCase "Srtp test on inc" <| fun () ->
+        let inline kernel () =
+            <@
+                fun (range: _1D) (result: 'a[]) ->
+                    atomic inc result.[0] |> ignore
+            @>
+
+        let srtpOnIntActual = finalize <| fun () ->
+            opencl {
+                let result = Array.zeroCreate<int> 1
+                do! runCommand (kernel ()) <| fun kernelPrepare ->
+                    kernelPrepare
+                    <| _1D(Settings.doubledWgSize, Settings.wgSize)
+                    <| result
+
+                return! toHost result
+            }
+            |> context.RunSync
+            |> fun result -> result.[0]
+
+        let srtpOnFloatActual = finalize <| fun () ->
             opencl {
                 let result = Array.zeroCreate<float> 1
                 do! runCommand (kernel ()) <| fun kernelPrepare ->
+                    kernelPrepare
+                    <| _1D(Settings.doubledWgSize, Settings.wgSize)
+                    <| result
+
+                return! toHost result
+            }
+            |> context.RunSync
+            |> fun result -> result.[0]
+
+        "Results should be equal up to types"
+        |> Expect.isTrue (float srtpOnIntActual = srtpOnFloatActual)
+
+    testCase "Check sequential fully equal atomic operations" <| fun () ->
+        let kernel =
+            <@
+                fun (range: _1D) (result: int[]) ->
+                    atomic inc result.[0] |> ignore
+                    atomic inc result.[0] |> ignore
+            @>
+
+        let expected = Settings.doubledWgSize * 2
+
+        let actual = finalize <| fun () ->
+            opencl {
+                let result = Array.zeroCreate<int> 1
+                do! runCommand kernel <| fun kernelPrepare ->
+                    kernelPrepare
+                    <| _1D(Settings.doubledWgSize, Settings.wgSize)
+                    <| result
+
+                return! toHost result
+            }
+            |> context.RunSync
+            |> fun result -> result.[0]
+
+        "Results should be equal"
+        |> Expect.equal actual expected
+
+    testCase "Check sequential equal atomic operations but with different types" <| fun () ->
+        let kernel =
+            <@
+                fun (range: _1D) (resultInt: int[]) (resultFloat32: float32[]) ->
+                    atomic inc resultInt.[0] |> ignore
+                    atomic inc resultFloat32.[0] |> ignore
+            @>
+
+        let expected = (Settings.doubledWgSize, float32 Settings.doubledWgSize)
+
+        let actual = finalize <| fun () ->
+            opencl {
+                let resultInt = Array.zeroCreate<int> 1
+                let resultFloat32 = Array.zeroCreate<float32> 1
+                do! runCommand kernel <| fun kernelPrepare ->
+                    kernelPrepare
+                    <| _1D(Settings.doubledWgSize, Settings.wgSize)
+                    <| resultInt
+                    <| resultFloat32
+
+                do! transferToHost resultInt
+                do! transferToHost resultFloat32
+                return (resultInt, resultFloat32)
+            }
+            |> context.RunSync
+            |> fun (resultInt, resultFloat32) -> (resultInt.[0], resultFloat32.[0])
+
+        "Results should be equal"
+        |> Expect.equal actual expected
+
+    testCase "Check sequential equal atomic operations but different address qualifiers" <| fun () ->
+        let kernel =
+            <@
+                fun (range: _1D) (result: int[]) ->
+                    let localRes = local<int> ()
+                    atomic inc result.[0] |> ignore
+                    atomic inc localRes |> ignore
+                    barrier ()
+                    if range.GlobalID0 = 0 then
+                        result.[0] <- result.[0] + localRes
+            @>
+
+        let expected = Settings.wgSize * 2
+
+        let actual = finalize <| fun () ->
+            opencl {
+                let result = Array.zeroCreate<int> 1
+                do! runCommand kernel <| fun kernelPrepare ->
                     kernelPrepare
                     <| _1D(Settings.wgSize, Settings.wgSize)
                     <| result
@@ -351,19 +416,101 @@ let srtpTest = testCase "Srtp test on inc" <| fun () ->
                 return! toHost result
             }
             |> context.RunSync
+            |> fun result -> result.[0]
 
-        finally
-            context.Provider.CloseAllBuffers()
+        "Results should be equal"
+        |> Expect.equal actual expected
 
-    ()
+    // TODO не умеем toHost если не массив
+    // testCase "Check atomic operation on global non-array object" <| fun () ->
+    //     let kernel =
+    //         <@
+    //             fun (range: _1D) (result: int) ->
+    //                 atomic inc result |> ignore
+    //         @>
+
+    //     let expected = Settings.doubledWgSize
+
+    //     let actual = finalize <| fun () ->
+    //         opencl {
+    //             let result = 0
+    //             do! runCommand kernel <| fun kernelPrepare ->
+    //                 kernelPrepare
+    //                 <| _1D(Settings.doubledWgSize, Settings.wgSize)
+    //                 <| result
+
+    //             return! toHost result
+    //         }
+    //         |> context.RunSync
+    //         |> fun result -> result.[0]
+
+    //     "Results should be equal"
+    //     |> Expect.equal actual expected
+
+    testCase "Check atomic operation as guard in WHILE loop" <| fun () ->
+        let maxAcc = 10
+        let kernel =
+            <@
+                fun (range: _1D) (array: int[]) ->
+                    while atomic inc array.[0] <> maxAcc do
+                        1 |> ignore // cause () unsupported
+            @>
+
+        let expected = maxAcc
+
+        let actual = finalize <| fun () ->
+            opencl {
+                let result = Array.zeroCreate<int> 1
+                do! runCommand kernel <| fun kernelPrepare ->
+                    kernelPrepare
+                    <| _1D(Settings.doubledWgSize, Settings.wgSize)
+                    <| result
+
+                return! toHost result
+            }
+            |> context.RunSync
+            |> fun result -> result.[0]
+
+        "Results should be equal"
+        |> Expect.equal actual expected
+
+    testCase "Check sequential equal atomic operations on local array" <| fun () ->
+        let kernel =
+            <@
+                fun (range: _1D) (result: int[]) ->
+                    let localSingleton = localArray<int> 1
+                    atomic inc localSingleton.[0] |> ignore
+                    atomic inc localSingleton.[0] |> ignore
+                    barrier ()
+                    if range.GlobalID0 = 0 then
+                        result.[0] <- localSingleton.[0]
+            @>
+
+        let expected = Settings.wgSize * 2
+
+        let actual = finalize <| fun () ->
+            opencl {
+                let result = Array.zeroCreate<int> 1
+                do! runCommand kernel <| fun kernelPrepare ->
+                    kernelPrepare
+                    <| _1D(Settings.wgSize, Settings.wgSize)
+                    <| result
+
+                return! toHost result
+            }
+            |> context.RunSync
+            |> fun result -> result.[0]
+
+        "Results should be equal"
+        |> Expect.equal actual expected
+]
 
 let tests =
     testList "Tests on atomic functions" [
         stressTestCases
         foldTestCases
         reduceTestCases
-        atomicInsideQuotTest
         perfomanceTest
-        srtpTest
+        commonTests
     ]
     |> testSequenced

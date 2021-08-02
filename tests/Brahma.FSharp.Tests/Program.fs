@@ -34,20 +34,6 @@ open OpenCL.Net
 
 [<EntryPoint>]
 let main argv =
-    let e =
-        <@
-            fun (range: _1D) (array: int[]) ->
-                let g x = x + 2
-                array.[0] <- g 4
-        @>
-
-    let a (e: Expr) =
-        match e with
-        | ShapeLambda (v, expr) -> printfn "no"
-        | Lambdas (v, body) ->
-            printfn "%A %A" v body
-        | SpecificCall <@ IntrinsicFunctions.GetArray @> (_, t, args) -> printfn "yes"
-
     let kernel =
         <@
             fun (range: _1D) (array: int[]) ->

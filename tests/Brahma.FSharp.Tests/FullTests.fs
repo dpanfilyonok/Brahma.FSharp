@@ -290,6 +290,22 @@ let bindingTests = testList "Bindings tests" [
         let run, check = checkResult command
         run default1D intInArr
         check intInArr [| 25; 1; 2; 3 |]
+
+    // NOTE наверное, пользователям не нужно давать это использовать в своем коде
+    // Это можно безопасно ипользовать для lateinit, но в качестве значения по умолчанию не стоит
+    // (нужно продумать, чтобы поведение было предсказуемым)
+    testCase "Check defaultof binding" <| fun () ->
+        let command =
+            <@
+                fun (range: _1D) (buffer: int[]) ->
+                    let gid = range.GlobalID0
+                    let mutable defaultInt = Unchecked.defaultof<int>
+                    buffer.[gid] <- 0
+            @>
+
+        let (run, check) = checkResult command
+        run default1D intInArr
+        check intInArr (intInArr |> Array.map (fun _ -> 0))
 ]
 
 let operatorsAndMathFunctionsTests =
@@ -367,7 +383,7 @@ let operatorsAndMathFunctionsTests =
             check inA (inA |> Array.map System.Math.Sin) //[|0.0; 0.841471; 0.9092974; 0.14112|]
     ]
 
-let pipeTests = ptestList "Pipe tests" [
+let pipeTests = testList "Pipe tests" [
     // Lambda is not supported.
     ptestCase "Forward pipe." <| fun _ ->
         let command = <@ fun (range: _1D) (buf: array<int>) -> buf.[0] <- (1.25f |> int) @>
@@ -381,6 +397,18 @@ let pipeTests = ptestList "Pipe tests" [
         let run, check = checkResult command
         run default1D intInArr
         check intInArr [| 3; 1; 2; 3 |]
+
+    testCase "Check simple '|> ignore'" <| fun () ->
+        let command =
+            <@
+                fun (range: _1D) (buffer: int[]) ->
+                    let gid = range.GlobalID0
+                    atomic inc buffer.[gid] |> ignore
+            @>
+
+        let (run, check) = checkResult command
+        run default1D intInArr
+        check intInArr (intInArr |> Array.map ((+) 1))
 ]
 
 let controlFlowTests = testList "Control flow tests" [

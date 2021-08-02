@@ -94,7 +94,7 @@ type FSQuotationToOpenCLTranslator() =
     let buildFullAst
         (methodArgumentVarsList: ResizeArray<_>)
         (methodVarList: ResizeArray<Var>)
-        types
+        topDefTypes
         (partialAstList: ResizeArray<_>)
         (contextList: ResizeArray<TargetContext<_,_>>)
         (kernelArgumentsNames: string list)
@@ -130,6 +130,9 @@ type FSQuotationToOpenCLTranslator() =
                             localVarsNames |> List.contains variable.Name
                         then
                             declSpecs.AddressSpaceQualifier <- Local
+
+                        // if methodVarList.[i].Name.StartsWith "Atomic" then
+
 
                         FunFormalArg(declSpecs, variable.Name)
                     )
@@ -192,7 +195,7 @@ type FSQuotationToOpenCLTranslator() =
             listCLFun.AddRange pragmas
             listCLFun.AddRange translatedTuples
             listCLFun.AddRange topLevelVarDecls
-            listCLFun.AddRange types
+            listCLFun.AddRange topDefTypes
             listCLFun.Add mainKernelFun
 
         AST <| List.ofSeq listCLFun

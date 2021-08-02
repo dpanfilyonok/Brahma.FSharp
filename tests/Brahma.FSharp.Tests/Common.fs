@@ -31,6 +31,12 @@ module CustomDatatypes =
 module Utils =
     let context = OpenCLEvaluationContext()
 
+    let finalize f =
+        try
+            f ()
+        finally
+            context.Provider.CloseAllBuffers()
+
     let getValidGlobalSize wgSize neededSize = (neededSize + wgSize - 1) / wgSize * wgSize
 
     let filesAreEqual file1 file2 =

@@ -36,6 +36,12 @@ module ClEvaluation =
             return xs
         }
 
+    let transferToHost (array: 'a[]) : OpenCLEvaluation<unit> =
+        opencl {
+            let! _ = toHost array
+            return ()
+        }
+
     let runCommand (command: Expr<'range -> 'a>) (binder: ('range -> 'a) -> unit) : OpenCLEvaluation<unit> =
         opencl {
             let! ctx = getEvaluationContext
