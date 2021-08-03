@@ -238,7 +238,7 @@ let quotationTransformerTest =
         let expectedKernelExpr, expectedMethods = makeMethods expected
 
         testCase name <| fun _ ->
-            let actualKernelExpr, actualKernelMethods = Transformer.quotationTransformer expr []
+            let actualKernelExpr, actualKernelMethods = Transformer.transformQuotation expr []
 
             assertMethodListsEqual actualKernelMethods expectedMethods
             assertExprEqual actualKernelExpr expectedKernelExpr "kernels not equals"

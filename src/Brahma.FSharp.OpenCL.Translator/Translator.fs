@@ -20,6 +20,7 @@ open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.AST
 open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 open Brahma.FSharp.OpenCL.Translator.TypeReflection
+open FSharp.Core.LanguagePrimitives
 
 #nowarn "3390"
 
@@ -92,13 +93,14 @@ type FSQuotationToOpenCLTranslator() =
     /// <param name="methodArgumentVarsList">Arguments for each method</param>
     /// <param name="methodVarList">Methods to vars bindings</param>
     let buildFullAst
-        (methodArgumentVarsList: ResizeArray<_>)
+        (methodArgumentVarsList: ResizeArray<Var list>)
         (methodVarList: ResizeArray<Var>)
         topDefTypes
         (partialAstList: ResizeArray<_>)
         (contextList: ResizeArray<TargetContext<_,_>>)
         (kernelArgumentsNames: string list)
-        (localVarsNames: string list) =
+        (localVarsNames: string list)
+        (atomicRefArgQualifiers: System.Collections.Generic.Dictionary<Var, AddressSpaceQualifier<Lang>>) =
         // extract pragmas
 
         let listCLFun = ResizeArray()
@@ -106,6 +108,21 @@ type FSQuotationToOpenCLTranslator() =
         for i in 0 .. methodArgumentVarsList.Count - 1 do
             // фргументы функции
             let formalArgs =
+                if methodVarList.[i] |> atomicRefArgQualifiers.ContainsKey then
+                    let qual = atomicRefArgQualifiers.[methodVarList.[i]]
+                    methodArgumentVarsList.[i]
+                    |> List.mapi
+                        (fun i variable ->
+                            let vType = Type.translate variable.Type true None contextList.[i]
+                            let declSpecs = DeclSpecifierPack(typeSpec = vType)
+
+                            if i = 0 then
+                                declSpecs.AddressSpaceQualifier <- qual
+
+
+                            FunFormalArg(declSpecs, variable.Name)
+                        )
+                else
                 methodArgumentVarsList.[i]
                 // обрабатываем все кроме аргументов типа ndrange
                 |> List.filter
@@ -222,7 +239,7 @@ type FSQuotationToOpenCLTranslator() =
 
         // TODO: Extract quotationTransformer to translator
         let (kernelExpr, methods) =
-            quotationTransformer qExpr' translatorOptions
+            transformQuotation qExpr' translatorOptions
 
         let kernelMethod =
             Method(Var(mainKernelName, kernelExpr.Type), kernelExpr)
@@ -242,6 +259,44 @@ type FSQuotationToOpenCLTranslator() =
         // ядро + функции
         let methods =
             methods @ [ kernelMethod ] |> ResizeArray.ofList
+
+        let atomicRefArgQualifiers = System.Collections.Generic.Dictionary<Var, AddressSpaceQualifier<Lang>>()
+        methods
+        |> Seq.iter (fun method ->
+            let rec go expr =
+                match expr with
+                | DerivedPatterns.Applications
+                    (
+                        Patterns.Var funcVar,
+                        applicationArgs
+                    )
+                    when funcVar.Name.StartsWith "atomic" ->
+
+                    match applicationArgs.[0].[0] with
+                    | Patterns.Var var ->
+                        if kernelArgumentsNames |> List.contains var.Name then
+                            atomicRefArgQualifiers.Add(var, Global)
+                        elif localVarsNames |> List.contains var.Name then
+                            atomicRefArgQualifiers.Add(var, Local)
+                        else
+                            failwith "F"
+                    | DerivedPatterns.SpecificCall <@ IntrinsicFunctions.GetArray @> (_, _, [Patterns.Var arrayVar; idx]) ->
+                        if kernelArgumentsNames |> List.contains arrayVar.Name then
+                            atomicRefArgQualifiers.Add(arrayVar, Global)
+                        elif localVarsNames |> List.contains arrayVar.Name then
+                            atomicRefArgQualifiers.Add(arrayVar, Local)
+                        else
+                            failwith "F"
+                    | _ -> failwith "F"
+
+                | ExprShape.ShapeVar var -> ()
+                | ExprShape.ShapeLambda (var, lambda) ->
+                    go lambda
+                | ExprShape.ShapeCombination (combo, exprs) ->
+                    List.iter go exprs
+
+            go method.FunExpr
+        )
 
         let translateMethod expr =
             match expr with
@@ -294,6 +349,7 @@ type FSQuotationToOpenCLTranslator() =
                 listPartsASTContext
                 kernelArgumentsNames
                 localVarsNames
+                atomicRefArgQualifiers
 
         ast, methods
 

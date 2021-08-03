@@ -105,9 +105,9 @@ let main argv =
 
     let k4 =
         <@
-            fun (range: _1D) (buf: array<int>) ->
+            fun (range: _1D) (buf: array<int>) (b: int) ->
                 let a = atomic (fun x -> x / 2) buf.[0]
-                buf.[0] <- 0
+                atomic (fun x -> x / 2) b |> ignore
         @>
 
     // не в модуле, поэтому application, иначе call
@@ -150,7 +150,7 @@ let main argv =
 
     printfn "%A" <| k4
     // printfn "%A" <| processAtomic k4
-    printfn "%A" <| quotationTransformer k4 []
+    printfn "%A" <| transformQuotation k4 []
     printfn "%A" <| Utils.openclTranslate k4
     // printfn "%A" <| a <@ [|1|].[0] @>
     // a e
@@ -203,4 +203,5 @@ let main argv =
       (barrier и атомарные операции и DeviceType, например)
     - переименовать название рэнжей
     - сделать версию toHost, которая ничего не возвращает
+    - как определить, передаваемое в кернел аргумент -- переменная глобальной или приватной памяти
 *)

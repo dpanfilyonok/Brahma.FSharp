@@ -25,8 +25,6 @@ module LetVarAbstracter =
 
             let isPrimitiveArgs = List.forall isPrimitiveExpression args
             isPrimitiveInstance && isPrimitiveArgs
-        // | DerivedPatterns.SpecificCall <@ IntrinsicFunctions.GetArray @> (_, _, args) ->
-        //     List.forall isPrimitiveExpression args
         | Patterns.NewUnionCase _ -> true
         | _ -> false
 
