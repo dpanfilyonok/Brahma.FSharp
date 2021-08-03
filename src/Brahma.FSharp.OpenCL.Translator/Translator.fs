@@ -25,6 +25,9 @@ open FSharp.Core.LanguagePrimitives
 #nowarn "3390"
 
 type FSQuotationToOpenCLTranslator() =
+    let mainKernelName = "brahmaKernel"
+
+    // TODO delete this
     // http://www.fssnip.net/bx/title/Expanding-quotations
     /// The parameter 'vars' is an immutable map that assigns expressions to variables
     /// (as we recursively process the tree, we replace all known variables)
@@ -114,7 +117,7 @@ type FSQuotationToOpenCLTranslator() =
                     |> List.mapi
                         (fun i variable ->
                             let vType = Type.translate variable.Type true None contextList.[i]
-                            let declSpecs = DeclSpecifierPack(typeSpec = vType)
+                            let declSpecs = DeclSpecifierPack(typeSpecifier = vType)
 
                             if i = 0 then
                                 declSpecs.AddressSpaceQualifier <- qual
@@ -133,7 +136,7 @@ type FSQuotationToOpenCLTranslator() =
                 |> List.map
                     (fun variable ->
                         let vType = Type.translate variable.Type true None contextList.[i]
-                        let declSpecs = DeclSpecifierPack(typeSpec = vType)
+                        let declSpecs = DeclSpecifierPack(typeSpecifier = vType)
 
                         // по сути мы посто взяли тиена аргументов у кернела и отметили их глобал
                         // этими же именами названы и соответствующие аргументы в функциях, поэтому все норм
@@ -147,9 +150,6 @@ type FSQuotationToOpenCLTranslator() =
                             localVarsNames |> List.contains variable.Name
                         then
                             declSpecs.AddressSpaceQualifier <- Local
-
-                        // if methodVarList.[i].Name.StartsWith "Atomic" then
-
 
                         FunFormalArg(declSpecs, variable.Name)
                     )
@@ -174,7 +174,7 @@ type FSQuotationToOpenCLTranslator() =
 
             // спеки для функции
             let declSpecs =
-                let declSpecs = DeclSpecifierPack(typeSpec = retFunType)
+                let declSpecs = DeclSpecifierPack(typeSpecifier = retFunType)
 
                 // if isKernel
                 if funVar.Name = mainKernelName then

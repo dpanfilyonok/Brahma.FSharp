@@ -5,7 +5,7 @@ open FSharp.Reflection
 open Microsoft.FSharp.Core.LanguagePrimitives
 
 [<AutoOpen>]
-module LetVarAbstracter =
+module VarDefsToLambdaTransformer =
     let rec isPrimitiveExpression (expr: Expr) =
         match expr with
         | Patterns.Value _
@@ -34,9 +34,6 @@ module LetVarAbstracter =
     let rec varDefsToLambda (expr: Expr) =
         match expr with
         | Patterns.LetVar (var, body, inExpr) ->
-            // match body with
-            // | Patterns.Let (var, body, inExpr) ->
-
             if isPrimitiveExpression body then
                 Expr.Let(var, body, varDefsToLambda inExpr)
             else

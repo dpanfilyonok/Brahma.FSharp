@@ -11,7 +11,7 @@ open FSharp.Core.LanguagePrimitives
 type Mutex = int
 
 [<AutoOpen>]
-module ProcessAtomic =
+module AtomicProcessor =
     let inline private atomicAdd p v = (+) !p v
     let inline private atomicSub p v = (-) !p v
     let inline private atomicInc p = inc !p
@@ -23,31 +23,29 @@ module ProcessAtomic =
     let inline private atomicAnd p v = (&&&) !p v
     let inline private atomicOr p v = (|||) !p v
     let inline private atomicXor p v = (^^^) !p v
-    let private atomicF (mutex: Mutex ref) f = atomic f
+    // let private atomicF (mutex: Mutex ref) f = atomic f
 
     let private modifyFirstOfList f lst =
         match lst with
         | x :: tail -> f x :: tail
-        | _ -> failwithf "Empty list"
+        | _ -> raise <| ArgumentException "List should not be empty"
 
     let private modifyFirstOfListList f lst =
         match lst with
         | [x] :: tail -> [f x] :: tail
-        | _ -> failwithf "meh"
+        | _ -> raise <| ArgumentException "List should not be empty"
 
     let private getFirstOfListListWith f lst =
         match lst with
         | [x] :: _ -> f x
-        | _ -> failwith "aaa"
+        | _ -> raise <| ArgumentException "List should not be empty"
 
-    let private extractVarFromAtomicAppl (expr: Expr) =
+    /// Extract ```var``` from expression if expression is ```var``` or ```var.[idx]```
+    let private extractVar (expr: Expr) =
         match expr with
         | Patterns.Var var -> var
         | DerivedPatterns.SpecificCall <@ IntrinsicFunctions.GetArray @> (_, _, [Patterns.Var arrayVar; idx]) -> arrayVar
-        | _ -> failwith "F"
-
-    let private createMutexFromAtomicAppl (expr: Expr) oldName (vM: Var) =
-        expr.Substitute(fun v -> if v.Name = oldName then Some (Expr.Var vM) else None)
+        | _ -> raise <| ArgumentException "Expression should be either 'var' or 'var.[expr]'"
 
     /// <summary>
     /// <code>
@@ -58,7 +56,7 @@ module ProcessAtomic =
     ///    atomicFunc a b
     /// </code>
     /// </summary>
-    let rec transformAtomicsAndCollectVars (expr: Expr) = state {
+    let rec private transformAtomicsAndCollectVars (expr: Expr) = state {
         match expr with
         | DerivedPatterns.Applications
             (
@@ -145,17 +143,17 @@ module ProcessAtomic =
                     |> List.map (fun var -> var.Type)
                     |> fun args -> args @ [lambdaBody.Type]
 
-                let v = getFirstOfListListWith extractVarFromAtomicAppl applicationArgs
-                let vMutex =
+                let pointerVar = getFirstOfListListWith extractVar applicationArgs
+                let mutexVar =
                     Var(
-                        v.Name + "Mutex",
-                        if v.Type.IsArray then
+                        pointerVar.Name + "Mutex",
+                        if pointerVar.Type.IsArray then
                             typeof<Mutex[]>
                         else
                             typeof<Mutex>
                     )
 
-                do! State.modify (fun (state: Map<Var, Var>) -> state |> Map.add v vMutex)
+                do! State.modify (fun (state: Map<Var, Var>) -> state |> Map.add pointerVar mutexVar)
 
                 let baseFuncType =
                     collectedLambdaTypes
@@ -182,7 +180,16 @@ module ProcessAtomic =
 
                 let atomicBody =
                     let mutex =
-                        getFirstOfListListWith (fun x -> createMutexFromAtomicAppl x v.Name vMutex) applicationArgs
+                        applicationArgs
+                        |> getFirstOfListListWith
+                            (fun expr ->
+                                expr.Substitute(fun var ->
+                                    if var.Name = pointerVar.Name then
+                                        Some (Expr.Var mutexVar)
+                                    else
+                                        None
+                                )
+                            )
                         |> Utils.createRefCall
 
                     let atomicApplicaionArgs =
@@ -214,12 +221,10 @@ module ProcessAtomic =
                                         <| getFirstOfListListWith Expr.Var atomicArgs
                                         <| Expr.Applications(Expr.Var baseFuncVar, atomicApplicaionArgs)
                                     )
-                                    // NOTE тут если оставлять без привязки, то полсе этого выражения вставляется unit, а его транслировать не умеем
                                     atomicXchg %%mutex 0 |> ignore
                                     flag <- false
                             barrier ()
-                            // TODO тут он как то криво тип выозвращаемого значения выводит (не выводит сосвсем)
-                            (%%Expr.Var oldValueVar : int)
+                            %%Expr.Coerce(Expr.Var oldValueVar, oldValueVar.Type)
                         @@>
                     )
 
@@ -246,56 +251,42 @@ module ProcessAtomic =
             return ExprShape.RebuildShapeCombination(combo, transformedList)
     }
 
-    let insertMutexVars (expr: Expr) = state {
-        let! (st : Map<Var, Var>) = State.get
-        let (args, body) = Utils.extractLambdaArguments expr
-        let ra = ResizeArray args
-        st
-        |> Map.toList
-        |> List.iter
-            (fun (var, mutexVar) ->
+    let private insertMutexVars (expr: Expr) = state {
+        let! (varToMutexVarMap: Map<Var, Var>) = State.get
+        match expr with
+        | DerivedPatterns.Lambdas (args, body) ->
+            let args = List.collect id args
+            let newArgs = ResizeArray args
+
+            // Set global args
+            varToMutexVarMap
+            |> Map.iter (fun var mutexVar ->
                 if List.contains var args then
-                    ra.Add mutexVar
+                    newArgs.Add mutexVar
             )
 
-        let rec loop expr =
-            match expr with
-            | Patterns.Let (variable, (DerivedPatterns.SpecificCall <@ local @> (_, _, _) as body), cont) ->
-                Expr.Let(
-                    variable,
-                    body,
-                    match st |> Map.tryFind variable with
-                    | Some vMutex ->
-                        Expr.Let(
-                            vMutex,
-                            body,
-                            cont
-                        )
-                    | None ->
-                        cont
-                )
-            | Patterns.Let (variable, (DerivedPatterns.SpecificCall <@ localArray @> (_, _, _) as body), cont) ->
-                Expr.Let(
-                    variable,
-                    body,
-                    match st |> Map.tryFind variable with
-                    | Some vMutex ->
-                        Expr.Let(
-                            vMutex,
-                            body,
-                            cont
-                        )
-                    | None ->
-                        cont
-                )
+            // Set local args
+            let rec go expr =
+                match expr with
+                | Patterns.Let (var, (DerivedPatterns.SpecificCall <@ local @> (_, _, _) as letExpr), inExpr)
+                | Patterns.Let (var, (DerivedPatterns.SpecificCall <@ localArray @> (_, _, _) as letExpr), inExpr) ->
+                    Expr.Let(
+                        var,
+                        letExpr,
+                        match varToMutexVarMap |> Map.tryFind var with
+                        | Some mutexVar -> Expr.Let(mutexVar, letExpr, inExpr)
+                        | None -> inExpr
+                    )
 
-            | ExprShape.ShapeVar var -> Expr.Var var
-            | ExprShape.ShapeLambda (var, lambda) ->
-                Expr.Lambda(var, loop lambda)
-            | ExprShape.ShapeCombination (combo, exprs) ->
-                ExprShape.RebuildShapeCombination(combo, List.map loop exprs)
+                | ExprShape.ShapeVar var -> Expr.Var var
+                | ExprShape.ShapeLambda (var, lambda) ->
+                    Expr.Lambda(var, go lambda)
+                | ExprShape.ShapeCombination (combo, exprs) ->
+                    ExprShape.RebuildShapeCombination(combo, List.map go exprs)
 
-        return Expr.Lambdas(Seq.toList ra |> List.map List.singleton, loop body)
+            return Expr.Lambdas(Seq.toList newArgs |> List.map List.singleton, go body)
+
+        | _ -> return failwith "dsds"
     }
 
     let processAtomic (expr: Expr) =

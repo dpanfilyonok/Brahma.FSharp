@@ -21,8 +21,6 @@ open Brahma.FSharp.OpenCL.Translator
 
 [<AutoOpen>]
 module Transformer =
-    let mainKernelName = "brahmaKernel"
-
     let preprocessQuotation expr = replacePrintf expr
 
     /// Returns kernel and other methods

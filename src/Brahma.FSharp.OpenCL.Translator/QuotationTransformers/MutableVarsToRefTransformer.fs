@@ -3,7 +3,7 @@ namespace Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 open FSharp.Quotations
 
 [<AutoOpen>]
-module MutableVarsToRef =
+module MutableVarsToRefTransformer =
     let private isMutableVar (var: Var) =
         var.IsMutable && not (Utils.isFunction var)
 

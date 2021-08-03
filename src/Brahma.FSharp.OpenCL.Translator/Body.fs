@@ -513,6 +513,7 @@ module Body =
                 _,
                 [expr; Patterns.Lambda(_, DerivedPatterns.SpecificCall <@ ignore @> (_, _, _))]
             ) ->
+
             translate expr targetContext
 
         | Patterns.Call (exprOpt, mInfo, args) ->
