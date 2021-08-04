@@ -18,6 +18,7 @@ namespace Brahma.FSharp.OpenCL.Translator
 open Microsoft.FSharp.Quotations
 open System.Collections.Generic
 open Brahma.FSharp.OpenCL.AST
+open Microsoft.FSharp.Reflection
 
 type Flags() =
     member val enableAtomic = false with get, set
@@ -83,31 +84,19 @@ type TargetContext<'lang, 'vDecl>() =
         context.TranslatorOptions.AddRange translatorOptions
         context
 
-type Method(var: Var, expr: Expr) =
-    member this.FunVar = var
-    member this.FunExpr = expr
-
-    override this.ToString() =
-        sprintf "%A\n%A" var expr
-
 [<AutoOpen>]
 module Extensions =
     type Expr with
-        // TODO
+        /// Builds an expression that represents the lambda non-tupled arguments
         static member Lambdas(args: Var list list, body: Expr) =
             let mkRLinear mk (vs, body) = List.foldBack (fun v acc -> mk(v, acc)) vs body
 
             let mkTupledLambda (args, body) =
                 match args with
-                // | [] -> Expr.Application (f, mkUnit())
-                | [x] -> Expr.Lambda (x, body)
-                // | _ -> Expr.Application (f, mkNewTuple args)
-                | _ -> failwith "Unsupported"
+                | [x] -> Expr.Lambda(x, body)
+                | _ -> failwith "Unsuppoerted"
 
-            let mkLambdas (args: Var list list) (body: Expr) =
-                mkRLinear mkTupledLambda (args, body)
-
-            mkLambdas args body
+            mkRLinear mkTupledLambda (args, body)
 
 type State<'state, 'result> = State of ('state -> 'result * 'state)
 

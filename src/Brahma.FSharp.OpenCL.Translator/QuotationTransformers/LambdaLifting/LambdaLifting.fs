@@ -62,7 +62,7 @@ module LambdaLifting =
         | Patterns.LetFunc(var, body, inExpr) ->
             let (body', bodyMethods) = blockFloating body
             let (inExpr', inExprMethods) = blockFloating inExpr
-            inExpr', bodyMethods @ [ Method(var, body') ] @ inExprMethods
+            inExpr', bodyMethods @ [ (var, body') ] @ inExprMethods
 
         | ExprShape.ShapeLambda (var, body) ->
             let (body', methods) = blockFloating body

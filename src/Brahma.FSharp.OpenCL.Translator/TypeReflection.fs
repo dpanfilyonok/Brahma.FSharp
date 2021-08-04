@@ -22,9 +22,11 @@ let collectTypes
     let types = Dictionary<System.Type, _>()
 
     let rec add (t: System.Type) =
-        if typePredicate t
-        && not <| types.ContainsKey t
-        && not <| Array.exists ((=) t.Name) escapeNames then
+        if
+            typePredicate t &&
+            not <| types.ContainsKey t &&
+            not <| Array.exists ((=) t.Name) escapeNames
+        then
             nestedTypes t |> Array.iter add
             types.Add(t, ())
 

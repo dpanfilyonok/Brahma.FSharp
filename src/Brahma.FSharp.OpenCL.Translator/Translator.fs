@@ -13,9 +13,8 @@
 // By using this software in any fashion, you are agreeing to be bound by the
 // terms of the License.
 
-namespace Brahma.FSharp.OpenCL.Translator
+namespace rec Brahma.FSharp.OpenCL.Translator
 
-open FSharpx.Collections
 open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.AST
 open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
@@ -27,242 +26,22 @@ open FSharp.Core.LanguagePrimitives
 type FSQuotationToOpenCLTranslator() =
     let mainKernelName = "brahmaKernel"
 
-    // TODO delete this
-    // http://www.fssnip.net/bx/title/Expanding-quotations
-    /// The parameter 'vars' is an immutable map that assigns expressions to variables
-    /// (as we recursively process the tree, we replace all known variables)
-    // let rec expand vars expr =
-
-    //     // First recursively process & replace variables
-    //     let expanded =
-    //         match expr with
-    //         // If the variable has an assignment, then replace it with the expression
-    //         | ExprShape.ShapeVar v when Map.containsKey v vars -> vars.[v]
-    //         // Apply 'expand' recursively on all sub-expressions
-    //         | ExprShape.ShapeVar v -> Expr.Var v
-    //         | Patterns.Call (body, DerivedPatterns.MethodWithReflectedDefinition meth, args) ->
-    //             let this =
-    //                 match body with
-    //                 | Some b -> Expr.Application(meth, b)
-    //                 | _ -> meth
-
-    //             let res =
-    //                 Expr.Applications(this, [ for a in args -> [ a ] ])
-
-    //             expand vars res
-    //         | ExprShape.ShapeLambda (v, expr) -> Expr.Lambda(v, expand vars expr)
-    //         | ExprShape.ShapeCombination (o, exprs) ->
-    //             ExprShape.RebuildShapeCombination(o, List.map (expand vars) exprs)
-
-    //     // After expanding, try reducing the expression - we can replace 'let'
-    //     // expressions and applications where the first argument is lambda
-    //     match expanded with
-    //     | Patterns.Application (ExprShape.ShapeLambda (v, body), assign)
-    //     | Patterns.Let (v, assign, body) -> expand (Map.add v (expand vars assign) vars) body
-    //     | _ -> expanded
-
-    let addReturn subAST =
-        let rec adding (stmt: Statement<'lang>) =
-            match stmt with
-            | :? StatementBlock<'lang> as sb ->
-                let listStaments = sb.Statements
-                let lastStatement = listStaments.[listStaments.Count - 1]
-                sb.Remove(listStaments.Count - 1)
-                sb.Append(adding lastStatement)
-                sb :> Statement<_>
-            | :? Expression<'lang> as ex -> Return ex :> Statement<_>
-            | :? IfThenElse<'lang> as ite ->
-                let newThen =
-                    adding ite.Then :?> StatementBlock<_>
-
-                let newElse =
-                    if Option.isNone ite.Else then
-                        None
-                    else
-                        Some (adding ite.Else.Value :?> StatementBlock<_>)
-
-                IfThenElse(ite.Condition, newThen, newElse) :> Statement<_>
-            | _ -> failwithf "Unsupported statement to add Return: %A" stmt
-
-        adding subAST
-
-    // let brahmaDimensionsTypes = [ "_1d"; "_2d"; "_3d" ]
-    // let brahmaDimensionsTypesPrefix = "brahma.opencl."
-
-    let brahmaDimensionsTypes =
-        ["_1d"; "_2d"; "_3d"]
-        |> List.map (fun s -> "brahma.opencl." + s)
-
-    /// <param name="methodArgumentVarsList">Arguments for each method</param>
-    /// <param name="methodVarList">Methods to vars bindings</param>
-    let buildFullAst
-        (methodArgumentVarsList: ResizeArray<Var list>)
-        (methodVarList: ResizeArray<Var>)
-        topDefTypes
-        (partialAstList: ResizeArray<_>)
-        (contextList: ResizeArray<TargetContext<_,_>>)
-        (kernelArgumentsNames: string list)
-        (localVarsNames: string list)
-        (atomicRefArgQualifiers: System.Collections.Generic.Dictionary<Var, AddressSpaceQualifier<Lang>>) =
-        // extract pragmas
-
-        let listCLFun = ResizeArray()
-
-        for i in 0 .. methodArgumentVarsList.Count - 1 do
-            // фргументы функции
-            let formalArgs =
-                if methodVarList.[i] |> atomicRefArgQualifiers.ContainsKey then
-                    let qual = atomicRefArgQualifiers.[methodVarList.[i]]
-                    methodArgumentVarsList.[i]
-                    |> List.mapi
-                        (fun i variable ->
-                            let vType = Type.translate variable.Type true None contextList.[i]
-                            let declSpecs = DeclSpecifierPack(typeSpecifier = vType)
-
-                            if i = 0 then
-                                declSpecs.AddressSpaceQualifier <- qual
-
-
-                            FunFormalArg(declSpecs, variable.Name)
-                        )
-                else
-                methodArgumentVarsList.[i]
-                // обрабатываем все кроме аргументов типа ndrange
-                |> List.filter
-                    (fun (variable: Var) ->
-                        brahmaDimensionsTypes
-                        |> (not << List.contains (variable.Type.FullName.ToLowerInvariant()))
-                    )
-                |> List.map
-                    (fun variable ->
-                        let vType = Type.translate variable.Type true None contextList.[i]
-                        let declSpecs = DeclSpecifierPack(typeSpecifier = vType)
-
-                        // по сути мы посто взяли тиена аргументов у кернела и отметили их глобал
-                        // этими же именами названы и соответствующие аргументы в функциях, поэтому все норм
-                        if
-                            vType :? RefType<_> &&
-                            kernelArgumentsNames |> List.contains variable.Name
-                        then
-                            declSpecs.AddressSpaceQualifier <- Global
-                        elif
-                            vType :? RefType<_> &&
-                            localVarsNames |> List.contains variable.Name
-                        then
-                            declSpecs.AddressSpaceQualifier <- Local
-
-                        FunFormalArg(declSpecs, variable.Name)
-                    )
-
-            // биндинг переменной
-            let funVar = methodVarList.[i]
-
-            // тип возвращаемого знчения
-            let retFunType =
-                // если текущий метод  не ядро
-                if i <> methodArgumentVarsList.Count - 1 then
-                    Type.translate funVar.Type false None contextList.[i]
-                else
-                    PrimitiveType Void :> Type<_>
-
-            // ??? тело метода?
-            let partAST =
-                if (retFunType :?> PrimitiveType<_>).Type <> Void then
-                    addReturn partialAstList.[i]
-                else
-                    partialAstList.[i]
-
-            // спеки для функции
-            let declSpecs =
-                let declSpecs = DeclSpecifierPack(typeSpecifier = retFunType)
-
-                // if isKernel
-                if funVar.Name = mainKernelName then
-                    declSpecs.FunQual <- Some Kernel
-
-                declSpecs
-
-            // wtf?? это просто тело функции?
-            let mainKernelFun =
-                FunDecl(declSpecs, funVar.Name, formalArgs, partAST)
-
-            let pragmas =
-                let pragmas = ResizeArray()
-
-                if contextList.[i].Flags.enableAtomic then
-                    pragmas.Add(CLPragma CLGlobalInt32BaseAtomics :> ITopDef<_>)
-                    pragmas.Add(CLPragma CLLocalInt32BaseAtomics :> ITopDef<_>)
-
-                if contextList.[i].Flags.enableFP64 then
-                    pragmas.Add(CLPragma CLFP64)
-
-                List.ofSeq pragmas
-
-            let topLevelVarDecls =
-                contextList.[i].TopLevelVarsDeclarations
-                |> Seq.cast<_>
-                |> List.ofSeq
-
-            let translatedTuples =
-                contextList.[i].TupleList
-                |> Seq.cast<_>
-                |> List.ofSeq
-
-            // почему тут mainKernelFun припысываем всегда?
-            listCLFun.AddRange pragmas
-            listCLFun.AddRange translatedTuples
-            listCLFun.AddRange topLevelVarDecls
-            listCLFun.AddRange topDefTypes
-            listCLFun.Add mainKernelFun
-
-        AST <| List.ofSeq listCLFun
-
-    let translate qExpr translatorOptions =
-        let qExpr' = preprocessQuotation qExpr
-
-        let structs = collectStructs qExpr'
-        let unions = collectDiscriminatedUnions qExpr
-
-        let context = TargetContext()
-
-        let translatedStructs =
-            Type.translateStructDecls structs context
-            |> List.map (fun x -> x :> ITopDef<_>)
-
-        let translatedUnions =
-            Type.translateDiscriminatedUnionDecls unions context
-            |> List.map (fun x -> x :> ITopDef<_>)
-
-        let translatedTypes =
-            List.concat [ translatedStructs
-                          translatedUnions ]
-
-        // TODO: Extract quotationTransformer to translator
-        let (kernelExpr, methods) =
-            transformQuotation qExpr' translatorOptions
-
-        let kernelMethod =
-            Method(Var(mainKernelName, kernelExpr.Type), kernelExpr)
-
+    let collectMetadata (expr: Expr, functions: (Var * Expr) list) =
         // глобальные переменные
         let kernelArgumentsNames =
-            kernelMethod.FunExpr
+            expr
             |> Utils.collectLambdaArguments
             |> List.map (fun var -> var.Name)
 
         // локальные переменные
         let localVarsNames =
-            kernelExpr
+            expr
             |> Utils.collectLocalVars
             |> List.map (fun var -> var.Name)
 
-        // ядро + функции
-        let methods =
-            methods @ [ kernelMethod ] |> ResizeArray.ofList
+        let collectAtomicApplicationsInfo =
+            let atomicRefArgQualifiers = System.Collections.Generic.Dictionary<Var, AddressSpaceQualifier<Lang>>()
 
-        let atomicRefArgQualifiers = System.Collections.Generic.Dictionary<Var, AddressSpaceQualifier<Lang>>()
-        methods
-        |> Seq.iter (fun method ->
             let rec go expr =
                 match expr with
                 | DerivedPatterns.Applications
@@ -295,66 +74,251 @@ type FSQuotationToOpenCLTranslator() =
                 | ExprShape.ShapeCombination (combo, exprs) ->
                     List.iter go exprs
 
-            go method.FunExpr
-        )
+            functions
+            |> Seq.iter (snd >> go)
 
-        let translateMethod expr =
-            match expr with
-            // собираем параметры верхнего уровня
-            | DerivedPatterns.Lambdas (args, body) ->
-                let args = List.collect id args
-                let body =
-                    let (b, context) =
-                        let clonedContext = context.Clone()
+            atomicRefArgQualifiers
 
-                        clonedContext.Namer.LetIn()
-                        args |> List.iter (fun v -> clonedContext.Namer.AddVar v.Name)
+        let main = KernelFunc(Var(mainKernelName, expr.Type), expr) :> Method |> List.singleton
+        let funcs =
+            functions
+            |> List.filter (fun (v, _) -> not <| collectAtomicApplicationsInfo.ContainsKey(v))
+            |> List.map (fun (v, expr) -> Function(v, expr) :> Method)
+        let atomicFuncs =
+            functions
+            |> List.choose (fun (var, expr) ->
+                let m =
+                    collectAtomicApplicationsInfo
+                    |> Seq.map (|KeyValue|)
+                    |> Map.ofSeq
 
-                        Body.translate body clonedContext
+                match m |> Map.tryFind var with
+                | Some qual -> Some (AtomicFunc(var, expr, qual) :> Method)
+                | None -> None
+            )
+        funcs @ atomicFuncs @ main, kernelArgumentsNames, localVarsNames
 
-                    match b with
-                    | :? StatementBlock<Lang> as sb -> sb
-                    | :? Statement<Lang> as s -> StatementBlock <| ResizeArray [s]
-                    | _ -> failwithf "Incorrect function body: %A" b
-                    , context
+    let translate qExpr translatorOptions =
+        let qExpr' = preprocessQuotation qExpr
 
-                args, body
-            | _ -> failwithf "Incorrect OpenCL quotation: %A" expr
+        let structs = collectStructs qExpr'
+        let unions = collectDiscriminatedUnions qExpr
 
-        // аргументы методов
-        let listPartsASTMethodArgumentVars = ResizeArray()
+        let context = TargetContext()
 
-        // биндинг метода к переменной
-        let listPartsASTMethodVar = ResizeArray()
+        let translatedStructs =
+            Type.translateStructDecls structs context
+            |> List.map (fun x -> x :> ITopDef<_>)
 
-        // тела методов
-        let listPartsASTMethodBody = ResizeArray()
+        let translatedUnions =
+            Type.translateDiscriminatedUnionDecls unions context
+            |> List.map (fun x -> x :> ITopDef<_>)
 
-        // контексты методов
-        let listPartsASTContext = ResizeArray()
+        let translatedTypes =
+            List.concat [ translatedStructs
+                          translatedUnions ]
 
-        for method in methods do
-            let (vars, (partialAst, context)) = translateMethod method.FunExpr
-            listPartsASTMethodArgumentVars.Add(vars)
-            listPartsASTMethodVar.Add(method.FunVar)
-            listPartsASTMethodBody.Add(partialAst :> Statement<_>)
-            listPartsASTContext.Add(context)
+        // TODO: Extract quotationTransformer to translator
+        let (kernelExpr, methods) =
+            transformQuotation qExpr' translatorOptions
 
-        let ast =
-            buildFullAst
-                listPartsASTMethodArgumentVars
-                listPartsASTMethodVar
-                translatedTypes
-                listPartsASTMethodBody
-                listPartsASTContext
-                kernelArgumentsNames
-                localVarsNames
-                atomicRefArgQualifiers
+        let (methods, globalVars, localVars) = collectMetadata (kernelExpr, methods)
+        let listCLFun = ResizeArray(translatedTypes)
+        methods
+        |> List.iter (fun m -> listCLFun.AddRange(m.Translate(globalVars, localVars)))
 
-        ast, methods
+        AST <| List.ofSeq listCLFun
 
     member this.Translate(qExpr, translatorOptions: TranslatorOption list) =
         let lockObject = obj ()
 
         lock lockObject <| fun () ->
             translate qExpr translatorOptions
+
+[<AbstractClass>]
+type Method(var: Var, expr: Expr) =
+    member this.FunVar = var
+    member this.FunExpr = expr
+
+    member internal this.AddReturn(subAST) =
+        let rec adding (stmt: Statement<'lang>) =
+            match stmt with
+            | :? StatementBlock<'lang> as sb ->
+                let listStaments = sb.Statements
+                let lastStatement = listStaments.[listStaments.Count - 1]
+                sb.Remove(listStaments.Count - 1)
+                sb.Append(adding lastStatement)
+                sb :> Statement<_>
+            | :? Expression<'lang> as ex -> Return ex :> Statement<_>
+            | :? IfThenElse<'lang> as ite ->
+                let newThen =
+                    adding ite.Then :?> StatementBlock<_>
+
+                let newElse =
+                    if Option.isNone ite.Else then
+                        None
+                    else
+                        Some (adding ite.Else.Value :?> StatementBlock<_>)
+
+                IfThenElse(ite.Condition, newThen, newElse) :> Statement<_>
+            | _ -> failwithf "Unsupported statement to add Return: %A" stmt
+
+        adding subAST
+
+    abstract TranslateBody : Var list * Expr -> StatementBlock<Lang> * TargetContext<Lang, Statement<Lang>>
+    default this.TranslateBody(args, body) =
+        let (b, context) =
+            let clonedContext = TargetContext()
+
+            clonedContext.Namer.LetIn()
+            args |> List.iter (fun v -> clonedContext.Namer.AddVar v.Name)
+
+            Body.translate body clonedContext
+
+        match b with
+        | :? StatementBlock<Lang> as sb -> sb
+        | :? Statement<Lang> as s -> StatementBlock <| ResizeArray [s]
+        | _ -> failwithf "Incorrect function body: %A" b
+        , context
+
+    abstract TranslateArgs : Var list * string list * string list * TargetContext<Lang, Statement<Lang>> -> FunFormalArg<Lang> list
+
+    abstract BuildFunction : FunFormalArg<Lang> list * StatementBlock<Lang> * TargetContext<Lang, Statement<Lang>> -> ITopDef<Lang>
+
+    abstract GetPragmas : TargetContext<Lang, Statement<Lang>> -> ITopDef<Lang> list
+    default this.GetPragmas(context) =
+        let pragmas = ResizeArray()
+
+        if context.Flags.enableAtomic then
+            pragmas.Add(CLPragma CLGlobalInt32BaseAtomics :> ITopDef<_>)
+            pragmas.Add(CLPragma CLLocalInt32BaseAtomics :> ITopDef<_>)
+
+        if context.Flags.enableFP64 then
+            pragmas.Add(CLPragma CLFP64)
+
+        List.ofSeq pragmas
+
+    abstract GetTopLevelVarDecls : TargetContext<Lang, Statement<Lang>> -> ITopDef<Lang> list
+    default this.GetTopLevelVarDecls(context) =
+        context.TopLevelVarsDeclarations
+        |> Seq.cast<_>
+        |> List.ofSeq
+
+    abstract GetTranslatedTuples : TargetContext<Lang, Statement<Lang>> -> ITopDef<Lang> list
+    default this.GetTranslatedTuples(context) =
+        context.TupleList
+        |> Seq.cast<_>
+        |> List.ofSeq
+
+    abstract Translate : string list * string list -> ITopDef<Lang> list
+    default this.Translate(globalVars, localVars) =
+        match expr with
+        | DerivedPatterns.Lambdas (args, body) ->
+            let args = List.collect id args
+            let (translatedBody, context) = this.TranslateBody(args, body)
+            let translatedArgs = this.TranslateArgs(args, globalVars, localVars, context)
+            let func = this.BuildFunction(translatedArgs, translatedBody, context)
+            let pragmas = this.GetPragmas(context)
+            let topLevelVarDecls = this.GetTopLevelVarDecls(context)
+            let translatedTuples = this.GetTranslatedTuples(context)
+
+            pragmas
+            @ translatedTuples
+            @ topLevelVarDecls
+            @ [func]
+
+        | _ -> failwithf "Incorrect OpenCL quotation: %A" expr
+
+    override this.ToString() =
+        sprintf "%A\n%A" var expr
+
+type KernelFunc(var: Var, expr: Expr) =
+    inherit Method(var, expr)
+
+    override this.TranslateArgs(args, _, _, context) =
+        let brahmaDimensionsTypes =
+            ["_1d"; "_2d"; "_3d"]
+            |> List.map (fun s -> "brahma.opencl." + s)
+
+        args
+        |> List.filter
+            (fun (variable: Var) ->
+                brahmaDimensionsTypes
+                |> (not << List.contains (variable.Type.FullName.ToLowerInvariant()))
+            )
+        |> List.map
+            (fun variable ->
+                let vType = Type.translate variable.Type true None context
+                let declSpecs = DeclSpecifierPack(typeSpecifier = vType)
+
+                if vType :? RefType<_> then
+                    declSpecs.AddressSpaceQualifier <- Global
+
+                FunFormalArg(declSpecs, variable.Name)
+            )
+
+    override this.BuildFunction(args, body, _) =
+        let retFunType = PrimitiveType Void :> Type<_>
+        let declSpecs = DeclSpecifierPack(typeSpecifier = retFunType, funQualifier = Kernel)
+        FunDecl(declSpecs, var.Name, args, body) :> ITopDef<_>
+
+type Function(var: Var, expr: Expr) =
+    inherit Method(var, expr)
+
+    override this.TranslateArgs(args, globalVars, localVars, context) =
+        args
+        |> List.map (fun variable ->
+            let vType = Type.translate variable.Type true None context
+            let declSpecs = DeclSpecifierPack(typeSpecifier = vType)
+
+            if
+                vType :? RefType<_> &&
+                globalVars |> List.contains variable.Name
+            then
+                declSpecs.AddressSpaceQualifier <- Global
+            elif
+                vType :? RefType<_> &&
+                localVars |> List.contains variable.Name
+            then
+                declSpecs.AddressSpaceQualifier <- Local
+
+            FunFormalArg(declSpecs, variable.Name)
+        )
+
+    override this.BuildFunction(args, body, context) =
+        let retFunType = Type.translate var.Type false None context
+        let declSpecs = DeclSpecifierPack(typeSpecifier = retFunType)
+        let partAST =
+            if (retFunType :?> PrimitiveType<_>).Type <> Void then
+                this.AddReturn(body)
+            else
+                body :> Statement<_>
+
+        FunDecl(declSpecs, var.Name, args, partAST) :> ITopDef<_>
+
+type AtomicFunc(var: Var, expr: Expr, qual: AddressSpaceQualifier<Lang>) =
+    inherit Method(var, expr)
+
+    override this.TranslateArgs(args, globalVars, localVars, context) =
+        args
+        |> List.mapi
+            (fun i variable ->
+                let vType = Type.translate variable.Type true None context
+                let declSpecs = DeclSpecifierPack(typeSpecifier = vType)
+
+                if i = 0 then
+                    declSpecs.AddressSpaceQualifier <- qual
+
+                FunFormalArg(declSpecs, variable.Name)
+            )
+
+    override this.BuildFunction(args, body, context) =
+        let retFunType = Type.translate var.Type false None context
+        let declSpecs = DeclSpecifierPack(typeSpecifier = retFunType)
+        let partAST =
+            if (retFunType :?> PrimitiveType<_>).Type <> Void then
+                this.AddReturn(body)
+            else
+                body :> Statement<_>
+
+        FunDecl(declSpecs, var.Name, args, partAST) :> ITopDef<_>
