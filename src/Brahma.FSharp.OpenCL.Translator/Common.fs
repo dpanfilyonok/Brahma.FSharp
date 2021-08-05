@@ -94,7 +94,15 @@ module Extensions =
             let mkTupledLambda (args, body) =
                 match args with
                 | [x] -> Expr.Lambda(x, body)
-                | _ -> failwith "Unsuppoerted"
+                | [] -> failwith "Unsupported"
+                | _ ->
+                    // TODO
+                    let tupledArg =
+                        Var(
+                            "tupledArg",
+                            FSharpType.MakeTupleType(args |> List.map (fun v -> v.Type) |> List.toArray)
+                        )
+                    failwith "Unsuppoerted"
 
             mkRLinear mkTupledLambda (args, body)
 
@@ -134,6 +142,9 @@ module State =
         let (x, state) = run state s
         f x, state
 
+    let using f x = State <| fun state ->
+        eval (f state) x, state
+
     let collect (list: State<'s, 'a> list) =
         list
         |> List.fold
@@ -144,31 +155,28 @@ module State =
             ) (return' List.empty)
         |> fun args -> map List.rev args
 
-/// The state monad passes around an explicit internal state that can be
-/// updated along the way. It enables the appearance of mutability in a purely
-/// functional context by hiding away the state when used with its proper operators
-/// (in StateBuilder()). In other words, you implicitly pass around an implicit
-/// state that gets transformed along its journey through pipelined code.
 type StateBuilder() =
-    member this.Zero() = State(fun s -> (), s)
-    member this.Return x = State(fun s -> x, s)
+    member this.Bind(x, f) = State.(>>=) x f
+    member this.Return x = State.return' x
     member this.ReturnFrom x = x
-    member this.Bind (x, f) =
-        State(fun state ->
-            let (result: 'a), state = State.run state x
-            State.run state (f result))
+    member this.Zero() = State.return' ()
+
     member this.Combine(x1, x2) =
-        State(fun state ->
-            let result, state = State.run state x1
-            State.run state x2)
+        State <| fun context ->
+            let (_, context) = State.run context x1
+            State.run context x2
+
     member this.Delay f = f ()
+
     member this.For(seq, f) =
         seq
         |> Seq.map f
-        |> Seq.reduceBack (fun x1 x2 -> this.Combine (x1, x2))
-    member this.While (f, x) =
-        if f () then this.Combine (x, this.While (f, x))
-        else this.Zero ()
+        |> Seq.reduceBack (fun x1 x2 -> this.Combine(x1, x2))
+
+    member this.While(f, x) =
+        if f () then
+            this.Combine(x, this.While(f, x))
+        else this.Zero()
 
 [<AutoOpen>]
 module StateBuilder =

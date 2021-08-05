@@ -31,11 +31,11 @@ module VarDefsToLambdaTransformer =
     // NOTE не оч понимаю, заечм это изначально нужно, но это полезно,
     // когда тело ффункции зависит от конкретного применения
     // let x = expr -> let x = let unit () = expr in unit ()
-    let rec varDefsToLambda (expr: Expr) =
+    let rec transformVarDefsToLambda (expr: Expr) =
         match expr with
         | Patterns.LetVar (var, body, inExpr) ->
             if isPrimitiveExpression body then
-                Expr.Let(var, body, varDefsToLambda inExpr)
+                Expr.Let(var, body, transformVarDefsToLambda inExpr)
             else
                 let fType = FSharpType.MakeFunctionType(typeof<unit>, var.Type)
                 let fVar = Var(var.Name + "UnitFunc", fType)
@@ -44,14 +44,14 @@ module VarDefsToLambdaTransformer =
                     var,
                     Expr.Let(
                         fVar,
-                        Expr.Lambda(Var("unitVar", typeof<unit>), varDefsToLambda body),
+                        Expr.Lambda(Var("unitVar", typeof<unit>), transformVarDefsToLambda body),
                         Expr.Application(Expr.Var fVar, Expr.Value((), typeof<unit>))
                     ),
-                    varDefsToLambda inExpr
+                    transformVarDefsToLambda inExpr
                 )
 
         | ExprShape.ShapeVar _ -> expr
-        | ExprShape.ShapeLambda (var, body) -> Expr.Lambda(var, varDefsToLambda body)
+        | ExprShape.ShapeLambda (var, body) -> Expr.Lambda(var, transformVarDefsToLambda body)
         | ExprShape.ShapeCombination (shapeComboObject, exprList) ->
-            let exprList' = List.map varDefsToLambda exprList
+            let exprList' = List.map transformVarDefsToLambda exprList
             ExprShape.RebuildShapeCombination(shapeComboObject, exprList')

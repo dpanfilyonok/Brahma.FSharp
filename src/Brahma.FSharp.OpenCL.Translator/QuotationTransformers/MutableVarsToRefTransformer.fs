@@ -71,6 +71,6 @@ module MutableVarsToRefTransformer =
     let varsToRefsWithPredicate (predicate: Var -> bool) (expr: Expr) =
         varsToRefsWithPredicateImpl Map.empty predicate expr
 
-    let mutableVarsToRef (expr: Expr) =
+    let transformMutableVarsToRef (expr: Expr) =
         let mutableVarsInClosure = collectMutableVarsInClosure expr
         varsToRefsWithPredicate mutableVarsInClosure.Contains expr

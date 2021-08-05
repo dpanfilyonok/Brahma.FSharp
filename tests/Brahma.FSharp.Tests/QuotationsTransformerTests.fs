@@ -30,11 +30,11 @@ let assertExprEqual (actual: Expr) (expected: Expr) (msg: string) =
     <| expected'.ToString()
     <| msg
 
-let assertMethodEqual (actual: Method) (expected: Method) =
-    Expect.equal actual.FunVar.Name expected.FunVar.Name "Method names should be equal"
+let assertMethodEqual (actual: Var * Expr) (expected: Var * Expr) =
+    Expect.equal (fst actual).Name (fst expected).Name "Method names should be equal"
 
-    assertExprEqual actual.FunExpr expected.FunExpr
-    <| sprintf "Method bodies of %s is not equal" actual.FunVar.Name
+    assertExprEqual (snd actual) (snd expected)
+    <| sprintf "Method bodies of %s is not equal" (fst actual).Name
 
 let lambdaLiftingTests =
     let genParameterLiftTest testCase name expr expected =
@@ -133,7 +133,7 @@ let lambdaLiftingTests =
 let varDefsToLambdaTest =
     let genVarDefToLambdaTest testCase name expr expected =
         testCase name <| fun _ ->
-            let actual = LetVarAbstracter.varDefsToLambda expr
+            let actual = VarDefsToLambdaTransformer.transformVarDefsToLambda expr
             assertExprEqual actual expected eqMsg
 
     testList "Var defs to lambda test" [
@@ -217,7 +217,7 @@ let quotationTransformerTest =
         Seq.map (fun (x: Method) -> sprintf "%A\n%A\n" x.FunVar x.FunExpr) methods
         |> String.concat "\n"
 
-    let assertMethodListsEqual (actual: list<Method>) (expected: list<Method>) =
+    let assertMethodListsEqual (actual: list<Var * Expr>) (expected: list<Var * Expr>) =
         Expect.equal actual.Length expected.Length "List sizes should be equal"
 
         List.zip actual expected
@@ -228,7 +228,7 @@ let quotationTransformerTest =
             match expr with
             | Patterns.Let (var, body, inExpr) ->
                 let methods, kernel = go inExpr
-                Method(var, body) :: methods, kernel
+                (var, body) :: methods, kernel
             | _ -> [], expr
 
         let methods, kernelExpr = go expr

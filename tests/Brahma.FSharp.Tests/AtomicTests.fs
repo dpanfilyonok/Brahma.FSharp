@@ -422,6 +422,7 @@ let commonTests = testList "Behavior/semantic tests" [
         |> Expect.equal actual expected
 
     // TODO не умеем toHost если не массив
+    // TODO не массивы и не ref параметры в приватной памяти -- не консистентное поведение с Local (local тоже тогда ref долен возвращать??)
     // testCase "Check atomic operation on global non-array object" <| fun () ->
     //     let kernel =
     //         <@
@@ -503,6 +504,10 @@ let commonTests = testList "Behavior/semantic tests" [
 
         "Results should be equal"
         |> Expect.equal actual expected
+
+    // TODO test on correct api
+    // testCase "lol" <| fun () ->
+    //     Expect.throwsT<
 ]
 
 let tests =

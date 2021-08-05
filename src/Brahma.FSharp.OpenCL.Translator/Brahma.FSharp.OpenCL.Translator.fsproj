@@ -14,7 +14,6 @@
     <Tailcalls>true</Tailcalls>
   </PropertyGroup>
   <ItemGroup>
-    
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Namer.fs" />
     <Compile Include="Common.fs" />
@@ -32,6 +31,7 @@
     <Compile Include="Type.fs" />
     <Compile Include="Body.fs" />
     <Compile Include="TypeReflection.fs" />
+    <Compile Include="Methods.fs" />
     <Compile Include="Translator.fs" />
   </ItemGroup>
   <ItemGroup>

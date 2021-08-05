@@ -29,6 +29,6 @@ module Transformer =
         |> processAtomic
         |> replacePrintf
         |> makeVarNameUnique
-        |> varDefsToLambda
-        |> mutableVarsToRef
+        |> transformVarDefsToLambda
+        |> transformMutableVarsToRef
         |> lambdaLifting

@@ -58,6 +58,19 @@ module AtomicProcessor =
     /// </summary>
     let rec private transformAtomicsAndCollectVars (expr: Expr) = state {
         match expr with
+        // atomic application can't be inside lambda
+        // let a b = atomic (fun x y -> x + y) a b is not supported
+        | DerivedPatterns.Lambdas
+            (
+                _,
+                DerivedPatterns.Applications
+                    (
+                        DerivedPatterns.SpecificCall <@ atomic @> (_, _, _),
+                        applicationArgs
+                    )
+            ) ->
+            return failwith "lol"
+
         | DerivedPatterns.Applications
             (
                 DerivedPatterns.SpecificCall <@ atomic @>
@@ -68,69 +81,71 @@ module AtomicProcessor =
                     ),
                 applicationArgs
             ) ->
-
+            // нативные атомики будут генерироваться, если функция без аргументов
+            // TODO можно сделать так, чтобы и для частично примененных функций так работало
+            // atomic (fun x -> x + 1) buffer.[0] => atomicAdd buffer.[0] 1
             match lambdaBody with
-            | DerivedPatterns.SpecificCall <@ (+) @> (_, onType :: _, _) when
+            | DerivedPatterns.SpecificCall <@ (+) @> (_, onType :: _, []) when
                 onType = typeof<int> || onType = typeof<uint32> ||
                 // base
                 onType = typeof<int64> || onType = typeof<uint64> ->
                 return Expr.Call(Utils.getMethodInfoOfLambda <@ atomicAdd @>, List.collect id applicationArgs)
 
-            | DerivedPatterns.SpecificCall <@ (-) @> (_, onType :: _, _) when
+            | DerivedPatterns.SpecificCall <@ (-) @> (_, onType :: _, []) when
                 onType = typeof<int> || onType = typeof<uint32> ||
                 // base
                 onType = typeof<int64> || onType = typeof<uint64> ->
                 return Expr.Call(Utils.getMethodInfoOfLambda <@ atomicSub @>, List.collect id applicationArgs)
 
-            | DerivedPatterns.SpecificCall <@ inc @> (_, onType :: _, _) when
+            | DerivedPatterns.SpecificCall <@ inc @> (_, onType :: _, []) when
                 onType = typeof<int> || onType = typeof<uint32> ||
                 // base
                 onType = typeof<int64> || onType = typeof<uint64> ->
                 return Expr.Call(Utils.getMethodInfoOfLambda <@ atomicInc @>, List.collect id applicationArgs)
 
-            | DerivedPatterns.SpecificCall <@ dec @> (_, onType :: _, _) when
+            | DerivedPatterns.SpecificCall <@ dec @> (_, onType :: _, []) when
                 onType = typeof<int> || onType = typeof<uint32> ||
                 // base
                 onType = typeof<int64> || onType = typeof<uint64> ->
                 return Expr.Call(Utils.getMethodInfoOfLambda <@ atomicDec @>, List.collect id applicationArgs)
 
-            | DerivedPatterns.SpecificCall <@ xchg @> (_, onType :: _, _) when
+            | DerivedPatterns.SpecificCall <@ xchg @> (_, onType :: _, []) when
                 onType = typeof<int> || onType = typeof<uint32> || onType = typeof<float32> ||
                 // base
                 onType = typeof<int64> || onType = typeof<uint64> ->
                 return Expr.Call(Utils.getMethodInfoOfLambda <@ atomicXchg @>, List.collect id applicationArgs)
 
-            | DerivedPatterns.SpecificCall <@ cmpxchg @> (_, onType :: _, _) when
+            | DerivedPatterns.SpecificCall <@ cmpxchg @> (_, onType :: _, []) when
                 onType = typeof<int> || onType = typeof<uint32> ||
                 // base
                 onType = typeof<int64> || onType = typeof<uint64> ->
                 return Expr.Call(Utils.getMethodInfoOfLambda <@ atomicCmpxchg @>, List.collect id applicationArgs)
 
-            | DerivedPatterns.SpecificCall <@ min @> (_, onType :: _, _) when
+            | DerivedPatterns.SpecificCall <@ min @> (_, onType :: _, []) when
                 onType = typeof<int> || onType = typeof<uint32> ||
                 // extended
                 onType = typeof<int64> || onType = typeof<uint64> ->
                 return Expr.Call(Utils.getMethodInfoOfLambda <@ atomicMin @>, List.collect id applicationArgs)
 
-            | DerivedPatterns.SpecificCall <@ max @> (_, onType :: _, _) when
+            | DerivedPatterns.SpecificCall <@ max @> (_, onType :: _, []) when
                 onType = typeof<int> || onType = typeof<uint32> ||
                 // extended
                 onType = typeof<int64> || onType = typeof<uint64> ->
                 return Expr.Call(Utils.getMethodInfoOfLambda <@ atomicMax @>, List.collect id applicationArgs)
 
-            | DerivedPatterns.SpecificCall <@ (&&&) @> (_, onType :: _, _) when
+            | DerivedPatterns.SpecificCall <@ (&&&) @> (_, onType :: _, []) when
                 onType = typeof<int> || onType = typeof<uint32> ||
                 // extended
                 onType = typeof<int64> || onType = typeof<uint64> ->
                 return Expr.Call(Utils.getMethodInfoOfLambda <@ atomicAnd @>, List.collect id applicationArgs)
 
-            | DerivedPatterns.SpecificCall <@ (|||) @> (_, onType :: _, _) when
+            | DerivedPatterns.SpecificCall <@ (|||) @> (_, onType :: _, []) when
                 onType = typeof<int> || onType = typeof<uint32> ||
                 // extended
                 onType = typeof<int64> || onType = typeof<uint64> ->
                 return Expr.Call(Utils.getMethodInfoOfLambda <@ atomicOr @>, List.collect id applicationArgs)
 
-            | DerivedPatterns.SpecificCall <@ (^^^) @> (_, onType :: _, _) when
+            | DerivedPatterns.SpecificCall <@ (^^^) @> (_, onType :: _, []) when
                 onType = typeof<int> || onType = typeof<uint32> ||
                 // extended
                 onType = typeof<int64> || onType = typeof<uint64> ->
@@ -207,25 +222,27 @@ module AtomicProcessor =
                     Expr.Let(
                         oldValueVar,
                         Expr.DefaultValue <| getFirstOfListListWith (fun (x: Var) -> x.Type.GenericTypeArguments.[0]) atomicArgs,
-                        <@@
-                            let mutable flag = true
-                            while flag do
-                                let old = atomicXchg %%mutex 1
-                                if old = 0 then
-                                    %%Expr.VarSet(
-                                        oldValueVar,
-                                        getFirstOfListListWith id atomicApplicaionArgs
-                                    )
-                                    %%(
-                                        Utils.createReferenceSetCall
-                                        <| getFirstOfListListWith Expr.Var atomicArgs
-                                        <| Expr.Applications(Expr.Var baseFuncVar, atomicApplicaionArgs)
-                                    )
-                                    atomicXchg %%mutex 0 |> ignore
-                                    flag <- false
-                            barrier ()
-                            %%Expr.Coerce(Expr.Var oldValueVar, oldValueVar.Type)
-                        @@>
+                        Expr.Sequential(
+                            <@@
+                                let mutable flag = true
+                                while flag do
+                                    let old = atomicXchg %%mutex 1
+                                    if old = 0 then
+                                        %%Expr.VarSet(
+                                            oldValueVar,
+                                            getFirstOfListListWith id atomicApplicaionArgs
+                                        )
+                                        %%(
+                                            Utils.createReferenceSetCall
+                                            <| getFirstOfListListWith Expr.Var atomicArgs
+                                            <| Expr.Applications(Expr.Var baseFuncVar, atomicApplicaionArgs)
+                                        )
+                                        atomicXchg %%mutex 0 |> ignore
+                                        flag <- false
+                                barrier ()
+                            @@>,
+                            Expr.Var oldValueVar
+                        )
                     )
 
                 return
@@ -259,6 +276,7 @@ module AtomicProcessor =
             let newArgs = ResizeArray args
 
             // Set global args
+            // TODO хорошо бы не в конец добавлять, а в пару к той переменной для которой этот мьютекс предназначен
             varToMutexVarMap
             |> Map.iter (fun var mutexVar ->
                 if List.contains var args then
@@ -293,3 +311,5 @@ module AtomicProcessor =
         transformAtomicsAndCollectVars expr
         >>= insertMutexVars
         |> State.eval Map.empty
+
+// TODO неплохо было бы контекст и на qt распространить, тк много можно во время трансформации получать

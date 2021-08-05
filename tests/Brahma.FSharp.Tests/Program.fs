@@ -105,9 +105,10 @@ let main argv =
 
     let k4 =
         <@
-            fun (range: _1D) (buf: array<int>) (b: int) ->
-                let a = atomic (fun x -> x / 2) buf.[0]
-                atomic (fun x -> x / 2) b |> ignore
+            fun (range: _1D) (buf: int[]) ->
+                atomic (fun x -> x + 1) buf.[0] |> ignore
+                // atomic (fun x -> x / 2) b |> ignore
+                // buf.[0] <- 0
         @>
 
     // не в модуле, поэтому application, иначе call
@@ -148,12 +149,67 @@ let main argv =
                 // let a = f buf.[0] 5
         @>
 
-    printfn "%A" <| k4
-    // printfn "%A" <| processAtomic k4
-    printfn "%A" <| transformQuotation k4 []
-    printfn "%A" <| Utils.openclTranslate k4
+    // printfn "%A" <| k4
+    // // printfn "%A" <| processAtomic k4
+    // printfn "%A" <| transformQuotation k4 []
+    // printfn "%A" <| Utils.openclTranslate k4
     // printfn "%A" <| a <@ [|1|].[0] @>
     // a e
+
+    opencl {
+        let buffer = Array.zeroCreate<int> 1
+        do! runCommand k4 <| fun prepare ->
+            prepare
+            <| _1D(16, 8)
+            <| buffer
+
+        return! toHost buffer
+    }
+    |> OpenCLEvaluationContext(deviceType = DeviceType.Cpu).RunSync
+    |> printfn "%A"
+
+    // let f x =
+    //     let kernel =
+    //         <@
+    //             fun (range: _1D) (buffer: int[]) ->
+    //                 let gid = range.GlobalID0
+    //                 buffer.[gid] <- 6
+    //         @>
+
+    //     opencl {
+    //         let buffer = Array.zeroCreate<int> 16
+    //         do! runCommand kernel <| fun prepare ->
+    //             prepare
+    //             <| _1D(16, 8)
+    //             <| buffer
+
+    //         return! toHost buffer
+    //     }
+    //     |> OpenCLEvaluationContext().RunSync
+    //     |> printfn "%A"
+
+    //     // printfn "%A" <| Utils.openclTranslate kernel
+
+    // f 5
+
+    // let kernel x =
+    //     <@
+    //         fun (range: _1D) (buffer: int[]) ->
+    //             let gid = range.GlobalID0
+    //             buffer.[gid] <- x
+    //     @>
+
+    // opencl {
+    //     let buffer = Array.zeroCreate<int> 16
+    //     do! RunCommand (kernel 6) <| fun prepare ->
+    //         prepare
+    //         <| _1D(16, 8)
+    //         <| buffer
+
+    //     return! ToHost buffer
+    // }
+    // |> OpenCLEvaluationContext().RunSync
+    // |> printfn "%A"
 
     // let kernel =
     //     <@

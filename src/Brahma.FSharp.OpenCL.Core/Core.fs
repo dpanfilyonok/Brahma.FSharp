@@ -27,7 +27,7 @@ type CLCodeGenerator() =
     static member KernelName = "brahmaKernel"
 
     static member GenerateKernel(lambda: Expr, provider: ComputeProvider, kernel: ICLKernel, translatorOptions) =
-        let codeGenerator = Translator.FSQuotationToOpenCLTranslator()
+        let codeGenerator = FSQuotationToOpenCLTranslator()
         let (ast, newLambda) = codeGenerator.Translate(lambda, translatorOptions)
         let code = Printer.AST.print ast
 
@@ -60,7 +60,8 @@ type ComputeProvider with
             |> fun s -> failwithf "%s\nError code: %A" s errCode
 
         let kernel = System.Activator.CreateInstance<'T>()
-        let r = CLCodeGenerator.GenerateKernel(lambda, this, kernel, translatorOptions)
+        let newLambda = CLCodeGenerator.GenerateKernel(lambda, this, kernel, translatorOptions)
+
         let mainSrc = (kernel :> ICLKernel).Source.ToString()
 
         let (program, error) =
@@ -84,7 +85,7 @@ type ComputeProvider with
 
         (kernel :> ICLKernel).ClKernel <- clKernel
 
-        kernel
+        kernel, newLambda
 
     member this.Compile
         (
@@ -102,7 +103,7 @@ type ComputeProvider with
 
         this.SetCompileOptions options
 
-        let kernel =
+        let (kernel, newLambda) =
             this.CompileQuery<Kernel<'TRange>>(query, tOptions, additionalSources)
 
         if outCode.IsSome then
@@ -114,8 +115,9 @@ type ComputeProvider with
 
         let getStarterFuncton qExpr =
             match qExpr with
-            | DerivedPatterns.Lambdas (lambdaArgs, body) ->
+            | DerivedPatterns.Lambdas (lambdaArgs, _) ->
                 let flattenArgs = List.collect id lambdaArgs
+
                 let firstMutexIdx =
                     flattenArgs
                     |> List.tryFindIndex (fun v -> v.Name.EndsWith "Mutex")
@@ -123,30 +125,30 @@ type ComputeProvider with
 
                 let argsWithoutMutexes = flattenArgs.[0 .. firstMutexIdx - 1]
 
-                let atomicVars =
-                    List.init<Var> (flattenArgs.Length - firstMutexIdx) <| fun i ->
-                        let mutexVar = flattenArgs.[firstMutexIdx + i]
-                        argsWithoutMutexes |> List.find (fun v -> mutexVar.Name.Contains v.Name)
-
                 /// For each atomic variable returns 0 if variable's type is not array,
                 /// otherwise returns length of array
                 let mutexLengths =
+                    let atomicVars =
+                        List.init<Var> (flattenArgs.Length - firstMutexIdx) <| fun i ->
+                            let mutexVar = flattenArgs.[firstMutexIdx + i]
+                            argsWithoutMutexes |> List.find (fun v -> mutexVar.Name.Contains v.Name)
+
                     Expr.NewArray(
                         typeof<int>,
 
                         atomicVars
                         |> List.map (fun x ->
                             match x with
-                            | x when x.GetType().IsArray ->
+                            | x when x.Type.IsArray ->
                                 Expr.PropertyGet(
                                     Expr.Var x,
                                     typeof<int[]>.GetProperty("Length")
                                 )
-                            | _ -> Expr.Value 0
+                            | _ -> failwithf "kekw"
                         )
                     )
 
-                let newArgs =
+                let c =
                     Expr.NewArray(
                         typeof<obj>,
 
@@ -159,17 +161,15 @@ type ComputeProvider with
                     |> List.map List.singleton,
 
                     <@@
-
                         let mutexArgs =
-                            %%mutexLengths
-                            |> Seq.cast<int>
-                            |> List.ofSeq
+                            (%%mutexLengths : int[])
+                            |> List.ofArray
                             |> List.map (fun n ->
                                 if n = 0 then box 0
                                 else box <| Array.zeroCreate<int> n
                             )
 
-                        let x = %%newArgs |> List.ofArray
+                        let x = %%c |> List.ofArray
                         rng := unbox<'TRange> x.Head
                         args := x.Tail @ mutexArgs |> Array.ofList
 
@@ -187,4 +187,4 @@ type ComputeProvider with
             |> fun kernelPrepare ->
                 <@ %%kernelPrepare: 'TRange -> 'a @>.Compile()
 
-        kernel, getStarterFuncton query, (fun () -> !run)
+        kernel, getStarterFuncton newLambda, (fun () -> !run)
