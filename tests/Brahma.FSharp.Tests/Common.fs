@@ -10,23 +10,16 @@ open Brahma.FSharp.OpenCL.Printer.AST
 open FSharp.Quotations
 
 module CustomDatatypes =
-    // TODO заменить рекорд на структуру ??
     [<Struct>]
     type WrappedInt =
-        {
-            InnerValue: int
-        }
-        static member (+)(x: WrappedInt, y: WrappedInt) =
-            {
-                InnerValue = x.InnerValue + y.InnerValue
-            }
+        val mutable InnerValue: int
+        new(x) = { InnerValue = x }
 
-        static member (-)(x: WrappedInt, y: WrappedInt) =
-            {
-                InnerValue = x.InnerValue - y.InnerValue
-            }
+        static member (+) (x: WrappedInt, y: WrappedInt) =
+            WrappedInt(x.InnerValue + y.InnerValue)
 
-        static member Wrap(x: int) = { InnerValue = x }
+        static member (-) (x: WrappedInt, y: WrappedInt) =
+            WrappedInt(x.InnerValue - y.InnerValue)
 
 module Utils =
     let context = OpenCLEvaluationContext()

@@ -15,11 +15,12 @@
 
 namespace Brahma.FSharp.OpenCL.AST
 
+// TODO support extended atomics pragmas
 type CLPragmaType<'lang> =
     | CLGlobalInt32BaseAtomics
-    | CLGlobalInt32ExtendedAtomics
+    // | CLGlobalInt32ExtendedAtomics
     | CLLocalInt32BaseAtomics
-    | CLLocalInt32ExtendedAtomics
+    // | CLLocalInt32ExtendedAtomics
     | CLFP64
 
 type CLPragma<'lang>(pragmaType: CLPragmaType<'lang>) =

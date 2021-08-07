@@ -24,7 +24,7 @@ let private printFunFormalParam (param: FunFormalArg<_>) =
     [
         match param.DeclSpecs.AddressSpaceQualifier with
         | Global ->
-            // TODO wtf
+            // TODO wtf: equal branches
             if param.Name.[0] <> '_' then
                 yield wordL "__global"
             else
@@ -45,7 +45,7 @@ let Print<'lang> (funDecl: FunDecl<'lang>) =
         match arg.DeclSpecs.Type with
         | Some x ->
             match x with
-            | :? (PrimitiveType<_>) as p -> p.Type = Void
+            | :? PrimitiveType<_> as p -> p.Type = Void
             | _ -> false
         | None -> false
 

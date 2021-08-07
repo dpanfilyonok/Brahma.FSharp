@@ -39,7 +39,7 @@ type FSQuotationToOpenCLTranslator() =
             |> Utils.collectLocalVars
             |> List.map (fun var -> var.Name)
 
-        let collectAtomicApplicationsInfo =
+        let atomicApplicationsInfo =
             let atomicRefArgQualifiers = System.Collections.Generic.Dictionary<Var, AddressSpaceQualifier<Lang>>()
 
             let rec go expr =
@@ -51,13 +51,16 @@ type FSQuotationToOpenCLTranslator() =
                     )
                     when funcVar.Name.StartsWith "atomic" ->
 
-                    // let args =
-                    //     applicationArgs
-                    //     |> List.collect id
-                    //     |> List.skipWhile (fun v -> v.Name.En)
+                    // сначала идут переменные из замыкания -- неизвестно сколько
+                    // потом переменные непосредственно функции
+                    // ориентируемся по ref переменной -- считаем, что она должна быть только 1 берем первую
+                    let refVar =
+                        applicationArgs
+                        |> List.collect id
+                        |> List.tryFind (function | DerivedPatterns.SpecificCall <@ ref @> _ -> true | _ -> false)
+                        |> Option.defaultWith (fun () -> failwith "Atomic application should have at least one ref argument")
 
-                    // TODO тут не первыйаргумент, тк до этого еще mutex
-                    match applicationArgs.[1].[0] with
+                    match refVar with
                     | DerivedPatterns.SpecificCall <@ ref @>
                         (
                             _,
@@ -70,13 +73,15 @@ type FSQuotationToOpenCLTranslator() =
                             _,
                             [DerivedPatterns.SpecificCall <@ IntrinsicFunctions.GetArray @> (_, _, [Patterns.Var var; _])]
                         ) ->
+
                         if kernelArgumentsNames |> List.contains var.Name then
                             atomicRefArgQualifiers.Add(funcVar, Global)
                         elif localVarsNames |> List.contains var.Name then
                             atomicRefArgQualifiers.Add(funcVar, Local)
                         else
-                            failwith "F"
-                    | _ -> failwith "F"
+                            failwith "Atomic pointer argument should be from local or global memory only"
+
+                    | _ -> failwith "Atomic pointer argument should be 'var' or 'var.[idx]'"
 
                 | ExprShape.ShapeVar _ -> ()
                 | ExprShape.ShapeLambda (_, lambda) -> go lambda
@@ -88,23 +93,20 @@ type FSQuotationToOpenCLTranslator() =
             go expr
 
             atomicRefArgQualifiers
+            |> Seq.map (|KeyValue|)
+            |> Map.ofSeq
 
         let main = KernelFunc(Var(mainKernelName, expr.Type), expr) :> Method |> List.singleton
 
         let funcs =
             functions
-            |> List.filter (fun (v, _) -> not <| collectAtomicApplicationsInfo.ContainsKey(v))
+            |> List.filter (fun (v, _) -> not <| atomicApplicationsInfo.ContainsKey(v))
             |> List.map (fun (v, expr) -> Function(v, expr) :> Method)
 
         let atomicFuncs =
             functions
             |> List.choose (fun (var, expr) ->
-                let m =
-                    collectAtomicApplicationsInfo
-                    |> Seq.map (|KeyValue|)
-                    |> Map.ofSeq
-
-                match m |> Map.tryFind var with
+                match atomicApplicationsInfo |> Map.tryFind var with
                 | Some qual -> Some (AtomicFunc(var, expr, qual) :> Method)
                 | None -> None
             )

@@ -47,7 +47,7 @@ type PrimitiveType<'lang>(pType: PTypes<'lang>) =
 
     override this.Matches(other) =
         match other with
-        | :? (PrimitiveType<'lang>) as o -> this.Type.Equals(o.Type)
+        | :? PrimitiveType<'lang> as o -> this.Type.Equals(o.Type)
         | _ -> false
 
     member this.Type = pType
@@ -64,7 +64,7 @@ type ArrayType<'lang>(baseType: Type<'lang>, ?size: int) =
 
     override this.Matches(other) =
         match other with
-        | :? (ArrayType<'lang>) as o -> this.BaseType.Matches(o.BaseType)
+        | :? ArrayType<'lang> as o -> this.BaseType.Matches(o.BaseType)
         // NB: size is omitted in this check
         | _ -> false
 
@@ -75,7 +75,7 @@ type Image2DType<'lang>(modifier: bool) =
 
     override this.Matches(other: obj) =
         match other with
-        | :? (Image2DType<'lang>) as o -> this.Equals(o)
+        | :? Image2DType<'lang> as o -> this.Equals(o)
         // NB: fields are omitted in this check
         | _ -> false
 
@@ -93,7 +93,7 @@ type StructType<'lang>(name: string, fields: List<Field<'lang>>) =
 
     override this.Matches(other: obj) =
         match other with
-        | :? (StructType<'lang>) as o -> this.Name.Equals(o.Name)
+        | :? StructType<'lang> as o -> this.Name.Equals(o.Name)
         // NB: fields are omitted in this check
         | _ -> false
 
@@ -149,7 +149,7 @@ type RefType<'lang>(baseType: Type<'lang>, typeQuals: TypeQualifier<'lang> list)
 
     override this.Matches(other) =
         match other with
-        | :? (RefType<'lang>) as o ->
+        | :? RefType<'lang> as o ->
             this.BaseType.Matches(o.BaseType)
             && this.TypeQuals.Equals(o.TypeQuals)
         | _ -> false

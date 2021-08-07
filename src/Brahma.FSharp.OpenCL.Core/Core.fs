@@ -57,7 +57,7 @@ type ComputeProvider with
                     |> string
                 )
             |> String.concat "\n"
-            |> fun s -> failwithf "%s\nError code: %A" s errCode
+            |> fun str -> failwithf "%s\nError code: %A" str errCode
 
         let kernel = System.Activator.CreateInstance<'T>()
         let newLambda = CLCodeGenerator.GenerateKernel(lambda, this, kernel, translatorOptions)
@@ -137,15 +137,17 @@ type ComputeProvider with
                         typeof<int>,
 
                         atomicVars
-                        |> List.map (fun x ->
-                            match x with
-                            | x when x.Type.IsArray ->
-                                Expr.PropertyGet(
-                                    Expr.Var x,
-                                    typeof<int[]>.GetProperty("Length")
-                                )
-                            | _ -> failwithf "kekw"
-                        )
+                        |> List.map
+                            (fun var ->
+                                match var with
+                                | var when var.Type.IsArray ->
+                                    Expr.PropertyGet(
+                                        Expr.Var var,
+                                        typeof<int[]>.GetProperty("Length")
+                                    )
+                                // InvalidKernelException?
+                                | _ -> invalidArg var.Name "Non-array variables as global mutex parameters is unsupported. Wrap it into array instead."
+                            )
                     )
 
                 let c =
@@ -182,7 +184,7 @@ type ComputeProvider with
                     @@>
                 )
 
-            | _ -> failwithf "Invalid expression. Must be lambda, but given\n%O" qExpr
+            | _ -> failwithf "Invalid kernel expression. Must be lambda, but given\n%O" qExpr
 
             |> fun kernelPrepare ->
                 <@ %%kernelPrepare: 'TRange -> 'a @>.Compile()

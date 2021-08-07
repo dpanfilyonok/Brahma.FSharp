@@ -22,7 +22,7 @@ open Brahma.FSharp.OpenCL.Printer
 
 let private printConst (c: Const<'lang>) =
     match c.Type with
-    | :? (PrimitiveType<'lang>) as pt ->
+    | :? PrimitiveType<'lang> as pt ->
         match pt.Type with
         | Bool
         | Char
@@ -39,8 +39,8 @@ let private printConst (c: Const<'lang>) =
         | Void -> wordL ""
         | ConstStringLiteral -> wordL <| sprintf "\"%s\"" c.Val
         | TypeName tname -> failwithf "Printer. Unsupported const with type: %A" tname
-    | :? (RefType<'lang>) as rt -> wordL c.Val
-    | :? (ArrayType<'lang>) as rt -> wordL c.Val
+    | :? RefType<'lang> as rt -> wordL c.Val
+    | :? ArrayType<'lang> as rt -> wordL c.Val
     | c -> failwithf "Printer. Unsupported const with type: %A" c
 
 let private printVar (varible: Variable<'lang>) = wordL varible.Name
@@ -86,9 +86,9 @@ and private printProperty (prop: Property<'lang>) =
 and private printFunCall (fc: FunCall<'lang>) =
     let isVoidArg (expr: Expression<_>) =
         match expr with
-        | :? (Const<_>) as c ->
+        | :? Const<_> as c ->
             match c.Type with
-            | :? (PrimitiveType<_>) as pt -> pt.Type = Void
+            | :? PrimitiveType<_> as pt -> pt.Type = Void
             | _ -> false
         | _ -> false
 
@@ -120,7 +120,7 @@ and private printPointer (p: Ptr<'lang>) =
 
 and private printArrayInitializer (ai: ArrayInitializer<'lang>) =
     match ai with
-    | :? (ZeroArray<_>) as za -> wordL "{0}"
+    | :? ZeroArray<_> as za -> wordL "{0}"
     | other -> failwithf "Printer. Unsupported array initializer: %A" other
 
 and private getZeros x =
@@ -155,18 +155,18 @@ and printFfieldGet (fg: FieldGet<_>) =
 
 and Print (expr: Expression<'lang>) =
     match expr with
-    | :? (Const<'lang>) as c -> printConst c
-    | :? (Variable<'lang>) as v -> printVar v
-    | :? (Item<'lang>) as itm -> printItem itm
-    | :? (Property<'lang>) as prop -> printProperty prop
-    | :? (Binop<'lang>) as binop -> printBinop binop
-    | :? (FunCall<'lang>) as fc -> printFunCall fc
-    | :? (Unop<'lang>) as uo -> printUnOp uo
-    | :? (Cast<'lang>) as c -> printCast c
-    | :? (Ptr<'lang>) as p -> printPointer p
-    | :? (ArrayInitializer<'lang>) as ai -> printArrayInitializer ai
-    | :? (NewStruct<'lang>) as ns -> printNewStruct ns
-    | :? (NewUnion<'lang>) as nu -> printNewUnion nu
-    | :? (FieldGet<'lang>) as fg -> printFfieldGet fg
-    | :? (IndirectionOp<'lang>) as ip -> printIndirectionOp ip
+    | :? Const<'lang> as c -> printConst c
+    | :? Variable<'lang> as v -> printVar v
+    | :? Item<'lang> as itm -> printItem itm
+    | :? Property<'lang> as prop -> printProperty prop
+    | :? Binop<'lang> as binop -> printBinop binop
+    | :? FunCall<'lang> as fc -> printFunCall fc
+    | :? Unop<'lang> as uo -> printUnOp uo
+    | :? Cast<'lang> as c -> printCast c
+    | :? Ptr<'lang> as p -> printPointer p
+    | :? ArrayInitializer<'lang> as ai -> printArrayInitializer ai
+    | :? NewStruct<'lang> as ns -> printNewStruct ns
+    | :? NewUnion<'lang> as nu -> printNewUnion nu
+    | :? FieldGet<'lang> as fg -> printFfieldGet fg
+    | :? IndirectionOp<'lang> as ip -> printIndirectionOp ip
     | c -> failwithf "Printer. Unsupported expression: %A" c

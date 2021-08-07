@@ -23,7 +23,7 @@ type FunFormalArg<'lang>(declSpecs: DeclSpecifierPack<'lang>, name: string) =
 
     member this.Matches(other: obj) =
         match other with
-        | :? (FunFormalArg<'lang>) as o ->
+        | :? FunFormalArg<'lang> as o ->
             this.DeclSpecs.Matches(o.DeclSpecs)
             && this.Name.Equals(o.Name)
         | _ -> false
@@ -34,8 +34,8 @@ type FunDecl<'lang>
         name: string,
         args: List<FunFormalArg<'lang>>,
         body: Statement<'lang>
-    )
-     =
+    ) =
+
     inherit Node<'lang>()
     interface ITopDef<'lang>
     override this.Children = []
@@ -46,13 +46,14 @@ type FunDecl<'lang>
 
     member this.Matches(other: obj) =
         match other with
-        | :? (FunDecl<'lang>) as o ->
+        | :? FunDecl<'lang> as o ->
             let areParamsMatching =
-                List.fold
-                    (fun eq ((x, y): (FunFormalArg<_> * FunFormalArg<_>)) -> eq && x.Matches(y)
-                    )
-                    true
-                    (List.zip this.Args o.Args)
+                (this.Args, o.Args)
+                ||> List.zip
+                |> List.fold
+                    (fun eq (x, y) ->
+                        eq && x.Matches(y)
+                    ) true
 
             this.DeclSpecs.Matches(o.DeclSpecs)
             && this.Name.Equals(o.Name)

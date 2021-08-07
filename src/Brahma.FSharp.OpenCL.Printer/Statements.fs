@@ -39,19 +39,16 @@ and private printSpaceModeifier (sm: AddressSpaceQualifier<_>) =
 
 and private printVarDecl (vd: VarDecl<'lang>) =
     [
-        if vd.SpaceModifier.IsSome then
-            yield printSpaceModeifier vd.SpaceModifier.Value
+        if vd.SpaceModifier.IsSome then yield printSpaceModeifier vd.SpaceModifier.Value
         yield Types.Print vd.Type
         yield wordL vd.Name
-        if vd.Type :? ArrayType<_> then
-            yield wordL "[" ^^ wordL (string vd.Type.Size) ^^ wordL "]"
+        if vd.Type :? ArrayType<_> then yield wordL "[" ^^ wordL (string vd.Type.Size) ^^ wordL "]"
         if vd.Expr.IsSome && not <| vd.IsLocal() then
-            yield
-                [
-                    wordL "="
-                    Expressions.Print vd.Expr.Value
-                ]
-                |> spaceListL
+            yield [
+                wordL "="
+                Expressions.Print vd.Expr.Value
+            ]
+            |> spaceListL
     ]
     |> spaceListL
 
@@ -64,28 +61,28 @@ and private printStmtBlock (sb: StatementBlock<'lang>) =
     |> aboveListL
     |> braceL
 
-and private printIf (_if: IfThenElse<_>) =
-    let cond = Expressions.Print _if.Condition |> bracketL
-    let _then = Print true _if.Then
+and private printIf (if': IfThenElse<_>) =
+    let cond = Expressions.Print if'.Condition |> bracketL
+    let then' = Print true if'.Then
 
-    let _else =
-        match _if.Else with
+    let else' =
+        match if'.Else with
         | Some x -> Print true x
         | None -> wordL ""
 
     [
         yield wordL "if" ++ cond
-        yield _then
-        if _if.Else.IsSome then
-            yield aboveL (wordL "else") _else
+        yield then'
+        if if'.Else.IsSome then
+            yield aboveL (wordL "else") else'
     ]
     |> aboveListL
 
-and private printForInteger (_for: ForIntegerLoop<_>) =
-    let cond = Expressions.Print _for.Condition
-    let i = Print true _for.Var
-    let cModif = Expressions.Print _for.CountModifier
-    let body = Print true _for.Body
+and private printForInteger (for': ForIntegerLoop<_>) =
+    let cond = Expressions.Print for'.Condition
+    let i = Print true for'.Var
+    let cModif = Expressions.Print for'.CountModifier
+    let body = Print true for'.Body
     let header = [ i; cond; cModif ] |> sepListL (wordL ";") |> bracketL
 
     [
@@ -120,30 +117,30 @@ and printReturn (r: Return<_>) = wordL "return" ++ Expressions.Print r.Expressio
 and printFieldSet (fs: FieldSet<_>) =
     let host = Expressions.Print fs.Host
     let fld = wordL fs.Field
-    let _val = Expressions.Print fs.Val
+    let val' = Expressions.Print fs.Val
 
     [
         host |> bracketL
         wordL "."
         fld
         wordL "="
-        _val
+        val'
     ]
     |> spaceListL
 
 and Print isToplevel (stmt: Statement<'lang>) =
     let res =
         match stmt with
-        | :? (StatementBlock<'lang>) as sb -> printStmtBlock sb
-        | :? (VarDecl<'lang>) as vd -> printVarDecl vd
-        | :? (Assignment<'lang>) as a -> printAssignment a
-        | :? (IfThenElse<'lang>) as ite -> printIf ite
-        | :? (ForIntegerLoop<'lang>) as _for -> printForInteger _for
-        | :? (WhileLoop<'lang>) as wl -> printWhileLoop wl
-        | :? (FunCall<'lang>) as fc -> printFunCall fc
-        | :? (Barrier<'lang>) as b -> printBarrier b
-        | :? (FieldSet<'lang>) as fs -> printFieldSet fs
-        | :? (Return<'lang>) as r -> printReturn r
+        | :? StatementBlock<'lang> as sb -> printStmtBlock sb
+        | :? VarDecl<'lang> as vd -> printVarDecl vd
+        | :? Assignment<'lang> as a -> printAssignment a
+        | :? IfThenElse<'lang> as ite -> printIf ite
+        | :? ForIntegerLoop<'lang> as _for -> printForInteger _for
+        | :? WhileLoop<'lang> as wl -> printWhileLoop wl
+        | :? FunCall<'lang> as fc -> printFunCall fc
+        | :? Barrier<'lang> as b -> printBarrier b
+        | :? FieldSet<'lang> as fs -> printFieldSet fs
+        | :? Return<'lang> as r -> printReturn r
         //| :? Variable<'lang> as v -> printVar v
         | _ -> failwithf "Printer. Unsupported statement: %O" stmt
 

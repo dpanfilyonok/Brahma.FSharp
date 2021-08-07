@@ -1,8 +1,4 @@
 AssemblyInfo.fs
-Brahma.FSharp.OpenCL.Translator
-Brahma.FSharp.OpenCL.WorkflowBuilder
-Core.fs
-Printer.fs
 tests/
 docsTool/
 build.fsx

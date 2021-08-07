@@ -39,17 +39,17 @@ let private printPrimitiveType (pType: PrimitiveType<'lang>) =
 
 let rec Print<'lang> (_type: Type<'lang>) =
     match _type with
-    | :? (PrimitiveType<'lang>) as pt -> printPrimitiveType pt
-    | :? (RefType<'lang>) as rt -> Print rt.BaseType ^^ wordL "*"
-    | :? (ArrayType<'lang>) as art -> Print art.BaseType
-    | :? (Image2DType<'lang>) as imgt ->
+    | :? PrimitiveType<'lang> as pt -> printPrimitiveType pt
+    | :? RefType<'lang> as rt -> Print rt.BaseType ^^ wordL "*"
+    | :? ArrayType<'lang> as art -> Print art.BaseType
+    | :? Image2DType<'lang> as imgt ->
         match imgt.Modifier with
         | true -> wordL "read_only image2D"
         | false -> wordL "write_only image2D"
-    | :? (StructInplaceType<'lang>) as s -> PrintStructInplaceType s
-    | :? (StructType<'lang>) as s -> wordL s.Name
-    | :? (UnionClInplaceType<'lang>) as u -> PrintUnionInplaceType u
-    | :? (TupleType<'lang>) as t -> wordL ("tuple" + t.Number.ToString())
+    | :? StructInplaceType<'lang> as s -> PrintStructInplaceType s
+    | :? StructType<'lang> as s -> wordL s.Name
+    | :? UnionClInplaceType<'lang> as u -> PrintUnionInplaceType u
+    | :? TupleType<'lang> as t -> wordL ("tuple" + t.Number.ToString())
     | t -> failwithf "Printer. Unsupported type: %A" t
 
 and PrintAggregatingInplaceType keyword typeName fields =

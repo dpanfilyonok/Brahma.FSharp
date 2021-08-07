@@ -1,13 +1,14 @@
 ﻿module Full
 
 open Brahma.FSharp.OpenCL.WorkflowBuilder
+open Brahma.FSharp.OpenCL.Translator
 open Expecto
 open OpenCL.Net
 open Brahma.OpenCL
 open Brahma.FSharp.OpenCL.Core
 open Brahma.FSharp.OpenCL.Extensions
 open FSharp.Quotations
-open Brahma.FSharp.Tests.CustomDatatypes
+open Brahma.FSharp.Tests
 
 [<Struct>]
 type TestStruct =
@@ -1160,6 +1161,32 @@ let structTests = testList "Struct tests" [
             |]
 
     testCase "Nested structs 1." ignore
+]
+
+let commonApiTests = testList "Common Api Tests" [
+    testCase "Using atomic in lambda should raise exception, v1" <| fun () ->
+        let command =
+            <@
+                fun (range: _1D) (buffer: int[]) ->
+                let g = atomic (fun x y -> x + 1) buffer.[0]
+                g 5 |> ignore
+            @>
+
+        Expect.throwsT<System.ArgumentException>
+        <| fun () -> Utils.openclTranslate command |> ignore
+        <| "Exception should be thrown"
+
+    testCase "Using atomic in lambda should raise exception, v2" <| fun () ->
+        let command =
+            <@
+                fun (range: _1D) (buffer: int[]) ->
+                let g x y = atomic (+) x y
+                g buffer.[0] 6 |> ignore
+            @>
+
+        Expect.throwsT<System.ArgumentException>
+        <| fun () -> Utils.openclTranslate command |> ignore
+        <| "Exception should be thrown"
 ]
 
 let tests =

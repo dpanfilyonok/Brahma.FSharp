@@ -21,8 +21,8 @@ type VarDecl<'lang>
         name: string,
         expr: Option<Expression<'lang>>,
         ?spaceModifier: AddressSpaceQualifier<'lang>
-    )
-     =
+    ) =
+
     inherit Statement<'lang>()
     let mutable spaceModifier = spaceModifier
     interface ITopDef<'lang>
@@ -65,8 +65,8 @@ type IfThenElse<'lang>
         cond: Expression<'lang>,
         thenBranch: StatementBlock<'lang>,
         elseBranch: Option<StatementBlock<'lang>>
-    )
-     =
+    ) =
+
     inherit Statement<'lang>()
     override this.Children = []
     member this.Condition = cond
@@ -79,8 +79,8 @@ type ForIntegerLoop<'lang>
         cond: Expression<'lang>,
         countModifier: Expression<'lang>,
         body: StatementBlock<'lang>
-    )
-     =
+    ) =
+
     inherit Statement<'lang>()
     override this.Children = []
     member this.Var = var

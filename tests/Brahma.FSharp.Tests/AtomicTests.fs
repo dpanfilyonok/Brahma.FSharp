@@ -56,7 +56,6 @@ let foldTest<'a when 'a : equality and 'a : struct> f (array: 'a[]) =
                 let lid = range.LocalID0
 
                 let localResult = local<'a> ()
-                // TODO check it: array.[lid] should be called once
                 atomic %f localResult array.[lid] |> ignore
                 barrier ()
 
@@ -159,7 +158,7 @@ let stressTestCases = testList "Stress tests" [
     testCase "Stress test atomic 'not' on bool" <| fun () -> stressTest<bool> <@ not @> size)
 
     // WrappedInt (???)
-    let wrappedIntInc = <@ fun x -> x + { InnerValue = 1 } @>
+    let wrappedIntInc = <@ fun x -> x + WrappedInt(1) @>
     yield! range |> List.map (fun size ->
     testCase "Stress test custom atomic inc on WrappedInt" <| fun () -> stressTest<WrappedInt> wrappedIntInc size)
 
@@ -264,8 +263,6 @@ let perfomanceTest = testCase "Perfomance test on inc" <| fun () ->
     |> Expect.isFasterThan kernelUsingNativeInc kernelUsingCustomInc
 
 // TODO deadlock test
-// TODO custom op with 3 parameters ??
-// TODO particial application tests (let g = atomic (+); g 1. 2.) -- unsupported -- надо бы как то явн это обработать
 
 let commonTests = testList "Behavior/semantic tests" [
     testCase "Check operation definition inside quotation" <| fun () ->
@@ -421,8 +418,8 @@ let commonTests = testList "Behavior/semantic tests" [
         "Results should be equal"
         |> Expect.equal actual expected
 
-    // TODO не умеем toHost если не массив
-    // TODO не массивы и не ref параметры в приватной памяти -- не консистентное поведение с Local (local тоже тогда ref долен возвращать??)
+    // NOTE не умеем toHost если не массив
+    // NOTE не массивы и не ref параметры в приватной памяти -- не консистентное поведение с Local (local тоже тогда ref долен возвращать??)
     // testCase "Check atomic operation on global non-array object" <| fun () ->
     //     let kernel =
     //         <@
@@ -504,10 +501,6 @@ let commonTests = testList "Behavior/semantic tests" [
 
         "Results should be equal"
         |> Expect.equal actual expected
-
-    // TODO test on correct api
-    // testCase "lol" <| fun () ->
-    //     Expect.throwsT<
 ]
 
 let tests =

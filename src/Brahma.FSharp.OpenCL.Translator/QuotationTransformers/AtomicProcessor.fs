@@ -58,7 +58,7 @@ module AtomicProcessor =
     /// </summary>
     let rec private transformAtomicsAndCollectVars (expr: Expr) = state {
         match expr with
-        // atomic application can't be inside lambda
+        // atomic application cannot be inside lambda
         // let a b = atomic (fun x y -> x + y) a b is not supported
         | DerivedPatterns.Lambdas
             (
@@ -69,7 +69,7 @@ module AtomicProcessor =
                         applicationArgs
                     )
             ) ->
-            return failwith "lol"
+            return raise <| InvalidKernelException("Atomic application cannot be used inside lambda")
 
         | DerivedPatterns.Applications
             (
@@ -304,12 +304,10 @@ module AtomicProcessor =
 
             return Expr.Lambdas(Seq.toList newArgs |> List.map List.singleton, go body)
 
-        | _ -> return failwith "dsds"
+        | _ -> return raise <| InvalidKernelException(sprintf "Invalid kernel expression. Must be lambda, but given\n%O" expr)
     }
 
     let processAtomic (expr: Expr) =
         transformAtomicsAndCollectVars expr
         >>= insertMutexVars
         |> State.eval Map.empty
-
-// TODO неплохо было бы контекст и на qt распространить, тк много можно во время трансформации получать

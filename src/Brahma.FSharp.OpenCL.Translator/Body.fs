@@ -430,7 +430,7 @@ module Body =
                 let (exp, tc) = translateAsExpr e2 targetContext
                 go e1 (exp :: vals)
             | _ ->
-                // TODO fix it
+                // TODO fix it: return exception rather than expr.ToString()
                 // NOTE не поддерживается частичное применение
                 // NOTE не поддерживается композиция функций (или функции высшего порядка)
                 let funName =

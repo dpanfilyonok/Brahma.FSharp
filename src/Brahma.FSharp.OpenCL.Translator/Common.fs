@@ -20,6 +20,8 @@ open System.Collections.Generic
 open Brahma.FSharp.OpenCL.AST
 open Microsoft.FSharp.Reflection
 
+exception InvalidKernelException of string
+
 type Flags() =
     member val enableAtomic = false with get, set
     member val enableFP64 = false with get, set
@@ -64,7 +66,7 @@ type TargetContext<'lang, 'vDecl>() =
         with get() = namer
         and set v = namer <- v
 
-    // TODO is it really clone context (is it fully clone)
+    // NOTE is it really clone context (is it fully clone)
     member this.Clone() =
         let context = TargetContext()
 
@@ -79,7 +81,8 @@ type TargetContext<'lang, 'vDecl>() =
         for x in this.TupleList do
             context.TupleList.Add(x)
         context.TupleNumber <- this.TupleNumber
-        // TODO why only enableFP64 clones
+
+        // NOTE why only enableFP64 clones
         context.Flags.enableFP64 <- this.Flags.enableFP64
         context.TranslatorOptions.AddRange translatorOptions
         context
@@ -87,22 +90,33 @@ type TargetContext<'lang, 'vDecl>() =
 [<AutoOpen>]
 module Extensions =
     type Expr with
-        /// Builds an expression that represents the lambda non-tupled arguments
+        /// Builds an expression that represents the lambda
         static member Lambdas(args: Var list list, body: Expr) =
-            let mkRLinear mk (vs, body) = List.foldBack (fun v acc -> mk(v, acc)) vs body
+            let mkRLinear mk (vs, body) = List.foldBack (fun v acc -> mk (v, acc)) vs body
 
             let mkTupledLambda (args, body) =
                 match args with
                 | [x] -> Expr.Lambda(x, body)
-                | [] -> failwith "Unsupported"
+                | [] -> Expr.Lambda(Var("unitVar", typeof<unit>), body)
                 | _ ->
-                    // TODO
                     let tupledArg =
                         Var(
                             "tupledArg",
                             FSharpType.MakeTupleType(args |> List.map (fun v -> v.Type) |> List.toArray)
                         )
-                    failwith "Unsuppoerted"
+
+                    Expr.Lambda(
+                        tupledArg,
+                        (args, [0 .. args.Length - 1], body)
+                        |||> List.foldBack2
+                            (fun var idxInTuple letExpr ->
+                                Expr.Let(
+                                    var,
+                                    Expr.TupleGet(Expr.Var tupledArg, idxInTuple),
+                                    letExpr
+                                )
+                            )
+                    )
 
             mkRLinear mkTupledLambda (args, body)
 
