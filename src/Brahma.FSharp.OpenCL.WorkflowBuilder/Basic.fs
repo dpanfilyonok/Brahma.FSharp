@@ -22,11 +22,9 @@ module ClEvaluation =
     let getEvaluationContext : OpenCLEvaluation<OpenCLEvaluationContext> =
         OpenCLEvaluation id
 
-    /// If array is associated with gpu memory, then ToHost
-    /// transfers it to host memory and returns a ordinary F# array.
-    /// Otherwise ToHost simply returns the array passed to it, like
-    /// the identity function.
-    let toHost (xs: array<'a>) : OpenCLEvaluation<array<'a>> =
+    /// If array is associated with gpu memory, then transfers it to host memory and returns a ordinary F# array.
+    /// Otherwise simply returns the array passed to it, like the identity function.
+    let toHost (xs: 'a[]) : OpenCLEvaluation<array<'a>> =
         opencl {
             let! ctx = getEvaluationContext
 
@@ -45,8 +43,21 @@ module ClEvaluation =
     let runCommand (command: Expr<'range -> 'a>) (binder: ('range -> 'a) -> unit) : OpenCLEvaluation<unit> =
         opencl {
             let! ctx = getEvaluationContext
-            let (_, kernelP, kernelR) = ctx.Provider.Compile command
 
-            binder kernelP
-            ctx.CommandQueue.Add(kernelR()) |> ignore
+            let (_, kernelPrepare, kernelRun) =
+                if not ctx.IsCachingEnabled then
+                    ctx.Provider.Compile command
+                else
+                    match ctx.CompilingCache.TryGetValue <| ExprWrapper command.Raw with
+                    | true, (kernel, kernelPrepare, kernelRun) ->
+                        unbox<Brahma.OpenCL.Kernel<'range>> kernel,
+                        unbox<'range -> 'a> kernelPrepare,
+                        unbox<unit -> Brahma.OpenCL.Commands.Run<'range>> kernelRun
+                    | false, _ ->
+                        let (kernel, kernelPrepare, kernelRun) = ctx.Provider.Compile command
+                        ctx.CompilingCache.Add(ExprWrapper command.Raw, (box kernel, box kernelPrepare, box kernelRun))
+                        kernel, kernelPrepare, kernelRun
+
+            binder kernelPrepare
+            ctx.CommandQueue.Add(kernelRun()) |> ignore
         }
