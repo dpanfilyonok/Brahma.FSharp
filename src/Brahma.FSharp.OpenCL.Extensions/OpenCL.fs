@@ -18,10 +18,13 @@ let atomic (f: 'a -> 'b) =
     kernelFail ()
     f
 
-let inline inc (p: 'a) = p + p
-let inline dec (p: 'a) = p - p
-let inline xchg (p: 'a) (value: 'a) = p
-let inline cmpxchg (p: 'a) (cmp: 'a) (value: 'a) = if p = cmp then value else p
+// будет работать только для native атомиков
+let inline inc (p: 'a) = kernelFail (); p + p
+let inline dec (p: 'a) = kernelFail (); p - p
+
+// работает для всех типов
+let inline xchg (p: 'a) (value: 'a) = kernelFail (); p
+let inline cmpxchg (p: 'a) (cmp: 'a) (value: 'a) = kernelFail (); if p = cmp then value else p
 
 // let _byte (x: bool) = 0uy
 // let as_uint (b1: byte) (b2: byte) (b3: byte) (b4: byte) = uint32 1

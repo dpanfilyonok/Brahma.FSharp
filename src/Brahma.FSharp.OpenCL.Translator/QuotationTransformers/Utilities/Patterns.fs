@@ -3,6 +3,7 @@ namespace Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 open FSharp.Quotations
 open FSharp.Quotations.Patterns
 open FSharp.Reflection
+open FSharp.Core.LanguagePrimitives
 
 module Patterns =
     let rec (|HasSubExpr|_|) ((|Pattern|_|) : Expr -> 'a Option) expr =
@@ -119,4 +120,9 @@ module Patterns =
         match expr with
         | Application _ ->
             Some <| uncurryApplication expr
+        | _ -> None
+
+    let (|ValidVolatileArg|_|) = function
+        | Patterns.Var var
+        | DerivedPatterns.SpecificCall <@ IntrinsicFunctions.GetArray @> (_, _, [Patterns.Var var; _]) -> Some var
         | _ -> None

@@ -23,7 +23,6 @@ let stressTest<'a when 'a : equality> f size =
         <@
             fun (range: _1D) (result: 'a[]) ->
                 atomic %f result.[0] |> ignore
-                barrier ()
         @>
 
     let expected =
@@ -55,12 +54,12 @@ let foldTest<'a when 'a : equality and 'a : struct> f (array: 'a[]) =
             fun (range: _1D) (array: 'a[]) (result: 'a[]) ->
                 let lid = range.LocalID0
 
-                let localResult = local<'a> ()
-                atomic %f localResult array.[lid] |> ignore
+                let localResult = localArray<'a> 1
+                atomic %f localResult.[0] array.[lid] |> ignore
                 barrier ()
 
                 if lid = 0 then
-                    atomic %f result.[0] localResult  |> ignore
+                    atomic %f result.[0] localResult.[0] |> ignore
         @>
 
     let expected =
@@ -83,7 +82,6 @@ let foldTest<'a when 'a : equality and 'a : struct> f (array: 'a[]) =
 
     "Results should be equal"
     |> Expect.equal actual expected
-
 
 /// Test for reduce like atomic operations.
 /// Use global atomics and non-atomic version of operation.
@@ -216,12 +214,12 @@ let perfomanceTest = testCase "Perfomance test on inc" <| fun () ->
             let kernel =
                 <@
                     fun (range: _1D) (result: int[]) ->
-                        let localAcc = local<int> ()
-                        atomic inc localAcc |> ignore
+                        let localAcc = localArray<int> 1
+                        atomic inc localAcc.[0] |> ignore
                         barrier ()
 
                         if range.LocalID0 = 0 then
-                            result.[0] <- localAcc
+                            result.[0] <- localAcc.[0]
                 @>
 
             let result = Array.zeroCreate<int> 1
@@ -241,12 +239,12 @@ let perfomanceTest = testCase "Perfomance test on inc" <| fun () ->
             let kernel =
                 <@
                     fun (range: _1D) (result: int[]) ->
-                        let localAcc = local<int> ()
-                        atomic %inc localAcc |> ignore
+                        let localAcc = localArray<int> 1
+                        atomic %inc localAcc.[0] |> ignore
                         barrier ()
 
                         if range.LocalID0 = 0 then
-                            result.[0] <- localAcc
+                            result.[0] <- localAcc.[0]
                 @>
 
             let result = Array.zeroCreate<int> 1
@@ -271,7 +269,6 @@ let commonTests = testList "Behavior/semantic tests" [
                 fun (range: _1D) (result: int[]) ->
                     let incx2 x = x + 2
                     atomic incx2 result.[0] |> ignore
-                    barrier ()
             @>
 
         let size = Settings.wgSize * 2
@@ -392,12 +389,12 @@ let commonTests = testList "Behavior/semantic tests" [
         let kernel =
             <@
                 fun (range: _1D) (result: int[]) ->
-                    let localRes = local<int> ()
+                    let localResult = localArray<int> 1
                     atomic inc result.[0] |> ignore
-                    atomic inc localRes |> ignore
+                    atomic inc localResult.[0] |> ignore
                     barrier ()
                     if range.GlobalID0 = 0 then
-                        result.[0] <- result.[0] + localRes
+                        result.[0] <- result.[0] + localResult.[0]
             @>
 
         let expected = Settings.wgSize * 2
@@ -501,6 +498,25 @@ let commonTests = testList "Behavior/semantic tests" [
 
         "Results should be equal"
         |> Expect.equal actual expected
+
+    // TODO
+    testCase "Check atomic inside lambda, v1" <| fun () ->
+        let kernel =
+            <@
+                fun (range: _1D) (result: int[]) ->
+                    let f x = atomic (+) result.[0] x
+                    f 1 |> ignore
+            @>
+        ()
+
+    testCase "Check atomic inside lambda, v2" <| fun () ->
+        let kernel =
+            <@
+                fun (range: _1D) (result: int[]) ->
+                    let f = atomic (+) result.[0]
+                    f 1 |> ignore
+            @>
+        ()
 ]
 
 let tests =

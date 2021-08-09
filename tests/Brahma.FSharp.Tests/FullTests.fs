@@ -291,22 +291,6 @@ let bindingTests = testList "Bindings tests" [
         let run, check = checkResult command
         run default1D intInArr
         check intInArr [| 25; 1; 2; 3 |]
-
-    // NOTE наверное, пользователям не нужно давать это использовать в своем коде
-    // Это можно безопасно ипользовать для lateinit, но в качестве значения по умолчанию не стоит
-    // (нужно продумать, чтобы поведение было предсказуемым)
-    testCase "Check defaultof binding" <| fun () ->
-        let command =
-            <@
-                fun (range: _1D) (buffer: int[]) ->
-                    let gid = range.GlobalID0
-                    let mutable defaultInt = Unchecked.defaultof<int>
-                    buffer.[gid] <- 0
-            @>
-
-        let (run, check) = checkResult command
-        run default1D intInArr
-        check intInArr (intInArr |> Array.map (fun _ -> 0))
 ]
 
 let operatorsAndMathFunctionsTests =
@@ -571,7 +555,7 @@ let quotationInjectionTests = testList "Quotation injection tests" [
 
 let localMemTests = testList "Local memory tests" [
     // TODO: pointers to local data must be local too.
-    testCase "Local int. Work item counting" <| fun _ ->
+    ptestCase "Local int. Work item counting" <| fun _ ->
         let command =
             <@ fun (range: _1D) (output: array<int>) ->
                 let globalID = range.GlobalID0
@@ -1163,31 +1147,32 @@ let structTests = testList "Struct tests" [
     testCase "Nested structs 1." ignore
 ]
 
-let commonApiTests = testList "Common Api Tests" [
-    testCase "Using atomic in lambda should raise exception, v1" <| fun () ->
-        let command =
-            <@
-                fun (range: _1D) (buffer: int[]) ->
-                let g = atomic (fun x y -> x + 1) buffer.[0]
-                g 5 |> ignore
-            @>
+// TODO fix
+// let commonApiTests = testList "Common Api Tests" [
+//     testCase "Using atomic in lambda should raise exception, v1" <| fun () ->
+//         let command =
+//             <@
+//                 fun (range: _1D) (buffer: int[]) ->
+//                 let g = atomic (fun x y -> x + 1) buffer.[0]
+//                 g 5 |> ignore
+//             @>
 
-        Expect.throwsT<System.ArgumentException>
-        <| fun () -> Utils.openclTranslate command |> ignore
-        <| "Exception should be thrown"
+//         Expect.throwsT<System.ArgumentException>
+//         <| fun () -> Utils.openclTranslate command |> ignore
+//         <| "Exception should be thrown"
 
-    testCase "Using atomic in lambda should raise exception, v2" <| fun () ->
-        let command =
-            <@
-                fun (range: _1D) (buffer: int[]) ->
-                let g x y = atomic (+) x y
-                g buffer.[0] 6 |> ignore
-            @>
+//     testCase "Using atomic in lambda should raise exception, v2" <| fun () ->
+//         let command =
+//             <@
+//                 fun (range: _1D) (buffer: int[]) ->
+//                 let g x y = atomic (+) x y
+//                 g buffer.[0] 6 |> ignore
+//             @>
 
-        Expect.throwsT<System.ArgumentException>
-        <| fun () -> Utils.openclTranslate command |> ignore
-        <| "Exception should be thrown"
-]
+//         Expect.throwsT<System.ArgumentException>
+//         <| fun () -> Utils.openclTranslate command |> ignore
+//         <| "Exception should be thrown"
+// ]
 
 let tests =
     testList "System tests with running kernels" [

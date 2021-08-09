@@ -198,10 +198,6 @@ type AtomicFunc(var: Var, expr: Expr, qual: AddressSpaceQualifier<Lang>) =
     override this.BuildFunction(args, body, context) =
         let retFunType = Type.translate var.Type false None context
         let declSpecs = DeclSpecifierPack(typeSpecifier = retFunType)
-        let partAST =
-            if (retFunType :?> PrimitiveType<_>).Type <> Void then
-                this.AddReturn(body)
-            else
-                body :> Statement<_>
+        let partAST = this.AddReturn body
 
         FunDecl(declSpecs, var.Name, args, partAST) :> ITopDef<_>

@@ -125,7 +125,7 @@ type ComputeProvider with
 
                 let argsWithoutMutexes = flattenArgs.[0 .. firstMutexIdx - 1]
 
-                /// For each atomic variable returns 0 if variable's type is not array,
+                /// For each atomic variable throws exception if variable's type is not array,
                 /// otherwise returns length of array
                 let mutexLengths =
                     let atomicVars =
@@ -145,8 +145,7 @@ type ComputeProvider with
                                         Expr.Var var,
                                         typeof<int[]>.GetProperty("Length")
                                     )
-                                // InvalidKernelException?
-                                | _ -> invalidArg var.Name "Non-array variables as global mutex parameters is unsupported. Wrap it into array instead."
+                                | _ -> failwith "Non-array variables as global mutex parameters is not supported. Wrap it into array instead."
                             )
                     )
 

@@ -19,14 +19,13 @@ open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.AST
 open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 open Brahma.FSharp.OpenCL.Translator.TypeReflection
-open FSharp.Core.LanguagePrimitives
 
 #nowarn "3390"
 
 type FSQuotationToOpenCLTranslator() =
     let mainKernelName = "brahmaKernel"
 
-    let collectMetadata (expr: Expr, functions: (Var * Expr) list) =
+    let collectData (expr: Expr) (functions: (Var * Expr) list) =
         // глобальные переменные
         let kernelArgumentsNames =
             expr
@@ -40,63 +39,38 @@ type FSQuotationToOpenCLTranslator() =
             |> List.map (fun var -> var.Name)
 
         let atomicApplicationsInfo =
-            let atomicRefArgQualifiers = System.Collections.Generic.Dictionary<Var, AddressSpaceQualifier<Lang>>()
+            let atomicPointerArgQualifiers = System.Collections.Generic.Dictionary<Var, AddressSpaceQualifier<Lang>>()
 
             let rec go expr =
                 match expr with
                 | DerivedPatterns.Applications
                     (
                         Patterns.Var funcVar,
-                        applicationArgs
+                        [mutex] :: [DerivedPatterns.SpecificCall <@ ref @> (_, _, [Patterns.ValidVolatileArg var])] :: _
                     )
                     when funcVar.Name.StartsWith "atomic" ->
 
-                    // сначала идут переменные из замыкания -- неизвестно сколько
-                    // потом переменные непосредственно функции
-                    // ориентируемся по ref переменной -- считаем, что она должна быть только 1 берем первую
-                    let refVar =
-                        applicationArgs
-                        |> List.collect id
-                        |> List.tryFind (function | DerivedPatterns.SpecificCall <@ ref @> _ -> true | _ -> false)
-                        |> Option.defaultWith (fun () -> failwith "Atomic application should have at least one ref argument")
-
-                    match refVar with
-                    | DerivedPatterns.SpecificCall <@ ref @>
-                        (
-                            _,
-                            _,
-                            [Patterns.Var var]
-                        )
-                    | DerivedPatterns.SpecificCall <@ ref @>
-                        (
-                            _,
-                            _,
-                            [DerivedPatterns.SpecificCall <@ IntrinsicFunctions.GetArray @> (_, _, [Patterns.Var var; _])]
-                        ) ->
-
-                        if kernelArgumentsNames |> List.contains var.Name then
-                            atomicRefArgQualifiers.Add(funcVar, Global)
-                        elif localVarsNames |> List.contains var.Name then
-                            atomicRefArgQualifiers.Add(funcVar, Local)
-                        else
-                            failwith "Atomic pointer argument should be from local or global memory only"
-
-                    | _ -> failwith "Atomic pointer argument should be 'var' or 'var.[idx]'"
+                    if kernelArgumentsNames |> List.contains var.Name then
+                        atomicPointerArgQualifiers.Add(funcVar, Global)
+                    elif localVarsNames |> List.contains var.Name then
+                        atomicPointerArgQualifiers.Add(funcVar, Local)
+                    else
+                        failwith "Atomic pointer argument should be from local or global memory only"
 
                 | ExprShape.ShapeVar _ -> ()
                 | ExprShape.ShapeLambda (_, lambda) -> go lambda
                 | ExprShape.ShapeCombination (_, exprs) -> List.iter go exprs
 
             functions
-            |> Seq.iter (snd >> go)
+            |> List.map snd
+            |> fun tail -> expr :: tail
+            |> Seq.iter go
 
-            go expr
-
-            atomicRefArgQualifiers
+            atomicPointerArgQualifiers
             |> Seq.map (|KeyValue|)
             |> Map.ofSeq
 
-        let main = KernelFunc(Var(mainKernelName, expr.Type), expr) :> Method |> List.singleton
+        let kernelFunc = KernelFunc(Var(mainKernelName, expr.Type), expr) :> Method |> List.singleton
 
         let funcs =
             functions
@@ -111,7 +85,7 @@ type FSQuotationToOpenCLTranslator() =
                 | None -> None
             )
 
-        funcs @ atomicFuncs @ main, kernelArgumentsNames, localVarsNames
+        funcs @ atomicFuncs @ kernelFunc, kernelArgumentsNames, localVarsNames
 
     let translate qExpr translatorOptions =
         let qExpr' = preprocessQuotation qExpr
@@ -134,15 +108,18 @@ type FSQuotationToOpenCLTranslator() =
                           translatedUnions ]
 
         // TODO: Extract quotationTransformer to translator
-        let (kernelExpr, methods) =
-            transformQuotation qExpr' translatorOptions
+        let (kernelExpr, functions) = transformQuotation qExpr' translatorOptions
+        let (methods, globalVars, localVars) = collectData kernelExpr functions
 
-        let (methods, globalVars, localVars) = collectMetadata (kernelExpr, methods)
-        let listCLFun = ResizeArray(translatedTypes)
+        let listCLFun = ResizeArray translatedTypes
+
+        for method in methods do
+            listCLFun.AddRange(method.Translate(globalVars, localVars))
+
+        AST <| List.ofSeq listCLFun,
         methods
-        |> List.iter (fun m -> listCLFun.AddRange(m.Translate(globalVars, localVars)))
-
-        (AST <| List.ofSeq listCLFun), (methods |> List.find (fun m -> m :? KernelFunc)).FunExpr
+        |> List.find (fun method -> method :? KernelFunc)
+        |> fun kernel -> kernel.FunExpr
 
     member this.Translate(qExpr, translatorOptions: TranslatorOption list) =
         let lockObject = obj ()
