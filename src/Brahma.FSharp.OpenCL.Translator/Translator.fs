@@ -70,22 +70,25 @@ type FSQuotationToOpenCLTranslator() =
             |> Seq.map (|KeyValue|)
             |> Map.ofSeq
 
-        let kernelFunc = KernelFunc(Var(mainKernelName, expr.Type), expr) :> Method |> List.singleton
+        kernelArgumentsNames, localVarsNames, atomicApplicationsInfo
+
+    let constructMethods (expr: Expr) (functions: (Var * Expr) list) (atomicApplicationsInfo: Map<Var, AddressSpaceQualifier<Lang>>) context =
+        let kernelFunc = KernelFunc(Var(mainKernelName, expr.Type), expr, context) :> Method |> List.singleton
 
         let funcs =
             functions
             |> List.filter (fun (v, _) -> not <| atomicApplicationsInfo.ContainsKey(v))
-            |> List.map (fun (v, expr) -> Function(v, expr) :> Method)
+            |> List.map (fun (v, expr) -> Function(v, expr, context) :> Method)
 
         let atomicFuncs =
             functions
             |> List.choose (fun (var, expr) ->
                 match atomicApplicationsInfo |> Map.tryFind var with
-                | Some qual -> Some (AtomicFunc(var, expr, qual) :> Method)
+                | Some qual -> Some (AtomicFunc(var, expr, qual, context) :> Method)
                 | None -> None
             )
 
-        funcs @ atomicFuncs @ kernelFunc, kernelArgumentsNames, localVarsNames
+        funcs @ atomicFuncs @ kernelFunc
 
     let translate qExpr translatorOptions =
         let qExpr' = preprocessQuotation qExpr
@@ -109,12 +112,12 @@ type FSQuotationToOpenCLTranslator() =
 
         // TODO: Extract quotationTransformer to translator
         let (kernelExpr, functions) = transformQuotation qExpr' translatorOptions
-        let (methods, globalVars, localVars) = collectData kernelExpr functions
+        let (globalVars, localVars, atomicApplicationsInfo) = collectData kernelExpr functions
+        let methods = constructMethods kernelExpr functions atomicApplicationsInfo context
 
-        let listCLFun = ResizeArray translatedTypes
-
+        let listCLFun = ResizeArray []
         for method in methods do
-            listCLFun.AddRange(method.Translate(globalVars, localVars))
+            listCLFun.AddRange(method.Translate(globalVars, localVars, translatedTypes))
 
         AST <| List.ofSeq listCLFun,
         methods

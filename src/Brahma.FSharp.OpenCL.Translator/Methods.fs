@@ -4,7 +4,7 @@ open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.AST
 
 [<AbstractClass>]
-type Method(var: Var, expr: Expr) =
+type Method(var: Var, expr: Expr, context: TargetContext<Lang,Statement<Lang>>) =
     member this.FunVar = var
     member this.FunExpr = expr
 
@@ -36,7 +36,7 @@ type Method(var: Var, expr: Expr) =
     abstract TranslateBody : Var list * Expr -> StatementBlock<Lang> * TargetContext<Lang, Statement<Lang>>
     default this.TranslateBody(args, body) =
         let (b, context) =
-            let clonedContext = TargetContext()
+            let clonedContext = context.Clone()
 
             clonedContext.Namer.LetIn()
             args |> List.iter (fun v -> clonedContext.Namer.AddVar v.Name)
@@ -78,8 +78,8 @@ type Method(var: Var, expr: Expr) =
         |> Seq.cast<_>
         |> List.ofSeq
 
-    abstract Translate : string list * string list -> ITopDef<Lang> list
-    default this.Translate(globalVars, localVars) =
+    abstract Translate : string list * string list * ITopDef<Lang> list -> ITopDef<Lang> list
+    default this.Translate(globalVars, localVars, translatedTypes) =
         match expr with
         | DerivedPatterns.Lambdas (args, body) ->
             let args = List.collect id args
@@ -93,6 +93,7 @@ type Method(var: Var, expr: Expr) =
             pragmas
             @ translatedTuples
             @ topLevelVarDecls
+            @ translatedTypes
             @ [func]
 
         | _ -> failwithf "Incorrect OpenCL quotation: %A" expr
@@ -100,8 +101,8 @@ type Method(var: Var, expr: Expr) =
     override this.ToString() =
         sprintf "%A\n%A" var expr
 
-type KernelFunc(var: Var, expr: Expr) =
-    inherit Method(var, expr)
+type KernelFunc(var: Var, expr: Expr, context: TargetContext<Lang,Statement<Lang>>) =
+    inherit Method(var, expr, context)
 
     override this.TranslateArgs(args, _, _, context) =
         let brahmaDimensionsTypes =
@@ -130,8 +131,8 @@ type KernelFunc(var: Var, expr: Expr) =
         let declSpecs = DeclSpecifierPack(typeSpecifier = retFunType, funQualifier = Kernel)
         FunDecl(declSpecs, var.Name, args, body) :> ITopDef<_>
 
-type Function(var: Var, expr: Expr) =
-    inherit Method(var, expr)
+type Function(var: Var, expr: Expr, context: TargetContext<Lang,Statement<Lang>>) =
+    inherit Method(var, expr, context)
 
     override this.TranslateArgs(args, globalVars, localVars, context) =
         args
@@ -164,8 +165,8 @@ type Function(var: Var, expr: Expr) =
 
         FunDecl(declSpecs, var.Name, args, partAST) :> ITopDef<_>
 
-type AtomicFunc(var: Var, expr: Expr, qual: AddressSpaceQualifier<Lang>) =
-    inherit Method(var, expr)
+type AtomicFunc(var: Var, expr: Expr, qual: AddressSpaceQualifier<Lang>, context: TargetContext<Lang,Statement<Lang>>) =
+    inherit Method(var, expr, context)
 
     override this.TranslateArgs(args, globalVars, localVars, context) =
         let firstNonMutexIdx =

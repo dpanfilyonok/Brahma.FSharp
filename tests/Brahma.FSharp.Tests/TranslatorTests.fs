@@ -8,6 +8,7 @@ open Brahma.FSharp.Tests.Utils
 
 let basePath = "Expected/"
 let generatedPath = "Generated/"
+System.IO.Directory.CreateDirectory(generatedPath) |> ignore
 
 let provider =
     let deviceType = DeviceType.Default
@@ -20,7 +21,7 @@ let checkCode command outFile expected =
     let code = ref ""
     provider.Compile(command, outCode = code) |> ignore
 
-    let targetPath = System.IO.Path.Combine(basePath, outFile)
+    let targetPath = System.IO.Path.Combine(generatedPath, outFile)
     let expectedPath = System.IO.Path.Combine(basePath, expected)
     System.IO.File.WriteAllText(targetPath, !code)
 

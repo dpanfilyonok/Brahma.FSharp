@@ -7,6 +7,10 @@ open Brahma.FSharp.OpenCL.AST
 open Brahma.FSharp.OpenCL.Printer
 open Brahma.OpenCL
 open Brahma.FSharp.OpenCL.Core
+open Expecto.Logging
+open Expecto.Logging.Message
+
+let logger = Log.create "AtomicTests"
 
 type SimpleUnion =
     | SimpleOne
@@ -28,6 +32,8 @@ type TranslateMatchTestUnion =
 
 let defaultMsg = "Should be equal"
 let basePath = "UnionExpected"
+let generatedPath = "UnionGenerated"
+System.IO.Directory.CreateDirectory(generatedPath) |> ignore
 
 let collectUnionTests =
     let testGen testCase name expected command =
@@ -78,10 +84,16 @@ let compileTests =
         testCase name <| fun _ ->
             let code = ref ""
             provider.Compile(command, outCode = code) |> ignore
-            System.IO.File.WriteAllText(outFile, !code)
 
-            filesAreEqual outFile
-            <| System.IO.Path.Combine(basePath, expectedFile)
+            let targetPath = System.IO.Path.Combine(generatedPath, outFile)
+            let expectedPath = System.IO.Path.Combine(basePath, expectedFile)
+            logger.info (
+                eventX "Matrix is \n{matrix}"
+                >> setField "matrix" targetPath
+            )
+            System.IO.File.WriteAllText(targetPath, !code)
+
+            filesAreEqual targetPath expectedPath
 
     let newUnionTestList = testList "NewUnion" [
         testGen

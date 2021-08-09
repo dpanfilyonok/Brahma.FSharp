@@ -38,10 +38,10 @@
         "fsharp-analyzers"
       ]
     },
-    "fantomas-tool": {
-      "version": "4.4.0",
+    "fsharp.formatting.commandtool": {
+      "version": "11.4.2",
       "commands": [
-        "fantomas"
+        "fsdocs"
       ]
     }
   }

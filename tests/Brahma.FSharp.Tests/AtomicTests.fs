@@ -139,31 +139,31 @@ let stressTestCases = testList "Stress tests" [
 
     // int
     yield! range |> List.map (fun size ->
-    testCase "Smoke stress test atomic inc on int" <| fun () -> stressTest<int> <@ inc @> size)
+    testCase (sprintf "Smoke stress (size %i) test atomic inc on int" size) <| fun () -> stressTest<int> <@ inc @> size)
     yield! range |> List.map (fun size ->
-    testCase "Smoke stress test atomic dec on int" <| fun () -> stressTest<int> <@ dec @> size)
+    testCase (sprintf "Smoke stress (size %i) test atomic dec on int" size) <| fun () -> stressTest<int> <@ dec @> size)
 
     // float
     yield! range |> List.map (fun size ->
-    testCase "Stress test atomic inc on float32" <| fun () -> stressTest<float32> <@ inc @> size)
+    testCase (sprintf "Smoke stress (size %i) test atomic inc on float32" size) <| fun () -> stressTest<float32> <@ inc @> size)
 
     // double
     yield! range |> List.map (fun size ->
-    testCase "Stress test atomic inc on float" <| fun () -> stressTest<float> <@ inc @> size)
+    testCase (sprintf "Smoke stress (size %i) test atomic inc on float" size) <| fun () -> stressTest<float> <@ inc @> size)
 
     // bool
     yield! range |> List.map (fun size ->
-    testCase "Stress test atomic 'not' on bool" <| fun () -> stressTest<bool> <@ not @> size)
+    testCase (sprintf "Smoke stress (size %i) test atomic 'not' on bool" size) <| fun () -> stressTest<bool> <@ not @> size)
 
     // WrappedInt (???)
     let wrappedIntInc = <@ fun x -> x + WrappedInt(1) @>
     yield! range |> List.map (fun size ->
-    testCase "Stress test custom atomic inc on WrappedInt" <| fun () -> stressTest<WrappedInt> wrappedIntInc size)
+    testCase (sprintf "Smoke stress (size %i) test custom atomic inc on WrappedInt" size) <| fun () -> stressTest<WrappedInt> wrappedIntInc size)
 
     // custom int op
     let incx2 = <@ fun x -> x + 2 @>
     yield! range |> List.map (fun size ->
-    testCase "Stress test custom atomic unary func on int" <| fun () -> stressTest<int> incx2 size)
+    testCase (sprintf "Smoke stress (size %i) test atomic unary func on int" size) <| fun () -> stressTest<int> incx2 size)
 ]
 
 let foldTestCases = testList "Fold tests" [
@@ -500,7 +500,7 @@ let commonTests = testList "Behavior/semantic tests" [
         |> Expect.equal actual expected
 
     // TODO
-    testCase "Check atomic inside lambda, v1" <| fun () ->
+    ptestCase "Check atomic inside lambda, v1" <| fun () ->
         let kernel =
             <@
                 fun (range: _1D) (result: int[]) ->
@@ -509,7 +509,7 @@ let commonTests = testList "Behavior/semantic tests" [
             @>
         ()
 
-    testCase "Check atomic inside lambda, v2" <| fun () ->
+    ptestCase "Check atomic inside lambda, v2" <| fun () ->
         let kernel =
             <@
                 fun (range: _1D) (result: int[]) ->
@@ -520,7 +520,7 @@ let commonTests = testList "Behavior/semantic tests" [
 ]
 
 let tests =
-    testList "Tests on atomic functions" [
+    ftestList "Tests on atomic functions" [
         stressTestCases
         foldTestCases
         reduceTestCases
