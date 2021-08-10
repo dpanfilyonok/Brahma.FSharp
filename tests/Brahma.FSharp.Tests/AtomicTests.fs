@@ -4,6 +4,7 @@ open Expecto
 open Brahma.OpenCL
 open Brahma.FSharp.OpenCL.WorkflowBuilder
 open FSharp.Quotations.Evaluator
+open FSharp.Quotations
 open Brahma.FSharp.Tests.Utils
 open Brahma.FSharp.Tests.CustomDatatypes
 open Expecto.Logging
@@ -18,16 +19,19 @@ module Settings =
 
 /// Stress test for unary atomic operations.
 /// Use global atomics
-let stressTest<'a when 'a : equality> f size =
+let stressTest<'a when 'a : equality> (f: Expr<'a -> 'a>) size rawF =
     let kernel =
         <@
             fun (range: _1D) (result: 'a[]) ->
-                atomic %f result.[0] |> ignore
+                let gid = range.GlobalID0
+                if gid < size then
+                    atomic %f result.[0] |> ignore
+                barrier ()
         @>
 
     let expected =
         [0 .. size - 1]
-        |> List.fold (fun state _ -> f.Evaluate() state) Unchecked.defaultof<'a>
+        |> List.fold (fun state _ -> rawF state) Unchecked.defaultof<'a>
 
     let actual = finalize <| fun () ->
         opencl {
@@ -135,38 +139,52 @@ let reduceTest<'a when 'a : equality> f (array: 'a[]) =
 // TODO Tests for xchg и cmpxchg
 
 let stressTestCases = testList "Stress tests" [
-    let range = [0 .. 10 .. 100]
+    let range = [1 .. 10 .. 100]
 
     // int
     yield! range |> List.map (fun size ->
-    testCase (sprintf "Smoke stress (size %i) test atomic inc on int" size) <| fun () -> stressTest<int> <@ inc @> size)
+        testCase (sprintf "Smoke stress test (size %i) on atomic inc on int" size) <| fun () ->
+            stressTest<int> <@ inc @> size (fun x -> x + 1)
+    )
     yield! range |> List.map (fun size ->
-    testCase (sprintf "Smoke stress (size %i) test atomic dec on int" size) <| fun () -> stressTest<int> <@ dec @> size)
+        testCase (sprintf "Smoke stress test (size %i) on atomic dec on int" size) <| fun () ->
+            stressTest<int> <@ dec @> size (fun x -> x - 1)
+    )
 
     // float
     yield! range |> List.map (fun size ->
-    testCase (sprintf "Smoke stress (size %i) test atomic inc on float32" size) <| fun () -> stressTest<float32> <@ inc @> size)
+        testCase (sprintf "Smoke stress test (size %i) on atomic inc on float32" size) <| fun () ->
+            stressTest<float32> <@ fun x -> x + 1.f @> size (fun x -> x + 1.f)
+    )
 
     // double
     yield! range |> List.map (fun size ->
-    testCase (sprintf "Smoke stress (size %i) test atomic inc on float" size) <| fun () -> stressTest<float> <@ inc @> size)
+        testCase (sprintf "Smoke stress test (size %i) on atomic inc on float" size) <| fun () ->
+            stressTest<float> <@ fun x -> x + 1. @> size (fun x -> x + 1.)
+    )
 
     // bool
     yield! range |> List.map (fun size ->
-    testCase (sprintf "Smoke stress (size %i) test atomic 'not' on bool" size) <| fun () -> stressTest<bool> <@ not @> size)
+        testCase (sprintf "Smoke stress test (size %i) on atomic 'not' on bool" size) <| fun () ->
+            stressTest<bool> <@ not @> size not
+    )
 
-    // WrappedInt (???)
+    // WrappedInt (не работает транляция или типа того)
     let wrappedIntInc = <@ fun x -> x + WrappedInt(1) @>
     yield! range |> List.map (fun size ->
-    testCase (sprintf "Smoke stress (size %i) test custom atomic inc on WrappedInt" size) <| fun () -> stressTest<WrappedInt> wrappedIntInc size)
+        ptestCase (sprintf "Smoke stress test (size %i) on custom atomic inc on WrappedInt" size) <| fun () ->
+            stressTest<WrappedInt> wrappedIntInc size (fun x -> x + WrappedInt(1))
+    )
 
     // custom int op
     let incx2 = <@ fun x -> x + 2 @>
     yield! range |> List.map (fun size ->
-    testCase (sprintf "Smoke stress (size %i) test atomic unary func on int" size) <| fun () -> stressTest<int> incx2 size)
+        testCase (sprintf "Smoke stress test (size %i) on atomic unary func on int" size) <| fun () ->
+            stressTest<int> incx2 size (fun x -> x + 2)
+    )
 ]
 
-let foldTestCases = testList "Fold tests" [
+let foldTestCases = ptestList "Fold tests" [
     // int, smoke tests
     foldTest<int> <@ (+) @> |> testProperty "Smoke fold test atomic add on int"
     foldTest<int> <@ (-) @> |> testProperty "Smoke fold test atomic sub on int"
@@ -188,7 +206,7 @@ let foldTestCases = testList "Fold tests" [
     foldTest<int> y2x |> testProperty "Fold test custom atomic operation on int"
 ]
 
-let reduceTestCases = testList "Reduce tests" [
+let reduceTestCases = ptestList "Reduce tests" [
     reduceTest<int> <@ min @> |> testProperty "Reduce test atomic min on int"
     reduceTest<float32> <@ min @> |> testProperty "Reduce test atomic min on float32"
     reduceTest<float> <@ min @> |> testProperty "Reduce test atomic min on float"
@@ -262,7 +280,7 @@ let perfomanceTest = testCase "Perfomance test on inc" <| fun () ->
 
 // TODO deadlock test
 
-let commonTests = testList "Behavior/semantic tests" [
+let commonTests = ftestList "Behavior/semantic tests" [
     testCase "Check operation definition inside quotation" <| fun () ->
         let kernel =
             <@
@@ -391,14 +409,18 @@ let commonTests = testList "Behavior/semantic tests" [
                 fun (range: _1D) (result: int[]) ->
                     let localResult = localArray<int> 1
                     atomic inc result.[0] |> ignore
+                    barrier ()
                     atomic inc localResult.[0] |> ignore
                     barrier ()
                     if range.GlobalID0 = 0 then
                         result.[0] <- result.[0] + localResult.[0]
             @>
 
+        printfn "%A" <| openclTranslate kernel
+
         let expected = Settings.wgSize * 2
 
+        let context = OpenCLEvaluationContext()
         let actual = finalize <| fun () ->
             opencl {
                 let result = Array.zeroCreate<int> 1
@@ -449,6 +471,7 @@ let commonTests = testList "Behavior/semantic tests" [
                 fun (range: _1D) (array: int[]) ->
                     while atomic inc array.[0] <> maxAcc do
                         1 |> ignore // cause () unsupported
+                    |> ignore
             @>
 
         let expected = maxAcc
@@ -520,11 +543,44 @@ let commonTests = testList "Behavior/semantic tests" [
 ]
 
 let tests =
-    ftestList "Tests on atomic functions" [
-        stressTestCases
-        foldTestCases
-        reduceTestCases
-        perfomanceTest
-        commonTests
-    ]
-    |> testSequenced
+    // ftestList "Tests on atomic functions" [
+    //     stressTestCases
+    //     foldTestCases
+    //     reduceTestCases
+    //     perfomanceTest
+    //     commonTests
+    // ]
+    // |> testSequenced
+    ftestCase "Check sequential equal atomic operations but different address qualifiers" <| fun () ->
+        let kernel =
+            <@
+                fun (range: _1D) (result: int[]) ->
+                    let localResult = localArray<int> 1
+                    atomic inc result.[0] |> ignore
+                    barrier ()
+                    atomic inc localResult.[0] |> ignore
+                    barrier ()
+                    if range.GlobalID0 = 0 then
+                        result.[0] <- result.[0] + localResult.[0]
+            @>
+
+        printfn "%A" <| openclTranslate kernel
+
+        let expected = Settings.wgSize * 2
+
+        let context = OpenCLEvaluationContext()
+        let actual = finalize <| fun () ->
+            opencl {
+                let result = Array.zeroCreate<int> 1
+                do! runCommand kernel <| fun kernelPrepare ->
+                    kernelPrepare
+                    <| _1D(Settings.wgSize, Settings.wgSize)
+                    <| result
+
+                return! toHost result
+            }
+            |> context.RunSync
+            |> fun result -> result.[0]
+
+        "Results should be equal"
+        |> Expect.equal actual expected

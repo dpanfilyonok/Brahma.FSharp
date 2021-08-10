@@ -20,11 +20,11 @@ open OpenCL.Net
 [<Tests>]
 let allTests =
     testList "All tests" [
-        // Translator.tests
-        // Full.tests
-        // Atomic.tests
-        // Workflow.tests
-        // QuotationTransformers.tests
+        Translator.tests
+        Full.tests
+        Atomic.tests
+        Workflow.tests
+        QuotationTransformers.tests
         Union.tests
     ]
 
