@@ -28,8 +28,6 @@ module VarDefsToLambdaTransformer =
         | Patterns.NewUnionCase _ -> true
         | _ -> false
 
-    // NOTE не оч понимаю, заечм это изначально нужно, но это полезно,
-    // когда тело ффункции зависит от конкретного применения
     // let x = expr -> let x = let unit () = expr in unit ()
     let rec transformVarDefsToLambda (expr: Expr) =
         match expr with

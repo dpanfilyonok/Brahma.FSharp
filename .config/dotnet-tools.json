@@ -37,12 +37,6 @@
       "commands": [
         "fsharp-analyzers"
       ]
-    },
-    "fsharp.formatting.commandtool": {
-      "version": "11.4.2",
-      "commands": [
-        "fsdocs"
-      ]
     }
   }
 }

@@ -9,17 +9,69 @@ open Brahma.FSharp.Tests.Utils
 open Brahma.FSharp.Tests.CustomDatatypes
 open Expecto.Logging
 open Expecto.Logging.Message
+open ExpectoFsCheck
+open FsCheck
 
 let logger = Log.create "AtomicTests"
+
+type NormalizedFloatArray =
+    static member FloatType() =
+        Arb.Default.NormalFloat()
+        |> Arb.toGen
+        |> Gen.map float
+        |> Gen.filter
+            (fun v ->
+                v < 100. &&
+                v > -100.
+            )
+        |> Gen.arrayOf
+        |> Arb.fromGen
+
+    static member Float32Type() =
+        Arb.Default.Float32()
+        |> Arb.toGen
+        |> Gen.filter
+            (fun v ->
+                v < 100.f &&
+                v > -100.f
+            )
+        |> Gen.arrayOf
+        |> Arb.fromGen
 
 module Settings =
     let wgSize = 256
     let doubledWgSize = wgSize * 2
     let getValidGS = getValidGlobalSize wgSize
 
+    let fscheckConfig =
+        { Config.QuickThrowOnFailure with
+            QuietOnSuccess = true
+            MaxTest = 20
+            Arbitrary = [typeof<NormalizedFloatArray>]
+        }
+
+[<AutoOpen>]
+module Helpers =
+    let checkDefault<'a when 'a : equality> expected kernel =
+        let actual = finalize <| fun () ->
+            opencl {
+                let result = Array.zeroCreate<'a> 1
+                do! runCommand kernel <| fun kernelPrepare ->
+                    kernelPrepare
+                    <| _1D(Settings.doubledWgSize, Settings.wgSize)
+                    <| result
+
+                return! toHost result
+            }
+            |> context.RunSync
+            |> fun result -> result.[0]
+
+        "Results should be equal"
+        |> Expect.equal actual expected
+
 /// Stress test for unary atomic operations.
 /// Use global atomics
-let stressTest<'a when 'a : equality> (f: Expr<'a -> 'a>) size rawF =
+let stressTest<'a when 'a : equality> (f: Expr<'a -> 'a>) size rawF (isEqual: 'a -> 'a -> bool) =
     let kernel =
         <@
             fun (range: _1D) (result: 'a[]) ->
@@ -47,275 +99,230 @@ let stressTest<'a when 'a : equality> (f: Expr<'a -> 'a>) size rawF =
         |> fun result -> result.[0]
 
     "Results should be equal"
-    |> Expect.equal actual expected
+    |> Expect.isTrue (isEqual actual expected)
 
-/// Test for add ans sub like atomic operations.
+/// Test for add and sub like atomic operations.
 /// Use local and global atomics,
 /// use reading from global mem in local atomic
-let foldTest<'a when 'a : equality and 'a : struct> f (array: 'a[]) =
-    let kernel =
-        <@
-            fun (range: _1D) (array: 'a[]) (result: 'a[]) ->
-                let lid = range.LocalID0
+let foldTest<'a when 'a : equality and 'a : struct> f (isEqual: 'a -> 'a -> bool) =
+    let (.=.) left right = isEqual left right |@ sprintf "%A = %A" left right
 
-                let localResult = localArray<'a> 1
-                atomic %f localResult.[0] array.[lid] |> ignore
-                barrier ()
-
-                if lid = 0 then
-                    atomic %f result.[0] localResult.[0] |> ignore
-        @>
-
-    let expected =
-        array
-        |> Array.fold (fun state x -> f.Evaluate() state x) Unchecked.defaultof<'a>
-
-    let actual = finalize <| fun () ->
-        opencl {
-            let result = Array.zeroCreate<'a> 1
-            do! runCommand kernel <| fun kernelPrepare ->
-                kernelPrepare
-                <| _1D(Settings.getValidGS array.Length, Settings.wgSize)
-                <| array
-                <| result
-
-            return! toHost result
-        }
-        |> context.RunSync
-        |> fun result -> result.[0]
-
-    "Results should be equal"
-    |> Expect.equal actual expected
-
-/// Test for reduce like atomic operations.
-/// Use global atomics and non-atomic version of operation.
-let reduceTest<'a when 'a : equality> f (array: 'a[]) =
-    let localSize = Settings.wgSize
-    let kernel =
-        <@
-            fun (range: _1D) (array: 'a[]) (result: 'a[]) ->
-
-                let lid = range.LocalID0
-                let gid = range.GlobalID0
-
-                let localBuffer = localArray<'a> localSize
-                localBuffer.[lid] <- array.[gid]
-                barrier ()
-
-                let mutable amountOfValuesToSum = localSize
-                while amountOfValuesToSum > 1 do
-                    if lid * 2 < amountOfValuesToSum then
-                        let a = localBuffer.[lid]
-                        let b = localBuffer.[lid + amountOfValuesToSum / 2]
-                        localBuffer.[lid] <- (%f) a b
-                    amountOfValuesToSum <- amountOfValuesToSum / 2
-                    barrier ()
-
-                if lid = 0 then
-                    atomic %f result.[0] localBuffer.[lid] |> ignore
-        @>
-
-    let expected =
-        array
-        |> Array.reduce (fun x y -> f.Evaluate() x y)
-
-    let actual = finalize <| fun () ->
-        opencl {
-            let result = Array.zeroCreate<'a> 1
-            do! runCommand kernel <| fun kernelPrepare ->
-                kernelPrepare
-                <| _1D(Settings.getValidGS array.Length, Settings.wgSize)
-                <| array
-                <| result
-
-            return! toHost result
-        }
-        |> context.RunSync
-        |> fun result -> result.[0]
-
-    "Results should be equal"
-    |> Expect.equal actual expected
-
-// TODO Tests for xchg и cmpxchg
-
-let stressTestCases = testList "Stress tests" [
-    let range = [1 .. 10 .. 100]
-
-    // int
-    yield! range |> List.map (fun size ->
-        testCase (sprintf "Smoke stress test (size %i) on atomic inc on int" size) <| fun () ->
-            stressTest<int> <@ inc @> size (fun x -> x + 1)
-    )
-    yield! range |> List.map (fun size ->
-        testCase (sprintf "Smoke stress test (size %i) on atomic dec on int" size) <| fun () ->
-            stressTest<int> <@ dec @> size (fun x -> x - 1)
-    )
-
-    // float
-    yield! range |> List.map (fun size ->
-        testCase (sprintf "Smoke stress test (size %i) on atomic inc on float32" size) <| fun () ->
-            stressTest<float32> <@ fun x -> x + 1.f @> size (fun x -> x + 1.f)
-    )
-
-    // double
-    yield! range |> List.map (fun size ->
-        testCase (sprintf "Smoke stress test (size %i) on atomic inc on float" size) <| fun () ->
-            stressTest<float> <@ fun x -> x + 1. @> size (fun x -> x + 1.)
-    )
-
-    // bool
-    yield! range |> List.map (fun size ->
-        testCase (sprintf "Smoke stress test (size %i) on atomic 'not' on bool" size) <| fun () ->
-            stressTest<bool> <@ not @> size not
-    )
-
-    // WrappedInt (не работает транляция или типа того)
-    let wrappedIntInc = <@ fun x -> x + WrappedInt(1) @>
-    yield! range |> List.map (fun size ->
-        ptestCase (sprintf "Smoke stress test (size %i) on custom atomic inc on WrappedInt" size) <| fun () ->
-            stressTest<WrappedInt> wrappedIntInc size (fun x -> x + WrappedInt(1))
-    )
-
-    // custom int op
-    let incx2 = <@ fun x -> x + 2 @>
-    yield! range |> List.map (fun size ->
-        testCase (sprintf "Smoke stress test (size %i) on atomic unary func on int" size) <| fun () ->
-            stressTest<int> incx2 size (fun x -> x + 2)
-    )
-]
-
-let foldTestCases = ptestList "Fold tests" [
-    // int, smoke tests
-    foldTest<int> <@ (+) @> |> testProperty "Smoke fold test atomic add on int"
-    foldTest<int> <@ (-) @> |> testProperty "Smoke fold test atomic sub on int"
-
-    // float
-    foldTest<float32> <@ (+) @> |> testProperty "Fold test atomic add on float32"
-
-    // double
-    foldTest<float> <@ (+) @> |> testProperty "Fold test atomic add on float"
-
-    // bool
-    foldTest<bool> <@ (&&) @> |> testProperty "Fold test atomic && on bool"
-
-    // WrappedInt
-    foldTest<WrappedInt> <@ (+) @> |> testProperty "Fold test atomic add on WrappedInt"
-
-    // custom int op
-    let y2x = <@ fun x y -> y + x + x @>
-    foldTest<int> y2x |> testProperty "Fold test custom atomic operation on int"
-]
-
-let reduceTestCases = ptestList "Reduce tests" [
-    reduceTest<int> <@ min @> |> testProperty "Reduce test atomic min on int"
-    reduceTest<float32> <@ min @> |> testProperty "Reduce test atomic min on float32"
-    reduceTest<float> <@ min @> |> testProperty "Reduce test atomic min on float"
-
-    reduceTest<int> <@ max @> |> testProperty "Reduce test atomic max on int"
-    reduceTest<float32> <@ max @> |> testProperty "Reduce test atomic max on float32"
-    reduceTest<float> <@ max @> |> testProperty "Reduce test atomic max on float"
-
-    reduceTest<int> <@ (&&&) @> |> testProperty "Reduce test atomic &&& on int"
-    reduceTest<int64> <@ (&&&) @> |> testProperty "Reduce test atomic &&& on int64"
-
-    reduceTest<int> <@ (|||) @> |> testProperty "Reduce test atomic ||| on int"
-    reduceTest<int64> <@ (|||) @> |> testProperty "Reduce test atomic ||| on int64"
-
-    reduceTest<int> <@ (^^^) @> |> testProperty "Reduce test atomic ^^^ on int"
-    reduceTest<int64> <@ (^^^) @> |> testProperty "Reduce test atomic ^^^ on int64"
-]
-
-let perfomanceTest = testCase "Perfomance test on inc" <| fun () ->
-    // use native atomic_inc for int
-    let kernelUsingNativeInc () = finalize <| fun () ->
-        opencl {
-            let kernel =
-                <@
-                    fun (range: _1D) (result: int[]) ->
-                        let localAcc = localArray<int> 1
-                        atomic inc localAcc.[0] |> ignore
-                        barrier ()
-
-                        if range.LocalID0 = 0 then
-                            result.[0] <- localAcc.[0]
-                @>
-
-            let result = Array.zeroCreate<int> 1
-            do! runCommand kernel <| fun kernelPrepare ->
-                kernelPrepare
-                <| _1D(Settings.wgSize, Settings.wgSize)
-                <| result
-
-            return! toHost result
-        }
-        |> context.RunSync
-
-    // generate spin lock
-    let kernelUsingCustomInc () = finalize <| fun () ->
-        opencl {
-            let inc = <@ fun x -> x + 1 @>
-            let kernel =
-                <@
-                    fun (range: _1D) (result: int[]) ->
-                        let localAcc = localArray<int> 1
-                        atomic %inc localAcc.[0] |> ignore
-                        barrier ()
-
-                        if range.LocalID0 = 0 then
-                            result.[0] <- localAcc.[0]
-                @>
-
-            let result = Array.zeroCreate<int> 1
-            do! runCommand kernel <| fun kernelPrepare ->
-                kernelPrepare
-                <| _1D(Settings.wgSize, Settings.wgSize)
-                <| result
-
-            return! toHost result
-        }
-        |> context.RunSync
-
-    "Kernel wich uses native inc shold be faster than with custom one"
-    |> Expect.isFasterThan kernelUsingNativeInc kernelUsingCustomInc
-
-// TODO deadlock test
-
-let commonTests = ftestList "Behavior/semantic tests" [
-    testCase "Check operation definition inside quotation" <| fun () ->
+    Check.One(Settings.fscheckConfig, fun (array: 'a[]) ->
+        let arrayLength = array.Length
         let kernel =
             <@
-                fun (range: _1D) (result: int[]) ->
-                    let incx2 x = x + 2
-                    atomic incx2 result.[0] |> ignore
+                fun (range: _1D) (array: 'a[]) (result: 'a[]) (zero: 'a) ->
+                    let lid = range.LocalID0
+                    let gid = range.GlobalID0
+
+                    let localResult = localArray<'a> 1
+                    if lid = 0 then
+                        localResult.[0] <- zero
+
+                    if gid < arrayLength then
+                        atomic %f localResult.[0] array.[gid] |> ignore
+
+                    barrier ()
+
+                    if lid = 0 then
+                        atomic %f result.[0] localResult.[0] |> ignore
             @>
 
-        let size = Settings.wgSize * 2
+        let expected () =
+            array
+            |> Array.fold (fun state x -> f.Evaluate() state x) Unchecked.defaultof<'a>
 
-        let expected =
-            [0 .. size - 1]
-            |> List.fold (fun state _ -> state + 2) 0
-
-        let actual = finalize <| fun () ->
+        let actual () = finalize <| fun () ->
             opencl {
-                let result = Array.zeroCreate<int> 1
+                let result = Array.zeroCreate<'a> 1
                 do! runCommand kernel <| fun kernelPrepare ->
                     kernelPrepare
-                    <| _1D(Settings.getValidGS size, Settings.wgSize)
+                    <| _1D(Settings.getValidGS array.Length, Settings.wgSize)
+                    <| array
                     <| result
+                    <| Unchecked.defaultof<'a>
 
                 return! toHost result
             }
             |> context.RunSync
             |> fun result -> result.[0]
 
-        "Results should be equal"
-        |> Expect.equal actual expected
+        array.Length <> 0
+        ==> lazy (actual () .=. expected ())
+    )
 
-    testCase "Srtp test on inc" <| fun () ->
+let xchgTest<'a when 'a : equality and 'a : struct> cmp value =
+    let localSize = Settings.wgSize
+    let kernel =
+        <@
+            fun (range: _1D) (array: 'a[]) ->
+                let gid = range.GlobalID0
+
+                let localBuffer = localArray<'a> localSize
+                atomic xchg localBuffer.[gid] array.[gid] |> ignore
+                atomic cmpxchg array.[gid] cmp localBuffer.[localSize - gid] |> ignore
+        @>
+
+    let expected = Array.create<'a> localSize value
+
+    let actual = finalize <| fun () ->
+        opencl {
+            let buffer = [| for i = 0 to localSize - 1 do if i < localSize / 2 then cmp else value |]
+            do! runCommand kernel <| fun kernelPrepare ->
+                kernelPrepare
+                <| _1D(localSize, localSize)
+                <| buffer
+
+            return! toHost buffer
+        }
+        |> context.RunSync
+
+    "Results should be equal"
+    |> Expect.sequenceEqual actual expected
+
+let stressTestCases = testList "Stress tests" [
+    let range = [1 .. 10 .. 100]
+
+    // int
+    yield! range |> List.map (fun size ->
+        testCase (sprintf "Smoke stress test (size %i) on atomic 'inc' on int" size) <| fun () ->
+            stressTest<int> <@ inc @> size (fun x -> x + 1) (=)
+    )
+    yield! range |> List.map (fun size ->
+        testCase (sprintf "Smoke stress test (size %i) on atomic 'dec' on int" size) <| fun () ->
+            stressTest<int> <@ dec @> size (fun x -> x - 1) (=)
+    )
+
+    // float
+    yield! range |> List.map (fun size ->
+        testCase (sprintf "Smoke stress test (size %i) on atomic 'inc' on float32" size) <| fun () ->
+            stressTest<float32> <@ fun x -> x + 1.f @> size (fun x -> x + 1.f) (fun x y -> float (abs (x - y)) < Accuracy.low.relative)
+    )
+
+    // double
+    yield! range |> List.map (fun size ->
+        testCase (sprintf "Smoke stress test (size %i) on atomic 'inc' on float" size) <| fun () ->
+            stressTest<float> <@ fun x -> x + 1. @> size (fun x -> x + 1.) (fun x y -> abs (x - y) < Accuracy.low.relative)
+    )
+
+    // bool
+    yield! range |> List.map (fun size ->
+        testCase (sprintf "Smoke stress test (size %i) on atomic 'not' on bool" size) <| fun () ->
+            stressTest<bool> <@ not @> size not (=)
+    )
+
+    // WrappedInt (не работает транляция или типа того)
+    let wrappedIntInc = <@ fun x -> x + WrappedInt(1) @>
+    yield! range |> List.map (fun size ->
+        ptestCase (sprintf "Smoke stress test (size %i) on custom atomic 'inc' on WrappedInt" size) <| fun () ->
+            stressTest<WrappedInt> wrappedIntInc size (fun x -> x + WrappedInt(1)) (=)
+    )
+
+    // custom int op
+    let incx2 = <@ fun x -> x + 2 @>
+    yield! range |> List.map (fun size ->
+        testCase (sprintf "Smoke stress test (size %i) on atomic unary func on int" size) <| fun () ->
+            stressTest<int> incx2 size (fun x -> x + 2) (=)
+    )
+]
+
+let foldTestCases = testList "Fold tests" [
+    // int, smoke tests
+    testCase "Smoke fold test atomic 'add' on int" <| fun () -> foldTest<int> <@ (+) @> (=)
+
+    // float
+    testCase "Fold test atomic 'add' on float32" <| fun () -> foldTest<float32> <@ (+) @> (fun x y -> float (abs (x - y)) < Accuracy.low.relative)
+
+    // double
+    testCase "Fold test atomic 'add' on float" <| fun () -> foldTest<float> <@ (+) @> (fun x y -> abs (x - y) < Accuracy.low.relative)
+
+    // bool
+    // error: bool can't be used as kernel argument in OpenCL
+    ptestCase "Fold test atomic '&&' on bool" <| fun () -> foldTest<bool> <@ (&&) @> (=)
+
+    testCase "Reduce test atomic 'min' on int" <| fun () -> foldTest<int> <@ min @> (=)
+    ptestCase "Reduce test atomic 'min' on int64" <| fun () -> foldTest<int64> <@ min @> (=)
+
+    testCase "Reduce test atomic 'max' on int" <| fun () -> foldTest<int> <@ max @> (=)
+    ptestCase "Reduce test atomic 'max' on int64" <| fun () -> foldTest<int64> <@ max @> (=)
+
+    testCase "Reduce test atomic '&&&' on int" <| fun () -> foldTest<int> <@ (&&&) @> (=)
+    ptestCase "Reduce test atomic '&&&' on int64" <| fun () -> foldTest<int64> <@ (&&&) @> (=)
+
+    testCase "Reduce test atomic '|||' on int" <| fun () -> foldTest<int> <@ (|||) @> (=)
+    ptestCase "Reduce test atomic '|||' on int64" <| fun () -> foldTest<int64> <@ (|||) @> (=)
+
+    testCase "Reduce test atomic '^^^' on int" <| fun () -> foldTest<int> <@ (^^^) @> (=)
+    ptestCase "Reduce test atomic '^^^' on int64" <| fun () -> foldTest<int64> <@ (^^^) @> (=)
+
+    // WrappedInt (не работает транляция или типа того)
+    ptestCase "Fold test atomic 'add' on WrappedInt" <| fun () -> foldTest<WrappedInt> <@ (+) @> (=)
+
+    // custom int op
+    let y2x = <@ fun x y -> y + x + x @>
+    testCase "Fold test custom atomic operation on int" <| fun () -> foldTest<int> y2x (=)
+]
+
+let xchgTestCases = testList "Xchg tests" [
+    testCase "Xchg test on int" <| fun () -> xchgTest<int> 0 256
+    testCase "Xchg test on float" <| fun () -> xchgTest<float> 0. 256.
+    testCase "Xchg test on bool" <| fun () -> xchgTest<bool> false true
+    ptestCase "Xchg test on WrappedInt" <| fun () -> xchgTest<WrappedInt> (WrappedInt 0) (WrappedInt 256)
+]
+
+let perfomanceTest = testCase "Perfomance test on 'inc'" <| fun () ->
+    // use native atomic_inc for int
+    let kernelUsingNativeInc =
+        <@
+            fun (range: _1D) (result: int[]) ->
+                let localAcc = localArray<int> 1
+                if range.LocalID0 = 0 then
+                    localAcc.[0] <- 0
+
+                atomic inc localAcc.[0] |> ignore
+                barrier ()
+
+                if range.LocalID0 = 0 then
+                    result.[0] <- localAcc.[0]
+        @>
+
+    // generate spin lock
+    let kernelUsingCustomInc =
+        let inc = <@ fun x -> x + 1 @>
+        <@
+            fun (range: _1D) (result: int[]) ->
+                let localAcc = localArray<int> 1
+                if range.LocalID0 = 0 then
+                    localAcc.[0] <- 0
+
+                atomic %inc localAcc.[0] |> ignore
+                barrier ()
+
+                if range.LocalID0 = 0 then
+                    result.[0] <- localAcc.[0]
+        @>
+
+    let prepare kernel () = finalize <| fun () ->
+        opencl {
+            let result = Array.zeroCreate<int> 1
+            do! runCommand kernel <| fun kernelPrepare ->
+                kernelPrepare
+                <| _1D(Settings.wgSize, Settings.wgSize)
+                <| result
+
+            return! toHost result
+        }
+        |> context.RunSync
+
+    "Kernel wich uses native 'inc' shold be faster than with custom one"
+    |> Expect.isFasterThan (prepare kernelUsingNativeInc) (prepare kernelUsingCustomInc)
+
+let commonTests = testList "Behavior/semantic tests" [
+    testCase "Srtp test on 'add'" <| fun () ->
         let inline kernel () =
             <@
-                fun (range: _1D) (result: 'a[]) ->
-                    atomic inc result.[0] |> ignore
+                fun (range: _1D) (result: 'a[]) (value: 'a) ->
+                    atomic (+) result.[0] value |> ignore
             @>
 
         let srtpOnIntActual = finalize <| fun () ->
@@ -325,6 +332,7 @@ let commonTests = ftestList "Behavior/semantic tests" [
                     kernelPrepare
                     <| _1D(Settings.doubledWgSize, Settings.wgSize)
                     <| result
+                    <| 1
 
                 return! toHost result
             }
@@ -338,6 +346,7 @@ let commonTests = ftestList "Behavior/semantic tests" [
                     kernelPrepare
                     <| _1D(Settings.doubledWgSize, Settings.wgSize)
                     <| result
+                    <| 1.
 
                 return! toHost result
             }
@@ -347,55 +356,51 @@ let commonTests = ftestList "Behavior/semantic tests" [
         "Results should be equal up to types"
         |> Expect.isTrue (float srtpOnIntActual = srtpOnFloatActual)
 
-    testCase "Check sequential fully equal atomic operations" <| fun () ->
+    testCase "Check sequential fully equal atomic operations (native)" <| fun () ->
         let kernel =
             <@
                 fun (range: _1D) (result: int[]) ->
-                    atomic inc result.[0] |> ignore
-                    atomic inc result.[0] |> ignore
+                    atomic (+) result.[0] 1 |> ignore
+                    atomic (+) result.[0] 1 |> ignore
             @>
 
         let expected = Settings.doubledWgSize * 2
+        kernel |> checkDefault<int> expected
 
-        let actual = finalize <| fun () ->
-            opencl {
-                let result = Array.zeroCreate<int> 1
-                do! runCommand kernel <| fun kernelPrepare ->
-                    kernelPrepare
-                    <| _1D(Settings.doubledWgSize, Settings.wgSize)
-                    <| result
-
-                return! toHost result
-            }
-            |> context.RunSync
-            |> fun result -> result.[0]
-
-        "Results should be equal"
-        |> Expect.equal actual expected
-
-    testCase "Check sequential equal atomic operations but with different types" <| fun () ->
+    testCase "Check sequential fully equal atomic operations (spinlock)" <| fun () ->
         let kernel =
             <@
-                fun (range: _1D) (resultInt: int[]) (resultFloat32: float32[]) ->
-                    atomic inc resultInt.[0] |> ignore
-                    atomic inc resultFloat32.[0] |> ignore
+                fun (range: _1D) (result: int[]) ->
+                    atomic (fun x -> x + 1) result.[0] |> ignore
+                    atomic (fun x -> x + 1) result.[0] |> ignore
             @>
 
-        let expected = (Settings.doubledWgSize, float32 Settings.doubledWgSize)
+        let expected = Settings.doubledWgSize * 2
+        kernel |> checkDefault<int> expected
+
+    testCase "Check sequential equal atomic operations but with different types (spinlock)" <| fun () ->
+        let kernel =
+            <@
+                fun (range: _1D) (resultInt: int[]) (resultFloat32: float[]) ->
+                    atomic (fun x -> x + 1) resultInt.[0] |> ignore
+                    atomic (fun x -> x + 1.) resultFloat32.[0] |> ignore
+            @>
+
+        let expected = (Settings.doubledWgSize, float Settings.doubledWgSize)
 
         let actual = finalize <| fun () ->
             opencl {
                 let resultInt = Array.zeroCreate<int> 1
-                let resultFloat32 = Array.zeroCreate<float32> 1
+                let resultFloat = Array.zeroCreate<float> 1
                 do! runCommand kernel <| fun kernelPrepare ->
                     kernelPrepare
                     <| _1D(Settings.doubledWgSize, Settings.wgSize)
                     <| resultInt
-                    <| resultFloat32
+                    <| resultFloat
 
                 do! transferToHost resultInt
-                do! transferToHost resultFloat32
-                return (resultInt, resultFloat32)
+                do! transferToHost resultFloat
+                return (resultInt, resultFloat)
             }
             |> context.RunSync
             |> fun (resultInt, resultFloat32) -> (resultInt.[0], resultFloat32.[0])
@@ -403,24 +408,24 @@ let commonTests = ftestList "Behavior/semantic tests" [
         "Results should be equal"
         |> Expect.equal actual expected
 
-    testCase "Check sequential equal atomic operations but different address qualifiers" <| fun () ->
+    testCase "Check sequential equal atomic operations but different address qualifiers (spinlock)" <| fun () ->
         let kernel =
             <@
                 fun (range: _1D) (result: int[]) ->
                     let localResult = localArray<int> 1
-                    atomic inc result.[0] |> ignore
+                    if range.LocalID0 = 0 then
+                        localResult.[0] <- 0
+
+                    atomic (fun x -> x + 1) result.[0] |> ignore
+                    atomic (fun x -> x + 1) localResult.[0] |> ignore
                     barrier ()
-                    atomic inc localResult.[0] |> ignore
-                    barrier ()
-                    if range.GlobalID0 = 0 then
+
+                    if range.LocalID0 = 0 then
                         result.[0] <- result.[0] + localResult.[0]
             @>
 
-        printfn "%A" <| openclTranslate kernel
-
         let expected = Settings.wgSize * 2
 
-        let context = OpenCLEvaluationContext()
         let actual = finalize <| fun () ->
             opencl {
                 let result = Array.zeroCreate<int> 1
@@ -437,70 +442,19 @@ let commonTests = ftestList "Behavior/semantic tests" [
         "Results should be equal"
         |> Expect.equal actual expected
 
-    // NOTE не умеем toHost если не массив
-    // NOTE не массивы и не ref параметры в приватной памяти -- не консистентное поведение с Local (local тоже тогда ref долен возвращать??)
-    // testCase "Check atomic operation on global non-array object" <| fun () ->
-    //     let kernel =
-    //         <@
-    //             fun (range: _1D) (result: int) ->
-    //                 atomic inc result |> ignore
-    //         @>
-
-    //     let expected = Settings.doubledWgSize
-
-    //     let actual = finalize <| fun () ->
-    //         opencl {
-    //             let result = 0
-    //             do! runCommand kernel <| fun kernelPrepare ->
-    //                 kernelPrepare
-    //                 <| _1D(Settings.doubledWgSize, Settings.wgSize)
-    //                 <| result
-
-    //             return! toHost result
-    //         }
-    //         |> context.RunSync
-    //         |> fun result -> result.[0]
-
-    //     "Results should be equal"
-    //     |> Expect.equal actual expected
-
-    testCase "Check atomic operation as guard in WHILE loop" <| fun () ->
-        let maxAcc = 10
-        let kernel =
-            <@
-                fun (range: _1D) (array: int[]) ->
-                    while atomic inc array.[0] <> maxAcc do
-                        1 |> ignore // cause () unsupported
-                    |> ignore
-            @>
-
-        let expected = maxAcc
-
-        let actual = finalize <| fun () ->
-            opencl {
-                let result = Array.zeroCreate<int> 1
-                do! runCommand kernel <| fun kernelPrepare ->
-                    kernelPrepare
-                    <| _1D(Settings.doubledWgSize, Settings.wgSize)
-                    <| result
-
-                return! toHost result
-            }
-            |> context.RunSync
-            |> fun result -> result.[0]
-
-        "Results should be equal"
-        |> Expect.equal actual expected
-
-    testCase "Check sequential equal atomic operations on local array" <| fun () ->
+    testCase "Check sequential equal atomic operations on local array (spinlock)" <| fun () ->
         let kernel =
             <@
                 fun (range: _1D) (result: int[]) ->
                     let localSingleton = localArray<int> 1
-                    atomic inc localSingleton.[0] |> ignore
-                    atomic inc localSingleton.[0] |> ignore
+                    if range.LocalID0 = 0 then
+                        localSingleton.[0] <- 0
+
+                    atomic (fun x -> x + 1) localSingleton.[0] |> ignore
+                    atomic (fun x -> x + 1) localSingleton.[0] |> ignore
                     barrier ()
-                    if range.GlobalID0 = 0 then
+
+                    if range.LocalID0 = 0 then
                         result.[0] <- localSingleton.[0]
             @>
 
@@ -522,65 +476,34 @@ let commonTests = ftestList "Behavior/semantic tests" [
         "Results should be equal"
         |> Expect.equal actual expected
 
-    // TODO
-    ptestCase "Check atomic inside lambda, v1" <| fun () ->
+    testCase "Check atomic inside lambda (explicit param, native)" <| fun () ->
         let kernel =
             <@
                 fun (range: _1D) (result: int[]) ->
                     let f x = atomic (+) result.[0] x
                     f 1 |> ignore
             @>
-        ()
 
-    ptestCase "Check atomic inside lambda, v2" <| fun () ->
+        let expected = Settings.doubledWgSize
+        kernel |> checkDefault<int> expected
+
+    testCase "Check atomic inside lambda (explicit param, spinlock)" <| fun () ->
         let kernel =
             <@
                 fun (range: _1D) (result: int[]) ->
-                    let f = atomic (+) result.[0]
+                    let f y = atomic (fun x y -> x + y + 1) result.[0] y
                     f 1 |> ignore
             @>
-        ()
+
+        let expected = Settings.doubledWgSize * 2
+        kernel |> checkDefault<int> expected
 ]
 
 let tests =
-    // ftestList "Tests on atomic functions" [
-    //     stressTestCases
-    //     foldTestCases
-    //     reduceTestCases
-    //     perfomanceTest
-    //     commonTests
-    // ]
-    // |> testSequenced
-    ftestCase "Check sequential equal atomic operations but different address qualifiers" <| fun () ->
-        let kernel =
-            <@
-                fun (range: _1D) (result: int[]) ->
-                    let localResult = localArray<int> 1
-                    atomic inc result.[0] |> ignore
-                    barrier ()
-                    atomic inc localResult.[0] |> ignore
-                    barrier ()
-                    if range.GlobalID0 = 0 then
-                        result.[0] <- result.[0] + localResult.[0]
-            @>
-
-        printfn "%A" <| openclTranslate kernel
-
-        let expected = Settings.wgSize * 2
-
-        let context = OpenCLEvaluationContext()
-        let actual = finalize <| fun () ->
-            opencl {
-                let result = Array.zeroCreate<int> 1
-                do! runCommand kernel <| fun kernelPrepare ->
-                    kernelPrepare
-                    <| _1D(Settings.wgSize, Settings.wgSize)
-                    <| result
-
-                return! toHost result
-            }
-            |> context.RunSync
-            |> fun result -> result.[0]
-
-        "Results should be equal"
-        |> Expect.equal actual expected
+    testList "Tests on atomic functions" [
+        stressTestCases
+        foldTestCases
+        perfomanceTest
+        commonTests
+    ]
+    |> testSequenced

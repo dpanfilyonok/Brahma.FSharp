@@ -75,20 +75,15 @@ type FSQuotationToOpenCLTranslator() =
     let constructMethods (expr: Expr) (functions: (Var * Expr) list) (atomicApplicationsInfo: Map<Var, AddressSpaceQualifier<Lang>>) context =
         let kernelFunc = KernelFunc(Var(mainKernelName, expr.Type), expr, context) :> Method |> List.singleton
 
-        let funcs =
+        let methods =
             functions
-            |> List.filter (fun (v, _) -> not <| atomicApplicationsInfo.ContainsKey(v))
-            |> List.map (fun (v, expr) -> Function(v, expr, context) :> Method)
-
-        let atomicFuncs =
-            functions
-            |> List.choose (fun (var, expr) ->
+            |> List.map (fun (var, expr) ->
                 match atomicApplicationsInfo |> Map.tryFind var with
-                | Some qual -> Some (AtomicFunc(var, expr, qual, context) :> Method)
-                | None -> None
+                | Some qual -> AtomicFunc(var, expr, qual, context) :> Method
+                | None -> Function(var, expr, context) :> Method
             )
 
-        funcs @ atomicFuncs @ kernelFunc
+        methods @ kernelFunc
 
     let translate qExpr translatorOptions =
         let qExpr' = preprocessQuotation qExpr

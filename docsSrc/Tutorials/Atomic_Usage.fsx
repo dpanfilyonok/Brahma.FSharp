@@ -26,16 +26,6 @@ As target function for ```atomic``` it`s possible to use anonymous lambda functi
 @>
 
 (**
-You can also use named lambdas declared inside kernel quotation. Arbitary named lambdas declared outside quotation is not supported.
-*)
-
-<@
-    fun (range: _1D) (buffer: int[]) ->
-        let f x y = x + 2 * y
-        atomic f buffer.[0] 1 |> ignore
-@>
-
-(**
 You can use quoted lambdas that inserted inside kernel quotation by splicing operator.
 *)
 
@@ -47,7 +37,7 @@ let f = <@ fun x y -> x + 2 * y @>
 @>
 
 (**
-You can use any named function, generally supported by Brahma.FSharp.
+You cannot use arbitary named functions in atomic expressions, but you can use any named function, generally supported by Brahma.FSharp.
 *)
 
 <@
@@ -75,6 +65,16 @@ There are some specific named functions, which can only be used as target functi
 @>
 
 (**
+You can use srtp atomic functions in generic kernels. Following kernel can be used both with ```int``` and ```float32```.
+*)
+
+let inline kernel () =
+    <@
+        fun (range: _1D) (result: 'a[]) (value: 'a) ->
+            atomic (+) result.[0] value |> ignore
+    @>
+
+(**
 ## Other rules
 *)
 
@@ -91,13 +91,28 @@ There are some specific named functions, which can only be used as target functi
 @>
 
 (**
-But following kernel is not supported.
+But following kernels is not supported:
 *)
 
 <@
     fun (range: _1D) (buffer: int[]) ->
+        // function without application of first parameter
         let g x y = atomic (+) x y
         g buffer.[0] 1 |> ignore
+@>
+
+<@
+    fun (range: _1D) (result: int[]) ->
+        // implicit argument
+        let g = atomic (+) result.[0]
+        g 1 |> ignore
+@>
+
+<@
+    fun (range: _1D) (result: int[]) ->
+        // function's argument in closure of target function
+        let g y = atomic (fun x -> x + y + 1) result.[0]
+        g 1 |> ignore
 @>
 
 (**

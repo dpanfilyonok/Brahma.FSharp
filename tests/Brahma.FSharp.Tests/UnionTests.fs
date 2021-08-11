@@ -7,10 +7,6 @@ open Brahma.FSharp.OpenCL.AST
 open Brahma.FSharp.OpenCL.Printer
 open Brahma.OpenCL
 open Brahma.FSharp.OpenCL.Core
-open Expecto.Logging
-open Expecto.Logging.Message
-
-let logger = Log.create "AtomicTests"
 
 type SimpleUnion =
     | SimpleOne
@@ -87,10 +83,6 @@ let compileTests =
 
             let targetPath = System.IO.Path.Combine(generatedPath, outFile)
             let expectedPath = System.IO.Path.Combine(basePath, expectedFile)
-            logger.info (
-                eventX "Matrix is \n{matrix}"
-                >> setField "matrix" targetPath
-            )
             System.IO.File.WriteAllText(targetPath, !code)
 
             filesAreEqual targetPath expectedPath

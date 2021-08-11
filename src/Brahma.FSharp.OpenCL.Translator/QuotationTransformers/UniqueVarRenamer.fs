@@ -19,7 +19,7 @@ type RenamingContext() =
         if not <| varMapper.ContainsKey var then
             let newName = makeUniqueVarName var.Name
             let newVar = Var(newName, var.Type, var.IsMutable)
-            varMapper.Add (var, newVar)
+            varMapper.Add(var, newVar)
             totalNames.Add newName |> ignore
 
         varMapper.[var]

@@ -45,9 +45,9 @@ let private printConst (c: Const<'lang>) =
 
 let private printVar (varible: Variable<'lang>) = wordL varible.Name
 
-let rec private printItem (itm: Item<'lang>) = (Print itm.Arr) ++ squareBracketL (Print itm.Idx)
+let rec private printItem (itm: Item<'lang>) = (print itm.Arr) ++ squareBracketL (print itm.Idx)
 
-and private printIndirectionOp (deref: IndirectionOp<'lang>) = wordL "*" ++ (Print deref.Expr |> bracketL)
+and private printIndirectionOp (deref: IndirectionOp<'lang>) = wordL "*" ++ (print deref.Expr |> bracketL)
 
 and private printBop (op: BOp<'lang>) =
     match op with
@@ -72,8 +72,8 @@ and private printBop (op: BOp<'lang>) =
     |> wordL
 
 and private printBinop (binop: Binop<'lang>) =
-    let l = Print binop.Left
-    let r = Print binop.Right
+    let l = print binop.Left
+    let r = print binop.Right
     let op = printBop binop.Op
     [ l; op; r ] |> spaceListL |> bracketL
 
@@ -96,7 +96,7 @@ and private printFunCall (fc: FunCall<'lang>) =
     let argsLayout =
         fc.Args
         |> List.filter (not << isVoidArg)
-        |> List.map Print
+        |> List.map print
         |> commaListL
         |> bracketL
 
@@ -104,18 +104,18 @@ and private printFunCall (fc: FunCall<'lang>) =
 
 and private printUnOp (uo: Unop<'lang>) =
     match uo.Op with
-    | UOp.Minus -> wordL "-" ++ Print uo.Expr |> bracketL
-    | UOp.Not -> wordL "!" ++ Print uo.Expr |> bracketL
-    | UOp.Incr -> Print uo.Expr ++ wordL "++"
-    | UOp.Decr -> Print uo.Expr ++ wordL "--"
+    | UOp.Minus -> wordL "-" ++ print uo.Expr |> bracketL
+    | UOp.Not -> wordL "!" ++ print uo.Expr |> bracketL
+    | UOp.Incr -> print uo.Expr ++ wordL "++"
+    | UOp.Decr -> print uo.Expr ++ wordL "--"
 
 and private printCast (c: Cast<'lang>) =
     let t = Types.Print c.Type
-    let expr = Print c.Expr
+    let expr = print c.Expr
     (t |> bracketL) ++ expr
 
 and private printPointer (p: Ptr<'lang>) =
-    let expr = Print p.Expr
+    let expr = print p.Expr
     wordL "&" ^^ expr
 
 and private printArrayInitializer (ai: ArrayInitializer<'lang>) =
@@ -133,11 +133,11 @@ and private getZeros x =
     string
 
 and printNewStruct (newStruct: NewStruct<_>) =
-    let args = List.map Print newStruct.ConstructorArgs |> commaListL
+    let args = List.map print newStruct.ConstructorArgs |> commaListL
     [ wordL "{"; args; wordL "}" ] |> spaceListL
 
 and printNewUnion (newUnion: NewUnion<_>) =
-    let arg = Print newUnion.ConstructorArg
+    let arg = print newUnion.ConstructorArg
 
     [
         wordL "{"
@@ -149,11 +149,11 @@ and printNewUnion (newUnion: NewUnion<_>) =
     |> spaceListL
 
 and printFfieldGet (fg: FieldGet<_>) =
-    let host = Print fg.Host
+    let host = print fg.Host
     let fld = wordL fg.Field
     [ host |> bracketL; wordL "."; fld ] |> spaceListL
 
-and Print (expr: Expression<'lang>) =
+and print (expr: Expression<'lang>) =
     match expr with
     | :? Const<'lang> as c -> printConst c
     | :? Variable<'lang> as v -> printVar v

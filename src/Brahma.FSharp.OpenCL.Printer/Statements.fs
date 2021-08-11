@@ -23,9 +23,9 @@ open Microsoft.FSharp.Collections
 
 let rec private printAssignment (a: Assignment<'lang>) =
     [
-        Expressions.Print a.Name
+        Expressions.print a.Name
         wordL "="
-        Expressions.Print a.Value
+        Expressions.print a.Value
     ]
     |> spaceListL
 
@@ -46,7 +46,7 @@ and private printVarDecl (vd: VarDecl<'lang>) =
         if vd.Expr.IsSome && not <| vd.IsLocal() then
             yield [
                 wordL "="
-                Expressions.Print vd.Expr.Value
+                Expressions.print vd.Expr.Value
             ]
             |> spaceListL
     ]
@@ -62,7 +62,7 @@ and private printStmtBlock (sb: StatementBlock<'lang>) =
     |> braceL
 
 and private printIf (if': IfThenElse<_>) =
-    let cond = Expressions.Print if'.Condition |> bracketL
+    let cond = Expressions.print if'.Condition |> bracketL
     let then' = Print true if'.Then
 
     let else' =
@@ -79,9 +79,9 @@ and private printIf (if': IfThenElse<_>) =
     |> aboveListL
 
 and private printForInteger (for': ForIntegerLoop<_>) =
-    let cond = Expressions.Print for'.Condition
+    let cond = Expressions.print for'.Condition
     let i = Print true for'.Var
-    let cModif = Expressions.Print for'.CountModifier
+    let cModif = Expressions.print for'.CountModifier
     let body = Print true for'.Body
     let header = [ i; cond; cModif ] |> sepListL (wordL ";") |> bracketL
 
@@ -92,7 +92,7 @@ and private printForInteger (for': ForIntegerLoop<_>) =
     |> aboveListL
 
 and printWhileLoop (wl: WhileLoop<_>) =
-    let cond = Expressions.Print wl.Condition |> bracketL
+    let cond = Expressions.print wl.Condition |> bracketL
     let body = Print true wl.WhileBlock
 
     [
@@ -104,7 +104,7 @@ and printWhileLoop (wl: WhileLoop<_>) =
 and printFunCall (fc: FunCall<_>) =
     let args =
         fc.Args
-        |> List.map Expressions.Print
+        |> List.map Expressions.print
         |> commaListL
         |> bracketL
 
@@ -112,12 +112,12 @@ and printFunCall (fc: FunCall<_>) =
 
 and printBarrier (b: Barrier<_>) = wordL "barrier(CLK_LOCAL_MEM_FENCE)"
 
-and printReturn (r: Return<_>) = wordL "return" ++ Expressions.Print r.Expression
+and printReturn (r: Return<_>) = wordL "return" ++ Expressions.print r.Expression
 
 and printFieldSet (fs: FieldSet<_>) =
-    let host = Expressions.Print fs.Host
+    let host = Expressions.print fs.Host
     let fld = wordL fs.Field
-    let val' = Expressions.Print fs.Val
+    let val' = Expressions.print fs.Val
 
     [
         host |> bracketL

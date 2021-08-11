@@ -7,7 +7,6 @@ open Brahma.OpenCL
 open Brahma.FSharp.OpenCL.WorkflowBuilder
 
 let ctx = OpenCLEvaluationContext()
-printfn "Running workflow tests on:\n%A" ctx.Provider
 
 let eqMsg = "Values should be equal"
 

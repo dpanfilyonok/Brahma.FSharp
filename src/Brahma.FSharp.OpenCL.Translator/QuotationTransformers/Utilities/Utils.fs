@@ -5,7 +5,6 @@ open FSharp.Quotations
 
 module Utils =
     let rec getFunctionArgTypes (funType: System.Type) =
-        // NOTE с помощью этой функции можно модифицировать агумнты лямбды
         let (argType, retType) = FSharpType.GetFunctionElements(funType)
         match retType with
         | _ when FSharpType.IsFunction retType ->
