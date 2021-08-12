@@ -1,16 +1,16 @@
 ﻿#region License and Copyright Notice
 // Copyright (c) 2010 Ananth B.
 // All rights reserved.
-// 
+//
 // The contents of this file are made available under the terms of the
 // Eclipse Public License v1.0 (the "License") which accompanies this
 // distribution, and is available at the following URL:
 // http://www.opensource.org/licenses/eclipse-1.0.php
-// 
+//
 // Software distributed under the License is distributed on an "AS IS" basis,
 // WITHOUT WARRANTY OF ANY KIND, either expressed or implied. See the License for
 // the specific language governing rights and limitations under the License.
-// 
+//
 // By using this software in any fashion, you are agreeing to be bound by the
 // terms of the License.
 #endregion
@@ -31,13 +31,13 @@ namespace Brahma.OpenCL
         WriteOnly = ClNet.MemFlags.WriteOnly,
     }
 
-    public enum Memory : ulong 
+    public enum Memory : ulong
     {
         Device = 0,
         HostAccessible = ClNet.MemFlags.AllocHostPtr,
         Host = ClNet.MemFlags.UseHostPtr
     }
-    
+
     public class Buffer<T>: Brahma.Buffer<T>
     {
         private static readonly IntPtr _intPtrSize = (IntPtr)Marshal.SizeOf(typeof(IntPtr));
@@ -50,7 +50,7 @@ namespace Brahma.OpenCL
         public readonly Operations Operations;
         public readonly Memory Memory;
 
-        internal ClNet.Mem Mem
+        public ClNet.Mem Mem
         {
             get
             {
@@ -67,13 +67,31 @@ namespace Brahma.OpenCL
                         provider.Context
                         , (ClNet.MemFlags)operations | (hostAccessible ? ClNet.MemFlags.AllocHostPtr : 0)
                         , size, null, out error);
-            
+
             if (error != ClNet.ErrorCode.Success)
                 throw new Cl.Exception(error);
 
             Operations = operations;
             Memory = Memory.Device;
         }
+
+        public Buffer(ClNet.Context context, Operations operations, bool hostAccessible, int length) // Create, no data
+        {
+            ClNet.ErrorCode error;
+            _length = length;
+            var size = (IntPtr)(_length * _elementSize);
+            _mem = Cl.CreateBuffer(
+                context
+                , (ClNet.MemFlags)operations | (hostAccessible ? ClNet.MemFlags.AllocHostPtr : 0)
+                , size, null, out error);
+
+            if (error != ClNet.ErrorCode.Success)
+                throw new Cl.Exception(error);
+
+            Operations = operations;
+            Memory = Memory.Device;
+        }
+
 
         public Buffer(ComputeProvider provider, Operations operations, Memory memory, Array data) // Create and copy/use data from host
         {

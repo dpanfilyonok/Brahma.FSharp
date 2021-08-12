@@ -1,16 +1,16 @@
 #region License and Copyright Notice
 // Copyright (c) 2010 Ananth B.
 // All rights reserved.
-// 
+//
 // The contents of this file are made available under the terms of the
 // Eclipse Public License v1.0 (the "License") which accompanies this
 // distribution, and is available at the following URL:
 // http://www.opensource.org/licenses/eclipse-1.0.php
-// 
+//
 // Software distributed under the License is distributed on an "AS IS" basis,
 // WITHOUT WARRANTY OF ANY KIND, either expressed or implied. See the License for
 // the specific language governing rights and limitations under the License.
-// 
+//
 // By using this software in any fashion, you are agreeing to be bound by the
 // terms of the License.
 #endregion
@@ -19,7 +19,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Brahma.Commands;
 using ClNet = OpenCL.Net;
-using Cl = OpenCL.Net.Cl; 
+using Cl = OpenCL.Net.Cl;
 
 namespace Brahma.OpenCL
 {
@@ -27,11 +27,11 @@ namespace Brahma.OpenCL
     {
         private static readonly Dictionary<string, ClNet.Event> _namedEvents =
             new Dictionary<string, ClNet.Event>();
-        
+
         private bool _disposed = false;
         private ClNet.CommandQueue _queue;
 
-        internal ClNet.CommandQueue Queue
+        public ClNet.CommandQueue Queue
         {
             get
             {
@@ -74,7 +74,21 @@ namespace Brahma.OpenCL
             _queue = Cl.CreateCommandQueue
                 (provider.Context
                 , device
-                , outOfOrderExecution 
+                , outOfOrderExecution
+                    ? ClNet.CommandQueueProperties.OutOfOrderExecModeEnable
+                    : ClNet.CommandQueueProperties.None, out error);
+
+            if (error != ClNet.ErrorCode.Success)
+                throw new Cl.Exception(error);
+        }
+
+        public CommandQueue(ClNet.Context context, ClNet.Device device, bool outOfOrderExecution = false)
+        {
+            ClNet.ErrorCode error;
+            _queue = Cl.CreateCommandQueue
+            (context
+                , device
+                , outOfOrderExecution
                     ? ClNet.CommandQueueProperties.OutOfOrderExecModeEnable
                     : ClNet.CommandQueueProperties.None, out error);
 
@@ -115,7 +129,6 @@ namespace Brahma.OpenCL
             if (!_disposed)
             {
                 _queue.Dispose();
-                //Queue = null;
                 _disposed = true;
             }
         }
