@@ -2,8 +2,22 @@ module Brahma.FSharp.OpenCL.WorkflowBuilder.Evaluation
 
 open Brahma.OpenCL
 open OpenCL.Net
+open System.Collections.Generic
+open FSharp.Quotations
 
 exception EmptyDevicesException of string
+
+type internal ExprWrapper(e: Expr) =
+    override this.GetHashCode() =
+        e.ToString().GetHashCode()
+
+    override this.Equals(other: obj) =
+        (not << isNull) other &&
+        this.GetType() = other.GetType() &&
+        e.ToString() = (other :?> ExprWrapper).ToString()
+
+    override this.ToString() =
+        e.ToString()
 
 type OpenCLEvaluationContext(provider: ComputeProvider, ?device_id: int) =
     let devices = provider.Devices |> Seq.toArray
@@ -22,11 +36,15 @@ type OpenCLEvaluationContext(provider: ComputeProvider, ?device_id: int) =
 
     member this.CommandQueue = command_queue
 
+    member val IsCachingEnabled = false with get, set
+
+    member val internal CompilingCache = Dictionary<ExprWrapper, obj * obj * obj>() with get
+
     new (?platform_name, ?device_type: DeviceType) =
-            let platform_name = defaultArg platform_name "*"
-            let device_type = defaultArg device_type DeviceType.Default
-            let provider = ComputeProvider.Create(platform_name, device_type)
-            OpenCLEvaluationContext(provider)
+        let platform_name = defaultArg platform_name "*"
+        let device_type = defaultArg device_type DeviceType.Default
+        let provider = ComputeProvider.Create(platform_name, device_type)
+        OpenCLEvaluationContext(provider)
 
 type OpenCLEvaluation<'a> =
     OpenCLEvaluation of (OpenCLEvaluationContext -> 'a)

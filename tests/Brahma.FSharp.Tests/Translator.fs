@@ -1,10 +1,10 @@
 ﻿module Brahma.FSharp.OpenCL.Tests
 
 open Expecto
-open System.IO
 open Brahma.OpenCL
-open OpenCL.Net
 open Brahma.FSharp.OpenCL.Core
+open OpenCL.Net
+open Brahma.FSharp.Tests.Common
 
 [<Tests>]
 let translatorTest =
@@ -19,16 +19,12 @@ let translatorTest =
         with
         | ex -> failwith ex.Message
 
-    let filesAreEqual file1 file2 =
-        let all1 = (File.ReadAllText file1).Trim().Replace ("\r\n", "\n")
-        let all2 = (File.ReadAllText file2).Trim().Replace ("\r\n", "\n")
-        Expect.equal all1 all2 "Files should be equals as strings"
 
     let checkCode command outFile expected =
         let code = ref ""
         let _ = provider.Compile(command,_outCode = code)
         System.IO.File.WriteAllText(outFile, !code)
-        filesAreEqual outFile (System.IO.Path.Combine(basePath,expected))
+        filesAreEqual outFile (System.IO.Path.Combine(basePath, expected))
 
     let a = [|0..3|]
 
@@ -682,7 +678,60 @@ let translatorTest =
 
         ]
 
-    testList "Tests for translator"
+    let printfTests =
+        testList "Translation of printf" [
+            testCase "Printf test 1" <| fun _ ->
+                let command =
+                    <@ fun (range:_1D) ->
+                        printf "%d %f" 10 15.0
+                    @>
+                checkCode command "Printf test 1.gen" "Printf test 1.cl"
+
+            testCase "Printf test 2" <| fun _ ->
+                let command =
+                    <@ fun (range:_1D) (xs: array<int>) ->
+                        let gid = range.GlobalID0
+                        let x = 10
+
+                        printf "%d %d" x xs.[gid]
+                    @>
+                checkCode command "Printf test 2.gen" "Printf test 2.cl"
+
+            testCase "Printf test 3" <| fun _ ->
+                let command =
+                    <@ fun (range:_1D) (xs: array<int>) ->
+                        let mutable i = 0
+                        while i < 10 do
+                            xs.[0] <- i*2
+                            printf "i = %d, xs.[0]*10 = %d\n" i (xs.[0] + 10)
+                    @>
+                checkCode command "Printf test 3.gen" "Printf test 3.cl"
+
+            testCase "Printf test 4: printfn" <| fun _ ->
+                let command =
+                    <@ fun (range:_1D) ->
+                        printfn "%d %f" 10 15.0
+                    @>
+                checkCode command "Printf test 4.gen" "Printf test 4.cl"
+
+            testCase "Printf test 5: printf without args" <| fun _ ->
+                let command =
+                    <@ fun (range:_1D) ->
+                        printf "I am complied"
+                    @>
+                checkCode command "Printf test 5.gen" "Printf test 5.cl"
+
+            testCase "Printf test 6: printfn without args" <| fun _ ->
+                let command =
+                    <@ fun (range:_1D) ->
+                        printfn "I am complied too"
+                    @>
+                checkCode command "Printf test 6.gen" "Printf test 6.cl"
+
+
+        ]
+
+    ptestList "Tests for translator"
         [
             basicLocalIdTests
             basicBinOpsTests
@@ -694,6 +743,7 @@ let translatorTest =
             curryingTests
             localMemoryTests
             localMemoryAllocationTests
+            printfTests
         ]
     |> (fun x -> Expecto.Sequenced (Expecto.SequenceMethod.Synchronous, x))
 

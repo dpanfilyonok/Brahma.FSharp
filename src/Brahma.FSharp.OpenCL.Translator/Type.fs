@@ -17,9 +17,8 @@ module Brahma.FSharp.OpenCL.Translator.Type
 
 open Brahma.FSharp.OpenCL.AST
 open System.Reflection
+open FSharp.Reflection
 open Microsoft.FSharp.Collections
-open Microsoft.FSharp.Quotations
-open System.Collections.Generic
 
 let printElementType (_type: string) (context:TargetContext<_,_>) =
     let pType =
@@ -52,7 +51,7 @@ let printElementType (_type: string) (context:TargetContext<_,_>) =
 
 
 let rec Translate (_type:System.Type) isKernelArg size (context:TargetContext<_,_>) : Type<Lang> =
-    let rec go (str:string)=
+    let rec go (str:string) =
         let mutable low = str.ToLowerInvariant()
         match low with
         | "int"| "int32" -> PrimitiveType<Lang>(Int) :> Type<Lang>
@@ -76,7 +75,7 @@ let rec Translate (_type:System.Type) isKernelArg size (context:TargetContext<_,
             then RefType<_>(go baseT, []) :> Type<Lang>
             else ArrayType<_>(go baseT, size |> Option.get) :> Type<Lang>
         | s when s.StartsWith "fsharpref" ->
-            go (_type.GetGenericArguments().[0].Name)
+            RefType<_> (go (_type.GetGenericArguments().[0].Name), []) :> Type<Lang>
         | f when f.StartsWith "fsharpfunc" ->
 //            go (_type.GetGenericArguments().[1].Name)
             Translate (_type.GetGenericArguments().[1]) isKernelArg size context
@@ -86,7 +85,7 @@ let rec Translate (_type:System.Type) isKernelArg size (context:TargetContext<_,
                 else _type.UnderlyingSystemType.ToString().Substring(15, _type.UnderlyingSystemType.ToString().Length - 16).Split(',')
              let mutable n = 0
              let baseTypes = [|for i in 0..types.Length - 1 -> types.[i].Substring(7)|]
-             let elements = [for i in 0..types.Length - 1 -> new StructField<'lang> ("_" + (i + 1).ToString(), go baseTypes.[i])]
+             let elements = [for i in 0..types.Length - 1 -> { Name = "_" + (i + 1).ToString(); Type = go baseTypes.[i] }]
              let mutable s = ""
              for i in 0..baseTypes.Length - 1 do s <- s + baseTypes.[i]
              if not (context.tupleDecls.ContainsKey(s))
@@ -94,47 +93,79 @@ let rec Translate (_type:System.Type) isKernelArg size (context:TargetContext<_,
                  context.tupleNumber <- context.tupleNumber + 1
                  n <- context.tupleNumber
                  context.tupleDecls.Add(s, n)
-                 let a = new Struct<_>("tuple" + n.ToString(), elements)
+                 let a = StructType<_>("tuple" + n.ToString(), elements)
                  context.tupleList.Add(a)
-                 let decl = Some a
-                 TupleType<_>(StructType(decl), n) :> Type<_>
+                 TupleType<_>(a, n) :> Type<_>
              else
                  n <- context.tupleDecls.Item(s)
-                 let a = new Struct<Lang>("tuple" + n.ToString(), elements)
-                 let decl = Some a
-                 TupleType<_>(StructType(decl), n) :> Type<_>
+                 let a = StructType<_>("tuple" + n.ToString(), elements)
+                 TupleType<_>(a, n) :> Type<_>
         | x when context.UserDefinedTypes.Exists(fun t -> t.Name.ToLowerInvariant() = x)
             ->
-                let decl =
-                    if context.UserDefinedTypesOpenCLDeclaration.ContainsKey x
-                    then Some context.UserDefinedTypesOpenCLDeclaration.[x]
-                    else None
-                StructType(decl) :> Type<_>
-        | x -> "Unsuported kernel type: " + x |> failwith
+                let structType =
+                    if context.UserDefinedStructsOpenCLDeclaration.ContainsKey x
+                    then context.UserDefinedStructsOpenCLDeclaration.[x]
+                    else
+                        if context.UserDefinedUnionsOpenCLDeclaration.ContainsKey x
+                        then context.UserDefinedUnionsOpenCLDeclaration.[x] :> StructType<_>
+                        else failwithf "Declaration of struct %s doesn't exists" x
+                structType :> Type<_>
+
+        | x -> "Unsupported kernel type: " + x |> failwith
     _type.Name
     |> go
 
 
-let TransleteStructDecls structs (targetContext:TargetContext<_,_>) =
+let TranslateStructDecls structs (targetContext: TargetContext<_,_>) =
     let translateStruct (t:System.Type) =
         let name = t.Name
         let fields = [ for f in
                             t.GetProperties (BindingFlags.Public ||| BindingFlags.Instance) ->
-                        new StructField<_> (f.Name, Translate f.PropertyType true None targetContext)]
+                            { Name = f.Name; Type = Translate f.PropertyType true None targetContext }]
                      @
                      [ for f in
                             t.GetFields(BindingFlags.Public ||| BindingFlags.Instance) ->
-                        new StructField<_> (f.Name, Translate f.FieldType true None targetContext)]
+                            { Name = f.Name; Type = Translate f.FieldType true None targetContext }]
 
-        new Struct<_>(name, fields)
+        StructType<_>(name, fields)
 
     let translated =
         do targetContext.UserDefinedTypes.AddRange(structs)
         structs
-        |> List.ofSeq
         |> List.map
             (fun t ->
                 let r = translateStruct t
-                targetContext.UserDefinedTypesOpenCLDeclaration.Add(t.Name.ToLowerInvariant(),r)
-                r)
+                targetContext.UserDefinedStructsOpenCLDeclaration.Add(t.Name.ToLowerInvariant(), r)
+                StructDecl r)
     translated
+
+let translateDiscriminatedUnionDecls (unions: List<System.Type>) (tc: TargetContext<_,_>) =
+    let translateUnion (t: System.Type) =
+        let name = t.Name
+
+        let notEmptyCases =
+            FSharpType.GetUnionCases t
+            |> Array.filter (fun case -> case.GetFields().Length <> 0)
+
+        let fields =
+            [
+                for case in notEmptyCases ->
+                    let structName = case.Name
+                    let tag = case.Tag
+                    let fields: List<Field<_>> =
+                        [
+                            for field in case.GetFields() ->
+                                { Name = field.Name
+                                  Type = Translate field.PropertyType false None tc }
+                        ]
+                    (tag, {Name = structName; Type = StructInplaceType(structName + "Type", fields); })
+            ]
+        DiscriminatedUnionType(name, fields)
+
+    unions
+    |> List.map
+           (fun t ->
+                let u = translateUnion t
+                tc.UserDefinedTypes.Add(t)
+                tc.UserDefinedUnionsOpenCLDeclaration.Add(t.Name.ToLowerInvariant(), u)
+                StructDecl u)

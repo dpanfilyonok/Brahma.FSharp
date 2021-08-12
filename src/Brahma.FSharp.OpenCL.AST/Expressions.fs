@@ -42,10 +42,16 @@ type Item<'lang>(arr:Expression<'lang>,idx:Expression<'lang>) =
     member this.Arr = arr
     member this.Idx = idx
 
+type IndirectionOp<'lang>(expr: Expression<'lang>) =
+    inherit Expression<'lang>()
+    override this.Children = []
+    member this.Expr = expr
+
 [<RequireQualifiedAccess>]
 type PropertyType<'lang>=
     | Var of Variable<'lang>
     | Item of Item<'lang>
+    | VarReference of IndirectionOp<'lang>
 
 type Property<'lang>(property:PropertyType<'lang>) =
     inherit Expression<'lang>()
@@ -72,7 +78,7 @@ type BOp<'lang> =
      | NEQ
      | Remainder
 
-type Binop<'lang>(op:BOp<'lang>,l:Expression<'lang>,r:Expression<'lang>) =
+type Binop<'lang>(op:BOp<'lang>, l:Expression<'lang>, r:Expression<'lang>) =
     inherit Expression<'lang>()
     override this.Children = []
     member this.Left = l
@@ -92,7 +98,7 @@ type Unop<'lang>(op:UOp<'lang>,expr:Expression<'lang>) =
     member this.Expr = expr
     member this.Op = op
 
-type Cast<'lang>(expr:Expression<'lang>,_type:Type<'lang>)=
+type Cast<'lang>(expr:Expression<'lang>,_type:Type<'lang>) =
     inherit Expression<'lang>()
     override this.Children = []
     member this.Expr = expr
@@ -113,11 +119,19 @@ type ZeroArray<'lang>(length:int) =
     inherit ArrayInitializer<'lang>()
     override this.Length = length
 
-type NewStruct<'lang>(structInfo:Struct<'lang>, cArgs:List<Expression<'lang>>) =
+type NewStruct<'lang>(structInfo: StructType<'lang>, cArgs: List<Expression<'lang>>) =
     inherit Expression<'lang>()
     override this.Children = structInfo :> _ :: List.ofSeq (Seq.cast<_> cArgs)
     member this.Struct = structInfo
     member this.ConstructorArgs = cArgs
+
+type NewUnion<'lang>(unionInfo: UnionClInplaceType<'lang>, fieldName: string, arg: Expression<'lang>) =
+    inherit Expression<'lang>()
+
+    override this.Children = [arg :> Node<'lang>]
+    member this.Union = unionInfo
+    member this.ConstructorArg = arg
+    member this.ConstructorArgName = fieldName
 
 type FieldGet<'lang>(host:Expression<'lang>, field:string) =
     inherit Expression<'lang>()

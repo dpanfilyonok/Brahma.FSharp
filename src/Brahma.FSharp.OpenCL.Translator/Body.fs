@@ -15,8 +15,10 @@
 
 module Brahma.FSharp.OpenCL.Translator.Body
 
+open System.Reflection
 open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.AST
+open Brahma.FSharp.OpenCL.QuotationsTransformer.Transformers.PrintfReplacer
 open Microsoft.FSharp.Collections
 open FSharpx.Collections
 open System.Collections.Generic
@@ -30,12 +32,9 @@ let private clearContext (targetContext:TargetContext<'a,'b>) =
     for t in targetContext.tupleList do c.tupleList.Add(t)
     c.tupleNumber <- targetContext.tupleNumber
     c.UserDefinedTypes.AddRange(targetContext.UserDefinedTypes)
-    for kvp in targetContext.UserDefinedTypesOpenCLDeclaration do c.UserDefinedTypesOpenCLDeclaration.Add (kvp.Key,kvp.Value)
+    for kvp in targetContext.UserDefinedStructsOpenCLDeclaration do c.UserDefinedStructsOpenCLDeclaration.Add (kvp.Key,kvp.Value)
+    for kvp in targetContext.UserDefinedUnionsOpenCLDeclaration do c.UserDefinedUnionsOpenCLDeclaration.Add (kvp.Key,kvp.Value)
     c
-
-
-
-let mutable dictionaryFun = new System.Collections.Generic.Dictionary<string,StatementBlock<Lang>>()
 
 let rec private translateBinding (var:Var) newName (expr:Expr) (targetContext:TargetContext<_,_>) =
     let body,tContext = (*TranslateAsExpr*) translateCond expr targetContext
@@ -46,10 +45,15 @@ let rec private translateBinding (var:Var) newName (expr:Expr) (targetContext:Ta
         | _ -> Type.Translate var.Type false None targetContext
     new VarDecl<Lang>(vType,newName,Some body)
 
-and private translateCall exprOpt (mInfo:System.Reflection.MethodInfo) _args targetContext =
-    let args,tContext =
-        let a,c = _args |> List.fold (fun (res,tc) a -> let r,tc = translateCond a tc in r::res,tc) ([],targetContext)
+and private translateListOfArgs (args: list<Expr>) targetContext =
+    let args', targetContext' =
+        let a,c = args |> List.fold (fun (res,tc) a -> let r,tc = translateCond a tc in r::res,tc) ([],targetContext)
         a |> List.rev , c
+    args', targetContext'
+
+and private translateCall exprOpt (mInfo:System.Reflection.MethodInfo) _args targetContext =
+    let args,tContext = translateListOfArgs _args targetContext
+
     match mInfo.Name.ToLowerInvariant() with
     | "op_multiply"            -> new Binop<_>(Mult,args.[0],args.[1]) :> Statement<_>,tContext
     | "op_addition"            -> new Binop<_>(Plus,args.[0],args.[1]) :> Statement<_>,tContext
@@ -123,11 +127,12 @@ and private translateCall exprOpt (mInfo:System.Reflection.MethodInfo) _args tar
         if mInfo.DeclaringType.AssemblyQualifiedName.StartsWith("Microsoft.FSharp.Core.Operators")
         then FunCall<_>("powr",args) :> Statement<_>,tContext
         else failwithf "Seems, thet you use math function with name %s not from System.Math. or Microsoft.FSharp.Core.Operators" fName
-
-    | "ref"      -> args.[0] :> Statement<_>, tContext
-    | "op_dereference" -> args.[0] :> Statement<_>, tContext
-    | "op_colonequals" -> new Assignment<_>(new Property<_>(PropertyType.Var(args.[0] :?> Variable<_>)),args.[1]) :> Statement<_>, tContext
-
+    | "ref" ->
+        Pointer<_> args.[0] :> Statement<_>, tContext
+    | "op_dereference" ->
+        IndirectionOp<_> args.[0] :> Statement<_>, tContext
+    | "op_colonequals" ->
+        Assignment<_>(Property<_>(PropertyType.VarReference(IndirectionOp<_> args.[0])), args.[1]) :> Statement<_>, tContext
     | "setarray" ->
         let item = new Item<_>(args.[0],args.[1])
         new Assignment<_>(new Property<_>(PropertyType.Item(item)),args.[2]) :> Statement<_>
@@ -156,46 +161,62 @@ and private itemHelper exprs hostVar tContext =
         match exprs with
         | hd::_ -> TranslateAsExpr hd tContext
         | [] -> failwith "Array index missed!"
-    let hVar =
-        match hostVar with
-        | Some(v,_) -> v
-        | None -> failwith "Host var missed!"
-    idx,tContext,hVar
+    let (hVar, _) = hostVar
 
-and private transletaPropGet exprOpt (propInfo:System.Reflection.PropertyInfo) exprs targetContext =
-    let hostVar = exprOpt |> Option.map(fun e -> TranslateAsExpr e targetContext)
-    match propInfo.Name.ToLowerInvariant() with
-    | "globalid0i" | "globalid0" -> new FunCall<_>("get_global_id",[Const(PrimitiveType<_>(Int),"0")]) :> Expression<_>, targetContext
-    | "globalid1i" | "globalid1" ->  new FunCall<_>("get_global_id",[Const(PrimitiveType<_>(Int),"1")]) :> Expression<_>, targetContext
-    | "globalid2i" | "globalid2" ->  new FunCall<_>("get_global_id",[Const(PrimitiveType<_>(Int),"2")]) :> Expression<_>, targetContext
-    | "localid0" -> new FunCall<_>("get_local_id",[Const(PrimitiveType<_>(Int),"0")]) :> Expression<_>, targetContext
-    | "localid1" -> new FunCall<_>("get_local_id",[Const(PrimitiveType<_>(Int),"1")]) :> Expression<_>, targetContext
-    | "localid2" -> new FunCall<_>("get_local_id",[Const(PrimitiveType<_>(Int),"2")]) :> Expression<_>, targetContext
+    idx, tContext, hVar
+
+and private translateSpecificPropGet expr propName exprs targetContext =
+    // TODO: Refactoring: Safe pattern matching by expr type.
+
+    let hostVar = TranslateAsExpr expr targetContext
+    match propName with
+    | "globalid0i" | "globalid0" -> FunCall<_>("get_global_id",[Const(PrimitiveType<_>(Int),"0")]) :> Expression<_>, targetContext
+    | "globalid1i" | "globalid1" ->  FunCall<_>("get_global_id",[Const(PrimitiveType<_>(Int),"1")]) :> Expression<_>, targetContext
+    | "globalid2i" | "globalid2" ->  FunCall<_>("get_global_id",[Const(PrimitiveType<_>(Int),"2")]) :> Expression<_>, targetContext
+    | "localid0" -> FunCall<_>("get_local_id",[Const(PrimitiveType<_>(Int),"0")]) :> Expression<_>, targetContext
+    | "localid1" -> FunCall<_>("get_local_id",[Const(PrimitiveType<_>(Int),"1")]) :> Expression<_>, targetContext
+    | "localid2" -> FunCall<_>("get_local_id",[Const(PrimitiveType<_>(Int),"2")]) :> Expression<_>, targetContext
     | "item" ->
         let idx,tContext,hVar = itemHelper exprs hostVar targetContext
-        new Item<_>(hVar,idx) :> Expression<_>, tContext
-    | x ->
-        match exprOpt with
-        | Some expr ->
-            let r,tContext = translateFieldGet expr propInfo.Name targetContext
-            r :> Expression<_>, tContext
-        | None -> failwithf "Unsupported property in kernel: %A"  x
+        Item<_>(hVar,idx) :> Expression<_>, tContext
+    | _ -> failwithf "Unsupported property in kernel: %A" propName
 
-and private transletaPropSet exprOpt (propInfo:System.Reflection.PropertyInfo) exprs newVal targetContext =
-    let hostVar = exprOpt |> Option.map(fun e -> TranslateAsExpr e targetContext)
-    let newVal,tContext = TranslateAsExpr newVal (match hostVar with Some(v,c) -> c | None -> targetContext)
-    match propInfo.Name.ToLowerInvariant() with
-    | "item" ->
-        let idx,tContext,hVar = itemHelper exprs hostVar tContext
-        let item = new Item<_>(hVar,idx)
-        new Assignment<_>(new Property<_>(PropertyType.Item(item)),newVal) :> Statement<_>
-        , tContext
-    | x ->
-        match exprOpt with
-        | Some e ->
-            let r,tContext = translateFieldSet e propInfo.Name exprs.[0] targetContext
+and private translatePropGet (exprOpt: Expr Option) (propInfo: PropertyInfo) exprs (targetContext: TargetContext<_, _>) =
+    let propName = propInfo.Name.ToLowerInvariant()
+
+    match exprOpt with
+    | Some expr ->
+        let exprType = expr.Type
+        if targetContext.UserDefinedTypes.Contains exprType
+        then
+            let exprTypeName = expr.Type.Name.ToLowerInvariant()
+            if targetContext.UserDefinedStructsOpenCLDeclaration.ContainsKey exprTypeName
+            then
+                translateStructFieldGet expr propInfo.Name targetContext
+            else
+                translateUnionFieldGet expr propInfo targetContext
+        else
+            translateSpecificPropGet expr propName exprs targetContext
+    | None -> failwithf "Unsupported static property get in kernel: %A" propName
+
+and private translatePropSet exprOpt (propInfo:System.Reflection.PropertyInfo) exprs newVal targetContext =
+    // Todo: Safe pattern matching (item) by expr type
+    let propName = propInfo.Name.ToLowerInvariant()
+
+    match exprOpt with
+    | Some expr ->
+        let hostVar = TranslateAsExpr expr targetContext
+        let newVal,tContext = TranslateAsExpr newVal (match hostVar with (v,c) -> c)
+        match propInfo.Name.ToLowerInvariant() with
+        | "item" ->
+            let idx,tContext,hVar = itemHelper exprs hostVar tContext
+            let item = new Item<_>(hVar,idx)
+            new Assignment<_>(new Property<_>(PropertyType.Item(item)),newVal) :> Statement<_>
+            , tContext
+        | _ ->
+            let r,tContext = translateFieldSet expr propInfo.Name exprs.[0] targetContext
             r :> Statement<_>,tContext
-        | None -> failwithf "Unsupported property in kernel: %A"  x
+    | None -> failwithf "Unsupported static property set in kernel: %A" propName
 
 and TranslateAsExpr expr (targetContext:TargetContext<_,_>) =
     let (r:Node<_>),tc = Translate expr (targetContext:TargetContext<_,_>)
@@ -377,14 +398,40 @@ and translateFieldSet host (*fldInfo:System.Reflection.FieldInfo*) name _val con
 
 
 
-and translateFieldGet host (*fldInfo:System.Reflection.FieldInfo*)name context =
+and translateStructFieldGet host (*fldInfo:System.Reflection.FieldInfo*) name context =
     let hostE, tc = TranslateAsExpr host context
-    let field = name//fldInfo.Name
-    let res = new FieldGet<_>(hostE,field)
+    let field = name //fldInfo.Name
+    let res = FieldGet<_>(hostE,field) :> Expression<_>
     res, tc
 
+and translateUnionFieldGet expr (propInfo: PropertyInfo) targetContext =
+    let exprTypeName = expr.Type.Name.ToLowerInvariant()
+    let unionType = targetContext.UserDefinedUnionsOpenCLDeclaration.[exprTypeName]
+
+    let unionValueExpr, targetContext = TranslateAsExpr expr targetContext
+
+    let caseName = propInfo.DeclaringType.Name
+    let unionCaseField = unionType.GetCaseByName caseName
+
+    match unionCaseField with
+    | None -> failwithf "Union field get translation error:
+                         union %A doesn't have case %A" unionType.Name caseName
+    | Some unionCaseField ->
+        let r =
+            FieldGet<_> (
+                FieldGet<_> (
+                    FieldGet<_> (
+                        unionValueExpr,
+                        unionType.Data.Name
+                    ),
+                    unionCaseField.Name
+                ),
+                propInfo.Name
+            )
+            :> Expression<_>
+        r, targetContext
+
 and Translate expr (targetContext:TargetContext<_,_>) =
-    //printfn "%A" expr
     match expr with
     | Patterns.AddressOf expr -> "AdressOf is not suported:" + string expr|> failwith
     | Patterns.AddressSet expr -> "AdressSet is not suported:" + string expr|> failwith
@@ -395,6 +442,18 @@ and Translate expr (targetContext:TargetContext<_,_>) =
         else
             let r, tContext= translateApplicationFun expr1 expr2 targetContext
             r :> Node<_>,tContext
+    | DerivedPatterns.SpecificCall <@@ print @@>(_, _, args) ->
+        match args with
+        | [Patterns.ValueWithName(argTypes, _, _)
+           Patterns.ValueWithName(formatStr, _, _)
+           Patterns.ValueWithName(argValues, _, _)] ->
+                let formatStrArg =
+                    Const(PrimitiveType ConstStringLiteral,
+                          formatStr :?> string)
+                    :> Expression<_>
+                let args', targetContext' = translateListOfArgs (argValues :?> list<Expr>) targetContext
+                FunCall("printf", formatStrArg :: args') :> Node<_>, targetContext'
+        | _ -> failwith "printf: something going wrong."
     | Patterns.Call (exprOpt,mInfo,args) ->
         let r,tContext = translateCall exprOpt mInfo args targetContext
         r :> Node<_>,tContext
@@ -403,7 +462,7 @@ and Translate expr (targetContext:TargetContext<_,_>) =
     | Patterns.FieldGet (exprOpt,fldInfo) ->
         match exprOpt with
         | Some expr ->
-            let r,tContext = translateFieldGet expr fldInfo.Name targetContext
+            let r,tContext = translateStructFieldGet expr fldInfo.Name targetContext
             r :> Node<_>,tContext
         | None -> failwithf "FieldGet for empty host is not suported. Field: %A" fldInfo.Name
     | Patterns.FieldSet (exprOpt,fldInfo,expr) ->
@@ -429,41 +488,69 @@ and Translate expr (targetContext:TargetContext<_,_>) =
     | Patterns.LetRecursive (bindings,expr) -> "LetRecursive is not suported:" + string expr|> failwith
     | Patterns.NewArray(sType,exprs) -> "NewArray is not suported:" + string expr|> failwith
     | Patterns.NewDelegate(sType,vars,expr) -> "NewDelegate is not suported:" + string expr|> failwith
-    | Patterns.NewObject(constrInfo,exprs) ->
+    | Patterns.NewObject(constrInfo, exprs) ->
         let p = constrInfo.GetParameters()
         let p2 = constrInfo.GetMethodBody()
         if targetContext.UserDefinedTypes.Contains(constrInfo.DeclaringType)
         then
-            let structInfo =  targetContext.UserDefinedTypesOpenCLDeclaration.[constrInfo.DeclaringType.Name.ToLowerInvariant()]
+            let structInfo =  targetContext.UserDefinedStructsOpenCLDeclaration.[constrInfo.DeclaringType.Name.ToLowerInvariant()]
             let cArgs = exprs |> List.map (fun x -> TranslateAsExpr x targetContext)
-            let res = new NewStruct<_>(structInfo,cArgs |> List.unzip |> fst)
+            let res = NewStruct<_>(structInfo, cArgs |> List.unzip |> fst)
             res :> Node<_>,targetContext
         else "NewObject is not suported:" + string expr|> failwith
     | Patterns.NewRecord(sType,exprs) -> "NewRecord is not suported:" + string expr|> failwith
     | Patterns.NewTuple(exprs) ->
         let mutable n = 0
         let baseTypes = [|for i in 0..exprs.Length - 1 -> exprs.[i].Type|]
-        let elements = [for i in 0..exprs.Length - 1 -> new StructField<'lang> ("_" + (i + 1).ToString(), Type.Translate baseTypes.[i] false None targetContext)]
+        let elements = [for i in 0..exprs.Length - 1 -> { Name = "_" + (i + 1).ToString(); Type = Type.Translate baseTypes.[i] false None targetContext}]
         let mutable s = ""
         for i in 0..baseTypes.Length - 1 do s <- s + baseTypes.[i].Name
         if not (targetContext.tupleDecls.ContainsKey(s))
         then
             targetContext.tupleNumber <- targetContext.tupleNumber + 1
             targetContext.tupleDecls.Add(s, targetContext.tupleNumber)
-            let a = new Struct<Lang>("tuple" + targetContext.tupleNumber.ToString(), elements)
+            let a = StructType<Lang>("tuple" + targetContext.tupleNumber.ToString(), elements)
             targetContext.tupleList.Add(a)
             let cArgs = exprs |> List.map (fun x -> TranslateAsExpr x targetContext)
-            new NewStruct<_>(a,cArgs |> List.unzip |> fst) :> Node<_>, targetContext
+            NewStruct<_>(a,cArgs |> List.unzip |> fst) :> Node<_>, targetContext
         else
-            let a = new Struct<Lang>("tuple" + (targetContext.tupleDecls.Item(s)).ToString(), elements)
+            let a = StructType<Lang>("tuple" + (targetContext.tupleDecls.Item(s)).ToString(), elements)
             let cArgs = exprs |> List.map (fun x -> TranslateAsExpr x targetContext)
-            new NewStruct<_>(a,cArgs |> List.unzip |> fst) :> Node<_>, targetContext
-    | Patterns.NewUnionCase(unionCaseinfo,exprs) -> "NewUnionCase is not suported:" + string expr|> failwith
-    | Patterns.PropertyGet(exprOpt,propInfo,exprs) ->
-        let res, tContext = transletaPropGet exprOpt propInfo exprs targetContext
+            NewStruct<_>(a,cArgs |> List.unzip |> fst) :> Node<_>, targetContext
+    | Patterns.NewUnionCase(unionCaseInfo, exprs) ->
+        let unionType = unionCaseInfo.DeclaringType
+        if not <| targetContext.UserDefinedTypes.Contains(unionType)
+        then
+            failwithf "Union type %s is not registered" unionType.Name
+
+        let typeName = unionType.Name.ToLowerInvariant()
+        let unionInfo = targetContext.UserDefinedUnionsOpenCLDeclaration.[typeName]
+
+
+        let tag = Const(unionInfo.Tag.Type, string unionCaseInfo.Tag) :> Expression<_>
+        let args =
+            match unionInfo.GetCaseByTag unionCaseInfo.Tag with
+            | None -> []
+            | Some field ->
+                let structArgs =
+                    exprs |> List.map (fun x -> fst <| TranslateAsExpr x targetContext)
+                let data =
+                    NewUnion (
+                        unionInfo.Data.Type :?> UnionClInplaceType<_>,
+                        field.Name,
+                        NewStruct (
+                            field.Type :?> StructType<_>,
+                            structArgs
+                        )
+                    )
+                [data :> Expression<_>]
+
+        NewStruct(unionInfo, tag :: args) :> Node<_>, targetContext
+    | Patterns.PropertyGet(exprOpt, propInfo, exprs) ->
+        let res, tContext = translatePropGet exprOpt propInfo exprs targetContext
         (res :> Node<_>), tContext
     | Patterns.PropertySet(exprOpt,propInfo,exprs,expr) ->
-        let res,tContext = transletaPropSet exprOpt propInfo exprs expr targetContext
+        let res,tContext = translatePropSet exprOpt propInfo exprs expr targetContext
         res :> Node<_>,tContext
     | Patterns.Sequential(expr1,expr2) ->
         let res,tContext = translateSeq expr1 expr2 targetContext
@@ -471,10 +558,18 @@ and Translate expr (targetContext:TargetContext<_,_>) =
     | Patterns.TryFinally(tryExpr,finallyExpr) -> "TryFinally is not suported:" + string expr|> failwith
     | Patterns.TryWith(expr1,var1,expr2,var2,expr3) -> "TryWith is not suported:" + string expr|> failwith
     | Patterns.TupleGet(expr,i) ->
-        let r,tContext =  translateFieldGet expr  ("_" + (string (i + 1))) targetContext
+        let r,tContext =  translateStructFieldGet expr  ("_" + (string (i + 1))) targetContext
         r :> Node<_>,tContext
-    | Patterns.TypeTest(expr,sType) -> "TypeTest is not suported:" + string expr|> failwith
-    | Patterns.UnionCaseTest(expr,unionCaseInfo) -> "UnionCaseTest is not suported:" + string expr|> failwith
+    | Patterns.TypeTest(expr, sType) -> "TypeTest is not suported:" + string expr|> failwith
+    | Patterns.UnionCaseTest(expr, unionCaseInfo) ->
+        let unionTypeName = expr.Type.Name.ToLowerInvariant()
+        let unionDecl = targetContext.UserDefinedUnionsOpenCLDeclaration.[unionTypeName]
+
+        let unionVarExpr, tc = TranslateAsExpr expr targetContext
+        let unionGetTagExpr = FieldGet(unionVarExpr, unionDecl.Tag.Name) :> Expression<_>
+        let tagExpr = Const(unionDecl.Tag.Type, string unionCaseInfo.Tag) :> Expression<_>
+
+        Binop(BOp.EQ, unionGetTagExpr, tagExpr) :> Node<_>, tc
     | Patterns.ValueWithName(_obj,sType,name) ->
         // Here is the only use of TargetContext.InLocal
         if sType.ToString().EndsWith "[]" && not targetContext.InLocal

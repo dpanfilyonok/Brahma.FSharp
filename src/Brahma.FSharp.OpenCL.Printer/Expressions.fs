@@ -15,6 +15,7 @@
 
 module Brahma.FSharp.OpenCL.Printer.Expressions
 
+open System
 open Brahma.FSharp.OpenCL.AST
 open Microsoft.FSharp.Text.StructuredFormat.LayoutOps
 open Brahma.FSharp.OpenCL.Printer
@@ -36,6 +37,7 @@ let private printConst (c:Const<'lang>) =
         | Double
         | Half -> wordL c.Val
         | Void -> wordL ""
+        | ConstStringLiteral -> wordL <| sprintf "\"%s\"" c.Val
         | TypeName tname -> failwithf "Printer. Unsupported const with type: %A" tname
     | :? RefType<'lang> as rt
         -> wordL c.Val
@@ -48,6 +50,9 @@ let private printVar (varible:Variable<'lang>) =
 
 let rec private printItem (itm:Item<'lang>) =
     (Print itm.Arr) ++ squareBracketL (Print itm.Idx)
+
+and private printIndirectionOp (deref: IndirectionOp<'lang>) =
+    wordL "*" ++ (Print deref.Expr |> bracketL)
 
 and private printBop (op:BOp<'lang>) =
     match op with
@@ -81,9 +86,25 @@ and private printProperty (prop:Property<'lang>) =
     match prop.Property with
     | PropertyType.Var v -> printVar v
     | PropertyType.Item i -> printItem i
+    | PropertyType.VarReference p -> printIndirectionOp p
 
-and private printFunCall (fc:FunCall<'lang>) =
-    wordL fc.Name ++ (fc.Args |> List.map Print |> commaListL |> bracketL)
+and private printFunCall (fc: FunCall<'lang>) =
+    let isVoidArg (expr: Expression<_>) =
+        match expr with
+        | :? Const<_> as c ->
+            match c.Type with
+            | :? PrimitiveType<_> as pt -> pt.Type = Void
+            | _ -> false
+        | _ -> false
+
+    // TODO: move filtration into translator
+    let argsLayout =
+        fc.Args
+        |> List.filter (not << isVoidArg)
+        |> List.map Print
+        |> commaListL
+        |> bracketL
+    wordL fc.Name ++ argsLayout
 
 and private printUnOp (uo:Unop<'lang>) =
     match uo.Op with
@@ -124,6 +145,17 @@ and printNewStruct (newStruct:NewStruct<_>) =
     ]
     |> spaceListL
 
+and printNewUnion (newUnion: NewUnion<_>) =
+    let arg = Print newUnion.ConstructorArg
+    [
+        wordL "{"
+        wordL <| "." + newUnion.ConstructorArgName
+        wordL "="
+        arg
+        wordL "}"
+    ]
+    |> spaceListL
+
 and printFfieldGet (fg:FieldGet<_>) =
     let host = Print fg.Host
     let fld = wordL fg.Field
@@ -147,5 +179,7 @@ and Print (expr:Expression<'lang>) =
     | :? Pointer<'lang> as p -> printPointer p
     | :? ArrayInitializer<'lang> as ai -> printArrayInitializer ai
     | :? NewStruct<'lang> as ns -> printNewStruct ns
+    | :? NewUnion<'lang> as nu -> printNewUnion nu
     | :? FieldGet<'lang> as fg -> printFfieldGet fg
+    | :? IndirectionOp<'lang> as ip -> printIndirectionOp ip
     | c -> failwithf "Printer. Unsupported expression: %A" c
