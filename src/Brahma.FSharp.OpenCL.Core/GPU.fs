@@ -37,24 +37,9 @@ type ToGPU<'t>(src:array<'t>, dst: GpuArray<'t>, ?replyChannel:AsyncReplyChannel
     member this.Source = src
     member this.ReplyChannel = replyChannel
 
-
-type MakeKernel<'t>(f, ?replyChannel:AsyncReplyChannel<Kernel<'t>>) =
-    member this.Function = f
-    member this.ReplyChannel = replyChannel
-
-
 type RunKernel<'t>(kernelRunFun, ?replyChannel:AsyncReplyChannel<Kernel<'t>>) =
     member this.KernelRunFunction = kernelRunFun
     member this.ReplyChannel = replyChannel
-
-
-type Allocate<'t>(size) =
-    member this.Size = size
-type AllocateCrate =
-    abstract member Apply : AllocateCrateEvaluator -> unit
-
-and AllocateCrateEvaluator =
-    abstract member Eval<'a> : Allocate<'a> -> unit
 
 type ToHostCrate =
     abstract member Apply<'ret> : ToHostCrateEvaluator<'ret> -> 'ret
@@ -68,12 +53,6 @@ type ToGPUCrate =
 and ToGPUCrateEvaluator<'ret> =
     abstract member Eval<'a> : ToGPU<'a> -> 'ret
 
-module Msg =
-    let CreateAllocateMsg m =
-        {
-            new AllocateCrate with
-                member __.Apply e = e.Eval m
-        }
 type Msg =
     | MsgToHost of ToHostCrate
     | MsgToGPU of ToGPUCrate
@@ -102,19 +81,11 @@ type GPU(device: Device) =
     member this.ClDevice = device
 
     member this.ClContext = clContext
-    member this.Allocate (alloc:AllocateCrate) =
-            printfn "Allocation"
-            let mutable result = Unchecked.defaultof<_>
-            alloc.Apply
-                {
-                    new AllocateCrateEvaluator
-                    with member __.Eval (a) =
-                            let length = a.Size
-                            let buf = new Brahma.OpenCL.Buffer<_>(clContext, Brahma.OpenCL.Operations.ReadWrite, true, length)
-                            let res = new GpuArray<'a>(buf,a.Size)
-                            result <- res
-                }
-            result
+    member this.Allocate<'t> (length:int) =
+        printfn "Allocation"
+        let buf = new Brahma.OpenCL.Buffer<_>(clContext, Brahma.OpenCL.Operations.ReadWrite, true, length)
+        let res = new GpuArray<'t>(buf,length)
+        res
 
     member private this.HandleToGPU (queue:Brahma.OpenCL.CommandQueue, toGpu:ToGPUCrate) =
         toGpu.Apply
@@ -196,8 +167,8 @@ type Host() =
         let res1 = Array.zeroCreate 10
         let res2 = Array.zeroCreate 20
 
-        let m1 = gpu.Allocate(Msg.CreateAllocateMsg(Allocate<_>(a1.Length)))
-        let m2 = gpu.Allocate(Msg.CreateAllocateMsg(Allocate<_>(a2.Length)))
+        let m1 = gpu.Allocate<_>(a1.Length)
+        let m2 = gpu.Allocate<_>(a2.Length)
 
         processor1.Post(Msg.CreateToGPUMsg(ToGPU<_>(a1, m1)))
         processor2.Post(Msg.CreateToGPUMsg(ToGPU<_>(a2, m2)))
