@@ -1,7 +1,6 @@
 namespace Brahma.FSharp.OpenCL
 
 open OpenCL.Net
-open OpenCL.Net
 
 module Device =
     open System.Text.RegularExpressions
@@ -87,21 +86,18 @@ type GPU(device: Device) =
     member this.ClDevice = device
 
     member this.ClContext = clContext
-
-    member this.CommandQueue = new Brahma.OpenCL.CommandQueue(clContext, device)
-
-    member private this.Allocate (alloc:AllocateCrate) =
+    member private this.HandleAllocate (alloc:AllocateCrate) =
             alloc.Apply
                 {
                     new AllocateCrateEvaluator
                     with member __.Eval (a) =
                             let length = a.Size
-                            let buf = new Brahma.OpenCL.Buffer<_>((this.ClContext:Context), Brahma.OpenCL.Operations.ReadWrite, true, length)
+                            let buf = new Brahma.OpenCL.Buffer<_>(clContext, Brahma.OpenCL.Operations.ReadWrite, true, length)
                             let res = new GpuArray<'a>(buf,a.Size)
                             a.ReplyChannel.Reply res
                 }
 
-    member private this.HandleToGPU (toGpu:ToGPUCrate) =
+    member private this.HandleToGPU (queue:Brahma.OpenCL.CommandQueue, toGpu:ToGPUCrate) =
         toGpu.Apply
                 {
                     new ToGPUCrateEvaluator<int>
@@ -111,7 +107,7 @@ type GPU(device: Device) =
 
                                 let mem = dst.Buffer.Mem
                                 let elementSize = dst.Buffer.ElementSize
-                                let error = Cl.EnqueueWriteBuffer(this.CommandQueue.Queue, mem,
+                                let error = Cl.EnqueueWriteBuffer(queue.Queue, mem,
                                             Bool.False, System.IntPtr(0),
                                             System.IntPtr(dst.Length * elementSize), src, 0u, null, eventID);
 
@@ -123,20 +119,7 @@ type GPU(device: Device) =
                             write a.Source a.Destination
                             0
                 }
-    member private this.Write (src:array<'t>, dst:GpuArray<'t>) =
-
-        let eventID = ref Unchecked.defaultof<Event>
-
-        let mem = dst.Buffer.Mem
-        let elementSize = dst.Buffer.ElementSize
-        let error = Cl.EnqueueWriteBuffer(this.CommandQueue.Queue, mem,
-                    Bool.False, System.IntPtr(0),
-                    System.IntPtr(dst.Length * elementSize), src, 0u, null, eventID);
-
-        if error <> ErrorCode.Success
-        then raise (Cl.Exception(error))
-
-    member private this.HandleToHost (toHost:ToHostCrate) =
+    member private this.HandleToHost (queue:Brahma.OpenCL.CommandQueue, toHost:ToHostCrate) =
         toHost.Apply
                 {
                     new ToHostCrateEvaluator<int>
@@ -145,7 +128,7 @@ type GPU(device: Device) =
                                 let eventID = ref Unchecked.defaultof<Event>
                                 let mem = src.Buffer.Mem
                                 let elementSize = src.Buffer.ElementSize
-                                let error = Cl.EnqueueReadBuffer(this.CommandQueue.Queue, mem,
+                                let error = Cl.EnqueueReadBuffer(queue.Queue, mem,
                                             Bool.False, System.IntPtr(0),
                                             System.IntPtr(src.Length * elementSize), dst, 0u, null, eventID);
 
@@ -158,19 +141,10 @@ type GPU(device: Device) =
                             | Some ch -> ch.Reply res
                             0
                 }
-    member private this.Read (src:GpuArray<'t>, dst:array<'t>) =
-        let eventID = ref Unchecked.defaultof<Event>
-        let mem = src.Buffer.Mem
-        let elementSize = src.Buffer.ElementSize
-        let error = Cl.EnqueueReadBuffer(this.CommandQueue.Queue, mem,
-                    Bool.False, System.IntPtr(0),
-                    System.IntPtr(src.Length * elementSize), dst, 0u, [||], eventID);
+    member this.GetNewProcessor () = MailboxProcessor.Start(fun inbox ->
 
-        if error <> ErrorCode.Success
-        then raise (Cl.Exception(error))
-        dst
+        let commandQueue = new Brahma.OpenCL.CommandQueue(clContext, device)
 
-    member this.Processor = MailboxProcessor.Start(fun inbox ->
         printfn "MB is started"
         let rec loop i = async {
             printfn "In loop"
@@ -179,34 +153,16 @@ type GPU(device: Device) =
             match msg with
             | MsgAllocate a ->
                 printfn "Allocation"
-                this.Allocate a
+                this.HandleAllocate a
 
             | MsgToHost a ->
                 printf "ToHost"
-                this.HandleToHost(a) |> ignore
+                this.HandleToHost(commandQueue, a) |> ignore
 
             | MsgToGPU a ->
                 printf "ToGPU"
-                this.HandleToGPU a |> ignore
+                this.HandleToGPU(commandQueue, a) |> ignore
 
-            (*match (msg:ICommand) with
-            | :? Allocate<_> as a ->
-                printf "Allocation. Channel = %A" a.ReplyChannel
-                match a.ReplyChannel with
-                | None -> ()
-                | Some ch -> ch.Reply (GpuArray<'t>(this.Allocate(a.Size),a.Size))
-            | :? ToHost<_> as a ->
-                printf "ToHost. Channel = %A" a.ReplyChannel
-                let res = this.Read(a.Source,a.Destination)
-                match a.ReplyChannel with
-                | None -> ()
-                | Some ch -> ch.Reply res
-            | :? ToGPU<_> as a -> this.Write(a.Destination,a.Source)
-            | :? MakeKernel<_> as mk ->
-                match mk.ReplyChannel with
-                | None -> ()
-                | Some ch -> ch.Reply (Kernel<_>("ctx", mk.Function))
-            | x -> printfn "ERROR! %A" x*)
             return! loop 0
             }
         loop 0)
@@ -237,19 +193,24 @@ type Host() =
     member this.Do () =
         let devices = Device.getDevices "*" DeviceType.Gpu
         printfn "Device: %A" devices.[0]
-        let processor = (GPU(devices.[0])).Processor
+        let gpu = GPU(devices.[0])
+        let processor1 = gpu.GetNewProcessor ()
+        let processor2 = gpu.GetNewProcessor ()
         let a1 = Array.init 10 (fun i -> i + 1)
         let a2 = Array.init 20 (fun i -> float i + 2.0)
         let res1 = Array.zeroCreate 10
         let res2 = Array.zeroCreate 20
 
-        let m1 = processor.PostAndReply(fun ch -> makeAllocateMsg(Allocate<_>(a1.Length, ch)))
-        let m2 = processor.PostAndReply(fun ch -> makeAllocateMsg(Allocate<_>(a2.Length, ch)))
+        let m1 = processor1.PostAndReply(fun ch -> makeAllocateMsg(Allocate<_>(a1.Length, ch)))
+        let m2 = processor1.PostAndReply(fun ch -> makeAllocateMsg(Allocate<_>(a2.Length, ch)))
 
-        processor.Post(makeToGPUMsg(ToGPU<_>(a1, m1)))
-        processor.Post(makeToGPUMsg(ToGPU<_>(a2, m2)))
-        let res1 = processor.PostAndReply(fun ch -> makeToHostMsg(ToHost<_>(m1, res1, ch)))
-        let res2 = processor.PostAndReply(fun ch -> makeToHostMsg(ToHost<_>(m2, res2, ch)))
+
+        processor1.Post(makeToGPUMsg(ToGPU<_>(a1, m1)))
+        processor2.Post(makeToGPUMsg(ToGPU<_>(a2, m2)))
+        //This code is unsafe because there is no synchronization between processors
+        //It is just to show that we can share buffers between queues on the same device
+        let res1 = processor2.PostAndReply(fun ch -> makeToHostMsg(ToHost<_>(m1, res1, ch)))
+        let res2 = processor1.PostAndReply(fun ch -> makeToHostMsg(ToHost<_>(m2, res2, ch)))
 
         let result =
             res1,res2
