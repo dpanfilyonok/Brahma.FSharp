@@ -40,14 +40,19 @@ type GpuKernel<'TRange, 'a when 'TRange :> Brahma.OpenCL.INDRangeDimension>(devi
         printfn "Code = %A" code
         code
     let compileQuery translatorOptions additionalSources =
+
         let program, error =
             let sources = additionalSources @ [clCode] |> List.toArray
             Cl.CreateProgramWithSource(context, uint32 (sources.Length), sources, null)
+
         if error <> ErrorCode.Success
         then failwithf "Program creation failed: %A" error
+
         let error = Cl.BuildProgram(program, 1u, [|device|], "", null, System.IntPtr.Zero)
+
         if error <> ErrorCode.Success
         then failwithf "Program compilation failed: %A" error
+
         program
 
     let createKernel program =
@@ -64,7 +69,6 @@ type GpuKernel<'TRange, 'a when 'TRange :> Brahma.OpenCL.INDRangeDimension>(devi
         clKernel
 
     let toIMem a =
-        //var isIMem = arg is IMem;
         match box a with
         | :? Brahma.IMem as mem ->
            mem.Size, mem.Data
@@ -205,9 +209,7 @@ type GPU(device: Device) =
                                             System.IntPtr(dst.Length * elementSize), src, 0u, null, eventID);
 
                                 if error <> ErrorCode.Success
-                                then
-                                    printfn "Error in write: %A" error
-                                    raise (Cl.Exception(error))
+                                then raise (Cl.Exception error)
 
                             write a.Source a.Destination
                             0
@@ -223,7 +225,7 @@ type GPU(device: Device) =
                                 let elementSize = src.Buffer.ElementSize
                                 let error = Cl.EnqueueReadBuffer(queue.Queue, mem,
                                             Bool.False, System.IntPtr(0),
-                                            System.IntPtr(src.Length * elementSize), dst, 0u, null, eventID);
+                                            System.IntPtr(src.Length * elementSize), dst, 0u, null, eventID)
 
                                 if error <> ErrorCode.Success
                                 then raise (Cl.Exception(error))
@@ -248,9 +250,9 @@ type GPU(device: Device) =
                                 let eventID = ref Unchecked.defaultof<Event>
                                 let error =
                                     Cl.EnqueueNDRangeKernel(queue.Queue, kernel.ClKernel, workDim, null,
-                                                            range.GlobalWorkSize, range.LocalWorkSize, 0u, null, eventID);
+                                                            range.GlobalWorkSize, range.LocalWorkSize, 0u, null, eventID)
                                 if error <> ErrorCode.Success
-                                then raise (Cl.Exception(error))
+                                then raise (Cl.Exception error)
 
                             runKernel a.Kernel
 
