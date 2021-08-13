@@ -3,10 +3,10 @@
   <PropertyGroup>
     <IsPackable>true</IsPackable>
     <AssemblyName>GpuAsMBP</AssemblyName>
+    <TargetFrameworks>net461;netstandard2.1</TargetFrameworks>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
   <PropertyGroup>
-    <TargetFramework>net461</TargetFramework>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <PropertyGroup>
