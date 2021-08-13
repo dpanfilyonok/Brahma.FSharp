@@ -1,6 +1,10 @@
 namespace Brahma.FSharp.OpenCL
 
 open OpenCL.Net
+open Brahma.OpenCL
+
+open Microsoft.FSharp.Quotations
+open FSharp.Quotations.Evaluator
 
 module Device =
     open System.Text.RegularExpressions
@@ -24,8 +28,89 @@ type GpuArray<'t> (buffer:Brahma.OpenCL.Buffer<'t>, length) =
     member this.Buffer = buffer
     member this.Length = length
 
-type Kernel<'t>(ctx, f) =
+type GpuKernel<'t>(device, context, srcLambda: Expr<'TRange ->'a>) =
+
+    let kernelName = "brahmaKernel"
+
+    let clCode =
+        let translatorOptions = []
+        let codeGenerator = new Translator.FSQuotationToOpenCLTranslator()
+        let ast, newLambda = codeGenerator.Translate srcLambda translatorOptions
+        let code = Printer.AST.Print ast
+        printfn "Code = %A" code
+        code
+    let compileQuery translatorOptions additionalSources =
+        let program, error =
+            let sources = additionalSources @ [clCode] |> List.toArray
+            Cl.CreateProgramWithSource(context, uint32 (sources.Length), sources, null)
+        if error <> ErrorCode.Success
+        then failwithf "Program creation failed: %A" error
+        let error = Cl.BuildProgram(program, 1u, [|device|], "", null, System.IntPtr.Zero)
+        if error <> ErrorCode.Success
+        then failwithf "Program compilation failed: %A" error
+        program
+
+    let createKernel program =
+        let clKernel,error = Cl.CreateKernel(program, kernelName)
+        if error <> ErrorCode.Success
+        then failwithf "OpenCL kernel creation problem. Error: %A" error
+        clKernel
+
+    let additionalSources = []
+
+    let kernel =
+        let program = compileQuery [] additionalSources
+        let clKernel = createKernel program
+        clKernel
+
+    let toIMem a =
+        //var isIMem = arg is IMem;
+        match box a with
+        | :? Brahma.IMem as mem ->
+           mem.Size, mem.Data
+        | :? int as i -> System.IntPtr(System.Runtime.InteropServices.Marshal.SizeOf(i)),
+                         box i
+        | x -> failwithf "Unexpected argument: %A" x
+
+    let setupArgument index arg =
+        let argSize, argVal = toIMem arg
+        let error =
+                Cl.SetKernelArg(kernel, (uint32 index)
+                , argSize
+                , argVal)
+        if error <> ErrorCode.Success
+        then raise (new CLException(error))
+
+    let argsSetupFunction =
+        let rng = ref Unchecked.defaultof<'TRange>
+        let args = ref [||]
+        //let run = ref Unchecked.defaultof<Commands.Run<'TRange>>
+        let getStarterFunction qExpr =
+            let rec go expr vars =
+                match expr with
+                | Patterns.Lambda (v, body) ->
+                    Expr.Lambda(v, go body (v::vars))
+                | e ->
+                    let arr =
+                        let c = Expr.NewArray(typeof<obj>,vars |> List.rev
+                            |> List.map
+                                 (fun v -> Expr.Coerce (Expr.Var(v), typeof<obj>)))
+                        <@@
+                            let x = %%c |> List.ofArray
+                            rng := (box x.Head) :?> 'TRange
+                            args := x.Tail |> Array.ofList
+                            //let brahmsRunCls = new Brahma.OpenCL.Commands.Run<_>(kernel :> Kernel<'TRange>,!rng)
+                            !args |> Array.iteri (fun i x -> setupArgument i x)
+                            //run := kernel.Run(!rng, !args)
+                        @@>
+                    arr
+            let res = <@ %%(go qExpr []):'TRange ->'a @>.Compile()
+
+            res
+        getStarterFunction srcLambda
+
     member this.Run () = ()
+    member this.SetArguments = argsSetupFunction
 
 type ToHost<'t>(src:GpuArray<'t>, dst: array<'t>, ?replyChannel:AsyncReplyChannel<array<'t>>) =
     member this.Destination = dst
@@ -37,7 +122,7 @@ type ToGPU<'t>(src:array<'t>, dst: GpuArray<'t>, ?replyChannel:AsyncReplyChannel
     member this.Source = src
     member this.ReplyChannel = replyChannel
 
-type RunKernel<'t>(kernelRunFun, ?replyChannel:AsyncReplyChannel<Kernel<'t>>) =
+type RunKernel<'t>(kernelRunFun, ?replyChannel:AsyncReplyChannel<GpuKernel<'t>>) =
     member this.KernelRunFunction = kernelRunFun
     member this.ReplyChannel = replyChannel
 
@@ -78,9 +163,14 @@ type GPU(device: Device) =
         if (!error <> ErrorCode.Success)
         then raise (new Cl.Exception(!error))
         ctx
+
     member this.ClDevice = device
 
     member this.ClContext = clContext
+
+    member this.CreateKernel (srcLambda) =
+        new GpuKernel<_>(device, clContext, srcLambda)
+
     member this.Allocate<'t> (length:int) =
         printfn "Allocation"
         let buf = new Brahma.OpenCL.Buffer<_>(clContext, Brahma.OpenCL.Operations.ReadWrite, true, length)
@@ -128,13 +218,12 @@ type GPU(device: Device) =
                             let res = read a.Source a.Destination
                             match a.ReplyChannel with
                             | None -> ()
-                            | Some ch -> ch.Reply res
+                            | Some ch ->
+                                OpenCL.Net.Cl.Finish(queue.Queue)
+                                ch.Reply res
                             0
                 }
 
-    //member this.Allocate (a) =
-    //    printfn "Allocation"
-    //    this.HandleAllocate a
     member this.GetNewProcessor () = MailboxProcessor.Start(fun inbox ->
 
         let commandQueue = new Brahma.OpenCL.CommandQueue(clContext, device)
@@ -156,6 +245,9 @@ type GPU(device: Device) =
         loop 0)
 
 type Host() =
+
+    let kernelFun = <@fun (range:_1D) (buf:array<_>) -> buf.[0] <- 1L@>
+
     member this.Do () =
         let devices = Device.getDevices "*" DeviceType.Gpu
         printfn "Device: %A" devices.[0]
@@ -172,6 +264,9 @@ type Host() =
 
         processor1.Post(Msg.CreateToGPUMsg(ToGPU<_>(a1, m1)))
         processor2.Post(Msg.CreateToGPUMsg(ToGPU<_>(a2, m2)))
+
+        //let kernel = gpu.CreateKernel(kernelFun)
+
         //This code is unsafe because there is no synchronization between processors
         //It is just to show that we can share buffers between queues on the same device
         let res1 = processor2.PostAndReply(fun ch -> Msg.CreateToHostMsg(ToHost<_>(m1, res1, ch)))
