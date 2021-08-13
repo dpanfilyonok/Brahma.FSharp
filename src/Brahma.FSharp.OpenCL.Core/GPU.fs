@@ -28,7 +28,7 @@ type GpuArray<'t> (buffer:Brahma.OpenCL.Buffer<'t>, length) =
     member this.Buffer = buffer
     member this.Length = length
 
-type GpuKernel<'t>(device, context, srcLambda: Expr<'TRange ->'a>) =
+type GpuKernel<'TRange, 'a when 'TRange :> Brahma.OpenCL.INDRangeDimension>(device, context, srcLambda: Expr<'TRange ->'a>) =
 
     let kernelName = "brahmaKernel"
 
@@ -81,6 +81,7 @@ type GpuKernel<'t>(device, context, srcLambda: Expr<'TRange ->'a>) =
         if error <> ErrorCode.Success
         then raise (new CLException(error))
 
+    let range = ref Unchecked.defaultof<'TRange>
     let argsSetupFunction =
         let rng = ref Unchecked.defaultof<'TRange>
         let args = ref [||]
@@ -92,12 +93,14 @@ type GpuKernel<'t>(device, context, srcLambda: Expr<'TRange ->'a>) =
                     Expr.Lambda(v, go body (v::vars))
                 | e ->
                     let arr =
-                        let c = Expr.NewArray(typeof<obj>,vars |> List.rev
-                            |> List.map
-                                 (fun v -> Expr.Coerce (Expr.Var(v), typeof<obj>)))
+                        let c =
+                            Expr.NewArray(
+                                    typeof<obj>,
+                                    vars |> List.rev |> List.map (fun v -> Expr.Coerce (Expr.Var(v), typeof<obj>))
+                                    )
                         <@@
                             let x = %%c |> List.ofArray
-                            rng := (box x.Head) :?> 'TRange
+                            range := (box x.Head) :?> 'TRange
                             args := x.Tail |> Array.ofList
                             //let brahmsRunCls = new Brahma.OpenCL.Commands.Run<_>(kernel :> Kernel<'TRange>,!rng)
                             !args |> Array.iteri (fun i x -> setupArgument i x)
@@ -108,9 +111,9 @@ type GpuKernel<'t>(device, context, srcLambda: Expr<'TRange ->'a>) =
 
             res
         getStarterFunction srcLambda
-
-    member this.Run () = ()
     member this.SetArguments = argsSetupFunction
+    member this.ClKernel = kernel
+    member this.Range = !range :> Brahma.OpenCL.INDRangeDimension
 
 type ToHost<'t>(src:GpuArray<'t>, dst: array<'t>, ?replyChannel:AsyncReplyChannel<array<'t>>) =
     member this.Destination = dst
@@ -122,9 +125,15 @@ type ToGPU<'t>(src:array<'t>, dst: GpuArray<'t>, ?replyChannel:AsyncReplyChannel
     member this.Source = src
     member this.ReplyChannel = replyChannel
 
-type RunKernel<'t>(kernelRunFun, ?replyChannel:AsyncReplyChannel<GpuKernel<'t>>) =
-    member this.KernelRunFunction = kernelRunFun
+type Run<'TRange,'t when 'TRange :> Brahma.OpenCL.INDRangeDimension>(kernel:GpuKernel<'TRange,'t>, ?replyChannel:AsyncReplyChannel<bool>) =
+    member this.Kernel = kernel
     member this.ReplyChannel = replyChannel
+
+type RunCrate =
+    abstract member Apply<'ret> : RunCrateEvaluator<'ret> -> 'ret
+
+and RunCrateEvaluator<'ret> =
+    abstract member Eval<'TRange,'t when 'TRange :> Brahma.OpenCL.INDRangeDimension> : Run<'TRange, 't> -> 'ret
 
 type ToHostCrate =
     abstract member Apply<'ret> : ToHostCrateEvaluator<'ret> -> 'ret
@@ -141,6 +150,7 @@ and ToGPUCrateEvaluator<'ret> =
 type Msg =
     | MsgToHost of ToHostCrate
     | MsgToGPU of ToGPUCrate
+    | MsgRun of RunCrate
 
     static member CreateToHostMsg m =
         {
@@ -155,6 +165,13 @@ type Msg =
                 member __.Apply e = e.Eval m
         }
         |> MsgToGPU
+
+    static member CreateRunMsg m =
+        {
+            new RunCrate with
+                member __.Apply e = e.Eval m
+        }
+        |> MsgRun
 type GPU(device: Device) =
 
     let clContext =
@@ -169,7 +186,7 @@ type GPU(device: Device) =
     member this.ClContext = clContext
 
     member this.CreateKernel (srcLambda) =
-        new GpuKernel<_>(device, clContext, srcLambda)
+        new GpuKernel<_,_>(device, clContext, srcLambda)
 
     member this.Allocate<'t> (length:int) =
         printfn "Allocation"
@@ -224,6 +241,32 @@ type GPU(device: Device) =
                             0
                 }
 
+    member private this.HandleRun (queue:Brahma.OpenCL.CommandQueue, run:RunCrate) =
+        run.Apply
+                {
+                    new RunCrateEvaluator<int>
+                    with member __.Eval (a) =
+                            let runKernel (kernel:GpuKernel<'TRange,'t>) =
+                                let range = kernel.Range
+                                //(INDRangeDimension)
+                                let workDim = uint32 range.Dimensions
+                                let eventID = ref Unchecked.defaultof<Event>
+                                let error =
+                                    Cl.EnqueueNDRangeKernel(queue.Queue, kernel.ClKernel, workDim, null,
+                                                            range.GlobalWorkSize, range.LocalWorkSize, 0u, null, eventID);
+                                if error <> ErrorCode.Success
+                                then raise (Cl.Exception(error))
+
+                            runKernel a.Kernel
+
+                            match a.ReplyChannel with
+                            | None -> ()
+                            | Some ch ->
+                                OpenCL.Net.Cl.Finish(queue.Queue)
+                                ch.Reply true
+                            0
+                }
+
     member this.GetNewProcessor () = MailboxProcessor.Start(fun inbox ->
 
         let commandQueue = new Brahma.OpenCL.CommandQueue(clContext, device)
@@ -239,6 +282,10 @@ type GPU(device: Device) =
             | MsgToGPU a ->
                 printfn "ToGPU"
                 this.HandleToGPU(commandQueue, a) |> ignore
+
+            | MsgRun a ->
+                printfn "Run"
+                this.HandleRun(commandQueue, a) |> ignore
 
             return! loop 0
             }
@@ -265,7 +312,10 @@ type Host() =
         processor1.Post(Msg.CreateToGPUMsg(ToGPU<_>(a1, m1)))
         processor2.Post(Msg.CreateToGPUMsg(ToGPU<_>(a2, m2)))
 
-        //let kernel = gpu.CreateKernel(kernelFun)
+        let kernel = gpu.CreateKernel(kernelFun)
+
+        printfn "Kernel: %A" kernel
+        printfn "Kernel.SetArguments: %A" kernel.SetArguments
 
         //This code is unsafe because there is no synchronization between processors
         //It is just to show that we can share buffers between queues on the same device
