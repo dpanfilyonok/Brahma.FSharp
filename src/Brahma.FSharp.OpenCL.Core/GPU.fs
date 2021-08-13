@@ -83,9 +83,7 @@ type GpuKernel<'TRange, 'a when 'TRange :> Brahma.OpenCL.INDRangeDimension>(devi
 
     let range = ref Unchecked.defaultof<'TRange>
     let argsSetupFunction =
-        let rng = ref Unchecked.defaultof<'TRange>
         let args = ref [||]
-        //let run = ref Unchecked.defaultof<Commands.Run<'TRange>>
         let getStarterFunction qExpr =
             let rec go expr vars =
                 match expr with
@@ -102,9 +100,7 @@ type GpuKernel<'TRange, 'a when 'TRange :> Brahma.OpenCL.INDRangeDimension>(devi
                             let x = %%c |> List.ofArray
                             range := (box x.Head) :?> 'TRange
                             args := x.Tail |> Array.ofList
-                            //let brahmsRunCls = new Brahma.OpenCL.Commands.Run<_>(kernel :> Kernel<'TRange>,!rng)
                             !args |> Array.iteri (fun i x -> setupArgument i x)
-                            //run := kernel.Run(!rng, !args)
                         @@>
                     arr
             let res = <@ %%(go qExpr []):'TRange ->'a @>.Compile()
@@ -248,7 +244,6 @@ type GPU(device: Device) =
                     with member __.Eval (a) =
                             let runKernel (kernel:GpuKernel<'TRange,'t>) =
                                 let range = kernel.Range
-                                //(INDRangeDimension)
                                 let workDim = uint32 range.Dimensions
                                 let eventID = ref Unchecked.defaultof<Event>
                                 let error =
