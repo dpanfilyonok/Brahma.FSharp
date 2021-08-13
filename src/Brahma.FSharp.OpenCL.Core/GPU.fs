@@ -48,10 +48,8 @@ type RunKernel<'t>(kernelRunFun, ?replyChannel:AsyncReplyChannel<Kernel<'t>>) =
     member this.ReplyChannel = replyChannel
 
 
-type Allocate<'t>(size, replyChannel:AsyncReplyChannel<GpuArray<'t>>) =
+type Allocate<'t>(size) =
     member this.Size = size
-    member this.ReplyChannel = replyChannel
-
 type AllocateCrate =
     abstract member Apply : AllocateCrateEvaluator -> unit
 
@@ -70,11 +68,29 @@ type ToGPUCrate =
 and ToGPUCrateEvaluator<'ret> =
     abstract member Eval<'a> : ToGPU<'a> -> 'ret
 
+module Msg =
+    let CreateAllocateMsg m =
+        {
+            new AllocateCrate with
+                member __.Apply e = e.Eval m
+        }
 type Msg =
-    | MsgAllocate of AllocateCrate
     | MsgToHost of ToHostCrate
     | MsgToGPU of ToGPUCrate
 
+    static member CreateToHostMsg m =
+        {
+            new ToHostCrate with
+                member __.Apply e = e.Eval m
+        }
+        |> MsgToHost
+
+    static member CreateToGPUMsg m =
+        {
+            new ToGPUCrate with
+                member __.Apply e = e.Eval m
+        }
+        |> MsgToGPU
 type GPU(device: Device) =
 
     let clContext =
@@ -86,7 +102,9 @@ type GPU(device: Device) =
     member this.ClDevice = device
 
     member this.ClContext = clContext
-    member private this.HandleAllocate (alloc:AllocateCrate) =
+    member this.Allocate (alloc:AllocateCrate) =
+            printfn "Allocation"
+            let mutable result = Unchecked.defaultof<_>
             alloc.Apply
                 {
                     new AllocateCrateEvaluator
@@ -94,8 +112,9 @@ type GPU(device: Device) =
                             let length = a.Size
                             let buf = new Brahma.OpenCL.Buffer<_>(clContext, Brahma.OpenCL.Operations.ReadWrite, true, length)
                             let res = new GpuArray<'a>(buf,a.Size)
-                            a.ReplyChannel.Reply res
+                            result <- res
                 }
+            result
 
     member private this.HandleToGPU (queue:Brahma.OpenCL.CommandQueue, toGpu:ToGPUCrate) =
         toGpu.Apply
@@ -141,26 +160,24 @@ type GPU(device: Device) =
                             | Some ch -> ch.Reply res
                             0
                 }
+
+    //member this.Allocate (a) =
+    //    printfn "Allocation"
+    //    this.HandleAllocate a
     member this.GetNewProcessor () = MailboxProcessor.Start(fun inbox ->
 
         let commandQueue = new Brahma.OpenCL.CommandQueue(clContext, device)
 
         printfn "MB is started"
         let rec loop i = async {
-            printfn "In loop"
             let! msg = inbox.Receive()
-            printfn "Message: %A" msg
             match msg with
-            | MsgAllocate a ->
-                printfn "Allocation"
-                this.HandleAllocate a
-
             | MsgToHost a ->
-                printf "ToHost"
+                printfn "ToHost"
                 this.HandleToHost(commandQueue, a) |> ignore
 
             | MsgToGPU a ->
-                printf "ToGPU"
+                printfn "ToGPU"
                 this.HandleToGPU(commandQueue, a) |> ignore
 
             return! loop 0
@@ -168,28 +185,6 @@ type GPU(device: Device) =
         loop 0)
 
 type Host() =
-
-    let makeAllocateMsg a =
-        {
-            new AllocateCrate with
-                member __.Apply e = e.Eval a
-        }
-        |> MsgAllocate
-
-    let makeToHostMsg a =
-        {
-            new ToHostCrate with
-                member __.Apply e = e.Eval a
-        }
-        |> MsgToHost
-
-    let makeToGPUMsg a =
-        {
-            new ToGPUCrate with
-                member __.Apply e = e.Eval a
-        }
-        |> MsgToGPU
-
     member this.Do () =
         let devices = Device.getDevices "*" DeviceType.Gpu
         printfn "Device: %A" devices.[0]
@@ -201,16 +196,15 @@ type Host() =
         let res1 = Array.zeroCreate 10
         let res2 = Array.zeroCreate 20
 
-        let m1 = processor1.PostAndReply(fun ch -> makeAllocateMsg(Allocate<_>(a1.Length, ch)))
-        let m2 = processor1.PostAndReply(fun ch -> makeAllocateMsg(Allocate<_>(a2.Length, ch)))
+        let m1 = gpu.Allocate(Msg.CreateAllocateMsg(Allocate<_>(a1.Length)))
+        let m2 = gpu.Allocate(Msg.CreateAllocateMsg(Allocate<_>(a2.Length)))
 
-
-        processor1.Post(makeToGPUMsg(ToGPU<_>(a1, m1)))
-        processor2.Post(makeToGPUMsg(ToGPU<_>(a2, m2)))
+        processor1.Post(Msg.CreateToGPUMsg(ToGPU<_>(a1, m1)))
+        processor2.Post(Msg.CreateToGPUMsg(ToGPU<_>(a2, m2)))
         //This code is unsafe because there is no synchronization between processors
         //It is just to show that we can share buffers between queues on the same device
-        let res1 = processor2.PostAndReply(fun ch -> makeToHostMsg(ToHost<_>(m1, res1, ch)))
-        let res2 = processor1.PostAndReply(fun ch -> makeToHostMsg(ToHost<_>(m2, res2, ch)))
+        let res1 = processor2.PostAndReply(fun ch -> Msg.CreateToHostMsg(ToHost<_>(m1, res1, ch)))
+        let res2 = processor1.PostAndReply(fun ch -> Msg.CreateToHostMsg(ToHost<_>(m2, res2, ch)))
 
         let result =
             res1,res2
