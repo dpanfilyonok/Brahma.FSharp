@@ -22,7 +22,6 @@
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Core.fs" />
     <Compile Include="GPU.fs" />
-    <Compile Include="Ep.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Brahma.FSharp.OpenCL.Printer\Brahma.FSharp.OpenCL.Printer.fsproj" />
