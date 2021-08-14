@@ -28,7 +28,7 @@ type GpuArray<'t> (buffer:Brahma.OpenCL.Buffer<'t>, length) =
     member this.Buffer = buffer
     member this.Length = length
 
-type GpuKernel<'TRange, 'a when 'TRange :> Brahma.OpenCL.INDRangeDimension>(device, context, srcLambda: Expr<'TRange ->'a>) =
+type GpuKernel<'TRange, 'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension>(device, context, srcLambda: Expr<'TRange ->'a>) =
 
     let kernelName = "brahmaKernel"
 
@@ -86,20 +86,15 @@ type GpuKernel<'TRange, 'a when 'TRange :> Brahma.OpenCL.INDRangeDimension>(devi
         then raise (new CLException(error))
 
     let range = ref Unchecked.defaultof<'TRange>
-    let argsSetupFunction = ()
-
-    member this.SetArguments<'t> () =
+    member this.SetArguments =
         let args = ref [||]
         let getStarterFunction qExpr =
             let rec go expr vars =
                 match expr with
                 | Patterns.Lambda (v, body) ->
-                    printfn "Type: %A" v.Type.IsArray
                     let v =
                         if v.Type.IsArray
                         then
-                            printfn "Type is = %A" v.Type
-                            printfn "Type params = %A" (v.Type.GetElementType())
                             let vName = v.Name
                             let vType = typedefof<GpuArray<_>>.MakeGenericType(v.Type.GetElementType())
                             Var(vName, vType, false)
@@ -108,9 +103,16 @@ type GpuKernel<'TRange, 'a when 'TRange :> Brahma.OpenCL.INDRangeDimension>(devi
                 | e ->
                     let arr =
                         let c =
+                            let expr (v:Var) =
+                                if v.Type.Name.Contains "GpuArray"
+                                then
+                                    let propertyInfo = v.Type.GetProperty("Buffer")
+                                    Expr.PropertyGet(Expr.Var(v), propertyInfo)
+                                else Expr.Var(v)
+
                             Expr.NewArray(
                                     typeof<obj>,
-                                    vars |> List.rev |> List.map (fun v -> Expr.Coerce (Expr.Var(v), typeof<obj>))
+                                    vars |> List.rev |> List.map (fun v -> Expr.Coerce ((expr v), typeof<obj>))
                                     )
                         <@@
                             let x = %%c |> List.ofArray
@@ -139,7 +141,7 @@ type ToGPU<'t>(src:array<'t>, dst: GpuArray<'t>, ?replyChannel:AsyncReplyChannel
     member this.Source = src
     member this.ReplyChannel = replyChannel
 
-type Run<'TRange,'t when 'TRange :> Brahma.OpenCL.INDRangeDimension>(kernel:GpuKernel<'TRange,'t>, ?replyChannel:AsyncReplyChannel<bool>) =
+type Run<'TRange,'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension>(kernel:GpuKernel<'TRange,'a, 't>, ?replyChannel:AsyncReplyChannel<bool>) =
     member this.Kernel = kernel
     member this.ReplyChannel = replyChannel
 
@@ -147,7 +149,7 @@ type RunCrate =
     abstract member Apply<'ret> : RunCrateEvaluator<'ret> -> 'ret
 
 and RunCrateEvaluator<'ret> =
-    abstract member Eval<'TRange,'t when 'TRange :> Brahma.OpenCL.INDRangeDimension> : Run<'TRange, 't> -> 'ret
+    abstract member Eval<'TRange, 'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension> : Run<'TRange, 'a, 't> -> 'ret
 
 type ToHostCrate =
     abstract member Apply<'ret> : ToHostCrateEvaluator<'ret> -> 'ret
@@ -200,7 +202,7 @@ type GPU(device: Device) =
     member this.ClContext = clContext
 
     member this.CreateKernel (srcLambda) =
-        new GpuKernel<_,_>(device, clContext, srcLambda)
+        new GpuKernel<_,_,_>(device, clContext, srcLambda)
 
     member this.Allocate<'t> (length:int) =
         printfn "Allocation"
@@ -258,7 +260,7 @@ type GPU(device: Device) =
                 {
                     new RunCrateEvaluator<int>
                     with member __.Eval (a) =
-                            let runKernel (kernel:GpuKernel<'TRange,'t>) =
+                            let runKernel (kernel:GpuKernel<'TRange,'a, 't>) =
                                 let range = kernel.Range
                                 let workDim = uint32 range.Dimensions
                                 let eventID = ref Unchecked.defaultof<Event>
@@ -325,13 +327,10 @@ type Host() =
 
         let kernel = gpu.CreateKernel(kernelFun)
 
-        printfn "Kernel: %A" kernel
-        printfn "Kernel.SetArguments: %A" kernel.SetArguments
-
         let _1d = new _1D(a1.Length,1)
-        (kernel.SetArguments ()) _1d m1
+        kernel.SetArguments _1d m1
 
-        processor1.Post(Msg.CreateRunMsg(Run<_,_>(kernel)))
+        processor1.Post(Msg.CreateRunMsg(Run<_,_,_>(kernel)))
 
         //This code is unsafe because there is no synchronization between processors
         //It is just to show that we can share buffers between queues on the same device
