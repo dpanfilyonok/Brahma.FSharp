@@ -86,12 +86,24 @@ type GpuKernel<'TRange, 'a when 'TRange :> Brahma.OpenCL.INDRangeDimension>(devi
         then raise (new CLException(error))
 
     let range = ref Unchecked.defaultof<'TRange>
-    let argsSetupFunction =
+    let argsSetupFunction = ()
+
+    member this.SetArguments<'t> () =
         let args = ref [||]
         let getStarterFunction qExpr =
             let rec go expr vars =
                 match expr with
                 | Patterns.Lambda (v, body) ->
+                    printfn "Type: %A" v.Type.IsArray
+                    let v =
+                        if v.Type.IsArray
+                        then
+                            printfn "Type is = %A" v.Type
+                            printfn "Type params = %A" (v.Type.GetElementType())
+                            let vName = v.Name
+                            let vType = typedefof<GpuArray<_>>.MakeGenericType(v.Type.GetElementType())
+                            Var(vName, vType, false)
+                        else v
                     Expr.Lambda(v, go body (v::vars))
                 | e ->
                     let arr =
@@ -107,11 +119,13 @@ type GpuKernel<'TRange, 'a when 'TRange :> Brahma.OpenCL.INDRangeDimension>(devi
                             !args |> Array.iteri (fun i x -> setupArgument i x)
                         @@>
                     arr
-            let res = <@ %%(go qExpr []):'TRange ->'a @>.Compile()
+            let res =
+                let e:(Expr<'TRange -> 't>) = Expr.Cast (go qExpr [])
+                <@ %e @>.Compile()
 
             res
         getStarterFunction srcLambda
-    member this.SetArguments = argsSetupFunction
+
     member this.ClKernel = kernel
     member this.Range = !range :> Brahma.OpenCL.INDRangeDimension
 
@@ -290,7 +304,7 @@ type GPU(device: Device) =
 
 type Host() =
 
-    let kernelFun = <@fun (range:_1D) (buf:array<_>) -> buf.[0] <- 1L@>
+    let kernelFun = <@fun (range:_1D) (buf:array<_>) -> buf.[0] <- buf.[0] * 2@>
 
     member this.Do () =
         let devices = Device.getDevices "*" DeviceType.Gpu
@@ -313,6 +327,11 @@ type Host() =
 
         printfn "Kernel: %A" kernel
         printfn "Kernel.SetArguments: %A" kernel.SetArguments
+
+        let _1d = new _1D(a1.Length,1)
+        (kernel.SetArguments ()) _1d m1
+
+        processor1.Post(Msg.CreateRunMsg(Run<_,_>(kernel)))
 
         //This code is unsafe because there is no synchronization between processors
         //It is just to show that we can share buffers between queues on the same device
