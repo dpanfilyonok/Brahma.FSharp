@@ -306,7 +306,10 @@ type GPU(device: Device) =
 
 type Host() =
 
-    let kernelFun = <@fun (range:_1D) (buf:array<_>) -> buf.[0] <- buf.[0] * 2@>
+    let kernelFun =
+        <@ fun (range:_1D) (buf:array<_>) n ->
+            let i = range.GlobalID0
+            buf.[i] <- buf.[i] * n @>
 
     member this.Do () =
         let devices = Device.getDevices "*" DeviceType.Gpu
@@ -328,7 +331,7 @@ type Host() =
         let kernel = gpu.CreateKernel(kernelFun)
 
         let _1d = new _1D(a1.Length,1)
-        kernel.SetArguments _1d m1
+        kernel.SetArguments _1d m1 6
 
         processor1.Post(Msg.CreateRunMsg(Run<_,_,_>(kernel)))
 
