@@ -304,6 +304,17 @@ type GPU(device: Device) =
             }
         loop 0)
 
+module Lib =
+    let getNewVectorVectorElementwiseOp<'t1,'t2,'t3> (gpu:GPU) op =
+        let kernelFun =
+            <@ fun (range:_1D) (a1:array<'t1>) (a2:array<'t2>) (res:array<'t3>) ->
+                let i = range.GlobalID0
+                res.[i] <- (%op) a1.[i] a2.[i] @>
+        let kernel = gpu.CreateKernel(kernelFun)
+        fun (processor:MailboxProcessor<_>) rng (a1:GpuArray<'t1>) (a2:GpuArray<'t2>) (res:GpuArray<'t3>) ->
+            kernel.SetArguments rng a1 a2 res
+            processor.Post(Msg.CreateRunMsg(Run<_,_,_>(kernel)))
+
 type Host() =
 
     let kernelFun =
@@ -322,23 +333,36 @@ type Host() =
         let res1 = Array.zeroCreate 10
         let res2 = Array.zeroCreate 20
 
-        let m1 = gpu.Allocate<_>(a1.Length)
-        let m2 = gpu.Allocate<_>(a2.Length)
+        let n1 = gpu.Allocate<_>(a1.Length)
+        let n2 = gpu.Allocate<_>(a1.Length)
+        let nRes = gpu.Allocate<_>(a1.Length)
 
-        processor1.Post(Msg.CreateToGPUMsg(ToGPU<_>(a1, m1)))
+        let m1 = gpu.Allocate<_>(a2.Length)
+        let m2 = gpu.Allocate<_>(a2.Length)
+        let mRes = gpu.Allocate<_>(a2.Length)
+
+        processor1.Post(Msg.CreateToGPUMsg(ToGPU<_>(a1, n1)))
+        processor1.Post(Msg.CreateToGPUMsg(ToGPU<_>(a1, n2)))
+
+        processor2.Post(Msg.CreateToGPUMsg(ToGPU<_>(a2, m1)))
         processor2.Post(Msg.CreateToGPUMsg(ToGPU<_>(a2, m2)))
 
-        let kernel = gpu.CreateKernel(kernelFun)
+        let vAdd = Lib.getNewVectorVectorElementwiseOp<_,_,_> gpu <@ (+) @>
+        let vMult = Lib.getNewVectorVectorElementwiseOp<_,_,_> gpu <@ (*) @>
 
-        let _1d = new _1D(a1.Length,1)
-        kernel.SetArguments _1d m1 6
+        let _1d1 = new _1D(a1.Length,1)
+        let _1d2 = new _1D(a2.Length,1)
 
-        processor1.Post(Msg.CreateRunMsg(Run<_,_,_>(kernel)))
+        let r1 = vAdd processor2 _1d1 n1 n2 nRes
+        let r2 = vMult processor1 _1d2 m1 m2 mRes
+        //kernel.SetArguments _1d m1 6
+
+        //processor1.Post(Msg.CreateRunMsg(Run<_,_,_>(kernel)))
 
         //This code is unsafe because there is no synchronization between processors
         //It is just to show that we can share buffers between queues on the same device
-        let res1 = processor2.PostAndReply(fun ch -> Msg.CreateToHostMsg(ToHost<_>(m1, res1, ch)))
-        let res2 = processor1.PostAndReply(fun ch -> Msg.CreateToHostMsg(ToHost<_>(m2, res2, ch)))
+        let res1 = processor2.PostAndReply(fun ch -> Msg.CreateToHostMsg(ToHost<_>(nRes, res1, ch)))
+        let res2 = processor1.PostAndReply(fun ch -> Msg.CreateToHostMsg(ToHost<_>(mRes, res2, ch)))
 
         let result =
             res1,res2
