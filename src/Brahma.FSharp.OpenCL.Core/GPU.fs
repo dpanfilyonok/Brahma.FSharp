@@ -163,10 +163,26 @@ type ToGPUCrate =
 and ToGPUCrateEvaluator<'ret> =
     abstract member Eval<'a> : ToGPU<'a> -> 'ret
 
+type SyncObject (numToWait) =
+    let mutable canContinue = false
+
+    let mutable counter = 0
+
+    member this.ImReady () =
+        lock this (fun () ->
+                       printfn "%A %A" counter numToWait
+                       counter <- counter + 1
+                       if counter = numToWait
+                       then canContinue <- true)
+
+    member this.CanContinue () = canContinue
+
 type Msg =
     | MsgToHost of ToHostCrate
     | MsgToGPU of ToGPUCrate
     | MsgRun of RunCrate
+    | MsgWaitFor of AsyncReplyChannel<unit>
+    | MsgBarrier of SyncObject
 
     static member CreateToHostMsg m =
         {
@@ -188,6 +204,10 @@ type Msg =
                 member __.Apply e = e.Eval m
         }
         |> MsgRun
+
+    static member CreateBarrierMessages numOfQueuesOnBarrier =
+        let s = new SyncObject(numOfQueuesOnBarrier)
+        Array.init numOfQueuesOnBarrier (fun i -> MsgBarrier s)
 type GPU(device: Device) =
 
     let clContext =
@@ -300,11 +320,55 @@ type GPU(device: Device) =
                 printfn "Run"
                 this.HandleRun(commandQueue, a) |> ignore
 
+            | MsgWaitFor ch ->
+                printfn "WaitFor"
+                OpenCL.Net.Cl.Finish(commandQueue.Queue)
+                ch.Reply ()
+
+            | MsgBarrier o ->
+                printfn "Barrier"
+                OpenCL.Net.Cl.Finish(commandQueue.Queue)
+                o.ImReady()
+                while not <| o.CanContinue() do ()
+
             return! loop 0
             }
         loop 0)
 
 module Lib =
+
+    let getNewMAddM<'t> (gpu: GPU) op =
+        let kernelFun =
+            <@
+                fun (r:_2D) mSize (a:array<'t>) (b:array<'t>) (c:array<'t>) ->
+                    let tx = r.GlobalID0
+                    let ty = r.GlobalID1
+                    c.[ty * mSize + tx] <- (%op) a.[ty * mSize + tx] b.[ty * mSize + tx]
+            @>
+
+        let kernel = gpu.CreateKernel(kernelFun)
+        fun (processor:MailboxProcessor<_>) rng mSize (a:GpuArray<'t>) (b:GpuArray<'t>) (res:GpuArray<'t>) ->
+            kernel.SetArguments rng mSize a b res
+            processor.Post(Msg.CreateRunMsg(Run<_,_,_>(kernel)))
+
+    let getNewMxMAdd<'t1,'t2,'t3> (gpu: GPU) opAdd opMult =
+        let kernelFun =
+            <@
+                fun (r:_2D) mSize (a:array<'t1>) (b:array<'t2>) (c:array<'t3>) ->
+                    let tx = r.GlobalID0
+                    let ty = r.GlobalID1
+                    let mutable buf = c.[ty * mSize + tx]
+                    for k in 0 .. mSize - 1 do
+                        buf <- (%opAdd) buf  ((%opMult) a.[ty * mSize + k]  b.[k * mSize + tx])
+                    c.[ty * mSize + tx] <- buf
+            @>
+
+        let kernel = gpu.CreateKernel(kernelFun)
+
+        fun (processor:MailboxProcessor<_>) rng mSize (a:GpuArray<'t1>) (b:GpuArray<'t2>) (res:GpuArray<'t3>) ->
+            kernel.SetArguments rng mSize a b res
+            processor.Post(Msg.CreateRunMsg(Run<_,_,_>(kernel)))
+
     let getNewVectorVectorElementwiseOp<'t1,'t2,'t3> (gpu:GPU) op =
         let kernelFun =
             <@ fun (range:_1D) (a1:array<'t1>) (a2:array<'t2>) (res:array<'t3>) ->
@@ -322,7 +386,65 @@ type Host() =
             let i = range.GlobalID0
             buf.[i] <- buf.[i] * n @>
 
-    member this.Do () =
+    let mxmQuadro () =
+
+        let devices = Device.getDevices "*NVIDIA*" DeviceType.Gpu
+        printfn "Device: %A" devices.[0]
+        let gpu = GPU(devices.[0])
+        let processors = Array.init 4 (fun _ -> gpu.GetNewProcessor ())
+
+        let mSize = 3 * 1024
+        let size = mSize * mSize
+        let localWorkSize = 32
+        let d = (new _2D(mSize, mSize, localWorkSize, localWorkSize))
+
+        let aBlocks = Array.init 4 (fun _ -> Array.init size (fun _ -> 1))
+        let bBlocks = Array.init 4 (fun _ -> Array.init size (fun _ -> 2))
+        let resBlocks = Array.init 4 (fun _ -> Array.zeroCreate size)
+
+        let _aBlocks = Array.init 4 (fun _ -> gpu.Allocate<_>(size))
+        let _bBlocks = Array.init 4 (fun _ -> gpu.Allocate<_>(size))
+        //let _res1Blocks = Array.init 4 (fun _ ->  gpu.Allocate<_>(size))
+        let _resBlocks = Array.init 4 (fun _ ->  gpu.Allocate<_>(size))
+
+        let mxm = Array.init 4 (fun _ -> Lib.getNewMxMAdd<_,_,_> gpu <@ (+) @> <@ (*) @>)
+        let mam = Array.init 4 (fun _ -> Lib.getNewMAddM<   int> gpu <@ (+) @>)
+
+        let barrier1 = Msg.CreateBarrierMessages 4
+
+        processors
+        |> Array.iteri (fun i p ->
+            p.Post(Msg.CreateToGPUMsg(ToGPU<_>(aBlocks.[i], _aBlocks.[i])))
+            p.Post(Msg.CreateToGPUMsg(ToGPU<_>(bBlocks.[i], _bBlocks.[i])))
+            p.Post(Msg.CreateToGPUMsg(ToGPU<_>(resBlocks.[i], _resBlocks.[i])))
+            p.Post(barrier1.[i])
+            )
+
+        for i in 0..1 do
+            for j in 0..1 do
+                for k in 0..1 do
+                    let mxm = mxm.[i * 2 + j]
+                    let mam = mam.[i * 2 + j]
+                    mxm processors.[i * 2 + j] d mSize _aBlocks.[i * 2 + k] _bBlocks.[k * 2 + j] _resBlocks.[i * 2 + j]
+                    //mam processors.[i * 2 + j] d mSize _res1Blocks.[i * 2 + j] _res2Blocks.[i * 2 + j] _res2Blocks.[i * 2 + j]
+
+        let barrier2 = Msg.CreateBarrierMessages 4
+        Array.iteri2
+            (fun i (p:MailboxProcessor<_>) b ->
+                p.Post(b)
+            )
+            processors
+            barrier2
+
+        processors
+        |> Array.mapi (fun i p -> p.PostAndReply(fun ch -> Msg.CreateToHostMsg(ToHost<_>(_resBlocks.[i], resBlocks.[i], ch))))
+
+        resBlocks
+        |> Array.iter (fun x -> printfn "%A" x)
+
+
+
+    let f1 () =
         let devices = Device.getDevices "*" DeviceType.Gpu
         printfn "Device: %A" devices.[0]
         let gpu = GPU(devices.[0])
@@ -368,3 +490,8 @@ type Host() =
             res1,res2
 
         result
+
+
+    member this.Do () =
+           mxmQuadro ()
+           [||],[||]
