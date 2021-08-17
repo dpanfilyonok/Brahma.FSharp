@@ -188,21 +188,21 @@ type Msg =
     static member CreateToHostMsg m =
         {
             new ToHostCrate with
-                member __.Apply e = e.Eval m
+                member this.Apply e = e.Eval m
         }
         |> MsgToHost
 
     static member CreateToGPUMsg m =
         {
             new ToGPUCrate with
-                member __.Apply e = e.Eval m
+                member this.Apply e = e.Eval m
         }
         |> MsgToGPU
 
     static member CreateRunMsg m =
         {
             new RunCrate with
-                member __.Apply e = e.Eval m
+                member this.Apply e = e.Eval m
         }
         |> MsgRun
 
@@ -245,7 +245,7 @@ type GPU(device: Device) =
         toGpu.Apply
                 {
                     new ToGPUCrateEvaluator<int>
-                    with member __.Eval (a) =
+                    with member this.Eval (a) =
                             let write (src:array<'t>) (dst:GpuArray<'t>) =
                                 let eventID = ref Unchecked.defaultof<Event>
 
@@ -264,7 +264,7 @@ type GPU(device: Device) =
         toHost.Apply
                 {
                     new ToHostCrateEvaluator<int>
-                    with member __.Eval (a) =
+                    with member this.Eval (a) =
                             let read (src:GpuArray<'t>) (dst:array<'t>)=
                                 let eventID = ref Unchecked.defaultof<Event>
                                 let mem = src.Buffer.Mem
@@ -288,7 +288,7 @@ type GPU(device: Device) =
         run.Apply
                 {
                     new RunCrateEvaluator<int>
-                    with member __.Eval (a) =
+                    with member this.Eval (a) =
                             let runKernel (kernel:GpuKernel<'TRange,'a, 't>) =
                                 let range = kernel.Range
                                 let workDim = uint32 range.Dimensions
@@ -413,7 +413,6 @@ type Host() =
 
         let _aBlocks = Array.init 4 (fun _ -> gpu.Allocate<_>(size))
         let _bBlocks = Array.init 4 (fun _ -> gpu.Allocate<_>(size))
-        //let _res1Blocks = Array.init 4 (fun _ ->  gpu.Allocate<_>(size))
         let _resBlocks = Array.init 4 (fun _ ->  gpu.Allocate<_>(size))
 
         let mxm = Array.init 4 (fun _ -> Lib.getNewMxMAdd<_,_,_> gpu <@ (+) @> <@ (*) @>)
@@ -435,7 +434,6 @@ type Host() =
                     let mxm = mxm.[i * 2 + j]
                     let mam = mam.[i * 2 + j]
                     mxm processors.[i * 2 + j] d mSize _aBlocks.[i * 2 + k] _bBlocks.[k * 2 + j] _resBlocks.[i * 2 + j]
-                    //mam processors.[i * 2 + j] d mSize _res1Blocks.[i * 2 + j] _res2Blocks.[i * 2 + j] _res2Blocks.[i * 2 + j]
 
         let barrier2 = Msg.CreateBarrierMessages 4
         Array.iteri2
