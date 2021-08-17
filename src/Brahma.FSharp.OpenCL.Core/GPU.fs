@@ -141,7 +141,8 @@ type ToGPU<'t>(src:array<'t>, dst: GpuArray<'t>, ?replyChannel:AsyncReplyChannel
     member this.Source = src
     member this.ReplyChannel = replyChannel
 
-type Run<'TRange,'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension>(kernel:GpuKernel<'TRange,'a, 't>, ?replyChannel:AsyncReplyChannel<bool>) =
+type Run<'TRange,'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension>
+        (kernel:GpuKernel<'TRange,'a, 't>, ?replyChannel:AsyncReplyChannel<bool>) =
     member this.Kernel = kernel
     member this.ReplyChannel = replyChannel
 
@@ -250,9 +251,8 @@ type GPU(device: Device) =
 
                                 let mem = dst.Buffer.Mem
                                 let elementSize = dst.Buffer.ElementSize
-                                let error = Cl.EnqueueWriteBuffer(queue, mem,
-                                            Bool.False, System.IntPtr(0),
-                                            System.IntPtr(dst.Length * elementSize), src, 0u, null, eventID);
+                                let error = Cl.EnqueueWriteBuffer(queue, mem, Bool.False, System.IntPtr(0),
+                                                                  System.IntPtr(dst.Length * elementSize), src, 0u, null, eventID);
 
                                 if error <> ErrorCode.Success
                                 then raise (Cl.Exception error)
@@ -269,9 +269,8 @@ type GPU(device: Device) =
                                 let eventID = ref Unchecked.defaultof<Event>
                                 let mem = src.Buffer.Mem
                                 let elementSize = src.Buffer.ElementSize
-                                let error = Cl.EnqueueReadBuffer(queue, mem,
-                                            Bool.False, System.IntPtr(0),
-                                            System.IntPtr(src.Length * elementSize), dst, 0u, null, eventID)
+                                let error = Cl.EnqueueReadBuffer(queue, mem, Bool.False, System.IntPtr(0),
+                                                                 System.IntPtr(src.Length * elementSize), dst, 0u, null, eventID)
 
                                 if error <> ErrorCode.Success
                                 then raise (Cl.Exception(error))
