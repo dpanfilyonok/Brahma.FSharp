@@ -181,7 +181,7 @@ type Msg =
     | MsgToHost of ToHostCrate
     | MsgToGPU of ToGPUCrate
     | MsgRun of RunCrate
-    | MsgWaitFor of AsyncReplyChannel<unit>
+    | MsgNotifyMe of AsyncReplyChannel<unit>
     | MsgBarrier of SyncObject
 
     static member CreateToHostMsg m =
@@ -217,6 +217,16 @@ type GPU(device: Device) =
         then raise (new Cl.Exception(!error))
         ctx
 
+    let createNewCommandQueue() =
+        let error = ref Unchecked.defaultof<ErrorCode>
+        let props = CommandQueueProperties.None
+        let queue = Cl.CreateCommandQueue (clContext, device, props, error)
+
+        if !error <> ErrorCode.Success
+        then raise <| Cl.Exception(!error)
+
+        queue
+
     member this.ClDevice = device
 
     member this.ClContext = clContext
@@ -230,7 +240,7 @@ type GPU(device: Device) =
         let res = new GpuArray<'t>(buf,length)
         res
 
-    member private this.HandleToGPU (queue:Brahma.OpenCL.CommandQueue, toGpu:ToGPUCrate) =
+    member private this.HandleToGPU (queue, toGpu:ToGPUCrate) =
         toGpu.Apply
                 {
                     new ToGPUCrateEvaluator<int>
@@ -240,7 +250,7 @@ type GPU(device: Device) =
 
                                 let mem = dst.Buffer.Mem
                                 let elementSize = dst.Buffer.ElementSize
-                                let error = Cl.EnqueueWriteBuffer(queue.Queue, mem,
+                                let error = Cl.EnqueueWriteBuffer(queue, mem,
                                             Bool.False, System.IntPtr(0),
                                             System.IntPtr(dst.Length * elementSize), src, 0u, null, eventID);
 
@@ -250,7 +260,7 @@ type GPU(device: Device) =
                             write a.Source a.Destination
                             0
                 }
-    member private this.HandleToHost (queue:Brahma.OpenCL.CommandQueue, toHost:ToHostCrate) =
+    member private this.HandleToHost (queue, toHost:ToHostCrate) =
         toHost.Apply
                 {
                     new ToHostCrateEvaluator<int>
@@ -259,7 +269,7 @@ type GPU(device: Device) =
                                 let eventID = ref Unchecked.defaultof<Event>
                                 let mem = src.Buffer.Mem
                                 let elementSize = src.Buffer.ElementSize
-                                let error = Cl.EnqueueReadBuffer(queue.Queue, mem,
+                                let error = Cl.EnqueueReadBuffer(queue, mem,
                                             Bool.False, System.IntPtr(0),
                                             System.IntPtr(src.Length * elementSize), dst, 0u, null, eventID)
 
@@ -270,12 +280,12 @@ type GPU(device: Device) =
                             match a.ReplyChannel with
                             | None -> ()
                             | Some ch ->
-                                OpenCL.Net.Cl.Finish(queue.Queue)
+                                OpenCL.Net.Cl.Finish(queue)
                                 ch.Reply res
                             0
                 }
 
-    member private this.HandleRun (queue:Brahma.OpenCL.CommandQueue, run:RunCrate) =
+    member private this.HandleRun (queue, run:RunCrate) =
         run.Apply
                 {
                     new RunCrateEvaluator<int>
@@ -285,7 +295,7 @@ type GPU(device: Device) =
                                 let workDim = uint32 range.Dimensions
                                 let eventID = ref Unchecked.defaultof<Event>
                                 let error =
-                                    Cl.EnqueueNDRangeKernel(queue.Queue, kernel.ClKernel, workDim, null,
+                                    Cl.EnqueueNDRangeKernel(queue, kernel.ClKernel, workDim, null,
                                                             range.GlobalWorkSize, range.LocalWorkSize, 0u, null, eventID)
                                 if error <> ErrorCode.Success
                                 then raise (Cl.Exception error)
@@ -295,14 +305,14 @@ type GPU(device: Device) =
                             match a.ReplyChannel with
                             | None -> ()
                             | Some ch ->
-                                OpenCL.Net.Cl.Finish(queue.Queue)
+                                OpenCL.Net.Cl.Finish(queue)
                                 ch.Reply true
                             0
                 }
 
     member this.GetNewProcessor () = MailboxProcessor.Start(fun inbox ->
 
-        let commandQueue = new Brahma.OpenCL.CommandQueue(clContext, device)
+        let commandQueue = createNewCommandQueue()
 
         printfn "MB is started"
         let rec loop i = async {
@@ -320,14 +330,14 @@ type GPU(device: Device) =
                 printfn "Run"
                 this.HandleRun(commandQueue, a) |> ignore
 
-            | MsgWaitFor ch ->
-                printfn "WaitFor"
-                OpenCL.Net.Cl.Finish(commandQueue.Queue)
+            | MsgNotifyMe ch ->
+                printfn "NotifyMe"
+                OpenCL.Net.Cl.Finish(commandQueue)
                 ch.Reply ()
 
             | MsgBarrier o ->
                 printfn "Barrier"
-                OpenCL.Net.Cl.Finish(commandQueue.Queue)
+                OpenCL.Net.Cl.Finish(commandQueue)
                 o.ImReady()
                 while not <| o.CanContinue() do ()
 
