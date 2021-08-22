@@ -1,5 +1,11 @@
 open Expecto
 
+open FSharp.Quotations.Evaluator
+open Microsoft.FSharp.Quotations
+open Brahma.OpenCL
+open Brahma.FSharp.OpenCL.WorkflowBuilder
+open Brahma.FSharp.Tests
+
 [<Tests>]
 let allTests =
     testList "All tests" [
@@ -14,5 +20,7 @@ let allTests =
 
 [<EntryPoint>]
 let main argv =
+    printfn "%O\n" Utils.context
+
     allTests
     |> runTestsWithCLIArgs [] argv

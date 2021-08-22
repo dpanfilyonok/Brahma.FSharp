@@ -1,4 +1,4 @@
-version 5.245.1
+//version 5.245.1
 source https://www.nuget.org/api/v2
 source https://api.nuget.org/v3/index.json
 storage: none
@@ -54,7 +54,7 @@ group Docs
     nuget Dotnet.ProjInfo.Workspace.FCS
     nuget FSharp.Compiler.Service 34.1.1
 
-group Analyzers
-  source https://www.nuget.org/api/v2
-  source https://api.nuget.org/v3/index.json
-  nuget BinaryDefense.FSharp.Analyzers.Hashing 0.1.0
+//group Analyzers
+//  source https://www.nuget.org/api/v2
+//  source https://api.nuget.org/v3/index.json
+//  nuget BinaryDefense.FSharp.Analyzers.Hashing 0.1.0

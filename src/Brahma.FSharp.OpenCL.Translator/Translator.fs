@@ -26,13 +26,12 @@ type FSQuotationToOpenCLTranslator() =
     let mainKernelName = "brahmaKernel"
 
     let collectData (expr: Expr) (functions: (Var * Expr) list) =
-        // глобальные переменные
+        // global var names
         let kernelArgumentsNames =
             expr
             |> Utils.collectLambdaArguments
             |> List.map (fun var -> var.Name)
 
-        // локальные переменные
         let localVarsNames =
             expr
             |> Utils.collectLocalVars

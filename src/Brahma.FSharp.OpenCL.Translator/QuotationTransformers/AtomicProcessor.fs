@@ -3,6 +3,7 @@ namespace Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 open FSharp.Quotations
 open Brahma.FSharp.OpenCL.Translator
 open FSharp.Core.LanguagePrimitives
+open FSharp.Quotations.Evaluator
 
 type Mutex = int
 
@@ -160,6 +161,58 @@ module AtomicProcessor =
                     | DerivedPatterns.SpecificCall <@ dec @> (_, onType :: _, _) ->
                         failwithf "Atomic inc for %O is not suppotred" onType
 
+                    // | DerivedPatterns.SpecificCall <@ inc @> (_, onType :: _, [Patterns.Var p]) ->
+                    //     Expr.Call(
+                    //         (Utils.getMethodInfoOfLambda <@ (+) @>)
+                    //             .GetGenericMethodDefinition()
+                    //             .MakeGenericMethod(onType, onType, onType),
+
+                    //         [
+                    //             Expr.Var p;
+                    //             Expr.Call(
+                    //                 (Utils.getMethodInfoOfLambda <@ unbox<int> @>)
+                    //                     .GetGenericMethodDefinition()
+                    //                     .MakeGenericMethod(onType),
+
+                    //                 Expr.Value(
+                    //                     Expr.Call(
+                    //                         (Utils.getMethodInfoOfCall <@ GenericOne<int> @>)
+                    //                             .GetGenericMethodDefinition()
+                    //                             .MakeGenericMethod(onType),
+                    //                         List.empty
+                    //                     ).EvaluateUntyped()
+                    //                 )
+                    //                 |> List.singleton
+                    //             )
+                    //         ]
+                    //     )
+
+                    // | DerivedPatterns.SpecificCall <@ dec @> (_, onType :: _, [Patterns.Var p]) ->
+                    //     Expr.Call(
+                    //         (Utils.getMethodInfoOfCall <@ (-) @>)
+                    //             .GetGenericMethodDefinition()
+                    //             .MakeGenericMethod(onType, onType, onType),
+
+                    //         [
+                    //             Expr.Var p;
+                    //             Expr.Call(
+                    //                 (Utils.getMethodInfoOfCall <@ unbox<int> @>)
+                    //                     .GetGenericMethodDefinition()
+                    //                     .MakeGenericMethod(onType),
+
+                    //                 Expr.Value(
+                    //                     Expr.Call(
+                    //                         (Utils.getMethodInfoOfCall <@ GenericOne<int> @>)
+                    //                             .GetGenericMethodDefinition()
+                    //                             .MakeGenericMethod(onType),
+                    //                         List.empty
+                    //                     ).EvaluateUntyped()
+                    //                 )
+                    //                 |> List.singleton
+                    //             )
+                    //         ]
+                    //     )
+
                     | DerivedPatterns.SpecificCall <@ xchg @> (_, _, [Patterns.Var p; Patterns.Var value]) ->
                         Expr.Var value
 
@@ -252,6 +305,7 @@ module AtomicProcessor =
                                         )
                                         atomicXchg %%mutex 0 |> ignore
                                         flag <- false
+                                    barrier ()
                                 barrier ()
                             @@>,
                             Expr.Var oldValueVar
@@ -313,18 +367,19 @@ module AtomicProcessor =
             let rec go expr =
                 match expr with
                 | Patterns.Let (var, (DerivedPatterns.SpecificCall <@ local @> (_, _, args) as letExpr), inExpr) ->
-                    Expr.Let(
-                        var,
-                        letExpr,
-                        match pointerVarToMutexVarMap |> Map.tryFind var with
-                        | Some mutexVar ->
-                            Expr.Let(
-                                mutexVar,
-                                Expr.Call(Utils.getMethodInfoOfLambda <@ local<int> @>, args),
-                                inExpr
-                            )
-                        | None -> inExpr
-                    )
+                    failwith "Atomic local non-array variables is not supported yet"
+                    // Expr.Let(
+                    //     var,
+                    //     letExpr,
+                    //     match pointerVarToMutexVarMap |> Map.tryFind var with
+                    //     | Some mutexVar ->
+                    //         Expr.Let(
+                    //             mutexVar,
+                    //             Expr.Call(Utils.getMethodInfoOfLambda <@ local<int> @>, args),
+                    //             inExpr
+                    //         )
+                    //     | None -> inExpr
+                    // )
                 | Patterns.Let (var, (DerivedPatterns.SpecificCall <@ localArray @> (_, _, args) as letExpr), inExpr) ->
                     Expr.Let(
                         var,
@@ -334,7 +389,29 @@ module AtomicProcessor =
                             Expr.Let(
                                 mutexVar,
                                 Expr.Call(Utils.getMethodInfoOfLambda <@ localArray<int> @>, args),
-                                inExpr
+                                Expr.Sequential(
+                                    <@@
+                                        if Anchors._localID0 = 0 then
+                                            %%(
+                                                let i = Var("i", typeof<int>, true)
+                                                Expr.ForIntegerRangeLoop(
+                                                    i,
+                                                    Expr.Value 0,
+                                                    <@@ (%%args.[0] : int) - 1 @@>,
+                                                    Expr.Call(
+                                                        Utils.getMethodInfoOfLambda <@ IntrinsicFunctions.SetArray<Mutex> @>,
+                                                        [
+                                                            Expr.Var mutexVar
+                                                            Expr.Var i
+                                                            Expr.Value 0
+                                                        ]
+                                                    )
+                                                )
+                                            )
+                                        barrier ()
+                                    @@>,
+                                    inExpr
+                                )
                             )
                         | None -> inExpr
                     )

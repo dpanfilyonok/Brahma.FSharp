@@ -20,9 +20,8 @@ let atomic (f: 'a -> 'b) =
     openclKeywordFail ()
     f
 
-// будет работать только для native атомиков
-let inline inc (p: 'a) = openclKeywordFail (); p + p
-let inline dec (p: 'a) = openclKeywordFail (); p - p
+let inline inc (p: 'a) = openclKeywordFail (); p + LanguagePrimitives.GenericOne<'a>
+let inline dec (p: 'a) = openclKeywordFail (); p - LanguagePrimitives.GenericOne<'a>
 
 // работает для всех типов
 let inline xchg (p: 'a) (value: 'a) = openclKeywordFail (); p
