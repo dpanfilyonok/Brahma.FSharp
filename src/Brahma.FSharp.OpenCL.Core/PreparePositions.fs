@@ -43,6 +43,6 @@ module internal PreparePositions =
             let rawPositionsGpu = gpu.Allocate<_>(length)
             processor.Post(Msg.CreateToGPUMsg<_>(rawPositions, rawPositionsGpu))
 
-            kernel.SetArguments ndRange length allRows allColumns allValues rawPositionsGpu
+            processor.Post(Msg.MsgSetArguments(fun () -> kernel.SetArguments ndRange length allRows allColumns allValues rawPositionsGpu))
             processor.Post(Msg.CreateRunMsg(Run<_,_,_>(kernel)))
             rawPositionsGpu

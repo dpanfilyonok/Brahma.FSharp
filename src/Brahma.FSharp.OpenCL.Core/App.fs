@@ -4,6 +4,7 @@ open OpenCL.Net
 open Brahma.OpenCL
 open GraphBLAS.FSharp.Backend.COOMatrix.Utilities
 open GraphBLAS.FSharp.Backend.COOMatrix
+open System.IO
 
 module Lib =
 
@@ -187,8 +188,8 @@ type Host() =
         let cols2 = Array.init 1000 (fun i -> i)
         let rows1 = Array.init 1000 (fun i -> i)
         let rows2 = Array.init 1000 (fun i -> i)
-        let values1 = Array.init 1000 (fun i -> 1)
-        let values2 = Array.init 1000 (fun i -> 1)
+        let values1 = Array.init 1000 (fun i -> 1.0)
+        let values2 = Array.init 1000 (fun i -> 1.0)
 
         let mtx1 =
             {
@@ -213,12 +214,88 @@ type Host() =
         printfn "Sum: %A" resMtx.Values
 
 
-    member this.Do () =
+    let readMatrix (pathToFile:string) =
+        use streamReader = new StreamReader(pathToFile)
+        while streamReader.Peek() = int '%' do
+            streamReader.ReadLine() |> ignore
 
-        let devices = Device.getDevices "*" DeviceType.Gpu
+        let matrixFromCoordinateFormat () =
+            let size =
+                streamReader.ReadLine().Split(' ')
+                |> Array.map int
+
+            let n = size.[0]
+            let m = size.[1]
+            let nnz = size.[2]
+
+            let pack x y = (uint64 x <<< 32) ||| (uint64 y)
+            let unpack x = int ((x &&& 0xFFFFFFFF0000000UL) >>> 32), int (x &&& 0xFFFFFFFUL)
+
+            let sortedData =
+                [0 .. nnz - 1]
+                |> List.map (fun _ -> streamReader.ReadLine().Split(' '))
+                |> Array.ofList
+                |> Array.Parallel.map
+                    (fun line ->
+                        let i = int line.[0]
+                        let j = int line.[1]
+                        let v = float line.[2]
+                        struct(pack i j, v)
+                    )
+                |> Array.sortBy (fun struct(packedIndex, _) -> packedIndex)
+
+            let rows = Array.zeroCreate sortedData.Length
+            let cols = Array.zeroCreate sortedData.Length
+            let values = Array.zeroCreate sortedData.Length
+
+            Array.Parallel.iteri (fun i struct(packedIndex, value) ->
+                let (rowIdx, columnIdx) = unpack packedIndex
+                // in mtx indecies start at 1
+                rows.[i] <- rowIdx - 1
+                cols.[i] <- columnIdx - 1
+                values.[i] <- value
+            ) sortedData
+
+            {
+                Rows = rows
+                Columns = cols
+                Values = values
+                RowCount = n
+                ColumnCount = m
+            }
+        matrixFromCoordinateFormat()
+
+    let m_m_add_bench (gpu:GPU) pathToFile1 pathToFile2 =
+
+        //let processor = gpu.GetNewProcessor ()
+
+        //let pathToFile = "Data/arc130.mtx"
+
+        let mtx1 = readMatrix pathToFile1
+
+        let mtx2 = readMatrix pathToFile2
+        let sw = System.Diagnostics.Stopwatch()
+
+        sw.Start()
+
+
+        //let resMtx =
+        for i in 0..9 do
+            printfn "i = %A" i
+            EWiseAdd.run gpu mtx1 mtx2 <@ (+) @>
+
+        sw.Stop()
+
+        printfn "Elapsed: %A" (sw.ElapsedMilliseconds)
+        //printfn "Sum: %A" resMtx.Values
+
+
+    member this.Do (argv:array<string>) =
+        printfn "args = %A" argv
+        let devices = Device.getDevices argv.[0] DeviceType.Gpu
         printfn "Device: %A" devices.[0]
         let gpu = GPU(devices.[0])
-        m_m_add gpu
+        m_m_add_bench gpu argv.[1] argv.[2]
 
         [||],[||]
 

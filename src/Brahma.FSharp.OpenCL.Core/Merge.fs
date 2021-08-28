@@ -98,10 +98,10 @@ module internal Merge =
                         let isValidX = boundaryX >= 0
                         let isValidY = boundaryY >= 0
 
-                        let mutable fstIdx = uint64 0
+                        let mutable fstIdx = 0UL
                         if isValidX then fstIdx <- localIndices.[boundaryX]
 
-                        let mutable sndIdx = uint64 0
+                        let mutable sndIdx = 0UL
                         if isValidY then sndIdx <- localIndices.[firstLocalLength + boundaryY]
 
                         if not isValidX || isValidY && fstIdx < sndIdx then
@@ -117,8 +117,8 @@ module internal Merge =
         let kernel = gpu.CreateKernel(merge)
 
         fun (processor:MailboxProcessor<_>)
-            (matrixLeftRows: GpuArray<'a>) (matrixLeftColumns: GpuArray<'a>) (matrixLeftValues: GpuArray<'a>)
-            (matrixRightRows: GpuArray<'a>) (matrixRightColumns: GpuArray<'a>) (matrixRightValues: GpuArray<'a>)
+            (matrixLeftRows: GpuArray<int>) (matrixLeftColumns: GpuArray<int>) (matrixLeftValues: GpuArray<'a>)
+            (matrixRightRows: GpuArray<int>) (matrixRightColumns: GpuArray<int>) (matrixRightValues: GpuArray<'a>)
             ->
 
 
@@ -133,9 +133,8 @@ module internal Merge =
 
             let ndRange = _1D(Utils.getDefaultGlobalSize sumOfSides, workGroupSize)
 
-
-
-            kernel.SetArguments
+            processor.Post(Msg.MsgSetArguments(fun () -> 
+                kernel.SetArguments
                     ndRange
                     firstSide
                     secondSide
@@ -149,7 +148,7 @@ module internal Merge =
                     allRows
                     allColumns
                     allValues
-
+            ))
             processor.Post(Msg.CreateRunMsg(Run<_,_,_>(kernel)))
 
             allRows, allColumns, allValues

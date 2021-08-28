@@ -37,7 +37,7 @@ module internal PrefixSum =
 
         fun (processor:MailboxProcessor<_>) (inputArray:GpuArray<int>) (inputArrayLength:int) (vertices:GpuArray<int>) (bunchLength: int) ->
             let ndRange = _1D(Utils.getDefaultGlobalSize inputArrayLength - bunchLength, workGroupSize)
-            kernel.SetArguments ndRange inputArrayLength bunchLength inputArray vertices
+            processor.Post(Msg.MsgSetArguments(fun () -> kernel.SetArguments ndRange inputArrayLength bunchLength inputArray vertices))
             processor.Post(Msg.CreateRunMsg(Run<_,_,_>(kernel)))
 
     let private getNewScan (gpu:GPU) =
@@ -93,7 +93,8 @@ module internal PrefixSum =
 
         fun (processor:MailboxProcessor<_>) (inputArray: GpuArray<int>) (inputArrayLength: int) (vertices: GpuArray<int>) (verticesLength: int) (totalSum: GpuArray<int>) ->
             let ndRange = _1D(Utils.getDefaultGlobalSize inputArrayLength, workGroupSize)
-            kernel.SetArguments ndRange inputArrayLength verticesLength inputArray vertices totalSum
+            processor.Post(Msg.MsgSetArguments(fun () -> 
+                kernel.SetArguments ndRange inputArrayLength verticesLength inputArray vertices totalSum))
             processor.Post(Msg.CreateRunMsg(Run<_,_,_>(kernel)))
 
     let runExcludeInplace (gpu:GPU) =
@@ -117,10 +118,12 @@ module internal PrefixSum =
                 let sndVertices = snd verticesArrays
                 scan processor fstVertices verticesLength sndVertices ((verticesLength - 1) / workGroupSize + 1) totalSum
                 update processor inputArray inputArray.Length fstVertices bunchLength
-
                 bunchLength <- bunchLength * workGroupSize
                 verticesArrays <- swap verticesArrays
                 verticesLength <- (verticesLength - 1) / workGroupSize + 1
+
+            processor.Post(Msg.CreateFreeMsg<_>(firstVertices))
+            processor.Post(Msg.CreateFreeMsg<_>(secondVertices))
 
             inputArray, totalSum
 

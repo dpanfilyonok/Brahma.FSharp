@@ -38,23 +38,20 @@ module internal SetPositions =
         let sum = PrefixSum.runExcludeInplace gpu
 
         fun (processor:MailboxProcessor<_>) (allRows: GpuArray<int>) (allColumns: GpuArray<int>) (allValues: GpuArray<'a>) (positions: GpuArray<int>) ->
-
             let prefixSumArrayLength = positions.Length
             let resultLength = Array.zeroCreate 1
             let resultLengthGpu = gpu.Allocate<_>(1)
-
             let _,r = sum processor positions resultLengthGpu
 
             let resultLength =
                 processor.PostAndReply(fun ch -> Msg.CreateToHostMsg(ToHost<_>(r, resultLength, ch)))
+                processor.Post(Msg.CreateFreeMsg<_>(r))
                 resultLength.[0]
-
             let resultRows = gpu.Allocate<int>(resultLength)
             let resultColumns = gpu.Allocate<int>(resultLength)
             let resultValues = gpu.Allocate<'a>(resultLength)
-
             let ndRange = _1D(Utils.getDefaultGlobalSize positions.Length, Utils.defaultWorkGroupSize)
-
+            processor.Post(Msg.MsgSetArguments( fun () ->    
             kernel.SetArguments
                     ndRange
                     prefixSumArrayLength
@@ -65,8 +62,7 @@ module internal SetPositions =
                     resultRows
                     resultColumns
                     resultValues
-
+            ))
             processor.Post(Msg.CreateRunMsg(Run<_,_,_>(kernel)))
-
             resultRows, resultColumns, resultValues, resultLength
 

@@ -27,6 +27,10 @@ module Device =
 type GpuArray<'t> (buffer:Brahma.OpenCL.Buffer<'t>, length) =
     member this.Buffer = buffer
     member this.Length = length
+    member this.Free() = 
+        printfn "Free: %A" this.Length
+        this.Buffer.Dispose()
+    //override this.Finalize() = this.Buffer.Dispose()
 
 type GpuKernel<'TRange, 'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension>(device, context, srcLambda: Expr<'TRange ->'a>) =
 
@@ -37,7 +41,7 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension>(
         let codeGenerator = new Translator.FSQuotationToOpenCLTranslator()
         let ast, newLambda = codeGenerator.Translate srcLambda translatorOptions
         let code = Printer.AST.Print ast
-        printfn "Code = %A" code
+        //printfn "Code = %A" code
         code
     let compileQuery translatorOptions additionalSources =
 
@@ -86,6 +90,9 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension>(
         then raise (new CLException(error))
 
     let range = ref Unchecked.defaultof<'TRange>
+
+    let usedBuffers = ref [||]
+
     member this.SetArguments =
         let args = ref [||]
         let getStarterFunction qExpr =
@@ -102,7 +109,7 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension>(
                     Expr.Lambda(v, go body (v::vars))
                 | e ->
                     let arr =
-                        let c =
+                        let allArgs =
                             let expr (v:Var) =
                                 if v.Type.Name.Contains "GpuArray"
                                 then
@@ -114,10 +121,22 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension>(
                                     typeof<obj>,
                                     vars |> List.rev |> List.map (fun v -> Expr.Coerce ((expr v), typeof<obj>))
                                     )
+                            (*Expr.NewArray(
+                                    typeof<obj>,
+                                    vars
+                                    |> List.choose 
+                                        (fun v ->
+                                            if v.Type.Name.Contains "GpuArray" 
+                                            then Some (Expr.Coerce (Expr.Var(v), typeof<obj>))
+                                            else None
+                                        )
+                                    )*)
                         <@@
-                            let x = %%c |> List.ofArray
+                            let x = %%allArgs |> List.ofArray
                             range := (box x.Head) :?> 'TRange
                             args := x.Tail |> Array.ofList
+                            //let b =  %%buffers
+                            //usedBuffers := b 
                             !args |> Array.iteri (fun i x -> setupArgument i x)
                         @@>
                     arr
@@ -130,6 +149,11 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension>(
 
     member this.ClKernel = kernel
     member this.Range = !range :> Brahma.OpenCL.INDRangeDimension
+    member this.ReleaseAllBuffers () = usedBuffers := [||]
+
+type Free<'t>(src:GpuArray<'t>, ?replyChannel:AsyncReplyChannel<unit>) =
+    member this.Source = src
+    member this.ReplyChannel = replyChannel
 
 type ToHost<'t>(src:GpuArray<'t>, dst: array<'t>, ?replyChannel:AsyncReplyChannel<array<'t>>) =
     member this.Destination = dst
@@ -164,6 +188,13 @@ type ToGPUCrate =
 and ToGPUCrateEvaluator<'ret> =
     abstract member Eval<'a> : ToGPU<'a> -> 'ret
 
+type FreeCrate =
+    abstract member Apply<'ret> : FreeCrateEvaluator<'ret> -> 'ret
+
+and FreeCrateEvaluator<'ret> =
+    abstract member Eval<'a> : Free<'a> -> 'ret
+
+
 type SyncObject (numToWait) =
     let mutable canContinue = false
 
@@ -182,6 +213,8 @@ type Msg =
     | MsgToHost of ToHostCrate
     | MsgToGPU of ToGPUCrate
     | MsgRun of RunCrate
+    | MsgFree of FreeCrate
+    | MsgSetArguments of (unit -> unit)
     | MsgNotifyMe of AsyncReplyChannel<unit>
     | MsgBarrier of SyncObject
 
@@ -199,6 +232,14 @@ type Msg =
         }
         |> MsgToGPU
 
+    static member CreateFreeMsg<'t>(src) =
+        {
+            new FreeCrate with
+                member this.Apply e = e.Eval (Free<'t>(src))
+        }
+        |> MsgFree
+
+
     static member CreateRunMsg m =
         {
             new RunCrate with
@@ -209,6 +250,7 @@ type Msg =
     static member CreateBarrierMessages numOfQueuesOnBarrier =
         let s = new SyncObject(numOfQueuesOnBarrier)
         Array.init numOfQueuesOnBarrier (fun i -> MsgBarrier s)
+
 type GPU(device: Device) =
 
     let clContext =
@@ -236,10 +278,19 @@ type GPU(device: Device) =
         new GpuKernel<_,_,_>(device, clContext, srcLambda)
 
     member this.Allocate<'t> (length:int) =
-        printfn "Allocation"
+        printfn "Allocation : %A" length
         let buf = new Brahma.OpenCL.Buffer<_>(clContext, Brahma.OpenCL.Operations.ReadWrite, true, length)
         let res = new GpuArray<'t>(buf,length)
         res
+
+    member private this.HandleFree (free:FreeCrate) =
+        free.Apply
+                {
+                    new FreeCrateEvaluator<int>
+                    with member this.Eval (a:Free<'t>) =
+                            a.Source.Free()
+                            0
+                }
 
     member private this.HandleToGPU (queue, toGpu:ToGPUCrate) =
         toGpu.Apply
@@ -260,6 +311,7 @@ type GPU(device: Device) =
                             write a.Source a.Destination
                             0
                 }
+
     member private this.HandleToHost (queue, toHost:ToHostCrate) =
         toHost.Apply
                 {
@@ -296,15 +348,22 @@ type GPU(device: Device) =
                                 let error =
                                     Cl.EnqueueNDRangeKernel(queue, kernel.ClKernel, workDim, null,
                                                             range.GlobalWorkSize, range.LocalWorkSize, 0u, null, eventID)
+                                printfn "Run enq"
                                 if error <> ErrorCode.Success
-                                then raise (Cl.Exception error)
+                                then
+                                    printfn "Run failed: %A" (Cl.Exception error)
+                                    raise (Cl.Exception error)
 
                             runKernel a.Kernel
+
+                            //OpenCL.Net.Cl.Finish(queue)
+
+                            //a.Kernel.ReleaseAllBuffers()
 
                             match a.ReplyChannel with
                             | None -> ()
                             | Some ch ->
-                                OpenCL.Net.Cl.Finish(queue)
+                                OpenCL.Net.Cl.Finish(queue) 
                                 ch.Reply true
                             0
                 }
@@ -313,29 +372,53 @@ type GPU(device: Device) =
 
         let commandQueue = createNewCommandQueue()
 
+        let mutable itIsFirstNonqueueMsg = true
+
         printfn "MB is started"
+        
         let rec loop i = async {
             let! msg = inbox.Receive()
             match msg with
             | MsgToHost a ->
                 printfn "ToHost"
+                itIsFirstNonqueueMsg  <- true
                 this.HandleToHost(commandQueue, a) |> ignore
 
             | MsgToGPU a ->
                 printfn "ToGPU"
+                itIsFirstNonqueueMsg  <- true
                 this.HandleToGPU(commandQueue, a) |> ignore
 
             | MsgRun a ->
                 printfn "Run"
+                itIsFirstNonqueueMsg  <- true
                 this.HandleRun(commandQueue, a) |> ignore
 
+            | MsgFree a ->
+                printfn "Free"
+                if itIsFirstNonqueueMsg 
+                then                    
+                    OpenCL.Net.Cl.Finish(commandQueue)
+                    itIsFirstNonqueueMsg  <- false
+                this.HandleFree a
+
+            | MsgSetArguments a ->
+                printfn "SetArgs" 
+                if itIsFirstNonqueueMsg 
+                then                    
+                    OpenCL.Net.Cl.Finish(commandQueue)
+                    itIsFirstNonqueueMsg  <- false
+                a ()
+
             | MsgNotifyMe ch ->
-                printfn "NotifyMe"
+                printfn "Notify"
+                itIsFirstNonqueueMsg  <- true
                 OpenCL.Net.Cl.Finish(commandQueue)
                 ch.Reply ()
 
             | MsgBarrier o ->
                 printfn "Barrier"
+                itIsFirstNonqueueMsg  <- true
                 OpenCL.Net.Cl.Finish(commandQueue)
                 o.ImReady()
                 while not <| o.CanContinue() do ()
