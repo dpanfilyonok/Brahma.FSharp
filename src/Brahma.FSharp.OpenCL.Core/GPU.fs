@@ -28,7 +28,7 @@ type GpuArray<'t> (buffer:Brahma.OpenCL.Buffer<'t>, length) =
     member this.Buffer = buffer
     member this.Length = length
     member this.Free() = 
-        printfn "Free: %A" this.Length
+        //printfn "Free: %A" this.Length
         this.Buffer.Dispose()
     //override this.Finalize() = this.Buffer.Dispose()
 
@@ -278,7 +278,7 @@ type GPU(device: Device) =
         new GpuKernel<_,_,_>(device, clContext, srcLambda)
 
     member this.Allocate<'t> (length:int) =
-        printfn "Allocation : %A" length
+        //printfn "Allocation : %A" length
         let buf = new Brahma.OpenCL.Buffer<_>(clContext, Brahma.OpenCL.Operations.ReadWrite, true, length)
         let res = new GpuArray<'t>(buf,length)
         res
@@ -348,7 +348,7 @@ type GPU(device: Device) =
                                 let error =
                                     Cl.EnqueueNDRangeKernel(queue, kernel.ClKernel, workDim, null,
                                                             range.GlobalWorkSize, range.LocalWorkSize, 0u, null, eventID)
-                                printfn "Run enq"
+                                
                                 if error <> ErrorCode.Success
                                 then
                                     printfn "Run failed: %A" (Cl.Exception error)
@@ -380,22 +380,22 @@ type GPU(device: Device) =
             let! msg = inbox.Receive()
             match msg with
             | MsgToHost a ->
-                printfn "ToHost"
+                //printfn "ToHost"
                 itIsFirstNonqueueMsg  <- true
                 this.HandleToHost(commandQueue, a) |> ignore
 
             | MsgToGPU a ->
-                printfn "ToGPU"
+                //printfn "ToGPU"
                 itIsFirstNonqueueMsg  <- true
                 this.HandleToGPU(commandQueue, a) |> ignore
 
             | MsgRun a ->
-                printfn "Run"
+                //printfn "Run"
                 itIsFirstNonqueueMsg  <- true
                 this.HandleRun(commandQueue, a) |> ignore
 
             | MsgFree a ->
-                printfn "Free"
+                //printfn "Free"
                 if itIsFirstNonqueueMsg 
                 then                    
                     OpenCL.Net.Cl.Finish(commandQueue)
@@ -403,7 +403,7 @@ type GPU(device: Device) =
                 this.HandleFree a
 
             | MsgSetArguments a ->
-                printfn "SetArgs" 
+                //printfn "SetArgs" 
                 if itIsFirstNonqueueMsg 
                 then                    
                     OpenCL.Net.Cl.Finish(commandQueue)
@@ -411,13 +411,13 @@ type GPU(device: Device) =
                 a ()
 
             | MsgNotifyMe ch ->
-                printfn "Notify"
+                //printfn "Notify"
                 itIsFirstNonqueueMsg  <- true
                 OpenCL.Net.Cl.Finish(commandQueue)
                 ch.Reply ()
 
             | MsgBarrier o ->
-                printfn "Barrier"
+                //printfn "Barrier"
                 itIsFirstNonqueueMsg  <- true
                 OpenCL.Net.Cl.Finish(commandQueue)
                 o.ImReady()

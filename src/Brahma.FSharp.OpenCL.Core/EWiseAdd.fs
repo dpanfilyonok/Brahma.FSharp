@@ -41,19 +41,18 @@ module internal rec EWiseAdd =
     let private runNonEmpty (gpu:GPU) (matrixLeft: COOMatrix<'a>) (matrixRight: COOMatrix<'a>) (op: Expr<'a -> 'a -> 'a>) =
 
         let processor = gpu.GetNewProcessor ()
-        //let processor2 = gpu.GetNewProcessor ()
 
+        let sw = System.Diagnostics.Stopwatch()
+        let sw2 = System.Diagnostics.Stopwatch()
+        let sw3 = System.Diagnostics.Stopwatch()
         let sw4 = System.Diagnostics.Stopwatch()
-        printfn "1"
+
         sw4.Start()
         let merge = GraphBLAS.FSharp.Backend.COOMatrix.Utilities.Merge.merge gpu
         let preparePositions = GraphBLAS.FSharp.Backend.COOMatrix.Utilities.PreparePositions.preparePositions gpu op
         let setPositions = GraphBLAS.FSharp.Backend.COOMatrix.Utilities.SetPositions.setPositions<'a> gpu
         sw4.Stop()
-        let sw = System.Diagnostics.Stopwatch()
-
-        let sw2 = System.Diagnostics.Stopwatch()
-
+        
         sw.Start()
         sw2.Start()
 
@@ -74,12 +73,6 @@ module internal rec EWiseAdd =
 
         sw2.Stop()
 
-        printfn "6"
-        //processor2.Post(bs.[1])
-
-        //for i in 0..4 do
-  //      printfn "!!! %A" i
-  //      printfn "merge"
         let allRows, allColumns, allValues =
             merge
                 processor
@@ -87,36 +80,15 @@ module internal rec EWiseAdd =
                 matrixRightRows matrixRightColumns matrixRightValues
 
  
-        printfn "preparePositions"
         let rawPositions = preparePositions processor allRows allColumns allValues
 
-        printfn "setPositions"
         let resultRows, resultColumns, resultValues, resultLength = setPositions processor allRows allColumns allValues rawPositions
 
-
-        //sw.Stop()
-
-       // printfn "Elapsed inner: %A" (sw.ElapsedMilliseconds)
-
-        (*let allRows, allColumns, allValues =
-            merge
-                processor
-                matrixLeftRows matrixLeftColumns matrixLeftValues
-                matrixRightRows matrixRightColumns matrixRightValues
-
-
-        let rawPositions = preparePositions processor allRows allColumns allValues
-
-
-        let resultRows, resultColumns, resultValues, resultLength = setPositions processor allRows allColumns allValues rawPositions
-*)
-        //processor.PostAndReply(fun ch -> MsgNotifyMe ch)
-        let sw3 = System.Diagnostics.Stopwatch()
         sw3.Start()
+
         let rows = Array.zeroCreate resultLength
         let columns = Array.zeroCreate resultLength
         let values = Array.zeroCreate resultLength
-        printfn "7"
         processor.Post(Msg.CreateToHostMsg(ToHost<int>(resultRows, rows)))
         processor.Post(Msg.CreateToHostMsg(ToHost<int>(resultColumns, columns)))
         processor.PostAndReply(fun ch -> Msg.CreateToHostMsg(ToHost<'a>(resultValues, values, ch)))
@@ -141,6 +113,7 @@ module internal rec EWiseAdd =
         processor.Post(Msg.CreateFreeMsg<_>(allRows))
         processor.Post(Msg.CreateFreeMsg<_>(allColumns))
         processor.Post(Msg.CreateFreeMsg<_>(allValues))
+        processor.Post(Msg.CreateFreeMsg<_>(rawPositions))
 
         {
             RowCount = matrixLeft.RowCount

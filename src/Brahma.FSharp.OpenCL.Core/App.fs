@@ -280,7 +280,7 @@ type Host() =
 
 
         //let resMtx =
-        for i in 0..9 do
+        for i in 0..90 do
             printfn "i = %A" i
             EWiseAdd.run gpu mtx1 mtx2 <@ (+) @>
 
