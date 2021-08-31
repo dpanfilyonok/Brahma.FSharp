@@ -20,7 +20,7 @@ open Brahma.FSharp.OpenCL.AST
 open Microsoft.FSharp.Text.StructuredFormat.LayoutOps
 open Brahma.FSharp.OpenCL.Printer
 
-let private printConst (c:Const<'lang>) =
+let private printConst (c: Const<'lang>) =
     match c.Type with
     | :? PrimitiveType<'lang> as pt ->
         match pt.Type with
@@ -39,22 +39,17 @@ let private printConst (c:Const<'lang>) =
         | Void -> wordL ""
         | ConstStringLiteral -> wordL <| sprintf "\"%s\"" c.Val
         | TypeName tname -> failwithf "Printer. Unsupported const with type: %A" tname
-    | :? RefType<'lang> as rt
-        -> wordL c.Val
-    | :? ArrayType<'lang> as rt
-        -> wordL c.Val
+    | :? RefType<'lang> as rt -> wordL c.Val
+    | :? ArrayType<'lang> as rt -> wordL c.Val
     | c -> failwithf "Printer. Unsupported const with type: %A" c
 
-let private printVar (varible:Variable<'lang>) =
-    wordL varible.Name
+let private printVar (varible: Variable<'lang>) = wordL varible.Name
 
-let rec private printItem (itm:Item<'lang>) =
-    (Print itm.Arr) ++ squareBracketL (Print itm.Idx)
+let rec private printItem (itm: Item<'lang>) = (print itm.Arr) ++ squareBracketL (print itm.Idx)
 
-and private printIndirectionOp (deref: IndirectionOp<'lang>) =
-    wordL "*" ++ (Print deref.Expr |> bracketL)
+and private printIndirectionOp (deref: IndirectionOp<'lang>) = wordL "*" ++ (print deref.Expr |> bracketL)
 
-and private printBop (op:BOp<'lang>) =
+and private printBop (op: BOp<'lang>) =
     match op with
     | Plus -> "+"
     | Minus -> "-"
@@ -76,13 +71,13 @@ and private printBop (op:BOp<'lang>) =
     | Remainder -> "%"
     |> wordL
 
-and private printBinop (binop:Binop<'lang>) =
-    let l = Print binop.Left
-    let r = Print binop.Right
+and private printBinop (binop: Binop<'lang>) =
+    let l = print binop.Left
+    let r = print binop.Right
     let op = printBop binop.Op
-    [l;op;r] |> spaceListL |> bracketL
+    [ l; op; r ] |> spaceListL |> bracketL
 
-and private printProperty (prop:Property<'lang>) =
+and private printProperty (prop: Property<'lang>) =
     match prop.Property with
     | PropertyType.Var v -> printVar v
     | PropertyType.Item i -> printItem i
@@ -101,52 +96,49 @@ and private printFunCall (fc: FunCall<'lang>) =
     let argsLayout =
         fc.Args
         |> List.filter (not << isVoidArg)
-        |> List.map Print
+        |> List.map print
         |> commaListL
         |> bracketL
+
     wordL fc.Name ++ argsLayout
 
-and private printUnOp (uo:Unop<'lang>) =
+and private printUnOp (uo: Unop<'lang>) =
     match uo.Op with
-    | UOp.Minus -> wordL "-" ++ Print uo.Expr |> bracketL
-    | UOp.Not -> wordL "!" ++ Print uo.Expr |> bracketL
-    | UOp.Incr -> Print uo.Expr ++ wordL "++"
-    | UOp.Decr -> Print uo.Expr ++ wordL "--"
+    | UOp.Minus -> wordL "-" ++ print uo.Expr |> bracketL
+    | UOp.Not -> wordL "!" ++ print uo.Expr |> bracketL
+    | UOp.Incr -> print uo.Expr ++ wordL "++"
+    | UOp.Decr -> print uo.Expr ++ wordL "--"
 
-and private printCast (c:Cast<'lang>) =
+and private printCast (c: Cast<'lang>) =
     let t = Types.Print c.Type
-    let expr = Print c.Expr
+    let expr = print c.Expr
     (t |> bracketL) ++ expr
 
-and private printPointer (p:Pointer<'lang>) =
-    let expr = Print p.Expr
+and private printPointer (p: Ptr<'lang>) =
+    let expr = print p.Expr
     wordL "&" ^^ expr
 
-and private printArrayInitializer (ai:ArrayInitializer<'lang>) =
+and private printArrayInitializer (ai: ArrayInitializer<'lang>) =
     match ai with
-    | :? ZeroArray<_> as za -> wordL "{0}" (*(getZeros za.Length)*)
+    | :? ZeroArray<_> as za -> wordL "{0}"
     | other -> failwithf "Printer. Unsupported array initializer: %A" other
 
 and private getZeros x =
     let mutable string = "{0"
-    for i in 1..(x - 1) do
+
+    for i in 1 .. (x - 1) do
         string <- string + ",0"
+
     string <- string + "}"
     string
 
-and printNewStruct (newStruct:NewStruct<_>) =
-    let args =
-        List.map Print newStruct.ConstructorArgs
-        |> commaListL
-    [
-        wordL "{"
-        args
-        wordL "}"
-    ]
-    |> spaceListL
+and printNewStruct (newStruct: NewStruct<_>) =
+    let args = List.map print newStruct.ConstructorArgs |> commaListL
+    [ wordL "{"; args; wordL "}" ] |> spaceListL
 
 and printNewUnion (newUnion: NewUnion<_>) =
-    let arg = Print newUnion.ConstructorArg
+    let arg = print newUnion.ConstructorArg
+
     [
         wordL "{"
         wordL <| "." + newUnion.ConstructorArgName
@@ -156,17 +148,12 @@ and printNewUnion (newUnion: NewUnion<_>) =
     ]
     |> spaceListL
 
-and printFfieldGet (fg:FieldGet<_>) =
-    let host = Print fg.Host
+and printFfieldGet (fg: FieldGet<_>) =
+    let host = print fg.Host
     let fld = wordL fg.Field
-    [
-        host |> bracketL
-        wordL "."
-        fld
-    ]
-    |> spaceListL
+    [ host |> bracketL; wordL "."; fld ] |> spaceListL
 
-and Print (expr:Expression<'lang>) =
+and print (expr: Expression<'lang>) =
     match expr with
     | :? Const<'lang> as c -> printConst c
     | :? Variable<'lang> as v -> printVar v
@@ -176,7 +163,7 @@ and Print (expr:Expression<'lang>) =
     | :? FunCall<'lang> as fc -> printFunCall fc
     | :? Unop<'lang> as uo -> printUnOp uo
     | :? Cast<'lang> as c -> printCast c
-    | :? Pointer<'lang> as p -> printPointer p
+    | :? Ptr<'lang> as p -> printPointer p
     | :? ArrayInitializer<'lang> as ai -> printArrayInitializer ai
     | :? NewStruct<'lang> as ns -> printNewStruct ns
     | :? NewUnion<'lang> as nu -> printNewUnion nu

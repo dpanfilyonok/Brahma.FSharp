@@ -22,20 +22,38 @@ open Brahma.OpenCL
 
 type ``[]``<'t> with
     // For more details look https://stackoverflow.com/questions/28514373/what-is-the-size-of-a-boolean-in-c-does-it-really-take-4-bytes
-    member private this.ElemSize = if typeof<'t> = true.GetType() then 1 else Marshal.SizeOf(typeof<'t>)
+    member private this.ElemSize =
+        if typeof<'t> = true.GetType() then
+            1
+        else
+            Marshal.SizeOf(typeof<'t>)
     /// Write all data from array a into corresponded buffer.
-    member this.ToGpu(provider:ComputeProvider) =
-        new Commands.WriteBuffer<'t>(provider.AutoconfiguredBuffers.[this], this.ElemSize, true, 0, this.Length,this)
+    member this.ToGpu(provider: ComputeProvider) =
+        new Commands.WriteBuffer<'t>(provider.AutoconfiguredBuffers.[this], this.ElemSize, true, 0, this.Length, this)
     /// Write data from array data into corresponded buffer. Transferred data length is min of a.Length and hostArray.Lenght.
-    member this.ToGpu(provider:ComputeProvider, hostArray:array<'t>) =
-        new Commands.WriteBuffer<'t>(provider.AutoconfiguredBuffers.[this], this.ElemSize, true, 0, (min hostArray.Length this.Length), hostArray)
+    member this.ToGpu(provider: ComputeProvider, hostArray: array<'t>) =
+        new Commands.WriteBuffer<'t>(
+            provider.AutoconfiguredBuffers.[this],
+            this.ElemSize,
+            true,
+            0,
+            (min hostArray.Length this.Length),
+            hostArray
+        )
 
     /// Read all data from corresponded buffer into array a.
-    member this.ToHost(provider:ComputeProvider) =
+    member this.ToHost(provider: ComputeProvider) =
         new Commands.ReadBuffer<'t>(provider.AutoconfiguredBuffers.[this], this.ElemSize, true, 0, this.Length, this)
     ///  Read data from corresponded buffer into array hostArray. Transferred data length is min of a.Length and hostArray.Lenght.
-    member this.ToHost(provider:ComputeProvider, hostArray:array<'t>) =
-        new Commands.ReadBuffer<'t>(provider.AutoconfiguredBuffers.[this], this.ElemSize, true, 0, (min hostArray.Length this.Length), hostArray)
+    member this.ToHost(provider: ComputeProvider, hostArray: array<'t>) =
+        new Commands.ReadBuffer<'t>(
+            provider.AutoconfiguredBuffers.[this],
+            this.ElemSize,
+            true,
+            0,
+            (min hostArray.Length this.Length),
+            hostArray
+        )
     ///  Read data from corresponded buffer into array hostArray. Transferred data length is length.
-    member this.ToHost(provider:ComputeProvider, hostArray:array<'t>, length) =
+    member this.ToHost(provider: ComputeProvider, hostArray: array<'t>, length) =
         new Commands.ReadBuffer<'t>(provider.AutoconfiguredBuffers.[this], this.ElemSize, true, 0, length, hostArray)

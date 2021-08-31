@@ -40,10 +40,12 @@ let PrintStructDeclaration (decl: StructDecl<_>) =
         ]
         |> aboveListL
         |> braceL
+
     let footer =
         [
             wordL decl.StructType.Name
             wordL ";"
         ]
         |> spaceListL
+
     header ^^ flds ^^ footer
