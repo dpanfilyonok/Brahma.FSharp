@@ -8,6 +8,7 @@ open Brahma.FSharp.OpenCL.WorkflowBuilder
 open Brahma.FSharp.OpenCL.Translator
 open Brahma.FSharp.OpenCL.Printer.AST
 open FSharp.Quotations
+open OpenCL.Net
 
 module CustomDatatypes =
     [<Struct>]
@@ -56,3 +57,6 @@ module Utils =
         let translator = FSQuotationToOpenCLTranslator()
         let (ast, methods) = translator.Translate(expr, [])
         print ast
+
+    let openclTransformQuotation (expr: Expr) =
+        QuotationTransformers.Transformer.transformQuotation expr []

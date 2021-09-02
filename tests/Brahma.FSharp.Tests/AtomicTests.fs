@@ -11,6 +11,7 @@ open Expecto.Logging
 open Expecto.Logging.Message
 open ExpectoFsCheck
 open FsCheck
+open Brahma.FSharp.Tests
 
 let logger = Log.create "AtomicTests"
 
@@ -257,10 +258,6 @@ let foldTestCases = testList "Fold tests" [
 
     // WrappedInt (не работает транляция или типа того)
     ptestCase "Fold test atomic 'add' on WrappedInt" <| fun () -> foldTest<WrappedInt> <@ (+) @> (=)
-
-    // custom int op
-    let y2x = <@ fun x y -> y + x + x @>
-    testCase "Fold test custom atomic operation on int" <| fun () -> foldTest<int> y2x (=)
 ]
 
 let xchgTestCases = testList "Xchg tests" [
@@ -286,7 +283,7 @@ let perfomanceTest = testCase "Perfomance test on 'inc'" <| fun () ->
                     result.[0] <- localAcc.[0]
         @>
 
-    // generate spin lock
+    // generate spinlock
     let kernelUsingCustomInc =
         let inc = <@ fun x -> x + 1 @>
         <@
@@ -314,7 +311,7 @@ let perfomanceTest = testCase "Perfomance test on 'inc'" <| fun () ->
         }
         |> context.RunSync
 
-    "Kernel wich uses native 'inc' shold be faster than with custom one"
+    "Kernel wich uses native 'inc' should be faster than with custom one"
     |> Expect.isFasterThan (prepare kernelUsingNativeInc) (prepare kernelUsingCustomInc)
 
 let commonTests = testList "Behavior/semantic tests" [

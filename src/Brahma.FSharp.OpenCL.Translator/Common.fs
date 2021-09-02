@@ -19,7 +19,6 @@ open Microsoft.FSharp.Quotations
 open System.Collections.Generic
 open Brahma.FSharp.OpenCL.AST
 open Microsoft.FSharp.Reflection
-// open System.IO
 
 exception InvalidKernelException of string
 
@@ -83,8 +82,8 @@ type TargetContext<'lang, 'vDecl>() =
             context.TupleList.Add(x)
         context.TupleNumber <- this.TupleNumber
 
-        // NOTE why only enableFP64 clones
         context.Flags.enableFP64 <- this.Flags.enableFP64
+        context.Flags.enableAtomic <- this.Flags.enableAtomic
         context.TranslatorOptions.AddRange translatorOptions
         context
 
@@ -120,6 +119,9 @@ module Extensions =
                     )
 
             mkRLinear mkTupledLambda (args, body)
+
+module internal Anchors =
+    let _localID0 = Unchecked.defaultof<int>
 
 type State<'state, 'result> = State of ('state -> 'result * 'state)
 

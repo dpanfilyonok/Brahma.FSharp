@@ -251,7 +251,11 @@ module Body =
                     translateUnionFieldGet expr propInfo targetContext
             else
                 translateSpecificPropGet expr propName exprs targetContext
-        | None -> failwithf "Unsupported static property get in kernel: %A" propName
+        | None ->
+            match propName with
+            | "_localid0" ->
+                FunCall("get_local_id", [Const(PrimitiveType Int, "0")]) :> Expression<_>, targetContext
+            | _ -> failwithf "Unsupported static property get in kernel: %A" propName
 
     and private translatePropSet exprOpt (propInfo: System.Reflection.PropertyInfo) exprs newVal targetContext =
         // Todo: Safe pattern matching (item) by expr type

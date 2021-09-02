@@ -23,12 +23,7 @@ open Brahma.FSharp.OpenCL.Printer
 let private printFunFormalParam (param: FunFormalArg<_>) =
     [
         match param.DeclSpecs.AddressSpaceQualifier with
-        | Global ->
-            // TODO wtf: equal branches
-            if param.Name.[0] <> '_' then
-                yield wordL "__global"
-            else
-                yield wordL "__global"
+        | Global -> yield wordL "__global"
         | Local -> yield wordL "__local"
         | _ -> yield wordL "private"
 

@@ -114,3 +114,8 @@ module Utils =
         match expr with
         | DerivedPatterns.Lambdas (args, Patterns.Call (_, mInfo, _)) -> mInfo
         | _ -> failwithf "Expression is not lambda, but %O" expr
+
+    let getMethodInfoOfCall (expr: Expr) =
+        match expr with
+        | Patterns.Call (_, mInfo, _) -> mInfo
+        | _ -> failwithf "Expression is not call, but %O" expr
