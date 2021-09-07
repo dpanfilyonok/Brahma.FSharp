@@ -1,18 +1,18 @@
 namespace Brahma.FSharp.OpenCL
 
 open OpenCL.Net
-open Brahma.OpenCL
+//open Brahma.OpenCL
 
-type Free<'t>(src:GpuArray<'t>, ?replyChannel:AsyncReplyChannel<unit>) =
+type Free<'t>(src:Buffer<'t>, ?replyChannel:AsyncReplyChannel<unit>) =
     member this.Source = src
     member this.ReplyChannel = replyChannel
 
-type ToHost<'t>(src:GpuArray<'t>, dst: array<'t>, ?replyChannel:AsyncReplyChannel<array<'t>>) =
+type ToHost<'t>(src:Buffer<'t>, dst: array<'t>, ?replyChannel:AsyncReplyChannel<array<'t>>) =
     member this.Destination = dst
     member this.Source = src
     member this.ReplyChannel = replyChannel
 
-type ToGPU<'t>(src:array<'t>, dst: GpuArray<'t>, ?replyChannel:AsyncReplyChannel<array<'t>>) =
+type ToGPU<'t>(src:array<'t>, dst: Buffer<'t>, ?replyChannel:AsyncReplyChannel<array<'t>>) =
     member this.Destination = dst
     member this.Source = src
     member this.ReplyChannel = replyChannel
@@ -54,7 +54,6 @@ type SyncObject (numToWait) =
 
     member this.ImReady () =
         lock this (fun () ->
-                       printfn "%A %A" counter numToWait
                        counter <- counter + 1
                        if counter = numToWait
                        then canContinue <- true)
@@ -77,7 +76,7 @@ type Msg =
         }
         |> MsgToHost
 
-    static member CreateToGPUMsg<'t>(src,dst) =
+    static member CreateToGPUMsg<'t>(src, dst) =
         {
             new ToGPUCrate with
                 member this.Apply e = e.Eval (ToGPU<'t>(src,dst))

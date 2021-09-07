@@ -2,7 +2,7 @@ namespace GraphBLAS.FSharp.Backend.COOMatrix
 
 open Brahma.FSharp.OpenCL
 open OpenCL.Net
-open Brahma.OpenCL
+//open Brahma.OpenCL
 open GraphBLAS.FSharp.Backend.Common
 open GraphBLAS.FSharp.Backend.COOMatrix.Utilities
 open Microsoft.FSharp.Quotations
@@ -65,12 +65,12 @@ module internal rec EWiseAdd =
             sw.Start()
             sw2.Start()
 
-            use matrixLeftRows = gpu.Allocate<_>(matrixLeft.Rows.Length, matrixLeft.Rows, Brahma.OpenCL.Operations.ReadOnly)
-            use matrixLeftColumns = gpu.Allocate<_>(matrixLeft.Columns.Length, matrixLeft.Columns, Brahma.OpenCL.Operations.ReadOnly)
-            use matrixLeftValues = gpu.Allocate<'a>(matrixLeft.Values.Length, matrixLeft.Values, Brahma.OpenCL.Operations.ReadOnly)
-            use matrixRightRows = gpu.Allocate<_>(matrixRight.Rows.Length, matrixRight.Rows, Brahma.OpenCL.Operations.ReadOnly)
-            use matrixRightColumns = gpu.Allocate<_>(matrixRight.Columns.Length, matrixRight.Columns, Brahma.OpenCL.Operations.ReadOnly)
-            use matrixRightValues = gpu.Allocate<'a>(matrixRight.Values.Length, matrixRight.Values, Brahma.OpenCL.Operations.ReadOnly)
+            use matrixLeftRows = gpu.Allocate<_>(matrixLeft.Rows, deviceAccessMode = DeviceAccessMode.ReadOnly)
+            use matrixLeftColumns = gpu.Allocate<_>(matrixLeft.Columns, deviceAccessMode = DeviceAccessMode.ReadOnly)
+            use matrixLeftValues = gpu.Allocate<'a>(matrixLeft.Values, deviceAccessMode = DeviceAccessMode.ReadOnly)
+            use matrixRightRows = gpu.Allocate<_>(matrixRight.Rows, deviceAccessMode = DeviceAccessMode.ReadOnly)
+            use matrixRightColumns = gpu.Allocate<_>(matrixRight.Columns, deviceAccessMode = DeviceAccessMode.ReadOnly)
+            use matrixRightValues = gpu.Allocate<'a>(matrixRight.Values, deviceAccessMode = DeviceAccessMode.ReadOnly)
 
             //processor.Post(Msg.CreateToGPUMsg<_>(matrixLeft.Rows, matrixLeftRows))
             //processor.Post(Msg.CreateToGPUMsg<_>(matrixLeft.Columns, matrixLeftColumns))

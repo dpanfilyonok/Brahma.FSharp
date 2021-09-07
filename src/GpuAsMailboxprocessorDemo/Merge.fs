@@ -2,7 +2,7 @@ namespace GraphBLAS.FSharp.Backend.COOMatrix.Utilities
 
 open Brahma.FSharp.OpenCL
 open OpenCL.Net
-open Brahma.OpenCL
+//open Brahma.OpenCL
 open GraphBLAS.FSharp.Backend.Common
 
 type COOMatrix<'a> =
@@ -21,7 +21,7 @@ module internal Merge =
 
         let merge =
             <@
-                fun (ndRange: _1D)
+                fun (ndRange: Brahma.OpenCL._1D)
                     firstSide
                     secondSide
                     sumOfSides
@@ -118,8 +118,8 @@ module internal Merge =
         let sw = System.Diagnostics.Stopwatch()
 
         fun (processor:MailboxProcessor<_>)
-            (matrixLeftRows: GpuArray<int>) (matrixLeftColumns: GpuArray<int>) (matrixLeftValues: GpuArray<'a>)
-            (matrixRightRows: GpuArray<int>) (matrixRightColumns: GpuArray<int>) (matrixRightValues: GpuArray<'a>)
+            (matrixLeftRows: Buffer<int>) (matrixLeftColumns: Buffer<int>) (matrixLeftValues: Buffer<'a>)
+            (matrixRightRows: Buffer<int>) (matrixRightColumns: Buffer<int>) (matrixRightValues: Buffer<'a>)
             ->
 
             sw.Reset()
@@ -128,14 +128,14 @@ module internal Merge =
             let sumOfSides = firstSide + secondSide
 
             sw.Start()
-            let allRows = gpu.Allocate<int>(sumOfSides, Brahma.OpenCL.Operations.WriteOnly, isHostAccesible = false)
-            let allColumns = gpu.Allocate<int>(sumOfSides, Brahma.OpenCL.Operations.WriteOnly, isHostAccesible = false)
-            let allValues = gpu.Allocate<'a>(sumOfSides, Brahma.OpenCL.Operations.WriteOnly, isHostAccesible = false)
+            let allRows = gpu.Allocate<int>(sumOfSides, deviceAccessMode = DeviceAccessMode.WriteOnly, hostAccessMode = HostAccessMode.NotAccessible)
+            let allColumns = gpu.Allocate<int>(sumOfSides, deviceAccessMode = DeviceAccessMode.WriteOnly, hostAccessMode = HostAccessMode.NotAccessible)
+            let allValues = gpu.Allocate<'a>(sumOfSides, deviceAccessMode = DeviceAccessMode.WriteOnly, hostAccessMode = HostAccessMode.NotAccessible)
 
             sw.Stop()
             printfn "Data to gpu in Merge: %A" (sw.ElapsedMilliseconds)
 
-            let ndRange = _1D(Utils.getDefaultGlobalSize sumOfSides, workGroupSize)
+            let ndRange = Brahma.OpenCL._1D(Utils.getDefaultGlobalSize sumOfSides, workGroupSize)
 
             processor.Post(Msg.MsgSetArguments(fun () -> 
                 kernel.SetArguments

@@ -79,7 +79,7 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension>(
                         if v.Type.IsArray
                         then
                             let vName = v.Name
-                            let vType = typedefof<GpuArray<_>>.MakeGenericType(v.Type.GetElementType())
+                            let vType = typedefof<Buffer<_>>.MakeGenericType(v.Type.GetElementType())
                             Var(vName, vType, false)
                         else v
                     Expr.Lambda(v, go body (v::vars))
@@ -87,7 +87,7 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension>(
                     let arr =
                         let allArgs =
                             let expr (v:Var) =
-                                if v.Type.Name.Contains "GpuArray"
+                                if v.Type.Name.Contains "Buffer"
                                 then
                                     let propertyInfo = v.Type.GetProperty("Buffer")
                                     Expr.PropertyGet(Expr.Var(v), propertyInfo)
@@ -102,7 +102,7 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension>(
                                     vars
                                     |> List.choose 
                                         (fun v ->
-                                            if v.Type.Name.Contains "GpuArray" 
+                                            if v.Type.Name.Contains "Buffer" 
                                             then Some (Expr.Coerce (Expr.Var(v), typeof<obj>))
                                             else None
                                         )

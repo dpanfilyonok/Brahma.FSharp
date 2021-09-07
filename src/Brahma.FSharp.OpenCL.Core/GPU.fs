@@ -1,7 +1,6 @@
 namespace Brahma.FSharp.OpenCL
 
 open OpenCL.Net
-open Brahma.OpenCL
 
 open Microsoft.FSharp.Quotations
 open FSharp.Quotations.Evaluator
@@ -34,32 +33,21 @@ type GPU(device: Device) =
 
     member this.CreateKernel (srcLambda) =
         new GpuKernel<_,_,_>(device, clContext, srcLambda)
-
+    
     member this.Allocate<'t> (length:int,                               
-                              [<Optional; DefaultParameterValue(Brahma.OpenCL.Operations.ReadWrite)>]accessMode, 
-                              [<Optional; DefaultParameterValue(true)>] isHostAccesible:bool
-                              ) =
-        //printfn "Allocation : %A" length
-        let buf = 
+                              ?hostAccessMode: HostAccessMode, 
+                              ?allocationMode: AllocationMode, 
+                              ?deviceAccessMode : DeviceAccessMode
+                              ) =        
             
-              new Brahma.OpenCL.Buffer<_>(clContext, accessMode, isHostAccesible, length)
-            
-        let res = new GpuArray<'t>(buf,length)
-        res
+        new Buffer<'t>(clContext, length, ?hostAccessMode = hostAccessMode, ?allocationMode = allocationMode, ?deviceAccessMode = deviceAccessMode)
 
-    member this.Allocate<'t> (length:int, data:array<'t>,
-                              [<Optional; DefaultParameterValue(Brahma.OpenCL.Operations.ReadWrite)>]accessMode, 
-                              [<Optional; DefaultParameterValue(true)>] isHostAccesible:bool                              
+    member this.Allocate<'t> (data:array<'t>,
+                              ?hostAccessMode: HostAccessMode, 
+                              ?allocationMode: AllocationMode, 
+                              ?deviceAccessMode : DeviceAccessMode
                               ) =
-        //printfn "Allocation : %A" length
-        let buf = 
-            if data = null || data.Length <> length 
-            then 
-              new Brahma.OpenCL.Buffer<_>(clContext, accessMode, isHostAccesible, length)
-            else 
-              new Brahma.OpenCL.Buffer<_>(clContext, accessMode, data)
-        let res = new GpuArray<'t>(buf,length)
-        res
+        new Buffer<'t>(clContext, data, ?hostAccessMode = hostAccessMode, ?allocationMode = allocationMode, ?deviceAccessMode = deviceAccessMode)        
 
     member private this.HandleFree (free:FreeCrate) =
         free.Apply
@@ -75,11 +63,11 @@ type GPU(device: Device) =
                 {
                     new ToGPUCrateEvaluator<int>
                     with member this.Eval (a) =
-                            let write (src:array<'t>) (dst:GpuArray<'t>) =
+                            let write (src:array<'t>) (dst:Buffer<'t>) =
                                 let eventID = ref Unchecked.defaultof<Event>
 
-                                let mem = dst.Buffer.Mem
-                                let elementSize = dst.Buffer.ElementSize
+                                let mem = dst.ClMemory
+                                let elementSize = dst.ElementSize
                                 let error = Cl.EnqueueWriteBuffer(queue, mem, Bool.False, System.IntPtr(0),
                                                                   System.IntPtr(dst.Length * elementSize), src, 0u, null, eventID);
 
@@ -95,10 +83,10 @@ type GPU(device: Device) =
                 {
                     new ToHostCrateEvaluator<int>
                     with member this.Eval (a) =
-                            let read (src:GpuArray<'t>) (dst:array<'t>)=
+                            let read (src:Buffer<'t>) (dst:array<'t>)=
                                 let eventID = ref Unchecked.defaultof<Event>
-                                let mem = src.Buffer.Mem
-                                let elementSize = src.Buffer.ElementSize
+                                let mem = src.ClMemory
+                                let elementSize = src.ElementSize
                                 let error = Cl.EnqueueReadBuffer(queue, mem, Bool.False, System.IntPtr(0),
                                                                  System.IntPtr(src.Length * elementSize), dst, 0u, null, eventID)
 
@@ -133,10 +121,6 @@ type GPU(device: Device) =
                                     raise (Cl.Exception error)
 
                             runKernel a.Kernel
-
-                            //OpenCL.Net.Cl.Finish(queue)
-
-                            //a.Kernel.ReleaseAllBuffers()
 
                             match a.ReplyChannel with
                             | None -> ()

@@ -2,7 +2,7 @@ namespace GraphBLAS.FSharp.Backend.COOMatrix.Utilities
 
 open Brahma.FSharp.OpenCL
 open OpenCL.Net
-open Brahma.OpenCL
+//open Brahma.OpenCL
 open Microsoft.FSharp.Quotations
 open GraphBLAS.FSharp.Backend.Common
 
@@ -12,7 +12,7 @@ module internal PreparePositions =
 
         let preparePositions =
             <@
-                fun (ndRange: _1D)
+                fun (ndRange: Brahma.OpenCL._1D)
                     length
                     (allRowsBuffer: int[])
                     (allColumnsBuffer: int[])
@@ -28,21 +28,16 @@ module internal PreparePositions =
                         rawPositionsBuffer.[i] <- 0
                         allValuesBuffer.[i + 1] <- (%plus) allValuesBuffer.[i] allValuesBuffer.[i + 1]
                     else 
-                        (rawPositionsBuffer.[i] <- 1) //TODO is it correct?
-                        //Drop explicit zeroes
-                        // let localResultBuffer = (%plus) allValuesBuffer.[i] allValuesBuffer.[i + 1]
-                        // if localResultBuffer = zero then rawPositionsBuffer.[i + 1] <- 0 else allValuesBuffer.[i + 1] <- localResultBuffer
+                        (rawPositionsBuffer.[i] <- 1) //TODO is it correct?                        
             @>
 
         let kernel = gpu.CreateKernel(preparePositions)
 
-        fun (processor:MailboxProcessor<_>) (allRows: GpuArray<int>) (allColumns: GpuArray<int>) (allValues: GpuArray<'a>) ->
+        fun (processor:MailboxProcessor<_>) (allRows: Buffer<int>) (allColumns: Buffer<int>) (allValues: Buffer<'a>) ->
             let length = allValues.Length
-            let ndRange = _1D(Utils.getDefaultGlobalSize (length - 1), Utils.defaultWorkGroupSize)
-
-            //let rawPositions = Array.create length 1
-            let rawPositionsGpu = gpu.Allocate<int>(length, Brahma.OpenCL.Operations.ReadWrite, isHostAccesible=false)
-            //processor.Post(Msg.CreateToGPUMsg<_>(rawPositions, rawPositionsGpu))
+            let ndRange = Brahma.OpenCL._1D(Utils.getDefaultGlobalSize (length - 1), Utils.defaultWorkGroupSize)
+            
+            let rawPositionsGpu = gpu.Allocate<int>(length, hostAccessMode = HostAccessMode.NotAccessible)
 
             processor.Post(Msg.MsgSetArguments(fun () -> kernel.SetArguments ndRange length allRows allColumns allValues rawPositionsGpu))
             processor.Post(Msg.CreateRunMsg(Run<_,_,_>(kernel)))

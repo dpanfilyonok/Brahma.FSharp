@@ -2,7 +2,6 @@ namespace GraphBLAS.FSharp.Backend.Common
 
 open Brahma.FSharp.OpenCL
 open OpenCL.Net
-open Brahma.OpenCL
 
 module Utils =
     let defaultWorkGroupSize = 256
@@ -14,14 +13,13 @@ module internal PrefixSum =
 
     open Brahma.FSharp.OpenCL
     open OpenCL.Net
-    open Brahma.OpenCL
 
     let private getNewUpdate (gpu: GPU) =
         let workGroupSize = Utils.defaultWorkGroupSize
 
         let update =
             <@
-                fun (ndRange: _1D)
+                fun (ndRange: Brahma.OpenCL._1D)
                     inputArrayLength
                     bunchLength
                     (resultBuffer: int[])
@@ -35,8 +33,8 @@ module internal PrefixSum =
 
         let kernel = gpu.CreateKernel(update)
 
-        fun (processor:MailboxProcessor<_>) (inputArray:GpuArray<int>) (inputArrayLength:int) (vertices:GpuArray<int>) (bunchLength: int) ->
-            let ndRange = _1D(Utils.getDefaultGlobalSize inputArrayLength - bunchLength, workGroupSize)
+        fun (processor:MailboxProcessor<_>) (inputArray:Buffer<int>) (inputArrayLength:int) (vertices:Buffer<int>) (bunchLength: int) ->
+            let ndRange = Brahma.OpenCL._1D(Utils.getDefaultGlobalSize inputArrayLength - bunchLength, workGroupSize)
             processor.Post(Msg.MsgSetArguments(fun () -> kernel.SetArguments ndRange inputArrayLength bunchLength inputArray vertices))
             processor.Post(Msg.CreateRunMsg(Run<_,_,_>(kernel)))
 
@@ -46,7 +44,7 @@ module internal PrefixSum =
 
         let scan =
             <@
-                fun (ndRange: _1D)
+                fun (ndRange: Brahma.OpenCL._1D)
                     inputArrayLength
                     verticesLength
                     (resultBuffer: int[])
@@ -91,8 +89,8 @@ module internal PrefixSum =
 
         let kernel = gpu.CreateKernel(scan)
 
-        fun (processor:MailboxProcessor<_>) (inputArray: GpuArray<int>) (inputArrayLength: int) (vertices: GpuArray<int>) (verticesLength: int) (totalSum: GpuArray<int>) ->
-            let ndRange = _1D(Utils.getDefaultGlobalSize inputArrayLength, workGroupSize)
+        fun (processor:MailboxProcessor<_>) (inputArray: Buffer<int>) (inputArrayLength: int) (vertices: Buffer<int>) (verticesLength: int) (totalSum: Buffer<int>) ->
+            let ndRange = Brahma.OpenCL._1D(Utils.getDefaultGlobalSize inputArrayLength, workGroupSize)
             processor.Post(Msg.MsgSetArguments(fun () -> 
                 kernel.SetArguments ndRange inputArrayLength verticesLength inputArray vertices totalSum))
             processor.Post(Msg.CreateRunMsg(Run<_,_,_>(kernel)))
@@ -105,11 +103,11 @@ module internal PrefixSum =
 
         let sw = System.Diagnostics.Stopwatch()
 
-        fun (processor:MailboxProcessor<_>) (inputArray: GpuArray<int>) (totalSum: GpuArray<int>) ->
+        fun (processor:MailboxProcessor<_>) (inputArray: Buffer<int>) (totalSum: Buffer<int>) ->
             sw.Reset()
             sw.Start()
-            let firstVertices = gpu.Allocate<int> ((inputArray.Length - 1) / workGroupSize + 1, isHostAccesible=false)
-            let secondVertices = gpu.Allocate<int>((firstVertices.Length - 1) / workGroupSize + 1, isHostAccesible=false)
+            let firstVertices = gpu.Allocate<int> ((inputArray.Length - 1) / workGroupSize + 1, hostAccessMode = HostAccessMode.NotAccessible)
+            let secondVertices = gpu.Allocate<int>((firstVertices.Length - 1) / workGroupSize + 1, hostAccessMode = HostAccessMode.NotAccessible)
             sw.Stop()
             printfn "Data to gpu in PrefixSum: %A" (sw.ElapsedMilliseconds)
             let mutable verticesArrays = firstVertices, secondVertices

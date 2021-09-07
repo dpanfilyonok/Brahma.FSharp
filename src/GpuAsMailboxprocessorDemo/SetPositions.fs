@@ -2,7 +2,7 @@ namespace GraphBLAS.FSharp.Backend.COOMatrix.Utilities
 
 open Brahma.FSharp.OpenCL
 open OpenCL.Net
-open Brahma.OpenCL
+//open Brahma.OpenCL
 open GraphBLAS.FSharp.Backend.Common
 
 [<AutoOpen>]
@@ -11,7 +11,7 @@ module internal SetPositions =
 
         let setPositions =
             <@
-                fun (ndRange: _1D)
+                fun (ndRange: Brahma.OpenCL._1D)
                     prefixSumArrayLength
                     (allRowsBuffer: int[])
                     (allColumnsBuffer: int[])
@@ -39,7 +39,7 @@ module internal SetPositions =
         let resultLength = Array.zeroCreate 1
         let sw = System.Diagnostics.Stopwatch()
 
-        fun (processor:MailboxProcessor<_>) (allRows: GpuArray<int>) (allColumns: GpuArray<int>) (allValues: GpuArray<'a>) (positions: GpuArray<int>) ->
+        fun (processor:MailboxProcessor<_>) (allRows: Buffer<int>) (allColumns: Buffer<int>) (allValues: Buffer<'a>) (positions: Buffer<int>) ->
             let prefixSumArrayLength = positions.Length            
             let resultLengthGpu = gpu.Allocate<_>(1)
             let _,r = sum processor positions resultLengthGpu
@@ -49,12 +49,12 @@ module internal SetPositions =
                 processor.Post(Msg.CreateFreeMsg<_>(r))
                 resultLength.[0]
             sw.Start()
-            let resultRows = gpu.Allocate<int>(resultLength, Brahma.OpenCL.Operations.WriteOnly)
-            let resultColumns = gpu.Allocate<int>(resultLength, Brahma.OpenCL.Operations.WriteOnly)
-            let resultValues = gpu.Allocate<'a>(resultLength, Brahma.OpenCL.Operations.WriteOnly)
+            let resultRows = gpu.Allocate<int>(resultLength, deviceAccessMode=DeviceAccessMode.WriteOnly)
+            let resultColumns = gpu.Allocate<int>(resultLength, deviceAccessMode=DeviceAccessMode.WriteOnly)
+            let resultValues = gpu.Allocate<'a>(resultLength, deviceAccessMode=DeviceAccessMode.WriteOnly)
             sw.Stop()
             printfn "Data to gpu in SetPositions: %A" (sw.ElapsedMilliseconds)
-            let ndRange = _1D(Utils.getDefaultGlobalSize positions.Length, Utils.defaultWorkGroupSize)
+            let ndRange = Brahma.OpenCL._1D(Utils.getDefaultGlobalSize positions.Length, Utils.defaultWorkGroupSize)
             processor.Post(Msg.MsgSetArguments( fun () ->    
             kernel.SetArguments
                     ndRange
