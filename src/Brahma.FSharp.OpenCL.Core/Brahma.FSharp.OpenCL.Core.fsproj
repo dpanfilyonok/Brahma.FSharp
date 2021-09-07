@@ -21,13 +21,11 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Core.fs" />
+    <Compile Include="Device.fs" />
+    <Compile Include="Buffer.fs" />
+    <Compile Include="Kernel.fs" />
+    <Compile Include="Messages.fs" />
     <Compile Include="GPU.fs" />
-    <Compile Include="PrefixSum.fs" />
-    <Compile Include="PreparePositions.fs" />
-    <Compile Include="SetPositions.fs" />
-    <Compile Include="Merge.fs" />
-    <Compile Include="EWiseAdd.fs" />
-    <Compile Include="App.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Brahma.FSharp.OpenCL.Printer\Brahma.FSharp.OpenCL.Printer.fsproj" />
