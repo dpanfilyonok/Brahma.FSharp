@@ -15,8 +15,8 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension>(
         let codeGenerator = new Translator.FSQuotationToOpenCLTranslator()
         let ast, newLambda = codeGenerator.Translate srcLambda translatorOptions
         let code = Printer.AST.Print ast
-        //printfn "Code = %A" code
         code
+        
     let compileQuery translatorOptions additionalSources =
 
         let program, error =

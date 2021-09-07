@@ -1,9 +1,8 @@
 namespace Brahma.FSharp.OpenCL
 
 open OpenCL.Net
-//open Brahma.OpenCL
 
-type Free<'t>(src:Buffer<'t>, ?replyChannel:AsyncReplyChannel<unit>) =
+type Free<'t>(src:Buffer<'t>, ?replyChannel:AsyncReplyChannel<Result<unit, System.Exception>>) =
     member this.Source = src
     member this.ReplyChannel = replyChannel
 
@@ -69,17 +68,17 @@ type Msg =
     | MsgNotifyMe of AsyncReplyChannel<unit>
     | MsgBarrier of SyncObject
 
-    static member CreateToHostMsg m =
+    static member CreateToHostMsg<'t> (src, dst, ?ch) =
         {
             new ToHostCrate with
-                member this.Apply e = e.Eval m
+                member this.Apply e = e.Eval (ToHost<'t>(src, dst, ?replyChannel = ch))
         }
         |> MsgToHost
 
     static member CreateToGPUMsg<'t>(src, dst) =
         {
             new ToGPUCrate with
-                member this.Apply e = e.Eval (ToGPU<'t>(src,dst))
+                member this.Apply e = e.Eval (ToGPU<'t>(src, dst))
         }
         |> MsgToGPU
 

@@ -98,9 +98,9 @@ module internal rec EWiseAdd =
             let rows = Array.zeroCreate resultLength
             let columns = Array.zeroCreate resultLength
             let values = Array.zeroCreate resultLength
-            processor.Post(Msg.CreateToHostMsg(ToHost<int>(resultRows, rows)))
-            processor.Post(Msg.CreateToHostMsg(ToHost<int>(resultColumns, columns)))
-            processor.PostAndReply(fun ch -> Msg.CreateToHostMsg(ToHost<'a>(resultValues, values, ch)))
+            processor.Post(Msg.CreateToHostMsg<int>(resultRows, rows))
+            processor.Post(Msg.CreateToHostMsg<int>(resultColumns, columns))
+            processor.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(resultValues, values, ch))
 
             sw3.Stop()
             sw.Stop()

@@ -54,7 +54,16 @@ type GPU(device: Device) =
                 {
                     new FreeCrateEvaluator<int>
                     with member this.Eval (a:Free<'t>) =
-                            a.Source.Free()
+                            try 
+                                a.Source.Free()
+                                match a.ReplyChannel with
+                                | Some ch -> ch.Reply (Ok ())
+                                | None -> ()
+                            with 
+                            | e -> 
+                                match a.ReplyChannel with
+                                | Some ch -> ch.Reply (Error e)
+                                | None -> ()
                             0
                 }
 

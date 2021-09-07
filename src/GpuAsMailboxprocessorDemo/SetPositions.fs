@@ -2,7 +2,6 @@ namespace GraphBLAS.FSharp.Backend.COOMatrix.Utilities
 
 open Brahma.FSharp.OpenCL
 open OpenCL.Net
-//open Brahma.OpenCL
 open GraphBLAS.FSharp.Backend.Common
 
 [<AutoOpen>]
@@ -45,7 +44,7 @@ module internal SetPositions =
             let _,r = sum processor positions resultLengthGpu
             sw.Reset()
             let resultLength =
-                processor.PostAndReply(fun ch -> Msg.CreateToHostMsg(ToHost<_>(r, resultLength, ch)))
+                processor.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(r, resultLength, ch))
                 processor.Post(Msg.CreateFreeMsg<_>(r))
                 resultLength.[0]
             sw.Start()

@@ -106,7 +106,7 @@ type Host() =
             barrier2
 
         processors
-        |> Array.mapi (fun i p -> p.PostAndReply(fun ch -> Msg.CreateToHostMsg(ToHost<_>(_resBlocks.[i], resBlocks.[i], ch))))
+        |> Array.mapi (fun i p -> p.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(_resBlocks.[i], resBlocks.[i], ch)))
 
         resBlocks
         |> Array.iter (fun x -> printfn "%A" x)
@@ -154,8 +154,8 @@ type Host() =
 
         //This code is unsafe because there is no synchronization between processors
         //It is just to show that we can share buffers between queues on the same device
-        let res1 = processor2.PostAndReply(fun ch -> Msg.CreateToHostMsg(ToHost<_>(nRes, res1, ch)))
-        let res2 = processor1.PostAndReply(fun ch -> Msg.CreateToHostMsg(ToHost<_>(mRes, res2, ch)))
+        let res1 = processor2.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(nRes, res1, ch))
+        let res2 = processor1.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(mRes, res2, ch))
 
         let result =
             res1,res2
@@ -176,7 +176,7 @@ type Host() =
 
         let sum = GraphBLAS.FSharp.Backend.Common.PrefixSum.runExcludeInplace gpu
         let _,r = sum processor gpuArr gpuRes
-        processor.PostAndReply(fun ch -> Msg.CreateToHostMsg(ToHost<_>(r, res, ch)))
+        processor.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(r, res, ch))
 
         printfn "Sum: %A" res
 
