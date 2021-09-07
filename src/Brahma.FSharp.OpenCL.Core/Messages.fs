@@ -6,18 +6,18 @@ type Free<'t>(src:Buffer<'t>, ?replyChannel:AsyncReplyChannel<Result<unit, Syste
     member this.Source = src
     member this.ReplyChannel = replyChannel
 
-type ToHost<'t>(src:Buffer<'t>, dst: array<'t>, ?replyChannel:AsyncReplyChannel<array<'t>>) =
+type ToHost<'t>(src:Buffer<'t>, dst: array<'t>, ?replyChannel:AsyncReplyChannel<Result<array<'t>, System.Exception>>) =
     member this.Destination = dst
     member this.Source = src
     member this.ReplyChannel = replyChannel
 
-type ToGPU<'t>(src:array<'t>, dst: Buffer<'t>, ?replyChannel:AsyncReplyChannel<array<'t>>) =
+type ToGPU<'t>(src:array<'t>, dst: Buffer<'t>, ?replyChannel:AsyncReplyChannel<Result<unit, System.Exception>>) =
     member this.Destination = dst
     member this.Source = src
     member this.ReplyChannel = replyChannel
 
 type Run<'TRange,'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension>
-        (kernel:GpuKernel<'TRange,'a, 't>, ?replyChannel:AsyncReplyChannel<bool>) =
+        (kernel:GpuKernel<'TRange,'a, 't>, ?replyChannel:AsyncReplyChannel<Result<unit, System.Exception>>) =
     member this.Kernel = kernel
     member this.ReplyChannel = replyChannel
 
@@ -75,25 +75,24 @@ type Msg =
         }
         |> MsgToHost
 
-    static member CreateToGPUMsg<'t>(src, dst) =
+    static member CreateToGPUMsg<'t>(src, dst, ?ch) =
         {
             new ToGPUCrate with
-                member this.Apply e = e.Eval (ToGPU<'t>(src, dst))
+                member this.Apply e = e.Eval (ToGPU<'t>(src, dst, ?replyChannel = ch))
         }
         |> MsgToGPU
 
-    static member CreateFreeMsg<'t>(src) =
+    static member CreateFreeMsg<'t>(src, ?ch) =
         {
             new FreeCrate with
-                member this.Apply e = e.Eval (Free<'t>(src))
+                member this.Apply e = e.Eval (Free<'t>(src, ?replyChannel = ch))
         }
         |> MsgFree
 
-
-    static member CreateRunMsg m =
+    static member CreateRunMsg<'TRange,'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension> (kernel, ?ch) =
         {
             new RunCrate with
-                member this.Apply e = e.Eval m
+                member this.Apply e = e.Eval (Run<'TRange,'a, 't>(kernel, ?replyChannel = ch)) 
         }
         |> MsgRun
 

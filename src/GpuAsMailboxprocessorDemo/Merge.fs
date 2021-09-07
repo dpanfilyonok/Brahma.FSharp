@@ -153,6 +153,6 @@ module internal Merge =
                     allColumns
                     allValues
             ))
-            processor.Post(Msg.CreateRunMsg(Run<_,_,_>(kernel)))
+            processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
 
             allRows, allColumns, allValues

@@ -13,8 +13,8 @@ type GPU(device: Device) =
     let clContext =
         let error = ref (Unchecked.defaultof<ErrorCode>)
         let ctx = Cl.CreateContext(null, 1u, [|device|], null, System.IntPtr.Zero, error)
-        if (!error <> ErrorCode.Success)
-        then raise (new Cl.Exception(!error))
+        if !error <> ErrorCode.Success
+        then raise (Cl.Exception !error)
         ctx
 
     let createNewCommandQueue() =
@@ -23,9 +23,24 @@ type GPU(device: Device) =
         let queue = Cl.CreateCommandQueue (clContext, device, props, error)
 
         if !error <> ErrorCode.Success
-        then raise <| Cl.Exception(!error)
+        then raise (Cl.Exception !error) 
 
         queue
+
+    let tryReplay (chOpt:option<AsyncReplyChannel<_>>) resp queue =
+        match chOpt with
+        | Some ch -> 
+            match queue with
+            | Some queue -> 
+                let error = OpenCL.Net.Cl.Finish(queue)
+                if error <> ErrorCode.Success
+                then
+                    let e = (Cl.Exception error):> Exception 
+                    ch.Reply  <| Error e
+                    raise e
+                else ch.Reply resp
+            | None -> ch.Reply resp
+        | None -> ()
 
     member this.ClDevice = device
 
@@ -56,14 +71,11 @@ type GPU(device: Device) =
                     with member this.Eval (a:Free<'t>) =
                             try 
                                 a.Source.Free()
-                                match a.ReplyChannel with
-                                | Some ch -> ch.Reply (Ok ())
-                                | None -> ()
+                                tryReplay a.ReplyChannel (Ok ()) None
                             with 
-                            | e -> 
-                                match a.ReplyChannel with
-                                | Some ch -> ch.Reply (Error e)
-                                | None -> ()
+                            | e ->  
+                                tryReplay a.ReplyChannel (Error e) None
+                                raise e
                             0
                 }
 
@@ -81,7 +93,11 @@ type GPU(device: Device) =
                                                                   System.IntPtr(dst.Length * elementSize), src, 0u, null, eventID);
 
                                 if error <> ErrorCode.Success
-                                then raise (Cl.Exception error)
+                                then 
+                                    let e = (Cl.Exception error):> Exception
+                                    tryReplay a.ReplyChannel (Error e) (Some queue)
+                                    raise e
+                                else tryReplay a.ReplyChannel (Ok ()) (Some queue)
 
                             write a.Source a.Destination
                             0
@@ -100,14 +116,11 @@ type GPU(device: Device) =
                                                                  System.IntPtr(src.Length * elementSize), dst, 0u, null, eventID)
 
                                 if error <> ErrorCode.Success
-                                then raise (Cl.Exception(error))
+                                then tryReplay a.ReplyChannel (Error ((Cl.Exception error):> Exception)) (Some queue)
                                 dst
+
                             let res = read a.Source a.Destination
-                            match a.ReplyChannel with
-                            | None -> ()
-                            | Some ch ->
-                                OpenCL.Net.Cl.Finish(queue)
-                                ch.Reply res
+                            tryReplay a.ReplyChannel (Ok res) (Some queue)
                             0
                 }
 
@@ -116,26 +129,18 @@ type GPU(device: Device) =
                 {
                     new RunCrateEvaluator<int>
                     with member this.Eval (a) =
-                            let runKernel (kernel:GpuKernel<'TRange,'a, 't>) =
-                                let range = kernel.Range
-                                let workDim = uint32 range.Dimensions
-                                let eventID = ref Unchecked.defaultof<Event>
-                                let error =
-                                    Cl.EnqueueNDRangeKernel(queue, kernel.ClKernel, workDim, null,
-                                                            range.GlobalWorkSize, range.LocalWorkSize, 0u, null, eventID)
-                                
-                                if error <> ErrorCode.Success
-                                then
-                                    printfn "Run failed: %A" (Cl.Exception error)
-                                    raise (Cl.Exception error)
-
-                            runKernel a.Kernel
-
-                            match a.ReplyChannel with
-                            | None -> ()
-                            | Some ch ->
-                                OpenCL.Net.Cl.Finish(queue) 
-                                ch.Reply true
+                            
+                            let range = a.Kernel.Range
+                            let workDim = uint32 range.Dimensions
+                            let eventID = ref Unchecked.defaultof<Event>
+                            let error =
+                                Cl.EnqueueNDRangeKernel(queue, a.Kernel.ClKernel, workDim, null,
+                                                        range.GlobalWorkSize, range.LocalWorkSize, 0u, null, eventID)
+                            
+                            if error <> ErrorCode.Success
+                            then tryReplay a.ReplyChannel (Error ((Cl.Exception error) :> Exception)) (Some queue)
+                            else tryReplay a.ReplyChannel (Ok()) (Some queue)
+                            
                             0
                 }
 

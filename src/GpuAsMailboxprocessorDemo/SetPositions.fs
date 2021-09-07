@@ -44,9 +44,12 @@ module internal SetPositions =
             let _,r = sum processor positions resultLengthGpu
             sw.Reset()
             let resultLength =
-                processor.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(r, resultLength, ch))
-                processor.Post(Msg.CreateFreeMsg<_>(r))
-                resultLength.[0]
+                let res = processor.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(r, resultLength, ch))
+                match res with 
+                | Error e -> raise e
+                | Ok x ->  
+                    processor.Post(Msg.CreateFreeMsg<_>(r))
+                    x.[0]
             sw.Start()
             let resultRows = gpu.Allocate<int>(resultLength, deviceAccessMode=DeviceAccessMode.WriteOnly)
             let resultColumns = gpu.Allocate<int>(resultLength, deviceAccessMode=DeviceAccessMode.WriteOnly)
@@ -66,6 +69,6 @@ module internal SetPositions =
                     resultColumns
                     resultValues
             ))
-            processor.Post(Msg.CreateRunMsg(Run<_,_,_>(kernel)))
+            processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
             resultRows, resultColumns, resultValues, resultLength
 

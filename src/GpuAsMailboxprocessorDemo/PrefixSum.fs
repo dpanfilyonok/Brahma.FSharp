@@ -36,7 +36,7 @@ module internal PrefixSum =
         fun (processor:MailboxProcessor<_>) (inputArray:Buffer<int>) (inputArrayLength:int) (vertices:Buffer<int>) (bunchLength: int) ->
             let ndRange = Brahma.OpenCL._1D(Utils.getDefaultGlobalSize inputArrayLength - bunchLength, workGroupSize)
             processor.Post(Msg.MsgSetArguments(fun () -> kernel.SetArguments ndRange inputArrayLength bunchLength inputArray vertices))
-            processor.Post(Msg.CreateRunMsg(Run<_,_,_>(kernel)))
+            processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
 
     let private getNewScan (gpu:GPU) =
 
@@ -93,7 +93,7 @@ module internal PrefixSum =
             let ndRange = Brahma.OpenCL._1D(Utils.getDefaultGlobalSize inputArrayLength, workGroupSize)
             processor.Post(Msg.MsgSetArguments(fun () -> 
                 kernel.SetArguments ndRange inputArrayLength verticesLength inputArray vertices totalSum))
-            processor.Post(Msg.CreateRunMsg(Run<_,_,_>(kernel)))
+            processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
 
     let runExcludeInplace (gpu:GPU) =
 

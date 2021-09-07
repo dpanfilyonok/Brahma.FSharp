@@ -20,7 +20,7 @@ module Lib =
         let kernel = gpu.CreateKernel(kernelFun)
         fun (processor:MailboxProcessor<_>) rng mSize (a:Buffer<'t>) (b:Buffer<'t>) (res:Buffer<'t>) ->
             kernel.SetArguments rng mSize a b res
-            processor.Post(Msg.CreateRunMsg(Run<_,_,_>(kernel)))
+            processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
 
     let getNewMxMAdd<'t1,'t2,'t3> (gpu: GPU) opAdd opMult =
         let kernelFun =
@@ -38,7 +38,7 @@ module Lib =
 
         fun (processor:MailboxProcessor<_>) rng mSize (a:Buffer<'t1>) (b:Buffer<'t2>) (res:Buffer<'t3>) ->
             kernel.SetArguments rng mSize a b res
-            processor.Post(Msg.CreateRunMsg(Run<_,_,_>(kernel)))
+            processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
 
     let getNewVectorVectorElementwiseOp<'t1,'t2,'t3> (gpu:GPU) op =
         let kernelFun =
@@ -48,7 +48,7 @@ module Lib =
         let kernel = gpu.CreateKernel(kernelFun)
         fun (processor:MailboxProcessor<_>) rng (a1:Buffer<'t1>) (a2:Buffer<'t2>) (res:Buffer<'t3>) ->
             kernel.SetArguments rng a1 a2 res
-            processor.Post(Msg.CreateRunMsg(Run<_,_,_>(kernel)))
+            processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
 
 type Host() =
 
