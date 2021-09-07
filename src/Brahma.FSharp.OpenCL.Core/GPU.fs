@@ -6,6 +6,9 @@ open Brahma.OpenCL
 open Microsoft.FSharp.Quotations
 open FSharp.Quotations.Evaluator
 
+open System
+open System.Runtime.InteropServices
+
 module Device =
     open System.Text.RegularExpressions
 
@@ -31,6 +34,8 @@ type GpuArray<'t> (buffer:Brahma.OpenCL.Buffer<'t>, length) =
         //printfn "Free: %A" this.Length
         this.Buffer.Dispose()
     //override this.Finalize() = this.Buffer.Dispose()
+    interface System.IDisposable with
+        member this.Dispose() = this.Buffer.Dispose()
 
 type GpuKernel<'TRange, 'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension>(device, context, srcLambda: Expr<'TRange ->'a>) =
 
@@ -52,7 +57,9 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension>(
         if error <> ErrorCode.Success
         then failwithf "Program creation failed: %A" error
 
-        let error = Cl.BuildProgram(program, 1u, [|device|], "", null, System.IntPtr.Zero)
+        let options =  
+            " -cl-fast-relaxed-math -cl-mad-enable "
+        let error = Cl.BuildProgram(program, 1u, [|device|], options, null, System.IntPtr.Zero)
 
         if error <> ErrorCode.Success
         then failwithf "Program compilation failed: %A" error
@@ -277,9 +284,29 @@ type GPU(device: Device) =
     member this.CreateKernel (srcLambda) =
         new GpuKernel<_,_,_>(device, clContext, srcLambda)
 
-    member this.Allocate<'t> (length:int) =
+    member this.Allocate<'t> (length:int,                               
+                              [<Optional; DefaultParameterValue(Brahma.OpenCL.Operations.ReadWrite)>]accessMode, 
+                              [<Optional; DefaultParameterValue(true)>] isHostAccesible:bool
+                              ) =
         //printfn "Allocation : %A" length
-        let buf = new Brahma.OpenCL.Buffer<_>(clContext, Brahma.OpenCL.Operations.ReadWrite, true, length)
+        let buf = 
+            
+              new Brahma.OpenCL.Buffer<_>(clContext, accessMode, isHostAccesible, length)
+            
+        let res = new GpuArray<'t>(buf,length)
+        res
+
+    member this.Allocate<'t> (length:int, data:array<'t>,
+                              [<Optional; DefaultParameterValue(Brahma.OpenCL.Operations.ReadWrite)>]accessMode, 
+                              [<Optional; DefaultParameterValue(true)>] isHostAccesible:bool                              
+                              ) =
+        //printfn "Allocation : %A" length
+        let buf = 
+            if data = null || data.Length <> length 
+            then 
+              new Brahma.OpenCL.Buffer<_>(clContext, accessMode, isHostAccesible, length)
+            else 
+              new Brahma.OpenCL.Buffer<_>(clContext, accessMode, data)
         let res = new GpuArray<'t>(buf,length)
         res
 

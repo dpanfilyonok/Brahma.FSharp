@@ -218,6 +218,7 @@ type Host() =
         use streamReader = new StreamReader(pathToFile)
         while streamReader.Peek() = int '%' do
             streamReader.ReadLine() |> ignore
+        let rnd = new System.Random()
 
         let matrixFromCoordinateFormat () =
             let size =
@@ -239,7 +240,7 @@ type Host() =
                     (fun line ->
                         let i = int line.[0]
                         let j = int line.[1]
-                        let v = float line.[2]
+                        let v = if line.Length > 2 then float line.[2] else (rnd.NextDouble() + 0.001)
                         struct(pack i j, v)
                     )
                 |> Array.sortBy (fun struct(packedIndex, _) -> packedIndex)
@@ -278,11 +279,11 @@ type Host() =
 
         sw.Start()
 
-
+        let _do = EWiseAdd.gpuEWiseAdd gpu <@ (+) @>
         //let resMtx =
-        for i in 0..90 do
+        for i in 0..99 do
             printfn "i = %A" i
-            EWiseAdd.run gpu mtx1 mtx2 <@ (+) @>
+            _do mtx1 mtx2 
 
         sw.Stop()
 

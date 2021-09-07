@@ -115,21 +115,25 @@ module internal Merge =
             @>
 
         let kernel = gpu.CreateKernel(merge)
+        let sw = System.Diagnostics.Stopwatch()
 
         fun (processor:MailboxProcessor<_>)
             (matrixLeftRows: GpuArray<int>) (matrixLeftColumns: GpuArray<int>) (matrixLeftValues: GpuArray<'a>)
             (matrixRightRows: GpuArray<int>) (matrixRightColumns: GpuArray<int>) (matrixRightValues: GpuArray<'a>)
             ->
 
-
+            sw.Reset()
             let firstSide = matrixLeftValues.Length
             let secondSide = matrixRightValues.Length
             let sumOfSides = firstSide + secondSide
 
+            sw.Start()
+            let allRows = gpu.Allocate<int>(sumOfSides, Brahma.OpenCL.Operations.WriteOnly, isHostAccesible = false)
+            let allColumns = gpu.Allocate<int>(sumOfSides, Brahma.OpenCL.Operations.WriteOnly, isHostAccesible = false)
+            let allValues = gpu.Allocate<'a>(sumOfSides, Brahma.OpenCL.Operations.WriteOnly, isHostAccesible = false)
 
-            let allRows = gpu.Allocate<int>(sumOfSides)
-            let allColumns = gpu.Allocate<int>(sumOfSides)
-            let allValues = gpu.Allocate<'a>(sumOfSides)
+            sw.Stop()
+            printfn "Data to gpu in Merge: %A" (sw.ElapsedMilliseconds)
 
             let ndRange = _1D(Utils.getDefaultGlobalSize sumOfSides, workGroupSize)
 

@@ -65,7 +65,7 @@ namespace Brahma.OpenCL
             var size = (IntPtr)(_length * _elementSize);
             _mem = Cl.CreateBuffer(
                         provider.Context
-                        , (ClNet.MemFlags)operations | (hostAccessible ? ClNet.MemFlags.AllocHostPtr : 0)
+                        , (hostAccessible ? ((ClNet.MemFlags)operations | ClNet.MemFlags.AllocHostPtr | ClNet.MemFlags.UseHostPtr) : ClNet.MemFlags.HostNoAccess) 
                         , size, null, out error);
 
             if (error != ClNet.ErrorCode.Success)
@@ -82,7 +82,7 @@ namespace Brahma.OpenCL
             var size = (IntPtr)(_length * _elementSize);
             _mem = Cl.CreateBuffer(
                 context
-                , (ClNet.MemFlags)operations | (hostAccessible ? ClNet.MemFlags.AllocHostPtr : 0)
+                , (ClNet.MemFlags)operations | (hostAccessible ? ClNet.MemFlags.AllocHostPtr : ClNet.MemFlags.HostNoAccess)                
                 , size, null, out error);
 
             if (error != ClNet.ErrorCode.Success)
@@ -91,6 +91,22 @@ namespace Brahma.OpenCL
             Operations = operations;
             Memory = Memory.Device;
         }
+
+        public Buffer(ClNet.Context context, Operations operations, T[] data) // Create and copy/use data from host
+        {
+            ClNet.ErrorCode error;
+            _length = data.Length;
+
+            _mem = Cl.CreateBuffer(context, (ClNet.MemFlags)operations | ClNet.MemFlags.CopyHostPtr,
+                (IntPtr)(_elementSize * data.Length), (Array)data, out error);
+
+            if (error != ClNet.ErrorCode.Success)
+                throw new Cl.Exception(error);
+
+            Operations = operations;
+            Memory = Memory.Host;
+        }
+
 
 
         public Buffer(ComputeProvider provider, Operations operations, Memory memory, Array data) // Create and copy/use data from host

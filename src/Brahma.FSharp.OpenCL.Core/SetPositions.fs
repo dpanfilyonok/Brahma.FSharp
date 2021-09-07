@@ -36,20 +36,24 @@ module internal SetPositions =
 
         let kernel = gpu.CreateKernel(setPositions)
         let sum = PrefixSum.runExcludeInplace gpu
+        let resultLength = Array.zeroCreate 1
+        let sw = System.Diagnostics.Stopwatch()
 
         fun (processor:MailboxProcessor<_>) (allRows: GpuArray<int>) (allColumns: GpuArray<int>) (allValues: GpuArray<'a>) (positions: GpuArray<int>) ->
-            let prefixSumArrayLength = positions.Length
-            let resultLength = Array.zeroCreate 1
+            let prefixSumArrayLength = positions.Length            
             let resultLengthGpu = gpu.Allocate<_>(1)
             let _,r = sum processor positions resultLengthGpu
-
+            sw.Reset()
             let resultLength =
                 processor.PostAndReply(fun ch -> Msg.CreateToHostMsg(ToHost<_>(r, resultLength, ch)))
                 processor.Post(Msg.CreateFreeMsg<_>(r))
                 resultLength.[0]
-            let resultRows = gpu.Allocate<int>(resultLength)
-            let resultColumns = gpu.Allocate<int>(resultLength)
-            let resultValues = gpu.Allocate<'a>(resultLength)
+            sw.Start()
+            let resultRows = gpu.Allocate<int>(resultLength, Brahma.OpenCL.Operations.WriteOnly)
+            let resultColumns = gpu.Allocate<int>(resultLength, Brahma.OpenCL.Operations.WriteOnly)
+            let resultValues = gpu.Allocate<'a>(resultLength, Brahma.OpenCL.Operations.WriteOnly)
+            sw.Stop()
+            printfn "Data to gpu in SetPositions: %A" (sw.ElapsedMilliseconds)
             let ndRange = _1D(Utils.getDefaultGlobalSize positions.Length, Utils.defaultWorkGroupSize)
             processor.Post(Msg.MsgSetArguments( fun () ->    
             kernel.SetArguments

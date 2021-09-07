@@ -21,13 +21,14 @@ module internal PreparePositions =
 
                     let i = ndRange.GlobalID0
 
-                    if i < length - 1
+                    if (i < length - 1
                     && allRowsBuffer.[i] = allRowsBuffer.[i + 1]
-                    && allColumnsBuffer.[i] = allColumnsBuffer.[i + 1]
+                    && allColumnsBuffer.[i] = allColumnsBuffer.[i + 1])
                     then
                         rawPositionsBuffer.[i] <- 0
                         allValuesBuffer.[i + 1] <- (%plus) allValuesBuffer.[i] allValuesBuffer.[i + 1]
-
+                    else 
+                        (rawPositionsBuffer.[i] <- 1) //TODO is it correct?
                         //Drop explicit zeroes
                         // let localResultBuffer = (%plus) allValuesBuffer.[i] allValuesBuffer.[i + 1]
                         // if localResultBuffer = zero then rawPositionsBuffer.[i + 1] <- 0 else allValuesBuffer.[i + 1] <- localResultBuffer
@@ -39,9 +40,9 @@ module internal PreparePositions =
             let length = allValues.Length
             let ndRange = _1D(Utils.getDefaultGlobalSize (length - 1), Utils.defaultWorkGroupSize)
 
-            let rawPositions = Array.create length 1
-            let rawPositionsGpu = gpu.Allocate<_>(length)
-            processor.Post(Msg.CreateToGPUMsg<_>(rawPositions, rawPositionsGpu))
+            //let rawPositions = Array.create length 1
+            let rawPositionsGpu = gpu.Allocate<int>(length, Brahma.OpenCL.Operations.ReadWrite, isHostAccesible=false)
+            //processor.Post(Msg.CreateToGPUMsg<_>(rawPositions, rawPositionsGpu))
 
             processor.Post(Msg.MsgSetArguments(fun () -> kernel.SetArguments ndRange length allRows allColumns allValues rawPositionsGpu))
             processor.Post(Msg.CreateRunMsg(Run<_,_,_>(kernel)))

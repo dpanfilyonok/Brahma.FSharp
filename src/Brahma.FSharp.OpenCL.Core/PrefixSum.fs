@@ -5,7 +5,7 @@ open OpenCL.Net
 open Brahma.OpenCL
 
 module Utils =
-    let defaultWorkGroupSize = 32
+    let defaultWorkGroupSize = 256
     let getDefaultGlobalSize n =
         let m = n - 1
         m - m % defaultWorkGroupSize + defaultWorkGroupSize
@@ -103,9 +103,15 @@ module internal PrefixSum =
         let scan = getNewScan gpu
         let update = getNewUpdate gpu
 
+        let sw = System.Diagnostics.Stopwatch()
+
         fun (processor:MailboxProcessor<_>) (inputArray: GpuArray<int>) (totalSum: GpuArray<int>) ->
-            let firstVertices = gpu.Allocate<int> <| (inputArray.Length - 1) / workGroupSize + 1
-            let secondVertices = gpu.Allocate<int> <| (firstVertices.Length - 1) / workGroupSize + 1
+            sw.Reset()
+            sw.Start()
+            let firstVertices = gpu.Allocate<int> ((inputArray.Length - 1) / workGroupSize + 1, isHostAccesible=false)
+            let secondVertices = gpu.Allocate<int>((firstVertices.Length - 1) / workGroupSize + 1, isHostAccesible=false)
+            sw.Stop()
+            printfn "Data to gpu in PrefixSum: %A" (sw.ElapsedMilliseconds)
             let mutable verticesArrays = firstVertices, secondVertices
             let swap (a, b) = (b, a)
 
