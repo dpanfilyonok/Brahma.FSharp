@@ -128,6 +128,7 @@ module internal PrefixSum =
 
             processor.Post(Msg.CreateFreeMsg<_>(firstVertices))
             processor.Post(Msg.CreateFreeMsg<_>(secondVertices))
+            //printfn "1"
 
             inputArray, totalSum
 

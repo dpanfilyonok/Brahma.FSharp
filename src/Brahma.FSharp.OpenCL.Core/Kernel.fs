@@ -1,7 +1,7 @@
 namespace Brahma.FSharp.OpenCL
 
 open OpenCL.Net
-open Brahma.OpenCL
+//open Brahma.OpenCL
 
 open Microsoft.FSharp.Quotations
 open FSharp.Quotations.Evaluator
@@ -16,7 +16,7 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension>(
         let ast, newLambda = codeGenerator.Translate srcLambda translatorOptions
         let code = Printer.AST.Print ast
         code
-        
+
     let compileQuery translatorOptions additionalSources =
 
         let program, error =
@@ -50,8 +50,8 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension>(
 
     let toIMem a =
         match box a with
-        | :? Brahma.IMem as mem ->
-           mem.Size, mem.Data
+        | :? IClMem as buf ->
+            buf.Size, buf.Data
         | :? int as i -> System.IntPtr(System.Runtime.InteropServices.Marshal.SizeOf(i)),
                          box i
         | x -> failwithf "Unexpected argument: %A" x
@@ -63,7 +63,7 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension>(
                 , argSize
                 , argVal)
         if error <> ErrorCode.Success
-        then raise (new CLException(error))
+        then raise (new Brahma.OpenCL.CLException(error))
 
     let range = ref Unchecked.defaultof<'TRange>
 
@@ -86,12 +86,7 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension>(
                 | e ->
                     let arr =
                         let allArgs =
-                            let expr (v:Var) =
-                                if v.Type.Name.Contains "Buffer"
-                                then
-                                    let propertyInfo = v.Type.GetProperty("Buffer")
-                                    Expr.PropertyGet(Expr.Var(v), propertyInfo)
-                                else Expr.Var(v)
+                            let expr (v:Var) = Expr.Var(v)
 
                             Expr.NewArray(
                                     typeof<obj>,

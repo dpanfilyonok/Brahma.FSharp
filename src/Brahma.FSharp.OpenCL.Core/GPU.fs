@@ -92,11 +92,15 @@ type GPU(device: Device) =
                                 let error = Cl.EnqueueWriteBuffer(queue, mem, Bool.False, System.IntPtr(0),
                                                                   System.IntPtr(dst.Length * elementSize), src, 0u, null, eventID);
 
-                                if error <> ErrorCode.Success
+                                //printfn "%A" (Cl.Exception error)
+                                if error <> ErrorCode.Success 
                                 then 
-                                    let e = (Cl.Exception error):> Exception
-                                    tryReplay a.ReplyChannel (Error e) (Some queue)
-                                    raise e
+                                    try 
+                                        let e = (Cl.Exception error) :> Exception
+                                        tryReplay a.ReplyChannel (Error e) (Some queue)
+                                        raise e
+                                    with 
+                                    | e -> printfn "%A" e
                                 else tryReplay a.ReplyChannel (Ok ()) (Some queue)
 
                             write a.Source a.Destination
@@ -115,6 +119,7 @@ type GPU(device: Device) =
                                 let error = Cl.EnqueueReadBuffer(queue, mem, Bool.False, System.IntPtr(0),
                                                                  System.IntPtr(src.Length * elementSize), dst, 0u, null, eventID)
 
+                                //printfn "%A" (Cl.Exception error)
                                 if error <> ErrorCode.Success
                                 then tryReplay a.ReplyChannel (Error ((Cl.Exception error):> Exception)) (Some queue)
                                 dst
@@ -138,7 +143,13 @@ type GPU(device: Device) =
                                                         range.GlobalWorkSize, range.LocalWorkSize, 0u, null, eventID)
                             
                             if error <> ErrorCode.Success
-                            then tryReplay a.ReplyChannel (Error ((Cl.Exception error) :> Exception)) (Some queue)
+                            then 
+                                try 
+                                    let e = (Cl.Exception error) :> Exception
+                                    tryReplay a.ReplyChannel (Error e) (Some queue)
+                                    raise e
+                                with 
+                                | e -> printfn "%A" e
                             else tryReplay a.ReplyChannel (Ok()) (Some queue)
                             
                             0
@@ -179,12 +190,15 @@ type GPU(device: Device) =
                 this.HandleFree a
 
             | MsgSetArguments a ->
-                //printfn "SetArgs" 
-                if itIsFirstNonqueueMsg 
-                then                    
-                    OpenCL.Net.Cl.Finish(commandQueue)
-                    itIsFirstNonqueueMsg  <- false
-                a ()
+                try 
+                    //printfn "SetArgs" 
+                    if itIsFirstNonqueueMsg 
+                    then                    
+                        OpenCL.Net.Cl.Finish(commandQueue)
+                        itIsFirstNonqueueMsg  <- false
+                    a ()
+                with 
+                | e -> printfn "%A" e
 
             | MsgNotifyMe ch ->
                 //printfn "Notify"

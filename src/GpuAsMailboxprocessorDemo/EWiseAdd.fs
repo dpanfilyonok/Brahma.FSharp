@@ -72,14 +72,6 @@ module internal rec EWiseAdd =
             use matrixRightColumns = gpu.Allocate<_>(matrixRight.Columns, deviceAccessMode = DeviceAccessMode.ReadOnly)
             use matrixRightValues = gpu.Allocate<'a>(matrixRight.Values, deviceAccessMode = DeviceAccessMode.ReadOnly)
 
-            //processor.Post(Msg.CreateToGPUMsg<_>(matrixLeft.Rows, matrixLeftRows))
-            //processor.Post(Msg.CreateToGPUMsg<_>(matrixLeft.Columns, matrixLeftColumns))
-            //processor.Post(Msg.CreateToGPUMsg<_>(matrixLeft.Values, matrixLeftValues))
-
-            //processor.Post(Msg.CreateToGPUMsg<_>(matrixRight.Rows, matrixRightRows))
-            //processor.Post(Msg.CreateToGPUMsg<_>(matrixRight.Columns, matrixRightColumns))
-            //processor.Post(Msg.CreateToGPUMsg<_>(matrixRight.Values, matrixRightValues))
-
             sw2.Stop()
 
             let allRows, allColumns, allValues =
@@ -109,19 +101,12 @@ module internal rec EWiseAdd =
             printfn "Data to host: %A" (sw3.ElapsedMilliseconds)
             printfn "Elapsed total: %A" (sw.ElapsedMilliseconds)
 
-            //processor.Post(Msg.CreateFreeMsg<_>(matrixLeftRows))
-            //processor.Post(Msg.CreateFreeMsg<_>(matrixLeftColumns))
-            //processor.Post(Msg.CreateFreeMsg<_>(matrixLeftValues))
-            //processor.Post(Msg.CreateFreeMsg<_>(matrixRightRows))
-            //processor.Post(Msg.CreateFreeMsg<_>(matrixRightColumns))
-            //processor.Post(Msg.CreateFreeMsg<_>(matrixRightValues))
             processor.Post(Msg.CreateFreeMsg<_>(resultRows))
             processor.Post(Msg.CreateFreeMsg<_>(resultColumns))
             processor.Post(Msg.CreateFreeMsg<_>(resultValues))
             processor.Post(Msg.CreateFreeMsg<_>(allRows))
             processor.Post(Msg.CreateFreeMsg<_>(allColumns))
             processor.Post(Msg.CreateFreeMsg<_>(allValues))
-            //processor.Post(Msg.CreateFreeMsg<_>(rawPositions))
 
             {
                 RowCount = matrixLeft.RowCount

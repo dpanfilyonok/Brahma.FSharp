@@ -40,20 +40,27 @@ module internal SetPositions =
 
         fun (processor:MailboxProcessor<_>) (allRows: Buffer<int>) (allColumns: Buffer<int>) (allValues: Buffer<'a>) (positions: Buffer<int>) ->
             let prefixSumArrayLength = positions.Length            
+            //printfn "4"
             let resultLengthGpu = gpu.Allocate<_>(1)
+            //printfn "5"
             let _,r = sum processor positions resultLengthGpu
             sw.Reset()
+            //printfn "6"
             let resultLength =
+                //printfn "7"
                 let res = processor.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(r, resultLength, ch))
                 match res with 
                 | Error e -> raise e
                 | Ok x ->  
+                    //printfn "11"
                     processor.Post(Msg.CreateFreeMsg<_>(r))
                     x.[0]
+            //printfn "8"
             sw.Start()
             let resultRows = gpu.Allocate<int>(resultLength, deviceAccessMode=DeviceAccessMode.WriteOnly)
             let resultColumns = gpu.Allocate<int>(resultLength, deviceAccessMode=DeviceAccessMode.WriteOnly)
             let resultValues = gpu.Allocate<'a>(resultLength, deviceAccessMode=DeviceAccessMode.WriteOnly)
+            //printfn "9"
             sw.Stop()
             printfn "Data to gpu in SetPositions: %A" (sw.ElapsedMilliseconds)
             let ndRange = Brahma.OpenCL._1D(Utils.getDefaultGlobalSize positions.Length, Utils.defaultWorkGroupSize)
