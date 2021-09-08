@@ -305,7 +305,8 @@ module AtomicProcessor =
                                         )
                                         atomicXchg %%mutex 0 |> ignore
                                         flag <- false
-                                    barrier ()
+                                    // HACK needed for nvidia, but broken for intel cpu
+                                    //barrier ()
                                 barrier ()
                             @@>,
                             Expr.Var oldValueVar

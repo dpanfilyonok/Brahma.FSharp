@@ -9,6 +9,37 @@ open Brahma.FSharp.OpenCL.Translator
 open Brahma.FSharp.OpenCL.Printer.AST
 open FSharp.Quotations
 open OpenCL.Net
+open System.Threading
+
+[<AutoOpen>]
+module Common =
+    let context =
+        let deviceType = DeviceType.Cpu
+        let platformName = "Intel*"
+
+        let mutable provider = Unchecked.defaultof<ComputeProvider>
+        let mutable retries = 0
+        let mutable break' = false
+
+        while not break' do
+            try
+                provider <- ComputeProvider.Create(platformName, deviceType)
+                break' <- true
+            with ex ->
+                if retries < 10 then
+                    retries <- retries + 1
+                    printfn "Waiting..."
+                    Thread.Sleep(5000)
+                else
+                    reraise ()
+
+        OpenCLEvaluationContext provider
+
+    let finalize f =
+        try
+            f ()
+        finally
+            context.Provider.CloseAllBuffers()
 
 module CustomDatatypes =
     [<Struct>]
@@ -23,14 +54,6 @@ module CustomDatatypes =
             WrappedInt(x.InnerValue - y.InnerValue)
 
 module Utils =
-    let context = OpenCLEvaluationContext()
-
-    let finalize f =
-        try
-            f ()
-        finally
-            context.Provider.CloseAllBuffers()
-
     let getValidGlobalSize wgSize neededSize = (neededSize + wgSize - 1) / wgSize * wgSize
 
     let filesAreEqual file1 file2 =
