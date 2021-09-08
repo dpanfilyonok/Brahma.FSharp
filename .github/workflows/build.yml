@@ -45,3 +45,35 @@ jobs:
           # Work around https://github.com/actions/setup-dotnet/issues/29
           DOTNET_ROOT: ${{ runner.tool_cache }}/dncs/${{ matrix.dotnet }}/x64
           CI: true
+
+  linux_build:
+    name: Linux Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: System Info
+        run: lscpu
+
+      - uses: actions/checkout@v1
+
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v1
+
+      - name: Install OpenCL
+        run: |
+          chmod +x ./.github/workflows/install-ubuntu-dependencies.sh
+          sudo ./.github/workflows/install-ubuntu-dependencies.sh
+
+      - name: Download "clinfo.exe"
+        run: sudo apt install clinfo
+
+      - name: OpenCL Info
+        run: clinfo
+
+      - name: Build
+        run: |
+          chmod +x ./build.sh
+          ./build.sh DotnetBuild
+        env:
+          # Work around https://github.com/actions/setup-dotnet/issues/29
+          DOTNET_ROOT: ${{ runner.tool_cache }}/dncs/${{ matrix.dotnet }}/x64
+          CI: true
