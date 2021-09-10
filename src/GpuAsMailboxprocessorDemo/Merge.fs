@@ -122,18 +122,18 @@ module internal Merge =
             (matrixRightRows: Buffer<int>) (matrixRightColumns: Buffer<int>) (matrixRightValues: Buffer<'a>)
             ->
 
-            sw.Reset()
+            //sw.Reset()
             let firstSide = matrixLeftValues.Length
             let secondSide = matrixRightValues.Length
             let sumOfSides = firstSide + secondSide
 
-            sw.Start()
+            //sw.Start()
             let allRows = gpu.Allocate<int>(sumOfSides, deviceAccessMode = DeviceAccessMode.WriteOnly, hostAccessMode = HostAccessMode.NotAccessible)
             let allColumns = gpu.Allocate<int>(sumOfSides, deviceAccessMode = DeviceAccessMode.WriteOnly, hostAccessMode = HostAccessMode.NotAccessible)
             let allValues = gpu.Allocate<'a>(sumOfSides, deviceAccessMode = DeviceAccessMode.WriteOnly, hostAccessMode = HostAccessMode.NotAccessible)
 
-            sw.Stop()
-            printfn "Data to gpu in Merge: %A" (sw.ElapsedMilliseconds)
+            //sw.Stop()
+            //printfn "Data to gpu in Merge: %A" (sw.ElapsedMilliseconds)
 
             let ndRange = Brahma.OpenCL._1D(Utils.getDefaultGlobalSize sumOfSides, workGroupSize)
 

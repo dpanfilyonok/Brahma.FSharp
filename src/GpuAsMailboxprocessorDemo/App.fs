@@ -209,7 +209,7 @@ type Host() =
                 Values = values2
             }
 
-        let resMtx = EWiseAdd.run gpu mtx1 mtx2 <@ (+) @>
+        let ((_,_,_),resMtx) = EWiseAdd.run gpu mtx1 mtx2 <@ (+) @>
 
         printfn "Sum: %A" resMtx.Values
 
@@ -280,14 +280,25 @@ type Host() =
         sw.Start()
 
         let _do = EWiseAdd.gpuEWiseAdd gpu <@ (+) @>
+        let toGPU = new ResizeArray<_>()
+        let toHost = new ResizeArray<_>()
+        let total = new ResizeArray<_>()
+        let compute = new ResizeArray<_>()
         //let resMtx =
         for i in 0..99 do
             printfn "i = %A" i
-            _do mtx1 mtx2 
+            let ((_toGPU, _toHost, _total),mtx) = _do mtx1 mtx2 
+            toGPU.Add(float _toGPU)
+            toHost.Add(float _toHost)
+            total.Add(float _total)
+            compute.Add(float <| _total - _toGPU - _toHost)
 
         sw.Stop()
 
         printfn "Elapsed: %A" (sw.ElapsedMilliseconds)
+
+        printfn "%A, %A, %A, %A, %A" (System.IO.Path.GetFileName pathToFile1) (Seq.average total) (Seq.average compute) (Seq.average toHost) (Seq.average toGPU)
+
         //printfn "Sum: %A" resMtx.Values
 
 

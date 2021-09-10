@@ -36,9 +36,9 @@ module internal PreparePositions =
         fun (processor:MailboxProcessor<_>) (allRows: Buffer<int>) (allColumns: Buffer<int>) (allValues: Buffer<'a>) ->
             let length = allValues.Length
             let ndRange = Brahma.OpenCL._1D(Utils.getDefaultGlobalSize (length - 1), Utils.defaultWorkGroupSize)
-            printfn "2"
+            //printfn "2"
             let rawPositionsGpu = gpu.Allocate<int>(length, hostAccessMode = HostAccessMode.NotAccessible)
-            printfn "3"
+            //printfn "3"
             processor.Post(Msg.MsgSetArguments(fun () -> kernel.SetArguments ndRange length allRows allColumns allValues rawPositionsGpu))
             processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
             rawPositionsGpu

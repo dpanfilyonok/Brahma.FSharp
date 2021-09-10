@@ -33,6 +33,13 @@ type Buffer<'t> private (clContext: OpenCL.Net.Context, length:int, data:option<
     let elementSize = System.Runtime.InteropServices.Marshal.SizeOf(typedefof<'t>)
     let intPtrSize = System.IntPtr(System.Runtime.InteropServices.Marshal.SizeOf(typedefof<System.IntPtr>))
    
+    let pinnedMemory = 
+        match data with
+        | None -> None
+        | Some x -> 
+                System.Runtime.InteropServices.GCHandle.Alloc(x, System.Runtime.InteropServices.GCHandleType.Pinned)
+                |> Some
+
     let clMemoryFlags = 
         let mutable flags = MemFlags.None
         match hostAccessMode with
@@ -92,7 +99,12 @@ type Buffer<'t> private (clContext: OpenCL.Net.Context, length:int, data:option<
             ()
 
 
-    member this.Free() = buffer.Dispose()
+    member this.Free() = 
+        match pinnedMemory with 
+        | None -> ()
+        | Some x -> x.Free()
+        buffer.Dispose()
+
 
     interface System.IDisposable with
         member this.Dispose() = this.Free()

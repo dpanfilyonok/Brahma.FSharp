@@ -14,26 +14,28 @@ module internal rec EWiseAdd =
             let resultColumns = matrixRight.Columns
             let resultValues = matrixRight.Values
 
-            {
+            (0L,0L,0L)
+            , {
                 RowCount = matrixRight.RowCount
                 ColumnCount = matrixRight.ColumnCount
                 Rows = resultRows
                 Columns = resultColumns
                 Values = resultValues
-            }
+              }
 
         elif matrixRight.Values.Length = 0 then
             let resultRows = matrixLeft.Rows
             let resultColumns = matrixLeft.Columns
             let resultValues = matrixLeft.Values
 
-            {
+            (0L,0L,0L)
+            , {
                 RowCount = matrixLeft.RowCount
                 ColumnCount = matrixLeft.ColumnCount
                 Rows = resultRows
                 Columns = resultColumns
                 Values = resultValues
-            }
+              }
 
         else
             let _do = gpuEWiseAdd gpu op
@@ -97,9 +99,9 @@ module internal rec EWiseAdd =
             sw3.Stop()
             sw.Stop()
             
-            printfn "Data to gpu: %A" (sw2.ElapsedMilliseconds)
-            printfn "Data to host: %A" (sw3.ElapsedMilliseconds)
-            printfn "Elapsed total: %A" (sw.ElapsedMilliseconds)
+            //printfn "Data to gpu: %A" (sw2.ElapsedMilliseconds)
+            //printfn "Data to host: %A" (sw3.ElapsedMilliseconds)
+            //printfn "Elapsed total: %A" (sw.ElapsedMilliseconds)
 
             processor.Post(Msg.CreateFreeMsg<_>(resultRows))
             processor.Post(Msg.CreateFreeMsg<_>(resultColumns))
@@ -108,10 +110,11 @@ module internal rec EWiseAdd =
             processor.Post(Msg.CreateFreeMsg<_>(allColumns))
             processor.Post(Msg.CreateFreeMsg<_>(allValues))
 
-            {
+            (sw2.ElapsedMilliseconds,sw3.ElapsedMilliseconds,sw.ElapsedMilliseconds)
+            , {
                 RowCount = matrixLeft.RowCount
                 ColumnCount = matrixLeft.ColumnCount
                 Rows = rows
                 Columns = columns
                 Values = values
-            }
+              }

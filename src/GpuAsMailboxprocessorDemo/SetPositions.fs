@@ -44,7 +44,7 @@ module internal SetPositions =
             let resultLengthGpu = gpu.Allocate<_>(1)
             //printfn "5"
             let _,r = sum processor positions resultLengthGpu
-            sw.Reset()
+            //sw.Reset()
             //printfn "6"
             let resultLength =
                 //printfn "7"
@@ -56,13 +56,13 @@ module internal SetPositions =
                     processor.Post(Msg.CreateFreeMsg<_>(r))
                     x.[0]
             //printfn "8"
-            sw.Start()
+            //sw.Start()
             let resultRows = gpu.Allocate<int>(resultLength, deviceAccessMode=DeviceAccessMode.WriteOnly)
             let resultColumns = gpu.Allocate<int>(resultLength, deviceAccessMode=DeviceAccessMode.WriteOnly)
             let resultValues = gpu.Allocate<'a>(resultLength, deviceAccessMode=DeviceAccessMode.WriteOnly)
             //printfn "9"
-            sw.Stop()
-            printfn "Data to gpu in SetPositions: %A" (sw.ElapsedMilliseconds)
+            //sw.Stop()
+            //printfn "Data to gpu in SetPositions: %A" (sw.ElapsedMilliseconds)
             let ndRange = Brahma.OpenCL._1D(Utils.getDefaultGlobalSize positions.Length, Utils.defaultWorkGroupSize)
             processor.Post(Msg.MsgSetArguments( fun () ->    
             kernel.SetArguments
