@@ -527,10 +527,10 @@ let fullTranslatorTests =
 
                     use inBuf = gpu.Allocate<'a>(intInArr, deviceAccessMode = DeviceAccessMode.ReadWrite)                    
                                                             
-                    processor.Post(Msg.MsgSetArguments(fun () -> kernel.SetArguments _1d 0 2 intInArr))
+                    processor.Post(Msg.MsgSetArguments(fun () -> kernel.SetArguments _1d 0 2 inBuf))
                     processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
                     
-                    processor.Post(Msg.MsgSetArguments(fun () -> kernel.SetArguments _1d 2 2 intInArr))
+                    processor.Post(Msg.MsgSetArguments(fun () -> kernel.SetArguments _1d 2 2 inBuf))
                     processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
                     
                     let localOut = Array.zeroCreate intInArr.Length
@@ -610,8 +610,8 @@ let fullTranslatorTests =
                         @>
 
 
-                    use outBuffer = gpu.Allocate (Array.zeroCreate globalWorkSize)
-                    use inBuffer = gpu.Allocate (Array.zeroCreate globalWorkSize)
+                    use outBuffer:Buffer<int> = gpu.Allocate (Array.zeroCreate globalWorkSize)
+                    use inBuffer:Buffer<int> = gpu.Allocate (Array.zeroCreate globalWorkSize)
                     let range = _1D(globalWorkSize, localWorkSize)
                     let expected = [| for x in 1..localWorkSize -> x % localWorkSize |]
                                    |> Array.replicate (globalWorkSize / localWorkSize)
