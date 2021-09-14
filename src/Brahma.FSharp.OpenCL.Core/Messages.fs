@@ -16,7 +16,7 @@ type ToGPU<'t>(src:array<'t>, dst: Buffer<'t>, ?replyChannel:AsyncReplyChannel<R
     member this.Source = src
     member this.ReplyChannel = replyChannel
 
-type Run<'TRange,'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension>
+type Run<'TRange,'a, 't when 'TRange :> INDRangeDimension>
         (kernel:GpuKernel<'TRange,'a, 't>, ?replyChannel:AsyncReplyChannel<Result<unit, System.Exception>>) =
     member this.Kernel = kernel
     member this.ReplyChannel = replyChannel
@@ -25,7 +25,7 @@ type RunCrate =
     abstract member Apply<'ret> : RunCrateEvaluator<'ret> -> 'ret
 
 and RunCrateEvaluator<'ret> =
-    abstract member Eval<'TRange, 'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension> : Run<'TRange, 'a, 't> -> 'ret
+    abstract member Eval<'TRange, 'a, 't when 'TRange :> INDRangeDimension> : Run<'TRange, 'a, 't> -> 'ret
 
 type ToHostCrate =
     abstract member Apply<'ret> : ToHostCrateEvaluator<'ret> -> 'ret
@@ -89,7 +89,7 @@ type Msg =
         }
         |> MsgFree
 
-    static member CreateRunMsg<'TRange,'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension> (kernel, ?ch) =
+    static member CreateRunMsg<'TRange,'a, 't when 'TRange :> INDRangeDimension> (kernel, ?ch) =
         {
             new RunCrate with
                 member this.Apply e = e.Eval (Run<'TRange,'a, 't>(kernel, ?replyChannel = ch)) 

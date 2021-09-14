@@ -2,7 +2,6 @@ namespace GraphBLAS.FSharp.Backend.COOMatrix
 
 open Brahma.FSharp.OpenCL
 open OpenCL.Net
-//open Brahma.OpenCL
 open GraphBLAS.FSharp.Backend.Common
 open GraphBLAS.FSharp.Backend.COOMatrix.Utilities
 open Microsoft.FSharp.Quotations

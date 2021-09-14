@@ -19,7 +19,7 @@ module internal PrefixSum =
 
         let update =
             <@
-                fun (ndRange: Brahma.OpenCL._1D)
+                fun (ndRange: _1D)
                     inputArrayLength
                     bunchLength
                     (resultBuffer: int[])
@@ -34,7 +34,7 @@ module internal PrefixSum =
         let kernel = gpu.CreateKernel(update)
 
         fun (processor:MailboxProcessor<_>) (inputArray:Buffer<int>) (inputArrayLength:int) (vertices:Buffer<int>) (bunchLength: int) ->
-            let ndRange = Brahma.OpenCL._1D(Utils.getDefaultGlobalSize inputArrayLength - bunchLength, workGroupSize)
+            let ndRange = _1D(Utils.getDefaultGlobalSize inputArrayLength - bunchLength, workGroupSize)
             processor.Post(Msg.MsgSetArguments(fun () -> kernel.SetArguments ndRange inputArrayLength bunchLength inputArray vertices))
             processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
 
@@ -44,7 +44,7 @@ module internal PrefixSum =
 
         let scan =
             <@
-                fun (ndRange: Brahma.OpenCL._1D)
+                fun (ndRange: _1D)
                     inputArrayLength
                     verticesLength
                     (resultBuffer: int[])
@@ -90,7 +90,7 @@ module internal PrefixSum =
         let kernel = gpu.CreateKernel(scan)
 
         fun (processor:MailboxProcessor<_>) (inputArray: Buffer<int>) (inputArrayLength: int) (vertices: Buffer<int>) (verticesLength: int) (totalSum: Buffer<int>) ->
-            let ndRange = Brahma.OpenCL._1D(Utils.getDefaultGlobalSize inputArrayLength, workGroupSize)
+            let ndRange = _1D(Utils.getDefaultGlobalSize inputArrayLength, workGroupSize)
             processor.Post(Msg.MsgSetArguments(fun () -> 
                 kernel.SetArguments ndRange inputArrayLength verticesLength inputArray vertices totalSum))
             processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))

@@ -2,7 +2,6 @@ namespace GraphBLAS.FSharp.Backend.COOMatrix.Utilities
 
 open Brahma.FSharp.OpenCL
 open OpenCL.Net
-//open Brahma.OpenCL
 open GraphBLAS.FSharp.Backend.Common
 
 type COOMatrix<'a> =
@@ -21,7 +20,7 @@ module internal Merge =
 
         let merge =
             <@
-                fun (ndRange: Brahma.OpenCL._1D)
+                fun (ndRange: _1D)
                     firstSide
                     secondSide
                     sumOfSides
@@ -137,7 +136,7 @@ module internal Merge =
             //sw.Stop()
             //printfn "Data to gpu in Merge: %A" (sw.ElapsedMilliseconds)
 
-            let ndRange = Brahma.OpenCL._1D(Utils.getDefaultGlobalSize sumOfSides, workGroupSize)
+            let ndRange = _1D(Utils.getDefaultGlobalSize sumOfSides, workGroupSize)
 
             processor.Post(Msg.MsgSetArguments(fun () -> 
                 kernel.SetArguments

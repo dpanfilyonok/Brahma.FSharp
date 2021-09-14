@@ -2,7 +2,6 @@ namespace GraphBLAS.FSharp.Backend.COOMatrix.Utilities
 
 open Brahma.FSharp.OpenCL
 open OpenCL.Net
-//open Brahma.OpenCL
 open Microsoft.FSharp.Quotations
 open GraphBLAS.FSharp.Backend.Common
 
@@ -12,7 +11,7 @@ module internal PreparePositions =
 
         let preparePositions =
             <@
-                fun (ndRange: Brahma.OpenCL._1D)
+                fun (ndRange: _1D)
                     length
                     (allRowsBuffer: int[])
                     (allColumnsBuffer: int[])
@@ -35,7 +34,7 @@ module internal PreparePositions =
 
         fun (processor:MailboxProcessor<_>) (allRows: Buffer<int>) (allColumns: Buffer<int>) (allValues: Buffer<'a>) ->
             let length = allValues.Length
-            let ndRange = Brahma.OpenCL._1D(Utils.getDefaultGlobalSize (length - 1), Utils.defaultWorkGroupSize)
+            let ndRange = _1D(Utils.getDefaultGlobalSize (length - 1), Utils.defaultWorkGroupSize)
             //printfn "2"
             let rawPositionsGpu = gpu.Allocate<int>(length, hostAccessMode = HostAccessMode.NotAccessible)
             //printfn "3"

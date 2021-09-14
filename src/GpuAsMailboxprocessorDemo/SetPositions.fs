@@ -10,7 +10,7 @@ module internal SetPositions =
 
         let setPositions =
             <@
-                fun (ndRange: Brahma.OpenCL._1D)
+                fun (ndRange: _1D)
                     prefixSumArrayLength
                     (allRowsBuffer: int[])
                     (allColumnsBuffer: int[])
@@ -66,7 +66,7 @@ module internal SetPositions =
             //printfn "9"
             //sw.Stop()
             //printfn "Data to gpu in SetPositions: %A" (sw.ElapsedMilliseconds)
-            let ndRange = Brahma.OpenCL._1D(Utils.getDefaultGlobalSize positions.Length, Utils.defaultWorkGroupSize)
+            let ndRange = _1D(Utils.getDefaultGlobalSize positions.Length, Utils.defaultWorkGroupSize)
             processor.Post(Msg.MsgSetArguments( fun () ->    
             kernel.SetArguments
                     ndRange

@@ -74,7 +74,7 @@ type FSQuotationToOpenCLTranslator() =
         adding subAST
 
     let brahmaDimensionsTypes = ["_1d";"_2d";"_3d"]
-    let brahmaDimensionsTypesPrefix = "brahma.opencl."
+    let brahmaDimensionsTypesPrefix = "brahma.fsharp.opencl."
     let bdts = brahmaDimensionsTypes |> List.map (fun s -> brahmaDimensionsTypesPrefix + s)
 
     let buildFullAst

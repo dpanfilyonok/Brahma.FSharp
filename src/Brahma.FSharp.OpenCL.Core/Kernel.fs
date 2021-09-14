@@ -1,12 +1,11 @@
 namespace Brahma.FSharp.OpenCL
 
 open OpenCL.Net
-//open Brahma.OpenCL
 
 open Microsoft.FSharp.Quotations
 open FSharp.Quotations.Evaluator
 
-type GpuKernel<'TRange, 'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension>(device, context, srcLambda: Expr<'TRange ->'a>) =
+type GpuKernel<'TRange, 'a, 't when 'TRange :> INDRangeDimension>(device, context, srcLambda: Expr<'TRange ->'a>) =
 
     let kernelName = "brahmaKernel"
 
@@ -119,5 +118,5 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> Brahma.OpenCL.INDRangeDimension>(
         getStarterFunction srcLambda
 
     member this.ClKernel = kernel
-    member this.Range = !range :> Brahma.OpenCL.INDRangeDimension
+    member this.Range = !range :> INDRangeDimension
     member this.ReleaseAllBuffers () = usedBuffers := [||]
