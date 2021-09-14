@@ -3,9 +3,7 @@ module Brahma.FSharp.Tests.DevTests
 open Brahma.FSharp.OpenCL.Translator
 open Brahma.FSharp.OpenCL.WorkflowBuilder.Evaluation
 open Expecto
-open OpenCL.Net
-open Brahma.OpenCL
-open Brahma.FSharp.OpenCL.Core
+open Brahma.FSharp.OpenCL
 open Brahma.FSharp.OpenCL.Printer.AST
 open FSharp.Quotations
 
@@ -14,19 +12,18 @@ type TestStruct =
     val mutable y: float
     new (x,y) = {x=x; y=y}
 
-let deviceType = DeviceType.Gpu
-let platformName = "Intel*"
+let gpu =
+    let deviceType = OpenCL.Net.DeviceType.Default
+    let platformName = "Intel*"
+    let devices = Device.getDevices platformName deviceType
+    GPU(devices.[0])
 
-let provider =
-        try ComputeProvider.Create(platformName, deviceType)
-        with ex -> failwith ex.Message
-
-let context = OpenCLEvaluationContext(device_type=deviceType)
+//let context = OpenCLEvaluationContext(device_type=deviceType)
 
 let opencl_compile (command: Quotations.Expr<('a -> 'b)>): string =
-        let code = ref ""
-        provider.Compile(command, _outCode=code) |> ignore
-        !code
+        let kernel = gpu.CreateKernel command
+        let code = kernel.ClCode
+        code
 
 let opencl_translate (expr: Expr) =
     let translator = FSQuotationToOpenCLTranslator()

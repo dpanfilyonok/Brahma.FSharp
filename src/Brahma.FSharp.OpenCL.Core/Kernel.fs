@@ -120,3 +120,4 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> INDRangeDimension>(device, contex
     member this.ClKernel = kernel
     member this.Range = !range :> INDRangeDimension
     member this.ReleaseAllBuffers () = usedBuffers := [||]
+    member this.ClCode = clCode

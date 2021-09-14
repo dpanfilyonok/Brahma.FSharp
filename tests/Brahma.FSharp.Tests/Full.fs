@@ -1,13 +1,13 @@
 ﻿module Brahma.FSharp.Tests.Full
 
-open Brahma.FSharp.OpenCL.WorkflowBuilder.Evaluation
 open Expecto
-open OpenCL.Net
-open Brahma.OpenCL
-open Brahma.FSharp.OpenCL.Core
-open Brahma.FSharp.OpenCL.Extensions
-open Brahma.FSharp.OpenCL.WorkflowBuilder.Basic
 open FSharp.Quotations
+
+//open OpenCL.Net
+open Brahma.FSharp.OpenCL
+open Brahma.FSharp.OpenCL.WorkflowBuilder.Basic
+open Brahma.FSharp.OpenCL.WorkflowBuilder.Evaluation
+
 
 [<Struct>]
 type TestStruct =
@@ -22,30 +22,34 @@ let fullTranslatorTests =
     let float32Arr = Array.init defaultInArrayLength (fun i -> float32 i)
     let _1d = new _1D(defaultInArrayLength, 1)
     let _2d = new _2D(defaultInArrayLength, 1)
-    let deviceType = DeviceType.Default
+    let deviceType = OpenCL.Net.DeviceType.Default
     let platformName = "*"
 
-    let provider =
-        try  ComputeProvider.Create(platformName, deviceType)
-        with
-        | ex -> failwith ex.Message
+    let gpu =
+        let devices = Device.getDevices platformName deviceType
+        GPU(devices.[0])
 
-    let checkResult command =
-        let kernel,kernelPrepareF, kernelRunF = provider.Compile command
-        let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.head)
+    let processor = gpu.GetNewProcessor ()
 
-        let check (outArray:array<'a>) (expected:array<'a>) =
-            let r = Array.zeroCreate outArray.Length
+    let setArgsAndCheckResult command argsSetUpFunction (outBuf:Buffer<'a>) (expectedArr:array<'a>) =
+        let kernel = gpu.CreateKernel command
+        let localOut = Array.zeroCreate expectedArr.Length
 
-            commandQueue.Add(kernelRunF())
-                        .Add(outArray.ToHost(provider, r))
-                        .Finish()
-                        .Dispose()
-            provider.CloseAllBuffers()
+        processor.Post(Msg.MsgSetArguments(fun () -> argsSetUpFunction kernel))
+        processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
+        let actual = 
+            let res = processor.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(outBuf, localOut, ch))
+            match res with 
+            | Error e -> raise e
+            | Ok x -> x
 
-            Expect.sequenceEqual r expected "Arrays should be equals"
+        Expect.sequenceEqual expectedArr actual "Arrays should be equals"
 
-        kernelPrepareF,check
+
+    let checkResult command (inArr:array<'a>) (expectedArr:array<'a>) =
+        use inBuf = gpu.Allocate<_>(inArr, deviceAccessMode = DeviceAccessMode.ReadWrite)       
+        setArgsAndCheckResult command (fun (kernel:GpuKernel<_,_,_>) -> kernel.SetArguments _1d inBuf) inBuf expectedArr
+
 
     let atomicsTests =
         testList "Tests on atomic functions."
@@ -57,10 +61,7 @@ let fullTranslatorTests =
                                 buf.[0] <! 1
                         @>
 
-                    let run,check = checkResult command
-                    let initInArr = [|0; 1; 2; 3|]
-                    run _1d initInArr
-                    check initInArr [|1; 1; 2; 3|]
+                    checkResult command intInArr [|1; 1; 2; 3|]                    
 
                 ptestCase "Atomic exchange float" <| fun _ ->
                     let command =
@@ -69,10 +70,7 @@ let fullTranslatorTests =
                                 buf.[0] <! 1.0f
                         @>
 
-                    let run,check = checkResult command
-                    let initInArr = [|0.0f; 1.0f; 2.0f; 3.0f|]
-                    run _1d initInArr
-                    check initInArr [|1.0f; 1.0f; 2.0f; 3.0f|]
+                    checkResult command float32Arr [|1.0f; 1.0f; 2.0f; 3.0f|]
 
                 ptestCase "Atomic exchange int and float" <| fun _ ->
                     let command =
@@ -83,10 +81,7 @@ let fullTranslatorTests =
                                 buf.[0] <! float32 x + 1.0f
                         @>
 
-                    let run,check = checkResult command
-                    let initInArr = [|0.0f; 1.0f; 2.0f; 3.0f|]
-                    run _1d initInArr
-                    check initInArr [|1.0f; 1.0f; 2.0f; 3.0f|]
+                    checkResult command float32Arr [|1.0f; 1.0f; 2.0f; 3.0f|]
 
                 testCase "Atomic min and max int" <| fun _ ->
                     let command =
@@ -97,10 +92,7 @@ let fullTranslatorTests =
                                 aMax buf.[0] (x + 1)
                         @>
 
-                    let run,check = checkResult command
-                    let initInArr = [|0; 1; 2; 3|]
-                    run _1d initInArr
-                    check initInArr [|1; 1; 2; 3|]
+                    checkResult command intInArr [|1; 1; 2; 3|]
             ]
 
     let arrayItemSetTests =
@@ -113,9 +105,7 @@ let fullTranslatorTests =
                                 buf.[0] <- 1
                         @>
 
-                    let run,check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|1;1;2;3|]
+                    checkResult command intInArr [|1; 1; 2; 3|]
 
                 testCase "Array item set. Long" <| fun _ ->
                     let command =
@@ -124,10 +114,7 @@ let fullTranslatorTests =
                                 buf.[0] <- 1L
                         @>
 
-                    let run,check = checkResult command
-                    let initInArr = [|0L; 1L; 2L; 3L|]
-                    run _1d initInArr
-                    check initInArr [|1L; 1L; 2L; 3L|]
+                    checkResult command [|0L; 1L; 2L; 3L|] [|1L; 1L; 2L; 3L|]
 
                 testCase "Array item set. ULong" <| fun _ ->
                     let command =
@@ -136,10 +123,7 @@ let fullTranslatorTests =
                                 buf.[0] <- 1UL
                         @>
 
-                    let run,check = checkResult command
-                    let initInArr = [|0UL; 1UL; 2UL; 3UL|]
-                    run _1d initInArr
-                    check initInArr [|1UL; 1UL; 2UL; 3UL|]
+                    checkResult command [|0UL; 1UL; 2UL; 3UL|] [|1UL; 1UL; 2UL; 3UL|]
 
                 testCase "Array item set. Sequential operations." <| fun _ ->
                     let command =
@@ -149,10 +133,7 @@ let fullTranslatorTests =
                                 buf.[1] <- 4
                         @>
 
-                    let run,check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|2;4;2;3|]
-
+                    checkResult command intInArr [|2; 4; 2; 3|]
             ]
 
     let typeCastingTests =
@@ -165,10 +146,7 @@ let fullTranslatorTests =
                                 buf.[0] <- (int64)1UL
                         @>
 
-                    let run,check = checkResult command
-                    let initInArr = [|0L; 1L|]
-                    run _1d initInArr
-                    check initInArr [|1L; 1L|]
+                    checkResult command [|0L; 1L|] [|1L; 1L|]
 
                 testCase "Type casting. Ulong" <| fun _ ->
                     let command =
@@ -177,10 +155,7 @@ let fullTranslatorTests =
                                 buf.[0] <- 1UL
                         @>
 
-                    let run,check = checkResult command
-                    let initInArr = [|0UL; 1UL; 2UL; 3UL|]
-                    run _1d initInArr
-                    check initInArr [|1UL; 1UL; 2UL; 3UL|]
+                    checkResult command [|0UL; 1UL; 2UL; 3UL|] [|1UL; 1UL; 2UL; 3UL|]
 
                 testCase "Type casting. ULong" <| fun _ ->
                     let command =
@@ -189,10 +164,7 @@ let fullTranslatorTests =
                                 buf.[0] <- (uint64)1L
                         @>
 
-                    let run,check = checkResult command
-                    let initInArr = [|0UL; 1UL|]
-                    run _1d initInArr
-                    check initInArr [|1UL; 1UL|]
+                    checkResult command [|0UL; 1UL|] [|1UL; 1UL|]
 
                 testCase "Byte type support" <| fun _ ->
                     let command =
@@ -205,10 +177,7 @@ let fullTranslatorTests =
                                     buf.[2] <- buf.[2] + 1uy
                         @>
 
-                    let run,check = checkResult command
-                    let inByteArray = [|0uy;255uy;254uy|]
-                    run _1d inByteArray
-                    check inByteArray [|1uy;0uy;255uy|]
+                    checkResult command [|0uy; 255uy; 254uy|] [|1uy; 0uy; 255uy|]
 
                 testCase "Byte and float32" <| fun _ ->
                     let command =
@@ -221,10 +190,7 @@ let fullTranslatorTests =
                                     buf.[2] <- byte (float buf.[2])
                         @>
 
-                    let run,check = checkResult command
-                    let inByteArray = [|0uy;255uy;254uy|]
-                    run _1d inByteArray
-                    check inByteArray [|0uy;255uy;254uy|]
+                    checkResult command [|0uy; 255uy; 254uy|] [|0uy; 255uy; 254uy|]
 
                 // test fail on Intel platform:
                 // Actual: [1uy, 255uy, 255uy]
@@ -239,10 +205,7 @@ let fullTranslatorTests =
                                     buf.[2] <- byte ((float buf.[2]) + 1.0)
                         @>
 
-                    let run,check = checkResult command
-                    let inByteArray = [|0uy;255uy;254uy|]
-                    run _1d inByteArray
-                    check inByteArray [|1uy;0uy;255uy|]
+                    checkResult command [|0uy; 255uy; 254uy|] [|1uy; 0uy; 255uy|]
 
                 // test failed on Intel platform:
                 // Actual : [1uy, 1uy, 1uy]
@@ -260,10 +223,7 @@ let fullTranslatorTests =
                                     buf.[2] <- z
                         @>
 
-                    let run,check = checkResult command
-                    let inByteArray = [|0uy;255uy;254uy|]
-                    run _1d inByteArray
-                    check inByteArray [|1uy;0uy;255uy|]
+                    checkResult command [|0uy; 255uy; 254uy|] [|1uy; 0uy; 255uy|]
 
                 // test failed on Intel platform due to exception
                 ptestCase "Byte and float in condition 2" <| fun _ ->
@@ -295,10 +255,7 @@ let fullTranslatorTests =
                                     buf.[2] <- z
                         @>
 
-                    let run,check = checkResult command
-                    let inByteArray = [|0uy;255uy;254uy|]
-                    run _1d inByteArray
-                    check inByteArray [|1uy;0uy;255uy|]
+                    checkResult command [|0uy; 255uy; 254uy|] [|1uy; 0uy; 255uy|]
           ]
 
 
@@ -313,9 +270,7 @@ let fullTranslatorTests =
                                 buf.[0] <- x
                         @>
 
-                    let run,check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|1;1;2;3|]
+                    checkResult command intInArr [|1; 1; 2; 3|]
 
                 testCase "Bindings. Sequential bindings." <| fun _ ->
                     let command =
@@ -326,9 +281,7 @@ let fullTranslatorTests =
                                 buf.[0] <- y
                         @>
 
-                    let run,check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|2;1;2;3|]
+                    checkResult command intInArr [|2; 1; 2; 3|]
 
                 testCase "Bindings. Binding in IF." <| fun _ ->
                     let command =
@@ -343,9 +296,7 @@ let fullTranslatorTests =
                                     buf.[0] <- i
                         @>
 
-                    let run,check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|2;1;2;3|]
+                    checkResult command intInArr [|2; 1; 2; 3|]
 
                 testCase "Bindings. Binding in FOR." <| fun _ ->
                     let command =
@@ -356,9 +307,7 @@ let fullTranslatorTests =
                                     buf.[i] <- x
                         @>
 
-                    let run,check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|0;1;4;9|]
+                    checkResult command intInArr [|0; 1; 4; 9|]
 
                 testCase "Bindings. Binding in WHILE." <| fun _ ->
                     let command =
@@ -369,9 +318,7 @@ let fullTranslatorTests =
                                     buf.[0] <- x * x
                         @>
 
-                    let run,check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|25;1;2;3|]
+                    checkResult command intInArr [|25; 1; 2; 3|]
             ]
 
     let operatorsAndMathFunctionsTests =
@@ -392,14 +339,21 @@ let fullTranslatorTests =
                 let range = (_1D <| Array.length expected)
                 let zs = Array.zeroCreate <| Array.length expected
 
-                let eval = opencl {
-                    do! RunCommand command (fun binder -> binder range xs ys zs)
-                    return! ToHost zs
-                }
 
-                let ctx = OpenCLEvaluationContext()
-                let output = ctx.RunSync eval
-                Expect.sequenceEqual output expected ":("
+                let kernel = gpu.CreateKernel command                
+
+                use inBufXs = gpu.Allocate<'a>(xs, deviceAccessMode = DeviceAccessMode.ReadOnly)
+                use inBufYs = gpu.Allocate<'a>(ys, deviceAccessMode = DeviceAccessMode.ReadOnly)
+                use outBuf = gpu.Allocate<'a>(zs)
+                processor.Post(Msg.MsgSetArguments(fun () -> kernel.SetArguments range inBufXs inBufYs outBuf))
+                processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
+                let actual = 
+                    let res = processor.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(outBuf, zs, ch))
+                    match res with 
+                    | Error e -> raise e
+                    | Ok x -> x
+                
+                Expect.sequenceEqual expected actual ":("
 
         testList "Operators and math functions tests"
             [
@@ -432,10 +386,8 @@ let fullTranslatorTests =
                                 buf.[i] <- System.Math.Sin (float buf.[i])
                         @>
 
-                    let run,check = checkResult command
-                    let inA = [|0.0;1.0;2.0;3.0|]
-                    run _1d inA
-                    check inA (inA |> Array.map System.Math.Sin)  //[|0.0; 0.841471; 0.9092974; 0.14112|]
+                    let inA = [|0.0; 1.0; 2.0; 3.0|]
+                    checkResult command inA (inA |> Array.map System.Math.Sin)  //[|0.0; 0.841471; 0.9092974; 0.14112|]
             ]
 
     let pipeTests =
@@ -448,9 +400,7 @@ let fullTranslatorTests =
                             fun (range:_1D) (buf:array<int>) ->
                                 buf.[0] <- (1.25f |> int)
                         @>
-                    let run,check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|1;1;2;3|]
+                    checkResult command intInArr [|1; 1; 2; 3|]
 
                 // Lambda is not supported.
                 ptestCase "Backward pipe." <| fun _ ->
@@ -459,9 +409,7 @@ let fullTranslatorTests =
                             fun (range:_1D) (buf:array<int>) ->
                                 buf.[0] <- int <| 1.25f + 2.34f
                         @>
-                    let run,check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|3;1;2;3|]
+                    checkResult command intInArr [|3; 1; 2; 3|]
             ]
 
     let controlFlowTests =
@@ -474,9 +422,7 @@ let fullTranslatorTests =
                                 if 0 = 2 then buf.[0] <- 42
                         @>
 
-                    let run,check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|0;1;2;3|]
+                    checkResult command intInArr [|0; 1; 2; 3|]
 
                 testCase "Control flow. If Then Else." <| fun _ ->
                     let command =
@@ -485,9 +431,7 @@ let fullTranslatorTests =
                                 if 0 = 2 then buf.[0] <- 1 else buf.[0] <- 2
                         @>
 
-                    let run,check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|2;1;2;3|]
+                    checkResult command intInArr [|2; 1; 2; 3|]
 
                 testCase "Control flow. For Integer Loop." <| fun _ ->
                     let command =
@@ -497,9 +441,7 @@ let fullTranslatorTests =
                                     buf.[i] <- 0
                         @>
 
-                    let run,check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|0;0;0;0|]
+                    checkResult command intInArr [|0; 0; 0; 0|]
 
                 testCase "Control flow. WHILE loop simple test." <| fun _ ->
                     let command =
@@ -509,9 +451,7 @@ let fullTranslatorTests =
                                     buf.[0] <- buf.[0] + 1
                         @>
 
-                    let run,check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|5;1;2;3|]
+                    checkResult command intInArr [|5; 1; 2; 3|]
 
                 testCase "Control flow. WHILE in FOR." <| fun _ ->
                     let command =
@@ -522,9 +462,7 @@ let fullTranslatorTests =
                                         buf.[i] <- buf.[i] * buf.[i] + 1
                         @>
 
-                    let run,check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|26;26;26;10|]
+                    checkResult command intInArr [|26; 26; 26; 10|]
             ]
 
     let kernelArgumentsTests =
@@ -538,9 +476,7 @@ let fullTranslatorTests =
                                 buf.[i] <- i + i
                         @>
 
-                    let run,check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|0;2;4;6|]
+                    checkResult command intInArr [|0;2;4;6|]
 
                 testCase "Kernel arguments. Simple 1D with copy." <| fun _ ->
                     let command =
@@ -550,10 +486,10 @@ let fullTranslatorTests =
                                 outBuf.[i] <- inBuf.[i]
                         @>
 
-                    let run,check = checkResult command
-                    let outA = [|0;0;0;0|]
-                    run _1d intInArr outA
-                    check outA [|0;1;2;3|]
+                    
+                    use outBuffer = gpu.Allocate [|0; 0; 0; 0|]
+                    use inBuffer = gpu.Allocate intInArr
+                    setArgsAndCheckResult command (fun (kernel:GpuKernel<_,_,_>) -> kernel.SetArguments _1d inBuffer outBuffer) outBuffer [|0; 1; 2; 3|]
 
                 testCase "Kernel arguments. Simple 1D float." <| fun _ ->
                     let command =
@@ -563,9 +499,7 @@ let fullTranslatorTests =
                                 buf.[i] <- buf.[i] * buf.[i]
                         @>
 
-                    let run,check = checkResult command
-                    run _1d float32Arr
-                    check float32Arr [|0.0f;1.0f;4.0f;9.0f|]
+                    checkResult command float32Arr [|0.0f; 1.0f; 4.0f; 9.0f|]
 
                 testCase "Kernel arguments. Int as arg." <| fun _ ->
                     let command =
@@ -574,35 +508,40 @@ let fullTranslatorTests =
                                 let i = range.GlobalID0
                                 buf.[i] <- x + x
                         @>
-
-                    let run,check = checkResult command
-                    run _1d 2 intInArr
-                    check intInArr [|4;4;4;4|]
+                    
+                    use inBuffer = gpu.Allocate intInArr
+                    setArgsAndCheckResult command (fun (kernel:GpuKernel<_,_,_>) -> kernel.SetArguments _1d 2 inBuffer) inBuffer [|4; 4; 4; 4|]                    
 
                 testCase "Kernel arguments. Sequential commands over single buffer." <| fun _ ->
+                    
                     let command =
                         <@
                             fun (range:_1D) i x (buf:array<int>) ->
                                 buf.[i] <- x + x
                         @>
 
-                    let commandQueue = new CommandQueue(provider, provider.Devices |> Seq.head)
-                    let _, kernelPrepareF, kernelRunF = provider.Compile command
+                    
+                    let kernel = gpu.CreateKernel command                
 
-                    kernelPrepareF _1d 0 2 intInArr
-                    commandQueue.Add(kernelRunF()) |> ignore
+        
 
-                    kernelPrepareF _1d 2 2 intInArr
-                    commandQueue.Add(kernelRunF()) |> ignore
-                    commandQueue.Finish() |> ignore
+                    use inBuf = gpu.Allocate<'a>(intInArr, deviceAccessMode = DeviceAccessMode.ReadWrite)                    
+                                                            
+                    processor.Post(Msg.MsgSetArguments(fun () -> kernel.SetArguments _1d 0 2 intInArr))
+                    processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
+                    
+                    processor.Post(Msg.MsgSetArguments(fun () -> kernel.SetArguments _1d 2 2 intInArr))
+                    processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
+                    
+                    let localOut = Array.zeroCreate intInArr.Length
+                    let actual = 
+                        let res = processor.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(inBuf, localOut, ch))
+                        match res with 
+                        | Error e -> raise e
+                        | Ok x -> x
 
-                    let r = Array.zeroCreate intInArr.Length
-                    commandQueue.Add(intInArr.ToHost(provider, r)).Finish() |> ignore
-                    commandQueue.Dispose()
-                    provider.CloseAllBuffers()
-
-                    let expected = [|4;1;4;3|]
-                    Expect.sequenceEqual expected r "Arrays should be equals"
+                    let expected = [|4; 1; 4; 3|]
+                    Expect.sequenceEqual expected actual "Arrays should be equals"
             ]
 
     let quotationInjectionTests =
@@ -618,9 +557,7 @@ let fullTranslatorTests =
                                 buf.[1] <- (%myF) 4
                         @>
 
-                    let run,check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|4;16;2;3|]
+                    checkResult command intInArr [|4;16;2;3|]
 
                 testCase "Quotations injections. Quotations injections 2." <| fun _ ->
                     let myF = <@ fun x y -> y - x @>
@@ -632,9 +569,7 @@ let fullTranslatorTests =
                                 buf.[1] <- (%myF) 4 9
                         @>
 
-                    let run,check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|3;5;2;3|]
+                    checkResult command intInArr [|3;5;2;3|]
             ]
 
     let localMemTests =
@@ -655,12 +590,11 @@ let fullTranslatorTests =
                                     output.[0] <- x
                         @>
 
-                    let binder, check = checkResult command
-                    let input = [|0|]
+                                        
+                    use inBuffer = gpu.Allocate [|0|]
                     let range = _1D(5, 5)
 
-                    binder range input
-                    check input [|5|]
+                    setArgsAndCheckResult command (fun (kernel:GpuKernel<_,_,_>) -> kernel.SetArguments range inBuffer) inBuffer [|5|]
 
                 testCase "Local array. Test 1" <| fun _ ->
                     let localWorkSize = 5
@@ -675,19 +609,15 @@ let fullTranslatorTests =
                                 output.[range.GlobalID0] <- local_buf.[(range.LocalID0 + 1) % localWorkSize]
                         @>
 
-                    let kernelPrepare, check = checkResult command
 
+                    use outBuffer = gpu.Allocate (Array.zeroCreate globalWorkSize)
+                    use inBuffer = gpu.Allocate (Array.zeroCreate globalWorkSize)
                     let range = _1D(globalWorkSize, localWorkSize)
-
-                    let input = Array.zeroCreate globalWorkSize
-                    let output = Array.zeroCreate globalWorkSize
-
-                    kernelPrepare range input output
                     let expected = [| for x in 1..localWorkSize -> x % localWorkSize |]
                                    |> Array.replicate (globalWorkSize / localWorkSize)
                                    |> Array.concat
 
-                    check output expected
+                    setArgsAndCheckResult command (fun (kernel:GpuKernel<_,_,_>) -> kernel.SetArguments range inBuffer outBuffer) outBuffer expected                    
 
                 testCase "Local array. Test 2" <| fun _ ->
                     let command =
@@ -698,10 +628,7 @@ let fullTranslatorTests =
                                 buf.[0] <- local_buf.[0]
                         @>
 
-                    let run,check = checkResult command
-                    let initInArr = [|0L; 1L; 2L; 3L|]
-                    run _1d initInArr
-                    check initInArr [|1L; 1L; 2L; 3L|]
+                    checkResult command [|0L; 1L; 2L; 3L|] [|1L; 1L; 2L; 3L|]
             ]
 
     let letTransformationTests =
@@ -715,9 +642,7 @@ let fullTranslatorTests =
                                 buf.[0] <- f
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|3; 1; 2; 3|]
+                    checkResult command intInArr [|3; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 1" <| fun _ ->
                     let command =
@@ -729,9 +654,7 @@ let fullTranslatorTests =
                                     x
                                 buf.[0] <- x + f
                         @>
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|7; 1; 2; 3|]
+                    checkResult command intInArr [|7; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 1.2" <| fun _ ->
                     let command =
@@ -743,9 +666,7 @@ let fullTranslatorTests =
                                 buf.[0] <- f 1
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|10; 1; 2; 3|]
+                    checkResult command intInArr [|10; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 2" <| fun _ ->
                     let command =
@@ -759,9 +680,7 @@ let fullTranslatorTests =
                                 buf.[0] <- f
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|3; 1; 2; 3|]
+                    checkResult command intInArr [|3; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 3" <| fun _ ->
                     let command =
@@ -773,9 +692,7 @@ let fullTranslatorTests =
                                 buf.[0] <- f
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|5; 1; 2; 3|]
+                    checkResult command intInArr [|5; 1; 2; 3|]
 
 
                 testCase "Template Let Transformation Test 4" <| fun _ ->
@@ -790,9 +707,7 @@ let fullTranslatorTests =
                                 buf.[0] <- f
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|5; 1; 2; 3|]
+                    checkResult command intInArr [|5; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 5" <| fun _ ->
                     let command =
@@ -804,9 +719,7 @@ let fullTranslatorTests =
                                 buf.[0] <- f 1 7
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|8; 1; 2; 3|]
+                    checkResult command intInArr [|8; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 6" <| fun _ ->
                     let command =
@@ -818,9 +731,7 @@ let fullTranslatorTests =
                                 buf.[0] <- f 7 8
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|15; 1; 2; 3|]
+                    checkResult command intInArr [|15; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 7" <| fun _ ->
                     let command =
@@ -832,9 +743,7 @@ let fullTranslatorTests =
                                 buf.[0] <- f 7
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|-1; 1; 2; 3|]
+                    checkResult command intInArr [|-1; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 8" <| fun _ ->
                     let command =
@@ -855,9 +764,7 @@ let fullTranslatorTests =
                                 then m.[0] <- x 7
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|-1; 1; 2; 3|]
+                    checkResult command intInArr [|-1; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 9" <| fun _ ->
                     let command =
@@ -870,9 +777,7 @@ let fullTranslatorTests =
                                 buf.[0] <- x 9
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|17; 1; 2; 3|]
+                    checkResult command intInArr [|17; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 10" <| fun _ ->
                     let command =
@@ -885,9 +790,7 @@ let fullTranslatorTests =
                                 buf.[0] <- x 7 9
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|16; 1; 2; 3|]
+                    checkResult command intInArr [|16; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 11" <| fun _ ->
                     let command =
@@ -901,9 +804,7 @@ let fullTranslatorTests =
                                 buf.[0] <- m
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|9; 1; 2; 3|]
+                    checkResult command intInArr [|9; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 12" <| fun _ ->
                     let command =
@@ -917,9 +818,7 @@ let fullTranslatorTests =
                                 buf.[0] <- f 1 7
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|8; 1; 2; 3|]
+                    checkResult command intInArr [|8; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 13" <| fun _ ->
                     let command =
@@ -933,9 +832,7 @@ let fullTranslatorTests =
                                 buf.[0] <- f 7
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|7; 1; 2; 3|]
+                    checkResult command intInArr [|7; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 14" <| fun _ ->
                     let command =
@@ -953,9 +850,7 @@ let fullTranslatorTests =
                                 buf.[0] <- f (z 7)
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|-3; 1; 2; 3|]
+                    checkResult command intInArr [|-3; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 15" <| fun _ ->
                     let command =
@@ -970,9 +865,7 @@ let fullTranslatorTests =
                                 buf.[0] <- f 0
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|1; 1; 2; 3|]
+                    checkResult command intInArr [|1; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 16" <| fun _ ->
                     let command =
@@ -987,9 +880,7 @@ let fullTranslatorTests =
                                 buf.[0] <- f 0
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|9; 1; 2; 3|]
+                    checkResult command intInArr [|9; 1; 2; 3|]
 
                 testCase "Template Let Transformation Test 17" <| fun _ ->
                     let command =
@@ -1004,9 +895,7 @@ let fullTranslatorTests =
                                        buf.[i] <- f i
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|2; 3; 6; 7|]
+                    checkResult command intInArr [|2; 3; 6; 7|]
 
                 testCase "Template Let Transformation Test 18" <| fun _ ->
                     let command =
@@ -1020,9 +909,7 @@ let fullTranslatorTests =
                                     then buf.[i] <- f
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|2; 3; 6; 7|]
+                    checkResult command intInArr [|2; 3; 6; 7|]
 
                 testCase "Template Let Transformation Test 19" <| fun _ ->
                     let command =
@@ -1037,9 +924,7 @@ let fullTranslatorTests =
                                         buf.[i] <- f 1
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|2; 3; 6; 7|]
+                    checkResult command intInArr [|2; 3; 6; 7|]
 
                 // TODO: perform range (1D, 2D, 3D) erasure when range is lifted.
                 ptestCase "Template Let Transformation Test 20" <| fun _ ->
@@ -1051,9 +936,7 @@ let fullTranslatorTests =
                                 m.[0] <- f 2
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|2; 3; 6; 7|]
+                    checkResult command intInArr [|2; 3; 6; 7|]
             ]
 
     let letQuotationTransformerSystemTests =
@@ -1070,9 +953,7 @@ let fullTranslatorTests =
                                 buf.[0] <- x
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|10; 1; 2; 3|]
+                    checkResult command intInArr [|10; 1; 2; 3|]
 
                 testCase "Test 1" <| fun _ ->
                     let command =
@@ -1085,9 +966,7 @@ let fullTranslatorTests =
                                 buf.[0] <- x
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|11; 1; 2; 3|]
+                    checkResult command intInArr [|11; 1; 2; 3|]
 
                 testCase "Test 2" <| fun _ ->
                     let command =
@@ -1099,9 +978,7 @@ let fullTranslatorTests =
                                 arr.[0] <- f 2
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|3; 1; 2; 3|]
+                    checkResult command intInArr [|3; 1; 2; 3|]
 
                 testCase "Test 3" <| fun _ ->
                     let command =
@@ -1114,9 +991,7 @@ let fullTranslatorTests =
                                 arr.[0] <- f 2
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|5; 1; 2; 3|]
+                    checkResult command intInArr [|5; 1; 2; 3|]
 
                 testCase "Test 4" <| fun _ ->
                     let command =
@@ -1135,9 +1010,7 @@ let fullTranslatorTests =
                                 arr.[gid] <- x
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|0; 6; 12; 18|]
+                    checkResult command intInArr [|0; 6; 12; 18|]
 
                 testCase "Test 5" <| fun _ ->
                     let command =
@@ -1161,9 +1034,7 @@ let fullTranslatorTests =
                                 f ()
                         @>
 
-                    let run, check = checkResult command
-                    run _1d intInArr
-                    check intInArr [|34; 34; 34; 34|]
+                    checkResult command intInArr [|34; 34; 34; 34|]
 
 
             ]
@@ -1182,10 +1053,7 @@ let fullTranslatorTests =
                                     buf.[1] <- b
                         @>
 
-                    let run,check = checkResult command
-                    let inByteArray = [|TestStruct(1, 2.0); TestStruct(3, 4.0)|]
-                    run _1d inByteArray
-                    check inByteArray [|TestStruct(3, 4.0); TestStruct(1, 2.0)|]
+                    checkResult command [|TestStruct(1, 2.0); TestStruct(3, 4.0)|] [|TestStruct(3, 4.0); TestStruct(1, 2.0)|]
 
                 ptestCase "Simple seq of struct changes." <| fun _ ->
                     let command =
@@ -1194,10 +1062,7 @@ let fullTranslatorTests =
                                 buf.[0] <- TestStruct(5,6.0)
                         @>
 
-                    let run,check = checkResult command
-                    let inByteArray = [|TestStruct(1, 2.0);TestStruct(3, 4.0)|]
-                    run _1d inByteArray
-                    check inByteArray [|TestStruct(3, 4.0); TestStruct(1, 2.0)|]
+                    checkResult command [|TestStruct(1, 2.0); TestStruct(3, 4.0)|] [|TestStruct(3, 4.0); TestStruct(1, 2.0)|]
 
                 testCase "Simple seq of struct prop set" <| fun _ ->
                     let command =
@@ -1206,10 +1071,7 @@ let fullTranslatorTests =
                                 buf.[0].x <- 5
                         @>
 
-                    let run,check = checkResult command
-                    let inByteArray = [|TestStruct(1, 2.0)|]
-                    run _1d inByteArray
-                    check inByteArray [|TestStruct(5, 2.0)|]
+                    checkResult command [|TestStruct(1, 2.0)|] [|TestStruct(5, 2.0)|]
 
                 testCase "Simple seq of struct prop get." <| fun _ ->
                     let command =
@@ -1218,10 +1080,7 @@ let fullTranslatorTests =
                                 buf.[0].x <- buf.[1].x + 1
                         @>
 
-                    let run,check = checkResult command
-                    let inByteArray = [|TestStruct(1, 2.0);TestStruct(3, 4.0)|]
-                    run _1d inByteArray
-                    check inByteArray [|TestStruct(4, 2.0); TestStruct(3, 4.0)|]
+                    checkResult command [|TestStruct(1, 2.0); TestStruct(3, 4.0)|] [|TestStruct(4, 2.0); TestStruct(3, 4.0)|]
 
                 testCase "Nested structs 1." <| fun _ ->
                     ()

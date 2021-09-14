@@ -1,8 +1,7 @@
 ﻿module Brahma.FSharp.OpenCL.Tests
 
 open Expecto
-open Brahma.OpenCL
-open Brahma.FSharp.OpenCL.Core
+open Brahma.FSharp.OpenCL
 open OpenCL.Net
 open Brahma.FSharp.Tests.Common
 
@@ -10,20 +9,17 @@ open Brahma.FSharp.Tests.Common
 let translatorTest =
 
     let basePath = "Expected/"
+ 
+    let gpu =
+        let deviceType = DeviceType.Default
+        let platformName = "Intel*"
+        let devices = Device.getDevices platformName deviceType
+        GPU(devices.[0])
 
-    let deviceType = DeviceType.Default
-    let platformName = "Intel*"
-
-    let provider =
-        try  ComputeProvider.Create(platformName, deviceType)
-        with
-        | ex -> failwith ex.Message
-
-
-    let checkCode command outFile expected =
-        let code = ref ""
-        let _ = provider.Compile(command,_outCode = code)
-        System.IO.File.WriteAllText(outFile, !code)
+    let checkCode command outFile expected =        
+        let kernel = gpu.CreateKernel command
+        let code = kernel.ClCode
+        System.IO.File.WriteAllText(outFile, code)
         filesAreEqual outFile (System.IO.Path.Combine(basePath, expected))
 
     let a = [|0..3|]
