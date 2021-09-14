@@ -67,12 +67,15 @@ module internal rec EWiseAdd =
             sw.Start()
             sw2.Start()
 
+            //printfn "!!!!"
             use matrixLeftRows = gpu.Allocate<_>(matrixLeft.Rows, deviceAccessMode = DeviceAccessMode.ReadOnly)
             use matrixLeftColumns = gpu.Allocate<_>(matrixLeft.Columns, deviceAccessMode = DeviceAccessMode.ReadOnly)
             use matrixLeftValues = gpu.Allocate<'a>(matrixLeft.Values, deviceAccessMode = DeviceAccessMode.ReadOnly)
             use matrixRightRows = gpu.Allocate<_>(matrixRight.Rows, deviceAccessMode = DeviceAccessMode.ReadOnly)
             use matrixRightColumns = gpu.Allocate<_>(matrixRight.Columns, deviceAccessMode = DeviceAccessMode.ReadOnly)
             use matrixRightValues = gpu.Allocate<'a>(matrixRight.Values, deviceAccessMode = DeviceAccessMode.ReadOnly)
+
+            //printfn "????"
 
             sw2.Stop()
 

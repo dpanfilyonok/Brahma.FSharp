@@ -106,8 +106,10 @@ module internal PrefixSum =
         fun (processor:MailboxProcessor<_>) (inputArray: Buffer<int>) (totalSum: Buffer<int>) ->
             //sw.Reset()
             //sw.Start()
+            //printfn "111"
             let firstVertices = gpu.Allocate<int> ((inputArray.Length - 1) / workGroupSize + 1, hostAccessMode = HostAccessMode.NotAccessible)
             let secondVertices = gpu.Allocate<int>((firstVertices.Length - 1) / workGroupSize + 1, hostAccessMode = HostAccessMode.NotAccessible)
+            //printfn "222"
             //sw.Stop()
             //printfn "Data to gpu in PrefixSum: %A" (sw.ElapsedMilliseconds)
             let mutable verticesArrays = firstVertices, secondVertices

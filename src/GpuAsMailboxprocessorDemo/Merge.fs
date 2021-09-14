@@ -128,9 +128,11 @@ module internal Merge =
             let sumOfSides = firstSide + secondSide
 
             //sw.Start()
+            //printfn "1112"
             let allRows = gpu.Allocate<int>(sumOfSides, deviceAccessMode = DeviceAccessMode.WriteOnly, hostAccessMode = HostAccessMode.NotAccessible)
             let allColumns = gpu.Allocate<int>(sumOfSides, deviceAccessMode = DeviceAccessMode.WriteOnly, hostAccessMode = HostAccessMode.NotAccessible)
             let allValues = gpu.Allocate<'a>(sumOfSides, deviceAccessMode = DeviceAccessMode.WriteOnly, hostAccessMode = HostAccessMode.NotAccessible)
+            //printfn "1113"
 
             //sw.Stop()
             //printfn "Data to gpu in Merge: %A" (sw.ElapsedMilliseconds)

@@ -56,10 +56,13 @@ module internal SetPositions =
                     processor.Post(Msg.CreateFreeMsg<_>(r))
                     x.[0]
             //printfn "8"
+            //printfn "Result length = %A" resultLength
             //sw.Start()
-            let resultRows = gpu.Allocate<int>(resultLength, deviceAccessMode=DeviceAccessMode.WriteOnly)
-            let resultColumns = gpu.Allocate<int>(resultLength, deviceAccessMode=DeviceAccessMode.WriteOnly)
-            let resultValues = gpu.Allocate<'a>(resultLength, deviceAccessMode=DeviceAccessMode.WriteOnly)
+            let resultRows = gpu.Allocate<int>(resultLength, hostAccessMode=HostAccessMode.NotAccessible, deviceAccessMode=DeviceAccessMode.WriteOnly)
+            //printfn "#"
+            let resultColumns = gpu.Allocate<int>(resultLength, hostAccessMode=HostAccessMode.NotAccessible, deviceAccessMode=DeviceAccessMode.WriteOnly)
+            //printfn "##"
+            let resultValues = gpu.Allocate<'a>(resultLength, hostAccessMode=HostAccessMode.NotAccessible, deviceAccessMode=DeviceAccessMode.WriteOnly)
             //printfn "9"
             //sw.Stop()
             //printfn "Data to gpu in SetPositions: %A" (sw.ElapsedMilliseconds)
