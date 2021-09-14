@@ -21,6 +21,7 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Core.fs" />
+    <Compile Include="ClException.fs" />
     <Compile Include="NDRangeDimentions.fs" />
     <Compile Include="Device.fs" />
     <Compile Include="Buffer.fs" />

@@ -62,7 +62,7 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> INDRangeDimension>(device, contex
                 , argSize
                 , argVal)
         if error <> ErrorCode.Success
-        then raise (new Brahma.OpenCL.CLException(error))
+        then raise (new CLException(error))
 
     let range = ref Unchecked.defaultof<'TRange>
 
