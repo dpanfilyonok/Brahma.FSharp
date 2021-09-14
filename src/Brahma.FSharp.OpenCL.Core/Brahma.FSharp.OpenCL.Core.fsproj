@@ -20,7 +20,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="Core.fs" />
     <Compile Include="ClException.fs" />
     <Compile Include="NDRangeDimentions.fs" />
     <Compile Include="Device.fs" />
@@ -31,9 +30,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Brahma.FSharp.OpenCL.Printer\Brahma.FSharp.OpenCL.Printer.fsproj" />
-    <ProjectReference Include="..\Brahma.FSharp.OpenCL.Translator\Brahma.FSharp.OpenCL.Translator.fsproj" />
-    <ProjectReference Include="..\YC.Brahma.OpenCL\YC.Brahma.OpenCL.csproj" />
-    <ProjectReference Include="..\YC.Brahma\YC.Brahma.csproj" />
+    <ProjectReference Include="..\Brahma.FSharp.OpenCL.Translator\Brahma.FSharp.OpenCL.Translator.fsproj" />        
     <ProjectReference Include="..\YC.OpenCL.NET\YC.OpenCL.NET.csproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

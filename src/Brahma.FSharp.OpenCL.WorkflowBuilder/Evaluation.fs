@@ -1,13 +1,14 @@
 module Brahma.FSharp.OpenCL.WorkflowBuilder.Evaluation
 
-open Brahma.OpenCL
 open OpenCL.Net
 open System.Collections.Generic
 open FSharp.Quotations
 
 exception EmptyDevicesException of string
 
-type internal ExprWrapper(e: Expr) =
+let fixMe = true
+
+(*type internal ExprWrapper(e: Expr) =
     override this.GetHashCode() =
         e.ToString().GetHashCode()
 
@@ -109,3 +110,4 @@ type OpenCLEvaluationBuilder() =
             with
             | e ->
                 runEvaluation (handler e) env
+*)

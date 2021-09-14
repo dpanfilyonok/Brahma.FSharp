@@ -24,13 +24,8 @@ type _1D =
         0   
         
     interface INDRangeDimension with 
-    
-        member this.GlobalWorkSize with 
-            get () = [|System.IntPtr(this.globalWorkSize)|]
-
-        member this.LocalWorkSize with 
-            get () = [|System.IntPtr(this.localWorkSize)|]
-
+        member this.GlobalWorkSize with get () = [|System.IntPtr(this.globalWorkSize)|]
+        member this.LocalWorkSize with get () = [|System.IntPtr(this.localWorkSize)|]
         member this.Dimensions = 1
 
 
@@ -70,18 +65,13 @@ type _2D =
         failwith "GPU only"
         0
 
-     member this.LocalID1 = 
+    member this.LocalID1 = 
         failwith "GPU only"
         0
 
     interface INDRangeDimension with 
-    
-        member this.GlobalWorkSize with 
-            get () = [|System.IntPtr(this.globalWorkSizeX); System.IntPtr(this.globalWorkSizeY)|]
-
-        member this.LocalWorkSize with 
-            get () = [|System.IntPtr(this.localWorkSizeX); System.IntPtr(this.localWorkSizeY)|]
-        
+        member this.GlobalWorkSize with get () = [|System.IntPtr(this.globalWorkSizeX); System.IntPtr(this.globalWorkSizeY)|]
+        member this.LocalWorkSize with get () = [|System.IntPtr(this.localWorkSizeX); System.IntPtr(this.localWorkSizeY)|]
         member this.Dimensions = 2
 
 
@@ -140,11 +130,6 @@ type _3D =
         0
     
     interface INDRangeDimension with 
-    
-        member this.GlobalWorkSize with 
-            get () = [|System.IntPtr(this.globalWorkSizeX); System.IntPtr(this.globalWorkSizeY); System.IntPtr(this.globalWorkSizeZ)|]
-
-        member this.LocalWorkSize with 
-            get () = [|System.IntPtr(this.localWorkSizeX); System.IntPtr(this.localWorkSizeY); System.IntPtr(this.localWorkSizeZ)|]
-
+        member this.GlobalWorkSize with get () = [|System.IntPtr(this.globalWorkSizeX); System.IntPtr(this.globalWorkSizeY); System.IntPtr(this.globalWorkSizeZ)|]
+        member this.LocalWorkSize with get () = [|System.IntPtr(this.localWorkSizeX); System.IntPtr(this.localWorkSizeY); System.IntPtr(this.localWorkSizeZ)|]
         member this.Dimensions = 3

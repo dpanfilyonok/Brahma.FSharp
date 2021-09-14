@@ -3,10 +3,10 @@ module Brahma.FSharp.OpenCL.WorkflowBuilder.Basic
 open FSharp.Quotations
 
 open Brahma.FSharp.OpenCL.WorkflowBuilder.Evaluation
-open Brahma.FSharp.OpenCL.Extensions
-open Brahma.FSharp.OpenCL.Core
 
-let opencl = OpenCLEvaluationBuilder()
+let fixMe = true
+
+(*let opencl = OpenCLEvaluationBuilder()
 
 let getEvaluationContext : OpenCLEvaluation<OpenCLEvaluationContext> =
     OpenCLEvaluation <| fun x -> x
@@ -56,3 +56,4 @@ let RunCommand (command : Expr<'range -> 'a>) (binder : ('range -> 'a) -> unit) 
         binder kernelPrepare
         ctx.CommandQueue.Add(kernelRun()) |> ignore
     }
+*)

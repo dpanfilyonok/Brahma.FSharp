@@ -14,14 +14,12 @@
     <Tailcalls>true</Tailcalls>
     
   </PropertyGroup>
-  <ItemGroup>
-    <Compile Include="Array.fs" />
+  <ItemGroup>    
     <Compile Include="OpenCL.fs" />
     <Compile Include="Tuple.fs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\YC.Brahma.OpenCL\YC.Brahma.OpenCL.csproj" />
-    <ProjectReference Include="..\YC.OpenCL.NET\YC.OpenCL.NET.csproj" />
+     <ProjectReference Include="..\YC.OpenCL.NET\YC.OpenCL.NET.csproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
