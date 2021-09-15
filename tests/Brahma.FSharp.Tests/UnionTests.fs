@@ -74,7 +74,7 @@ let translateUnionTests =
 
 let compileTests =
     let provider = ComputeProvider.Create()
-    platformMessage provider "union compile tests"
+    // platformMessage provider "union compile tests"
 
     let testGen testCase name outFile expectedFile command =
         testCase name <| fun _ ->

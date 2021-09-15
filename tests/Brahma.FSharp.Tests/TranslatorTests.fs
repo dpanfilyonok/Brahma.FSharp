@@ -4,18 +4,13 @@ open Expecto
 open Brahma.OpenCL
 open Brahma.FSharp.OpenCL.Core
 open OpenCL.Net
-open Brahma.FSharp.Tests.Utils
+open Brahma.FSharp.Tests
 
 let basePath = "Expected/"
 let generatedPath = "Generated/"
 System.IO.Directory.CreateDirectory(generatedPath) |> ignore
 
-let provider =
-    let deviceType = DeviceType.Default
-    let platformName = "Intel*"
-
-    try ComputeProvider.Create(platformName, deviceType)
-    with ex -> failwith ex.Message
+let provider = context.Provider
 
 let checkCode command outFile expected =
     let code = ref ""
@@ -25,7 +20,7 @@ let checkCode command outFile expected =
     let expectedPath = System.IO.Path.Combine(basePath, expected)
     System.IO.File.WriteAllText(targetPath, !code)
 
-    filesAreEqual targetPath expectedPath
+    Utils.filesAreEqual targetPath expectedPath
 
 let basicLocalIdTests = testList "Basic tests on LocalID translation" [
         testCase "LocalID of 1D" <| fun _ ->

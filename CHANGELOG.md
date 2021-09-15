@@ -10,213 +10,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Kernel compilation caching
 
-- Mutable variables in closures
-- support of printf call inside kernel code
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- Basic workflow builders for designing computations
-- support of printf call inside kernel code
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- Basic workflow builders for designing computations
-- support of printf call inside kernel code
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- Basic workflow builders for designing computations
-- support of printf call inside kernel code
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- Basic workflow builders for designing computations
-- support of printf call inside kernel code
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- Basic workflow builders for designing computations
-- support of printf call inside kernel code
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- Basic workflow builders for designing computations
-- support of printf call inside kernel code
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- Basic workflow builders for designing computations
-- support of printf call inside kernel code
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- Basic workflow builders for designing computations
-
-### Fixed
-- Nested functions
-- Complex let bindings
-- ToHost behaviour on non-gpu arrays
-- printf/printfn without arguments
-- Boolean binary operators
-- Transfer arrays of boolean
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Boolean binary operators
-- Transfer arrays of boolean
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- printf/printfn without arguments
-- Boolean binary operators
-- Transfer arrays of boolean
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Boolean binary operators
-- Transfer arrays of boolean
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- ToHost behaviour on non-gpu arrays
-- printf/printfn without arguments
-- Boolean binary operators
-- Transfer arrays of boolean
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Boolean binary operators
-- Transfer arrays of boolean
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- printf/printfn without arguments
-- Boolean binary operators
-- Transfer arrays of boolean
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Boolean binary operators
-- Transfer arrays of boolean
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-
 ## [2.0.0-alpha7] - 2021-05-19
 
 ### Fixed
 - Nested functions
 - Complex let bindings
 
-- ToHost behaviour on non-gpu arrays
-- printf/printfn without arguments
-- Boolean binary operators
-- Transfer arrays of boolean
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Boolean binary operators
-- Transfer arrays of boolean
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- printf/printfn without arguments
-- Boolean binary operators
-- Transfer arrays of boolean
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Boolean binary operators
-- Transfer arrays of boolean
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-
 ### Added
 - Mutable variables in closures
-
-- support of printf call inside kernel code
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- Basic workflow builders for designing computations
-- support of printf call inside kernel code
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- Basic workflow builders for designing computations
-- support of printf call inside kernel code
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- Basic workflow builders for designing computations
-- support of printf call inside kernel code
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- Basic workflow builders for designing computations
 
 ## [2.0.0-alpha6.2] - 2021-05-19
 
 ### Fixed
 - ToHost behaviour on non-gpu arrays
 
-- printf/printfn without arguments
-- Boolean binary operators
-- Transfer arrays of boolean
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Boolean binary operators
-- Transfer arrays of boolean
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-
-### Added
-- support of printf call inside kernel code
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- Basic workflow builders for designing computations
-- support of printf call inside kernel code
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- Basic workflow builders for designing computations
-
 ## [2.0.0-alpha6.1] - 2021-03-22
 
 ### Fixed
 - printf/printfn without arguments
-
-- Boolean binary operators
-- Transfer arrays of boolean
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-
-### Added
-- support of printf call inside kernel code
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
-- Basic workflow builders for designing computations
 
 ## [2.0.0-alpha6] - 2021-03-22
 
@@ -228,21 +39,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Boolean binary operators
 - Transfer arrays of boolean
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
-
-### Added
-- While and for loops in workflow builders
-- Basic workflow builders for designing computations
 
 ## [2.0.0-alpha4] - 2020-12-27
 
 ### Added
 - While and for loops in workflow builders
-
-- Basic workflow builders for designing computations
-
-### Fixed
-- Local memory semantic. It is forbidden to initialize variables in the local memory.
 
 ## [2.0.0-alpha3]
 
@@ -290,18 +91,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.0-alpha4]
 
 - Basic support of structs and tuples.
-- Clean references.
-- OpenCL type provider. Strongly typed kernels from OpenCL code are available in F#.
 
 ## [1.1.0-alpha3]
 
 - Clean references.
-- OpenCL type provider. Strongly typed kernels from OpenCL code are available in F#.
 
 ## [1.1.0-alpha2]
 
 - Fix references.
-- OpenCL type provider. Strongly typed kernels from OpenCL code are available in F#.
 
 ## [1.1.0-alpha1]
 
@@ -315,6 +112,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - FSharp.Core form NuGet
 - .NET 4.5
+
 [Unreleased]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v2.0.0-alpha7.1...HEAD
 [2.0.0-alpha7.1]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v1.1.5...v2.0.0-alpha7.1
 [2.0.0-alpha7]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v1.1.5...v2.0.0-alpha7

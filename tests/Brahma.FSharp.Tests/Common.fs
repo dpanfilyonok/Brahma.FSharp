@@ -10,6 +10,21 @@ open Brahma.FSharp.OpenCL.Printer.AST
 open FSharp.Quotations
 open OpenCL.Net
 
+[<AutoOpen>]
+module Common =
+    let context =
+        let deviceType = DeviceType.Default
+        let platformName = "*"
+        let provider = ComputeProvider.Create(platformName, deviceType)
+
+        OpenCLEvaluationContext provider
+
+    let finalize f =
+        try
+            f ()
+        finally
+            context.Provider.CloseAllBuffers()
+
 module CustomDatatypes =
     [<Struct>]
     type WrappedInt =
@@ -23,14 +38,6 @@ module CustomDatatypes =
             WrappedInt(x.InnerValue - y.InnerValue)
 
 module Utils =
-    let context = OpenCLEvaluationContext()
-
-    let finalize f =
-        try
-            f ()
-        finally
-            context.Provider.CloseAllBuffers()
-
     let getValidGlobalSize wgSize neededSize = (neededSize + wgSize - 1) / wgSize * wgSize
 
     let filesAreEqual file1 file2 =

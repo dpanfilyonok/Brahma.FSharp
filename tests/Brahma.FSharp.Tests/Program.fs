@@ -20,7 +20,7 @@ let allTests =
 
 [<EntryPoint>]
 let main argv =
-    printfn "%O\n" Utils.context
+    printfn "%O\n" context
 
     allTests
     |> runTestsWithCLIArgs [] argv

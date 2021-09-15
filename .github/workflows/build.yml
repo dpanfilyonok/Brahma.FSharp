@@ -20,8 +20,6 @@ jobs:
 
       - name: Setup .NET Core
         uses: actions/setup-dotnet@v1
-        with:
-          dotnet-version: 3.1.302
 
       - name: Install OpenCL
         run: |
@@ -32,16 +30,50 @@ jobs:
           # Install OpenCL Runtime
           choco install opencl-intel-cpu-runtime
 
-      # - name: Download "clinfo.exe"
-      #   uses: carlosperate/download-file-action@v1.0.3
-      #   with:
-      #     file-url: https://ci.appveyor.com/api/projects/oblomov/clinfo/artifacts/clinfo.exe?job=platform:+x64
-      #     file-name: clinfo.exe
+      - name: Download "clinfo.exe"
+        uses: carlosperate/download-file-action@v1.0.3
+        with:
+          file-url: https://ci.appveyor.com/api/projects/oblomov/clinfo/artifacts/clinfo.exe?job=platform:+x64
+          file-name: clinfo.exe
 
-      # - name: OpenCL Info
-      #   run: clinfo.exe
+      - name: OpenCL Info
+        run: clinfo.exe
 
-      - name: Build
+      - name: Build And Test
         run: ./build.cmd
         env:
+          # Work around https://github.com/actions/setup-dotnet/issues/29
+          DOTNET_ROOT: ${{ runner.tool_cache }}/dncs/${{ matrix.dotnet }}/x64
+          CI: true
+
+  linux_build:
+    name: Linux Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: System Info
+        run: lscpu
+
+      - uses: actions/checkout@v1
+
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v1
+
+      - name: Install OpenCL
+        run: |
+          chmod +x ./.github/workflows/install-ubuntu-dependencies.sh
+          sudo ./.github/workflows/install-ubuntu-dependencies.sh
+
+      - name: Download "clinfo.exe"
+        run: sudo apt install clinfo
+
+      - name: OpenCL Info
+        run: clinfo
+
+      - name: Build And Test
+        run: |
+          chmod +x ./build.sh
+          ./build.sh
+        env:
+          # Work around https://github.com/actions/setup-dotnet/issues/29
+          DOTNET_ROOT: ${{ runner.tool_cache }}/dncs/${{ matrix.dotnet }}/x64
           CI: true
