@@ -16,7 +16,12 @@
 #endregion
 
 using System;
+using System.Collections;
+using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Xml.Linq;
 
 namespace OpenCL.Net
 {
@@ -30,6 +35,39 @@ namespace OpenCL.Net
     {
         public const string Library = "opencl.dll";
         
+        static Cl()
+        {
+            NativeLibrary.SetDllImportResolver(typeof(Cl).Assembly, ImportResolver);
+        }
+
+        private static IntPtr ImportResolver(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
+        {
+            string mappedName = null;
+            mappedName = MapLibraryName(assembly.Location, libraryName, out mappedName) ? mappedName : libraryName;
+            return NativeLibrary.Load(mappedName, assembly, searchPath);
+        }
+
+        private static bool MapLibraryName(string assemblyLocation, string originalLibName, out string mappedLibName)
+        {
+            string xmlPath = Path.Combine(Path.GetDirectoryName(assemblyLocation),
+                Path.GetFileNameWithoutExtension(assemblyLocation) + ".xml");
+            mappedLibName = null;
+
+            if (!File.Exists(xmlPath))
+                return false;
+
+            XElement root = XElement.Load(xmlPath);
+            var map =
+                (from el in root.Elements("dllmap")
+                where (string)el.Attribute("dll") == originalLibName
+                select el).SingleOrDefault();
+
+            if (map != null)
+                mappedLibName = map.Attribute("target").Value;
+
+            return (mappedLibName != null);
+        }
+
         #region Platform API
 
         [DllImport(Library)]
