@@ -9,29 +9,13 @@ open Brahma.FSharp.OpenCL.Translator
 open Brahma.FSharp.OpenCL.Printer.AST
 open FSharp.Quotations
 open OpenCL.Net
-open System.Threading
 
 [<AutoOpen>]
 module Common =
     let context =
-        let deviceType = DeviceType.Cpu
-        let platformName = "Intel*"
-
-        let mutable provider = Unchecked.defaultof<ComputeProvider>
-        let mutable retries = 0
-        let mutable break' = false
-
-        while not break' do
-            try
-                provider <- ComputeProvider.Create(platformName, deviceType)
-                break' <- true
-            with ex ->
-                if retries < 10 then
-                    retries <- retries + 1
-                    printfn "Waiting..."
-                    Thread.Sleep(5000)
-                else
-                    reraise ()
+        let deviceType = DeviceType.Default
+        let platformName = "*"
+        let provider = ComputeProvider.Create(platformName, deviceType)
 
         OpenCLEvaluationContext provider
 

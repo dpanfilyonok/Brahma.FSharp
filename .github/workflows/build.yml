@@ -30,16 +30,16 @@ jobs:
           # Install OpenCL Runtime
           choco install opencl-intel-cpu-runtime
 
-      # - name: Download "clinfo.exe"
-      #   uses: carlosperate/download-file-action@v1.0.3
-      #   with:
-      #     file-url: https://ci.appveyor.com/api/projects/oblomov/clinfo/artifacts/clinfo.exe?job=platform:+x64
-      #     file-name: clinfo.exe
+      - name: Download "clinfo.exe"
+        uses: carlosperate/download-file-action@v1.0.3
+        with:
+          file-url: https://ci.appveyor.com/api/projects/oblomov/clinfo/artifacts/clinfo.exe?job=platform:+x64
+          file-name: clinfo.exe
 
-      # - name: OpenCL Info
-      #   run: clinfo.exe
+      - name: OpenCL Info
+        run: clinfo.exe
 
-      - name: Build
+      - name: Build And Test
         run: ./build.cmd
         env:
           # Work around https://github.com/actions/setup-dotnet/issues/29
@@ -69,10 +69,10 @@ jobs:
       - name: OpenCL Info
         run: clinfo
 
-      - name: Build
+      - name: Build And Test
         run: |
           chmod +x ./build.sh
-          ./build.sh DotnetBuild
+          ./build.sh
         env:
           # Work around https://github.com/actions/setup-dotnet/issues/29
           DOTNET_ROOT: ${{ runner.tool_cache }}/dncs/${{ matrix.dotnet }}/x64
