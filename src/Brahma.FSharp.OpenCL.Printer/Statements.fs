@@ -21,83 +21,114 @@ open FSharpx.Collections
 open Brahma.FSharp.OpenCL.Printer
 open Microsoft.FSharp.Collections
 
-let rec private printAssignment (a:Assignment<'lang>) =
-    [Expressions.Print a.Name; wordL "="; Expressions.Print a.Value] |> spaceListL
+let rec private printAssignment (a: Assignment<'lang>) =
+    [
+        Expressions.print a.Name
+        wordL "="
+        Expressions.print a.Value
+    ]
+    |> spaceListL
 
-and private printSpaceModeifier (sm:AddressSpaceQualifier<_>) =
+and private printSpaceModeifier (sm: AddressSpaceQualifier<_>) =
     match sm with
-    | Global   -> wordL "__global"
-    | Local    -> wordL "__local"
+    | Global -> wordL "__global"
+    | Local -> wordL "__local"
     | Constant -> wordL "__constant"
-    | Private  -> wordL "__private"
-    | Default  -> wordL "__default"
+    | Private -> wordL "__private"
+    | Default -> wordL "__default"
 
-and private printVarDecl (vd:VarDecl<'lang>) =
-    [ if vd.SpaceModifier.IsSome then yield printSpaceModeifier vd.SpaceModifier.Value
-    ; yield Types.Print vd.Type
-    ; yield wordL vd.Name
-    ; if vd.Type :? ArrayType<_> then yield wordL "["  ^^ wordL (string vd.Type.Size)  ^^ wordL "]"
-    ; if vd.Expr.IsSome && not <| vd.IsLocal () then yield [wordL "="; Expressions.Print vd.Expr.Value] |> spaceListL
-    ] |> spaceListL
+and private printVarDecl (vd: VarDecl<'lang>) =
+    [
+        if vd.SpaceModifier.IsSome then yield printSpaceModeifier vd.SpaceModifier.Value
+        yield Types.Print vd.Type
+        yield wordL vd.Name
+        if vd.Type :? ArrayType<_> then yield wordL "[" ^^ wordL (string vd.Type.Size) ^^ wordL "]"
+        if vd.Expr.IsSome && not <| vd.IsLocal() then
+            yield [
+                wordL "="
+                Expressions.print vd.Expr.Value
+            ]
+            |> spaceListL
+    ]
+    |> spaceListL
 
-and private printVar (v: Variable<'lang>) =
-    wordL v.Name
+and private printVar (v: Variable<'lang>) = wordL v.Name
 
-and private printStmtBlock (sb:StatementBlock<'lang>) =
-    sb.Statements |> ResizeArray.map (Print false) |> List.ofSeq |> aboveListL |> braceL
+and private printStmtBlock (sb: StatementBlock<'lang>) =
+    sb.Statements
+    |> ResizeArray.map (Print false)
+    |> List.ofSeq
+    |> aboveListL
+    |> braceL
 
-and private printIf (_if:IfThenElse<_>) =
-    let cond = Expressions.Print _if.Condition |> bracketL
-    let _then = Print true _if.Then
-    let _else =
-        match _if.Else with
+and private printIf (if': IfThenElse<_>) =
+    let cond = Expressions.print if'.Condition |> bracketL
+    let then' = Print true if'.Then
+
+    let else' =
+        match if'.Else with
         | Some x -> Print true x
         | None -> wordL ""
-    [ yield wordL "if" ++ cond
-    ; yield _then
-    ; if _if.Else.IsSome then yield aboveL (wordL "else") _else]
+
+    [
+        yield wordL "if" ++ cond
+        yield then'
+        if if'.Else.IsSome then
+            yield aboveL (wordL "else") else'
+    ]
     |> aboveListL
 
-and private printForInteger (_for:ForIntegerLoop<_>) =
-    let cond = Expressions.Print _for.Condition
-    let i = Print true _for.Var
-    let cModif = Expressions.Print _for.CountModifier
-    let body = Print true _for.Body
-    let header = [i; cond; cModif] |> sepListL (wordL ";") |> bracketL
-    [ yield wordL "for" ++ header
-    ; yield body]
+and private printForInteger (for': ForIntegerLoop<_>) =
+    let cond = Expressions.print for'.Condition
+    let i = Print true for'.Var
+    let cModif = Expressions.print for'.CountModifier
+    let body = Print true for'.Body
+    let header = [ i; cond; cModif ] |> sepListL (wordL ";") |> bracketL
+
+    [
+        yield wordL "for" ++ header
+        yield body
+    ]
     |> aboveListL
 
-and printWhileLoop (wl:WhileLoop<_>) =
-    let cond = Expressions.Print wl.Condition |> bracketL
+and printWhileLoop (wl: WhileLoop<_>) =
+    let cond = Expressions.print wl.Condition |> bracketL
     let body = Print true wl.WhileBlock
-    [ yield wordL "while" ++ cond;
-    yield body]
+
+    [
+        yield wordL "while" ++ cond
+        yield body
+    ]
     |> aboveListL
 
-and printFunCall (fc:FunCall<_>) =
-    let args = fc.Args |> List.map Expressions.Print |> commaListL |> bracketL
+and printFunCall (fc: FunCall<_>) =
+    let args =
+        fc.Args
+        |> List.map Expressions.print
+        |> commaListL
+        |> bracketL
+
     wordL fc.Name ++ args
 
-and printBarrier (b:Barrier<_>) =
-    wordL "barrier(CLK_LOCAL_MEM_FENCE)"
+and printBarrier (b: Barrier<_>) = wordL "barrier(CLK_LOCAL_MEM_FENCE)"
 
-and printReturn (r:Return<_>) =
-    wordL "return" ++ Expressions.Print r.Expression
+and printReturn (r: Return<_>) = wordL "return" ++ Expressions.print r.Expression
 
-and printFieldSet (fs:FieldSet<_>) =
-    let host = Expressions.Print fs.Host
+and printFieldSet (fs: FieldSet<_>) =
+    let host = Expressions.print fs.Host
     let fld = wordL fs.Field
-    let _val = Expressions.Print fs.Val
+    let val' = Expressions.print fs.Val
+
     [
         host |> bracketL
         wordL "."
         fld
         wordL "="
-        _val
-    ] |> spaceListL
+        val'
+    ]
+    |> spaceListL
 
-and Print isToplevel (stmt:Statement<'lang>) =
+and Print isToplevel (stmt: Statement<'lang>) =
     let res =
         match stmt with
         | :? StatementBlock<'lang> as sb -> printStmtBlock sb
@@ -111,7 +142,9 @@ and Print isToplevel (stmt:Statement<'lang>) =
         | :? FieldSet<'lang> as fs -> printFieldSet fs
         | :? Return<'lang> as r -> printReturn r
         //| :? Variable<'lang> as v -> printVar v
-        | t -> failwithf "Printer. Unsupported statement: %A" t
-    if isToplevel
-    then res
-    else res ++ wordL ";"
+        | _ -> failwithf "Printer. Unsupported statement: %O" stmt
+
+    if isToplevel then
+        res
+    else
+        res ++ wordL ";"

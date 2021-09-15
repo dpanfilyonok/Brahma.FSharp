@@ -1,4 +1,4 @@
-module Brahma.FSharp.OpenCL.WorkflowBuilder.Evaluation
+namespace Brahma.FSharp.OpenCL.WorkflowBuilder
 
 open OpenCL.Net
 open System.Collections.Generic
@@ -20,39 +20,52 @@ let fixMe = true
     override this.ToString() =
         e.ToString()
 
-type OpenCLEvaluationContext(provider: ComputeProvider, ?device_id: int) =
+type OpenCLEvaluationContext(provider: ComputeProvider, ?deviceId: int) =
     let devices = provider.Devices |> Seq.toArray
-    let device_id = defaultArg device_id 0
+    let deviceId = defaultArg deviceId 0
     do
-        if device_id >= devices.Length then
-            raise (EmptyDevicesException <|
-                   sprintf "Provider:\n%Ahas not device with id %i." provider device_id)
+        if deviceId >= devices.Length then
+            raise <| EmptyDevicesException (sprintf "Provider:\n%Ahas not device with id %i." provider deviceId)
 
-    let device = devices.[device_id]
-    let command_queue = new Brahma.OpenCL.CommandQueue(provider, device)
+    let device = devices.[deviceId]
+    let commandQueue = new Brahma.OpenCL.CommandQueue(provider, device)
 
-    member this.Provider = provider
-
-    member this.Device = device
-
-    member this.CommandQueue = command_queue
+    new(?platformName, ?deviceType: DeviceType) =
+        let platformName = defaultArg platformName "*"
+        let deviceType = defaultArg deviceType DeviceType.Default
+        let provider = ComputeProvider.Create(platformName, deviceType)
+        OpenCLEvaluationContext(provider)
 
     member val IsCachingEnabled = false with get, set
-
     member val internal CompilingCache = Dictionary<ExprWrapper, obj * obj * obj>() with get
 
-    new (?platform_name, ?device_type: DeviceType) =
-        let platform_name = defaultArg platform_name "*"
-        let device_type = defaultArg device_type DeviceType.Default
-        let provider = ComputeProvider.Create(platform_name, device_type)
-        OpenCLEvaluationContext(provider)
+    member this.Provider = provider
+    member this.Device = device
+    member this.CommandQueue = commandQueue
+
+    override this.ToString() =
+        let mutable e = ErrorCode.Unknown
+        let deviceName = Cl.GetDeviceInfo(this.Device, DeviceInfo.Name, &e).ToString()
+        if deviceName.Length < 20 then
+            sprintf "%s" deviceName
+        else
+            let platform = Cl.GetDeviceInfo(this.Device, DeviceInfo.Platform, &e).CastTo<Platform>()
+            let platformName = Cl.GetPlatformInfo(platform, PlatformInfo.Name, &e).ToString()
+            let deviceType =
+                match Cl.GetDeviceInfo(this.Device, DeviceInfo.Type, &e).CastTo<DeviceType>() with
+                | DeviceType.Cpu -> "CPU"
+                | DeviceType.Gpu -> "GPU"
+                | DeviceType.Accelerator -> "Accelerator"
+                | _ -> "another"
+
+            sprintf "%s, %s" platformName deviceType
 
 type OpenCLEvaluation<'a> =
     OpenCLEvaluation of (OpenCLEvaluationContext -> 'a)
 
-let private runEvaluation (OpenCLEvaluation f) = f
-
 type OpenCLEvaluationBuilder() =
+    let runEvaluation (OpenCLEvaluation f) = f
+
     abstract member Return : 'a -> OpenCLEvaluation<'a>
 
     abstract member ReturnFrom : OpenCLEvaluation<'a> -> OpenCLEvaluation<'a>
@@ -98,10 +111,10 @@ type OpenCLEvaluationBuilder() =
             while predicate() do
                 runEvaluation body env
 
-    default this.For (elems, f_body) =
+    default this.For (elems, body) =
         OpenCLEvaluation <| fun env ->
             for elem in elems do
-                runEvaluation (f_body elem) env
+                runEvaluation (body elem) env
 
     default this.TryWith (tryBlock, handler) =
         OpenCLEvaluation <| fun env ->

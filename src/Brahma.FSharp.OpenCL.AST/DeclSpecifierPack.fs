@@ -15,36 +15,43 @@
 
 namespace Brahma.FSharp.OpenCL.AST
 
-type DeclSpecifierPack<'lang> (?funQual:FunQualifier<'lang>,
-                               ?addrSpaceQual:AddressSpaceQualifier<'lang>,
-                               ?accessQual:AccessQualifier<'lang>,
-                               ?storClassSpec:StorageClassSpecifier<'lang>,
-                               ?typeSpec:Type<'lang>,
-                               ?typeQuals:TypeQualifier<'lang> list) =
+type DeclSpecifierPack<'lang>
+    (
+        ?funQualifier: FunQualifier<'lang>,
+        ?addressSpaceQualifier: AddressSpaceQualifier<'lang>,
+        ?accessQualifier: AccessQualifier<'lang>,
+        ?storageClassSpecifier: StorageClassSpecifier<'lang>,
+        ?typeSpecifier: Type<'lang>,
+        ?typeQualifiers: TypeQualifier<'lang> list
+    ) =
+
     inherit Node<'lang>()
+
     override this.Children = []
-    member val FunQual = funQual with get, set
-    member val AddressSpaceQual = defaultArg addrSpaceQual Default with get, set
-    member val AccessQual = accessQual with get, set
-    member val StorageClassSpec = storClassSpec with get, set
-    member val Type = typeSpec with get, set
-    member val TypeQuals = defaultArg typeQuals [] with get, set
+
+    member val FunQual = funQualifier with get, set
+    member val AddressSpaceQualifier = defaultArg addressSpaceQualifier Default with get, set
+    member val AccessQual = accessQualifier with get, set
+    member val StorageClassSpec = storageClassSpecifier with get, set
+    member val Type = typeSpecifier with get, set
+    member val TypeQualifiers = defaultArg typeQualifiers [] with get, set
 
     member this.AddTypeQual tq =
-        this.TypeQuals <- tq :: this.TypeQuals
+        this.TypeQualifiers <- tq :: this.TypeQualifiers
 
-    member this.Matches(other:obj) =
+    member this.Matches(other: obj) =
         match other with
-        | :? DeclSpecifierPack<'lang> as o ->
+        | :? DeclSpecifierPack<'lang> as other ->
             let areTypesMatching =
-                match this.Type, o.Type with
+                match this.Type, other.Type with
                 | Some x, Some y -> x.Matches(y)
                 | None, None -> true
                 | _ -> false
-            this.FunQual = o.FunQual
-            && this.AddressSpaceQual = o.AddressSpaceQual
-            && this.AccessQual = o.AccessQual
-            && this.StorageClassSpec = o.StorageClassSpec
+
+            this.FunQual = other.FunQual
+            && this.AddressSpaceQualifier = other.AddressSpaceQualifier
+            && this.AccessQual = other.AccessQual
+            && this.StorageClassSpec = other.StorageClassSpec
             && areTypesMatching
-            && this.TypeQuals = o.TypeQuals
+            && this.TypeQualifiers = other.TypeQualifiers
         | _ -> false

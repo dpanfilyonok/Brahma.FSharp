@@ -20,43 +20,48 @@ open Microsoft.FSharp.Text.StructuredFormat
 open Microsoft.FSharp.Text.StructuredFormat.LayoutOps
 open Brahma.FSharp.OpenCL.Printer
 
-let private printFunFormalParam (param:FunFormalArg<_>) =
-    [ match param.DeclSpecs.AddressSpaceQual with
-      | Global ->
-           if param.Name.[0] <> '_'
-           then yield wordL "__global"
-           else yield wordL "__global"
-      | _ -> yield wordL "private"
-    ; match param.DeclSpecs.Type with
-      | Some t -> yield Types.Print t
-      | None -> failwith "Could not print a formal arg with undefined type"
-    ; yield wordL param.Name
-    ] |> spaceListL
+let private printFunFormalParam (param: FunFormalArg<_>) =
+    [
+        match param.DeclSpecs.AddressSpaceQualifier with
+        | Global -> yield wordL "__global"
+        | Local -> yield wordL "__local"
+        | _ -> yield wordL "private"
 
-let Print<'lang> (funDecl:FunDecl<'lang>) =
+        match param.DeclSpecs.Type with
+        | Some t -> yield Types.Print t
+        | None -> failwith "Could not print a formal arg with undefined type"
+
+        yield wordL param.Name
+    ]
+    |> spaceListL
+
+let Print<'lang> (funDecl: FunDecl<'lang>) =
     let isVoidArg (arg: FunFormalArg<_>) =
         match arg.DeclSpecs.Type with
         | Some x ->
             match x with
-            | :? PrimitiveType<_> as p ->
-                p.Type = Void
+            | :? PrimitiveType<_> as p -> p.Type = Void
             | _ -> false
         | None -> false
 
     let header =
-        [ match funDecl.DeclSpecs.FunQual with
-          | Some Kernel -> yield wordL "__kernel"
-          | None -> ()
-        ; match funDecl.DeclSpecs.Type with
-          | Some t -> yield Types.Print t
-          | None -> failwith "Could not print a func declaration with undefined return type"
-        ; yield wordL funDecl.Name
-        ] |> spaceListL
+        [
+            match funDecl.DeclSpecs.FunQual with
+            | Some Kernel -> yield wordL "__kernel"
+            | None -> ()
+            match funDecl.DeclSpecs.Type with
+            | Some t -> yield Types.Print t
+            | None -> failwith "Could not print a func declaration with undefined return type"
+            yield wordL funDecl.Name
+        ]
+        |> spaceListL
+
     let formalParams =
         funDecl.Args
         |> List.filter (not << isVoidArg)
         |> List.map printFunFormalParam
         |> commaListL
         |> bracketL
+
     let body = Statements.Print true funDecl.Body
     aboveL (header ++ formalParams) body

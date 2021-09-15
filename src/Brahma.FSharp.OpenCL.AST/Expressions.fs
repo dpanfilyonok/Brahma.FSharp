@@ -16,27 +16,27 @@
 namespace Brahma.FSharp.OpenCL.AST
 
 [<AbstractClass>]
-type Expression<'lang>()=
+type Expression<'lang>() =
     inherit Statement<'lang>()
 
-type Const<'lang>(_type:Type<'lang>,_val:string) =
+type Const<'lang>(_type: Type<'lang>, _val: string) =
     inherit Expression<'lang>()
     override this.Children = []
     member this.Type = _type
     member this.Val = _val
 
-type Variable<'lang>(name:string) =
+type Variable<'lang>(name: string) =
     inherit Expression<'lang>()
     override this.Children = []
     member this.Name = name
 
-type FunCall<'lang>(funName:string, args:List<Expression<'lang>>) =
+type FunCall<'lang>(funName: string, args: List<Expression<'lang>>) =
     inherit Expression<'lang>()
     override this.Children = []
     member this.Name = funName
     member this.Args = args
 
-type Item<'lang>(arr:Expression<'lang>,idx:Expression<'lang>) =
+type Item<'lang>(arr: Expression<'lang>, idx: Expression<'lang>) =
     inherit Expression<'lang>()
     override this.Children = []
     member this.Arr = arr
@@ -48,37 +48,37 @@ type IndirectionOp<'lang>(expr: Expression<'lang>) =
     member this.Expr = expr
 
 [<RequireQualifiedAccess>]
-type PropertyType<'lang>=
+type PropertyType<'lang> =
     | Var of Variable<'lang>
     | Item of Item<'lang>
     | VarReference of IndirectionOp<'lang>
 
-type Property<'lang>(property:PropertyType<'lang>) =
+type Property<'lang>(property: PropertyType<'lang>) =
     inherit Expression<'lang>()
     override this.Children = []
     member this.Property = property
 
 type BOp<'lang> =
-     | Plus
-     | Minus
-     | Mult
-     | Div
-     | Pow
-     | BitAnd
-     | BitOr
-     | LeftShift
-     | RightShift
-     | And
-     | Or
-     | Less
-     | LessEQ
-     | Great
-     | GreatEQ
-     | EQ
-     | NEQ
-     | Remainder
+    | Plus
+    | Minus
+    | Mult
+    | Div
+    | Pow
+    | BitAnd
+    | BitOr
+    | LeftShift
+    | RightShift
+    | And
+    | Or
+    | Less
+    | LessEQ
+    | Great
+    | GreatEQ
+    | EQ
+    | NEQ
+    | Remainder
 
-type Binop<'lang>(op:BOp<'lang>, l:Expression<'lang>, r:Expression<'lang>) =
+type Binop<'lang>(op: BOp<'lang>, l: Expression<'lang>, r: Expression<'lang>) =
     inherit Expression<'lang>()
     override this.Children = []
     member this.Left = l
@@ -92,19 +92,19 @@ type UOp<'lang> =
     | Incr
     | Decr
 
-type Unop<'lang>(op:UOp<'lang>,expr:Expression<'lang>) =
+type Unop<'lang>(op: UOp<'lang>, expr: Expression<'lang>) =
     inherit Expression<'lang>()
     override this.Children = []
     member this.Expr = expr
     member this.Op = op
 
-type Cast<'lang>(expr:Expression<'lang>,_type:Type<'lang>) =
+type Cast<'lang>(expr: Expression<'lang>, _type: Type<'lang>) =
     inherit Expression<'lang>()
     override this.Children = []
     member this.Expr = expr
     member this.Type = _type
 
-type Pointer<'lang>(expr:Expression<'lang>)=
+type Ptr<'lang>(expr: Expression<'lang>) =
     inherit Expression<'lang>()
     override this.Children = []
     member this.Expr = expr
@@ -115,7 +115,7 @@ type ArrayInitializer<'lang>() =
     override this.Children = []
     abstract Length : int
 
-type ZeroArray<'lang>(length:int) =
+type ZeroArray<'lang>(length: int) =
     inherit ArrayInitializer<'lang>()
     override this.Length = length
 
@@ -128,12 +128,12 @@ type NewStruct<'lang>(structInfo: StructType<'lang>, cArgs: List<Expression<'lan
 type NewUnion<'lang>(unionInfo: UnionClInplaceType<'lang>, fieldName: string, arg: Expression<'lang>) =
     inherit Expression<'lang>()
 
-    override this.Children = [arg :> Node<'lang>]
+    override this.Children = [ arg :> Node<'lang> ]
     member this.Union = unionInfo
     member this.ConstructorArg = arg
     member this.ConstructorArgName = fieldName
 
-type FieldGet<'lang>(host:Expression<'lang>, field:string) =
+type FieldGet<'lang>(host: Expression<'lang>, field: string) =
     inherit Expression<'lang>()
     override this.Children = []
     member this.Host = host
