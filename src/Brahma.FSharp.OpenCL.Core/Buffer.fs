@@ -53,7 +53,7 @@ type Buffer<'t> private (clContext: OpenCL.Net.Context, length:int, data:option<
         match allocationMode with
         | None -> 
             match data with 
-            | None -> flags <- flags ||| MemFlags.AllocHostPtr
+            | None -> () //flags <- flags ||| MemFlags.AllocHostPtr // ???? 
             | Some x -> flags <- flags ||| MemFlags.CopyHostPtr
         | Some x -> match x with 
                     | AllocationMode.UseHostPtr -> flags <- flags ||| MemFlags.UseHostPtr

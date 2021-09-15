@@ -5,9 +5,10 @@ open OpenCL.Net
 open Microsoft.FSharp.Quotations
 open FSharp.Quotations.Evaluator
 
-type GpuKernel<'TRange, 'a, 't when 'TRange :> INDRangeDimension>(device, context, srcLambda: Expr<'TRange ->'a>) =
+type GpuKernel<'TRange, 'a, 't when 'TRange :> INDRangeDimension>
+    (device, context, srcLambda: Expr<'TRange ->'a>, ?kernelName) =
 
-    let kernelName = "brahmaKernel"
+    let kernelName = defaultArg kernelName "brahmaKernel"
 
     let clCode =
         let translatorOptions = []
@@ -17,7 +18,6 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> INDRangeDimension>(device, contex
         code
 
     let compileQuery translatorOptions additionalSources =
-
         let program, error =
             let sources = additionalSources @ [clCode] |> List.toArray
             Cl.CreateProgramWithSource(context, uint32 (sources.Length), sources, null)
@@ -26,7 +26,7 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> INDRangeDimension>(device, contex
         then failwithf "Program creation failed: %A" error
 
         let options =  
-            " -cl-fast-relaxed-math -cl-mad-enable "
+            " -cl-fast-relaxed-math -cl-mad-enable -cl-unsafe-math-optimizations "
         let error = Cl.BuildProgram(program, 1u, [|device|], options, null, System.IntPtr.Zero)
 
         if error <> ErrorCode.Success
