@@ -67,7 +67,17 @@ let command =
     @>
 ```
 
-##Control flow
+### Expression ignore by ```|> ignore```
+```
+let command = 
+    <@
+        fun (range: _1D) (buffer: int[]) ->
+            let gid = range.GlobalID0
+            atomic inc buffer.[gid] |> ignore
+    @>
+```
+
+## Control flow
 
 ### Sequential operations
 

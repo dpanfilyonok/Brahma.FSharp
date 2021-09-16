@@ -1,4 +1,4 @@
 FSharp.Core
 Microsoft.SourceLink.GitHub
-Microsoft.NETFramework.ReferenceAssemblies
 FSharpx.Collections
+FSharp.Quotations.Evaluator

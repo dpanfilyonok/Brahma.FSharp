@@ -16,6 +16,7 @@
 #endregion
 
 using System;
+using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace OpenCL.Net
@@ -30,6 +31,28 @@ namespace OpenCL.Net
     {
         public const string Library = "opencl.dll";
         
+        static Cl()
+        {
+            NativeLibrary.SetDllImportResolver(typeof(Cl).Assembly, ImportResolver);
+        }
+
+        private static IntPtr ImportResolver(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
+        {
+            IntPtr libHandle = IntPtr.Zero;
+            if (libraryName == Library)
+            {
+                if (OperatingSystem.IsLinux())
+                {
+                    libHandle = NativeLibrary.Load("/usr/lib/x86_64-linux-gnu/libOpenCL.so.1.0.0", assembly, searchPath);
+                }
+                else if (OperatingSystem.IsMacOS())
+                {
+                    libHandle = NativeLibrary.Load("/System/Library/Frameworks/OpenCL.framework/OpenCL", assembly, searchPath);
+                }
+            }
+            return libHandle;
+        }
+
         #region Platform API
 
         [DllImport(Library)]

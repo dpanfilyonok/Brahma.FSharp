@@ -1,116 +1,31 @@
 ﻿[<AutoOpen>]
 module OpenCL
 
-let (*private*) kFail () = failwith "Seems that you try to use openCL kernel function as regular F# function!"
+let inline private openclKeywordFail () =
+    failwith "Seems that you try to use openCL kernel function as regular F# function!"
 
-/// Alias for atom_add. Not returns old value in F#.
-/// ### Example
-/// a.[i] <!+ buf
-let inline (<!+) a b =
-    kFail ()
-    a + b |> ignore
+let barrier () =
+    openclKeywordFail ()
+    ignore null
 
-/// Alias for atom_add. Returns old value.
-/// ### Example
-/// let oldV = a.[i] <!+> buf
-let inline (<!+>) a b =
-    kFail ()
-    a + b
-
-/// Alias for atom_sub. Not returns old value in F#.
-/// ### Example
-/// a.[i] <!- buf
-let inline (<!-) a b =
-    kFail ()
-    a - b |> ignore
-
-/// Alias for atom_sub. Returns old value.
-/// ### Example
-/// let oldV = a.[i] <!-> buf
-let inline (<!->) a b =
-    kFail ()
-    a - b
-
-/// Alias for atom_xchg. Not returns old value in F#
-/// ### Example
-/// a.[i] <! buf
-let inline (<!) (a:'a) (b:'a) =
-    kFail ()
-    b |> ignore
-
-/// Alias for atom_xchg. Returns old value.
-/// ### Example
-/// let oldV = a.[i] <!> buf
-let inline (<!>) (a:'a) (b:'a) =
-    kFail ()
-    b
-
-//let (<&&>) (a:uint16) b =
-//    kFail ()
-//    a &&& b
-//
-//let (<&&>) (a:int) b =
-//    kFail ()
-//    a &&& b
-let aIncrR a =
-    kFail ()
-    a + 1
-
-let aIncr a =
-    kFail ()
-    a + 1
-    |> ignore
-
-let aDecr a =
-    kFail ()
-    a - 1
-    |> ignore
-
-let aDecrR a =
-    kFail ()
-    a - 1
-
-let aMax a b =
-    kFail ()
-    max a b |> ignore
-
-let aMaxR a b =
-    kFail ()
-    max a b
-
-let aMin a b =
-    kFail ()
-    min a b |> ignore
-
-let aMinR a b =
-    kFail ()
-    min a b
-
-let aCompExch a b c =
-    kFail ()
-    if a = b
-    then c
-    else a
-    |> ignore
-
-let aCompExchR a b c =
-    kFail ()
-    if a = b
-    then c
-    else a
-    |> ignore
-    a
-
-let local<'a when 'a : struct> () =
-    kFail()
+let local<'a when 'a: struct> () =
+    openclKeywordFail ()
     Unchecked.defaultof<'a>
 
-let localArray<'a> (size : int) =
-    kFail()
+let localArray<'a> (size: int) =
+    openclKeywordFail ()
     Unchecked.defaultof<array<'a>>
 
-let barrier () = ignore(null)
+let atomic (f: 'a -> 'b) =
+    openclKeywordFail ()
+    f
 
-let _byte (x:bool) = 0uy
+let inline inc (p: 'a) = openclKeywordFail (); p + LanguagePrimitives.GenericOne<'a>
+let inline dec (p: 'a) = openclKeywordFail (); p - LanguagePrimitives.GenericOne<'a>
 
-let as_uint (b1:byte) (b2:byte) (b3:byte) (b4:byte) = uint32 1
+// работает для всех типов
+let inline xchg (p: 'a) (value: 'a) = openclKeywordFail (); p
+let inline cmpxchg (p: 'a) (cmp: 'a) (value: 'a) = openclKeywordFail (); if p = cmp then value else p
+
+// let _byte (x: bool) = 0uy
+// let as_uint (b1: byte) (b2: byte) (b3: byte) (b4: byte) = uint32 1

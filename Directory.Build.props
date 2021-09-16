@@ -1,6 +1,6 @@
 <Project>
     <ItemGroup>
-      <None Include="../../docsSrc/figures/BrahmaFSharpLogoBW_small1.png" Pack="true" PackagePath="/"/>
+      <None Include="../../docsSrc/files/figures/BrahmaFSharpLogoBW_small1.png" Pack="true" PackagePath="/"/>
       <None Include="../../LICENSE.md" Pack="true" PackagePath="/"/>
     </ItemGroup>
     <PropertyGroup>
