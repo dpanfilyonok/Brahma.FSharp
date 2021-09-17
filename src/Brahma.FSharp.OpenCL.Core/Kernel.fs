@@ -4,6 +4,7 @@ open OpenCL.Net
 
 open Microsoft.FSharp.Quotations
 open FSharp.Quotations.Evaluator
+open Brahma.FSharp.OpenCL.Translator
 
 type GpuKernel<'TRange, 'a, 't when 'TRange :> INDRangeDimension>
     (device, context, srcLambda: Expr<'TRange ->'a>, ?kernelName) =
@@ -71,50 +72,84 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> INDRangeDimension>
     member this.SetArguments =
         let args = ref [||]
         let getStarterFunction qExpr =
-            let rec go expr vars =
-                match expr with
-                | Patterns.Lambda (v, body) ->
-                    let v =
+            match qExpr with
+            | DerivedPatterns.Lambdas (lambdaArgs, _) ->
+                let flattenArgs = List.collect id lambdaArgs
+
+                let firstMutexIdx =
+                    flattenArgs
+                    |> List.tryFindIndex (fun v -> v.Name.EndsWith "Mutex")
+                    |> Option.defaultValue flattenArgs.Length
+
+                let argsWithoutMutexes = 
+                    flattenArgs.[0 .. firstMutexIdx - 1]
+                    |> List.map (fun v ->                         
                         if v.Type.IsArray
                         then
                             let vName = v.Name
                             let vType = typedefof<Buffer<_>>.MakeGenericType(v.Type.GetElementType())
                             Var(vName, vType, false)
                         else v
-                    Expr.Lambda(v, go body (v::vars))
-                | e ->
-                    let arr =
-                        let allArgs =
-                            let expr (v:Var) = Expr.Var(v)
+                     )
 
-                            Expr.NewArray(
-                                    typeof<obj>,
-                                    vars |> List.rev |> List.map (fun v -> Expr.Coerce ((expr v), typeof<obj>))
+                /// For each atomic variable throws exception if variable's type is not array,
+                /// otherwise returns length of array
+                let mutexLengths =
+                    let atomicVars =
+                        List.init<Var> (flattenArgs.Length - firstMutexIdx) <| fun i ->
+                            let mutexVar = flattenArgs.[firstMutexIdx + i]
+                            argsWithoutMutexes |> List.find (fun v -> mutexVar.Name.Contains v.Name)
+
+                    Expr.NewArray(
+                        typeof<int>,
+
+                        atomicVars
+                        |> List.map
+                            (fun var ->
+                                match var with
+                                | var when var.Type.IsArray ->
+                                    Expr.PropertyGet(
+                                        Expr.Var var,
+                                        typeof<int[]>.GetProperty("Length")
                                     )
-                            (*Expr.NewArray(
-                                    typeof<obj>,
-                                    vars
-                                    |> List.choose 
-                                        (fun v ->
-                                            if v.Type.Name.Contains "Buffer" 
-                                            then Some (Expr.Coerce (Expr.Var(v), typeof<obj>))
-                                            else None
-                                        )
-                                    )*)
-                        <@@
-                            let x = %%allArgs |> List.ofArray
-                            range := (box x.Head) :?> 'TRange
-                            args := x.Tail |> Array.ofList
-                            //let b =  %%buffers
-                            //usedBuffers := b 
-                            !args |> Array.iteri (fun i x -> setupArgument i x)
-                        @@>
-                    arr
-            let res =
-                let e:(Expr<'TRange -> 't>) = Expr.Cast (go qExpr [])
-                <@ %e @>.Compile()
+                                | _ -> failwith "Non-array variables as global mutex parameters is not supported. Wrap it into array instead."
+                            )
+                    )
+                
+                let regularArgs =
+                    let expr (v:Var) = Expr.Var(v)
+                    Expr.NewArray(
+                            typeof<obj>,
+                            argsWithoutMutexes |> List.map (fun v -> Expr.Coerce ((expr v), typeof<obj>))
+                            )
+                
+                Expr.Lambdas(
+                    argsWithoutMutexes
+                    |> List.map List.singleton,
 
-            res
+                    <@@
+                        let mutexArgs =
+                            (%%mutexLengths : int[])
+                            |> List.ofArray
+                            |> List.map (fun n ->
+                                if n = 0 then box 0
+                                else box <| Array.zeroCreate<int> n
+                            )
+
+                        let x = %%regularArgs |> List.ofArray
+                        range := unbox<'TRange> x.Head
+                        args := x.Tail @ mutexArgs |> Array.ofList
+
+                        !args
+                        |> Array.iteri (fun i x -> setupArgument i x)                       
+                    @@>
+                )
+
+            | _ -> failwithf "Invalid kernel expression. Must be lambda, but given\n%O" qExpr
+
+            |> fun kernelPrepare ->
+                <@ %%kernelPrepare: 'TRange -> 't @>.Compile()
+
         getStarterFunction srcLambda
 
     member this.ClKernel = kernel
