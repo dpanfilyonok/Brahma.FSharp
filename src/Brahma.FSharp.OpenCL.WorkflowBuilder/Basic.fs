@@ -1,9 +1,12 @@
 namespace Brahma.FSharp.OpenCL.WorkflowBuilder
 
 open FSharp.Quotations
-open Brahma.FSharp.OpenCL.Extensions
-open Brahma.FSharp.OpenCL.Core
+//open Brahma.FSharp.OpenCL.Extensions
+//open Brahma.FSharp.OpenCL.Core
 
+//TODO: redesign me
+
+(*
 [<AutoOpen>]
 module OpenCLEvaluationContextExtensions =
     type OpenCLEvaluationContext with
@@ -61,3 +64,4 @@ module ClEvaluation =
             binder kernelPrepare
             ctx.CommandQueue.Add(kernelRun()) |> ignore
         }
+*)

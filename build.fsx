@@ -20,7 +20,7 @@ open Fake.Core.TargetOperators
 open Fake.Api
 open Fake.BuildServer
 open Fantomas
-//open Fantomas.FakeHelpers
+open Fantomas.FakeHelpers
 
 BuildServer.install [ GitHubActions.Installer ]
 
@@ -780,7 +780,6 @@ let githubRelease _ =
     |> GitHub.publishDraft
     |> Async.RunSynchronously
 
-(*
 let formatCode _ =
     [ srcCodeGlob; testsCodeGlob ]
     |> Seq.collect id
@@ -857,7 +856,7 @@ Target.create "SourceLinkTest" sourceLinkTest
 Target.create "PublishToNuGet" publishToNuget
 Target.create "GitRelease" gitRelease
 Target.create "GitHubRelease" githubRelease
-//Target.create "FormatCode" formatCode
+Target.create "FormatCode" formatCode
 Target.create "Release" ignore
 Target.create "BuildDocs" buildDocs
 Target.create "WatchDocs" watchDocs
@@ -894,7 +893,7 @@ Target.create "ReleaseDocs" releaseDocs
 
 "DotnetRestore"
 ==> "DotnetBuild"
-==> "FSharpAnalyzers"
+//==> "FSharpAnalyzers"
 ==> "DotnetTest"
 =?> ("GenerateCoverageReport", not disableCodeCoverage)
 ==> "DotnetPack"

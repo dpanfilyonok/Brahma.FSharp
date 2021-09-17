@@ -13,8 +13,8 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> INDRangeDimension>
     let clCode =
         let translatorOptions = []
         let codeGenerator = new Translator.FSQuotationToOpenCLTranslator()
-        let ast, newLambda = codeGenerator.Translate srcLambda translatorOptions
-        let code = Printer.AST.Print ast
+        let ast, newLambda = codeGenerator.Translate(srcLambda, translatorOptions)
+        let code = Printer.AST.print ast
         code
 
     let compileQuery translatorOptions additionalSources =
