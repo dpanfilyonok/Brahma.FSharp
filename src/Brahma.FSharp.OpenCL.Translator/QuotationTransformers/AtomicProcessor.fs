@@ -368,19 +368,19 @@ module AtomicProcessor =
             let rec go expr =
                 match expr with
                 | Patterns.Let (var, (DerivedPatterns.SpecificCall <@ local @> (_, _, args) as letExpr), inExpr) ->
-                    failwith "Atomic local non-array variables is not supported yet"
-                    // Expr.Let(
-                    //     var,
-                    //     letExpr,
-                    //     match pointerVarToMutexVarMap |> Map.tryFind var with
-                    //     | Some mutexVar ->
-                    //         Expr.Let(
-                    //             mutexVar,
-                    //             Expr.Call(Utils.getMethodInfoOfLambda <@ local<int> @>, args),
-                    //             inExpr
-                    //         )
-                    //     | None -> inExpr
-                    // )
+                    Expr.Let(
+                        var,
+                        letExpr,
+                        match pointerVarToMutexVarMap |> Map.tryFind var with
+                        | Some mutexVar ->
+                            failwith "Atomic local non-array variables is not supported yet"
+                            // Expr.Let(
+                            //     mutexVar,
+                            //     Expr.Call(Utils.getMethodInfoOfLambda <@ local<int> @>, args),
+                            //     inExpr
+                            // )
+                        | None -> inExpr
+                    )
                 | Patterns.Let (var, (DerivedPatterns.SpecificCall <@ localArray @> (_, _, args) as letExpr), inExpr) ->
                     Expr.Let(
                         var,
