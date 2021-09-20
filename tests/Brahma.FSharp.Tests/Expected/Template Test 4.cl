@@ -1,5 +1,9 @@
+int f1UnitFunc ()
+{int f = 5 ;
+ return f ;}
+int f2UnitFunc ()
+{int f1 = f1UnitFunc () ;
+ return f1 ;}
 __kernel void brahmaKernel (__global int * buf)
-{int f1 = 5 ;
- int f0 = f1 ;
- int f = f0 ;
- buf [0] = f ;}
+{int f2 = f2UnitFunc () ;
+ buf [0] = f2 ;}
