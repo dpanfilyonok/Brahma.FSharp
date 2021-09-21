@@ -1,9 +1,10 @@
-namespace Brahma.FSharp.OpenCL
+namespace Brahma.FSharp
 
 open OpenCL.Net
 
 open Microsoft.FSharp.Quotations
 open FSharp.Quotations.Evaluator
+open Brahma.FSharp.OpenCL
 
 type GpuKernel<'TRange, 'a, 't when 'TRange :> INDRangeDimension>(device, context, srcLambda: Expr<'TRange ->'a>) =
 
@@ -25,7 +26,7 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> INDRangeDimension>(device, contex
         if error <> ErrorCode.Success
         then failwithf "Program creation failed: %A" error
 
-        let options =  
+        let options =
             " -cl-fast-relaxed-math -cl-mad-enable "
         let error = Cl.BuildProgram(program, 1u, [|device|], options, null, System.IntPtr.Zero)
 
@@ -94,9 +95,9 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> INDRangeDimension>(device, contex
                             (*Expr.NewArray(
                                     typeof<obj>,
                                     vars
-                                    |> List.choose 
+                                    |> List.choose
                                         (fun v ->
-                                            if v.Type.Name.Contains "Buffer" 
+                                            if v.Type.Name.Contains "Buffer"
                                             then Some (Expr.Coerce (Expr.Var(v), typeof<obj>))
                                             else None
                                         )
@@ -106,7 +107,7 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> INDRangeDimension>(device, contex
                             range := (box x.Head) :?> 'TRange
                             args := x.Tail |> Array.ofList
                             //let b =  %%buffers
-                            //usedBuffers := b 
+                            //usedBuffers := b
                             !args |> Array.iteri (fun i x -> setupArgument i x)
                         @@>
                     arr

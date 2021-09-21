@@ -1,4 +1,4 @@
-namespace Brahma.FSharp.OpenCL
+namespace Brahma.FSharp
 
 open OpenCL.Net
 
@@ -44,7 +44,6 @@ type FreeCrate =
 
 and FreeCrateEvaluator<'ret> =
     abstract member Eval<'a> : Free<'a> -> 'ret
-
 
 type SyncObject (numToWait) =
     let mutable canContinue = false
@@ -92,7 +91,7 @@ type Msg =
     static member CreateRunMsg<'TRange,'a, 't when 'TRange :> INDRangeDimension> (kernel, ?ch) =
         {
             new RunCrate with
-                member this.Apply e = e.Eval (Run<'TRange,'a, 't>(kernel, ?replyChannel = ch)) 
+                member this.Apply e = e.Eval (Run<'TRange,'a, 't>(kernel, ?replyChannel = ch))
         }
         |> MsgRun
 
