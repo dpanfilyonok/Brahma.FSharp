@@ -1,8 +1,8 @@
 module Atomic
 
 open Expecto
-open Brahma.OpenCL
-open Brahma.FSharp.OpenCL.WorkflowBuilder
+open Brahma.FSharp.OpenCL
+//open Brahma.FSharp.OpenCL.WorkflowBuilder
 open FSharp.Quotations.Evaluator
 open FSharp.Quotations
 open Brahma.FSharp.Tests.Utils
@@ -14,7 +14,7 @@ open FsCheck
 open Brahma.FSharp.Tests
 
 let logger = Log.create "AtomicTests"
-
+(*
 type NormalizedFloatArray =
     static member FloatType() =
         Arb.Default.NormalFloat()
@@ -513,3 +513,4 @@ let tests =
         commonTests
     ]
     |> testSequenced
+*)

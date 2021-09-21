@@ -6,7 +6,7 @@ open FSharp.Quotations
 
 exception EmptyDevicesException of string
 
-let fixMe = true
+//TODO: redesign me
 
 (*type internal ExprWrapper(e: Expr) =
     override this.GetHashCode() =

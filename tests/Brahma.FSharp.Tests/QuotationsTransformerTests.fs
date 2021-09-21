@@ -1,6 +1,6 @@
 module QuotationTransformers
 
-open Brahma.OpenCL
+open Brahma.FSharp.OpenCL
 open Expecto
 open FSharp.Quotations
 open Brahma.FSharp.OpenCL.Translator

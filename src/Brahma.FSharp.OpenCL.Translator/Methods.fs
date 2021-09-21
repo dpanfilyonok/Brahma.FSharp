@@ -107,7 +107,7 @@ type KernelFunc(var: Var, expr: Expr, context: TargetContext<Lang,Statement<Lang
     override this.TranslateArgs(args, _, _, context) =
         let brahmaDimensionsTypes =
             ["_1d"; "_2d"; "_3d"]
-            |> List.map (fun s -> "brahma.opencl." + s)
+            |> List.map (fun s -> "brahma.fsharp.opencl." + s)
 
         args
         |> List.filter
