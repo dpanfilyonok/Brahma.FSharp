@@ -1,6 +1,6 @@
 namespace GraphBLAS.FSharp.Backend.COOMatrix.Utilities
 
-open Brahma.FSharp.OpenCL
+open Brahma.FSharp
 open OpenCL.Net
 open GraphBLAS.FSharp.Backend.Common
 
@@ -15,12 +15,19 @@ type COOMatrix<'a> =
 
 [<AutoOpen>]
 module internal Merge =
-    let merge<'a> (gpu:GPU)  =
+    let merge
+        (matrixLeftRows: ClArray<int>)
+        (matrixLeftColumns: ClArray<int>)
+        (matrixLeftValues: ClArray<'a>)
+        (matrixRightRows: ClArray<int>)
+        (matrixRightColumns: ClArray<int>)
+        (matrixRightValues: ClArray<'a>) = opencl {
+
         let workGroupSize = Utils.defaultWorkGroupSize
 
         let merge =
             <@
-                fun (ndRange: _1D)
+                fun (ndRange: Range1D)
                     firstSide
                     secondSide
                     sumOfSides
@@ -113,47 +120,31 @@ module internal Merge =
                             allValuesBuffer.[i] <- firstValuesBuffer.[beginIdx + boundaryX]
             @>
 
-        let kernel = gpu.CreateKernel(merge)
-        let sw = System.Diagnostics.Stopwatch()
+        let firstSide = matrixLeftValues.Length
+        let secondSide = matrixRightValues.Length
+        let sumOfSides = firstSide + secondSide
 
-        fun (processor:MailboxProcessor<_>)
-            (matrixLeftRows: Buffer<int>) (matrixLeftColumns: Buffer<int>) (matrixLeftValues: Buffer<'a>)
-            (matrixRightRows: Buffer<int>) (matrixRightColumns: Buffer<int>) (matrixRightValues: Buffer<'a>)
-            ->
+        let! allRows = ClArray.alloc<int> sumOfSides
+        let! allColumns = ClArray.alloc<int> sumOfSides
+        let! allValues = ClArray.alloc<'a> sumOfSides
 
-            //sw.Reset()
-            let firstSide = matrixLeftValues.Length
-            let secondSide = matrixRightValues.Length
-            let sumOfSides = firstSide + secondSide
+        let ndRange = Range1D(Utils.getDefaultGlobalSize sumOfSides, workGroupSize)
 
-            //sw.Start()
-            //printfn "1112"
-            let allRows = gpu.Allocate<int>(sumOfSides, deviceAccessMode = DeviceAccessMode.WriteOnly, hostAccessMode = HostAccessMode.NotAccessible)
-            let allColumns = gpu.Allocate<int>(sumOfSides, deviceAccessMode = DeviceAccessMode.WriteOnly, hostAccessMode = HostAccessMode.NotAccessible)
-            let allValues = gpu.Allocate<'a>(sumOfSides, deviceAccessMode = DeviceAccessMode.WriteOnly, hostAccessMode = HostAccessMode.NotAccessible)
-            //printfn "1113"
+        do! runCommand merge <| fun aaa ->
+            aaa
+            <| ndRange
+            <| firstSide
+            <| secondSide
+            <| sumOfSides
+            <| matrixLeftRows
+            <| matrixLeftColumns
+            <| matrixLeftValues
+            <| matrixRightRows
+            <| matrixRightColumns
+            <| matrixRightValues
+            <| allRows
+            <| allColumns
+            <| allValues
 
-            //sw.Stop()
-            //printfn "Data to gpu in Merge: %A" (sw.ElapsedMilliseconds)
-
-            let ndRange = _1D(Utils.getDefaultGlobalSize sumOfSides, workGroupSize)
-
-            processor.Post(Msg.MsgSetArguments(fun () -> 
-                kernel.SetArguments
-                    ndRange
-                    firstSide
-                    secondSide
-                    sumOfSides
-                    matrixLeftRows
-                    matrixLeftColumns
-                    matrixLeftValues
-                    matrixRightRows
-                    matrixRightColumns
-                    matrixRightValues
-                    allRows
-                    allColumns
-                    allValues
-            ))
-            processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
-
-            allRows, allColumns, allValues
+        return (allRows, allColumns, allValues)
+    }

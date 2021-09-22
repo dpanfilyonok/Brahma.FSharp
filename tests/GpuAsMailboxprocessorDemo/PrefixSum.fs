@@ -1,6 +1,6 @@
 namespace GraphBLAS.FSharp.Backend.Common
 
-open Brahma.FSharp.OpenCL
+open Brahma.FSharp
 open OpenCL.Net
 
 module Utils =
@@ -10,41 +10,33 @@ module Utils =
         m - m % defaultWorkGroupSize + defaultWorkGroupSize
 
 module internal PrefixSum =
-
-    open Brahma.FSharp.OpenCL
-    open OpenCL.Net
-
-    let private getNewUpdate (gpu: GPU) =
+    let private getNewUpdate (inputArray: ClArray<int>) (inputArrayLength:int) (vertices:ClArray<int>) (bunchLength: int) = opencl {
         let workGroupSize = Utils.defaultWorkGroupSize
 
         let update =
             <@
-                fun (ndRange: _1D)
+                fun (ndRange: Range1D)
                     inputArrayLength
                     bunchLength
                     (resultBuffer: int[])
-                    (verticesBuffer: int[])
-                     ->
+                    (verticesBuffer: int[]) ->
 
                     let i = ndRange.GlobalID0 + bunchLength
                     if i < inputArrayLength then
                         resultBuffer.[i] <- resultBuffer.[i] + verticesBuffer.[i / bunchLength]
             @>
 
-        let kernel = gpu.CreateKernel(update)
 
-        fun (processor:MailboxProcessor<_>) (inputArray:Buffer<int>) (inputArrayLength:int) (vertices:Buffer<int>) (bunchLength: int) ->
-            let ndRange = _1D(Utils.getDefaultGlobalSize inputArrayLength - bunchLength, workGroupSize)
-            processor.Post(Msg.MsgSetArguments(fun () -> kernel.SetArguments ndRange inputArrayLength bunchLength inputArray vertices))
-            processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
+        let ndRange = Range1D(Utils.getDefaultGlobalSize inputArrayLength - bunchLength, workGroupSize)
+        do! runCommand update <| fun a -> a ndRange inputArrayLength bunchLength inputArray vertices
+    }
 
-    let private getNewScan (gpu:GPU) =
-
+    let private getNewScan (inputArray: ClArray<int>) (inputArrayLength: int) (vertices: ClArray<int>) (verticesLength: int) (totalSum: ClCell<int>) = opencl {
         let workGroupSize = Utils.defaultWorkGroupSize
 
         let scan =
             <@
-                fun (ndRange: _1D)
+                fun (ndRange: Range1D)
                     inputArrayLength
                     verticesLength
                     (resultBuffer: int[])
@@ -87,52 +79,33 @@ module internal PrefixSum =
                     if i < inputArrayLength then resultBuffer.[i] <- resultLocalBuffer.[localID]
             @>
 
-        let kernel = gpu.CreateKernel(scan)
+        let ndRange = Range1D(Utils.getDefaultGlobalSize inputArrayLength, workGroupSize)
+        do! runCommand scan <| fun a -> a ndRange inputArrayLength verticesLength inputArray vertices totalSum
+    }
 
-        fun (processor:MailboxProcessor<_>) (inputArray: Buffer<int>) (inputArrayLength: int) (vertices: Buffer<int>) (verticesLength: int) (totalSum: Buffer<int>) ->
-            let ndRange = _1D(Utils.getDefaultGlobalSize inputArrayLength, workGroupSize)
-            processor.Post(Msg.MsgSetArguments(fun () -> 
-                kernel.SetArguments ndRange inputArrayLength verticesLength inputArray vertices totalSum))
-            processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
-
-    let runExcludeInplace (gpu:GPU) =
-
+    let runExcludeInplace (inputArray: ClArray<int>) (totalSum: ClCell<int>) = opencl {
         let workGroupSize = Utils.defaultWorkGroupSize
-        let scan = getNewScan gpu
-        let update = getNewUpdate gpu
 
-        let sw = System.Diagnostics.Stopwatch()
+        use! firstVertices = ClArray.alloc<int> ((inputArray.Length - 1) / workGroupSize + 1)
+        use! secondVertices = ClArray.alloc<int> ((firstVertices.Length - 1) / workGroupSize + 1)
 
-        fun (processor:MailboxProcessor<_>) (inputArray: Buffer<int>) (totalSum: Buffer<int>) ->
-            //sw.Reset()
-            //sw.Start()
-            //printfn "111"
-            let firstVertices = gpu.Allocate<int> ((inputArray.Length - 1) / workGroupSize + 1, hostAccessMode = HostAccessMode.NotAccessible)
-            let secondVertices = gpu.Allocate<int>((firstVertices.Length - 1) / workGroupSize + 1, hostAccessMode = HostAccessMode.NotAccessible)
-            //printfn "222"
-            //sw.Stop()
-            //printfn "Data to gpu in PrefixSum: %A" (sw.ElapsedMilliseconds)
-            let mutable verticesArrays = firstVertices, secondVertices
-            let swap (a, b) = (b, a)
+        let mutable verticesArrays = firstVertices, secondVertices
+        let swap (a, b) = (b, a)
 
-            let mutable verticesLength = firstVertices.Length
-            let mutable bunchLength = workGroupSize
+        let mutable verticesLength = firstVertices.Length
+        let mutable bunchLength = workGroupSize
 
-            scan processor inputArray inputArray.Length (fst verticesArrays) verticesLength totalSum
-            while verticesLength > 1 do
-                let fstVertices = fst verticesArrays
-                let sndVertices = snd verticesArrays
-                scan processor fstVertices verticesLength sndVertices ((verticesLength - 1) / workGroupSize + 1) totalSum
-                update processor inputArray inputArray.Length fstVertices bunchLength
-                bunchLength <- bunchLength * workGroupSize
-                verticesArrays <- swap verticesArrays
-                verticesLength <- (verticesLength - 1) / workGroupSize + 1
+        do! getNewScan inputArray inputArray.Length (fst verticesArrays) verticesLength totalSum
+        while verticesLength > 1 do
+            let fstVertices = fst verticesArrays
+            let sndVertices = snd verticesArrays
+            do! getNewScan fstVertices verticesLength sndVertices ((verticesLength - 1) / workGroupSize + 1) totalSum
+            do! getNewUpdate inputArray inputArray.Length fstVertices bunchLength
+            bunchLength <- bunchLength * workGroupSize
+            verticesArrays <- swap verticesArrays
+            verticesLength <- (verticesLength - 1) / workGroupSize + 1
 
-            processor.Post(Msg.CreateFreeMsg<_>(firstVertices))
-            processor.Post(Msg.CreateFreeMsg<_>(secondVertices))
-            //printfn "1"
-
-            inputArray, totalSum
-
+        return inputArray, totalSum
+    }
 
 

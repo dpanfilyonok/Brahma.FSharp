@@ -2,16 +2,16 @@ namespace Brahma.FSharp
 
 open OpenCL.Net
 
-type Free<'t>(src:Buffer<'t>, ?replyChannel:AsyncReplyChannel<Result<unit, System.Exception>>) =
+type Free<'t>(src:ClBuffer<'t>, ?replyChannel:AsyncReplyChannel<Result<unit, System.Exception>>) =
     member this.Source = src
     member this.ReplyChannel = replyChannel
 
-type ToHost<'t>(src:Buffer<'t>, dst: array<'t>, ?replyChannel:AsyncReplyChannel<Result<array<'t>, System.Exception>>) =
+type ToHost<'t>(src:ClBuffer<'t>, dst: array<'t>, ?replyChannel:AsyncReplyChannel<Result<array<'t>, System.Exception>>) =
     member this.Destination = dst
     member this.Source = src
     member this.ReplyChannel = replyChannel
 
-type ToGPU<'t>(src:array<'t>, dst: Buffer<'t>, ?replyChannel:AsyncReplyChannel<Result<unit, System.Exception>>) =
+type ToGPU<'t>(src:array<'t>, dst: ClBuffer<'t>, ?replyChannel:AsyncReplyChannel<Result<unit, System.Exception>>) =
     member this.Destination = dst
     member this.Source = src
     member this.ReplyChannel = replyChannel
@@ -96,5 +96,5 @@ type Msg =
         |> MsgRun
 
     static member CreateBarrierMessages numOfQueuesOnBarrier =
-        let s = new SyncObject(numOfQueuesOnBarrier)
+        let s = SyncObject(numOfQueuesOnBarrier)
         Array.init numOfQueuesOnBarrier (fun i -> MsgBarrier s)

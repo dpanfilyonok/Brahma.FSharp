@@ -118,6 +118,7 @@ type ClBuffer<'a>
         match pinnedMemory with
         | Some x -> x.Free()
         | None -> ()
+
         buffer.Dispose()
 
     member this.Dispose() = this.Free()

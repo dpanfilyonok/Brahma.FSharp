@@ -1,7 +1,5 @@
 namespace Brahma.FSharp
 
-open OpenCL.Net
-open System.Collections.Generic
 open FSharp.Quotations
 
 type ClTask<'a> =
@@ -44,6 +42,16 @@ type ClTaskBuilder() =
         | e ->
             runEvaluation (handler e) env
 
+    member this.TryFinally(body, compensation) =
+        try
+            this.ReturnFrom(body())
+        finally
+            compensation()
+
+    member this.Using(x: #System.IDisposable, f) =
+        let body' = fun () -> f x
+        this.TryFinally(body', fun () -> x.Dispose())
+
 module ClTask =
     // let runSync (context: ClContext) (ClTask f) =
     //     let res = f context
@@ -56,24 +64,12 @@ module ClTask =
 module ClTaskImpl =
     let opencl = ClTaskBuilder()
 
-    // let runCommand (command: Expr<'range -> 'a>) (binder: ('range -> 'a) -> unit) : ClTask<unit> =
-    //     opencl {
-    //         let! ctx = getEvaluationContext
+    let runCommand (command: Expr<'range -> 'a>) (binder: ('range -> 'b) -> unit) : ClTask<unit> =
+        opencl {
+            let! ctx = ClTask.ask
 
-    //         let (_, kernelPrepare, kernelRun) =
-    //             if not ctx.IsCachingEnabled then
-    //                 ctx.Provider.Compile command
-    //             else
-    //                 match ctx.CompilingCache.TryGetValue <| ExprWrapper command.Raw with
-    //                 | true, (kernel, kernelPrepare, kernelRun) ->
-    //                     unbox<Brahma.OpenCL.Kernel<'range>> kernel,
-    //                     unbox<'range -> 'a> kernelPrepare,
-    //                     unbox<unit -> Brahma.OpenCL.Commands.Run<'range>> kernelRun
-    //                 | false, _ ->
-    //                     let (kernel, kernelPrepare, kernelRun) = ctx.Provider.Compile command
-    //                     ctx.CompilingCache.Add(ExprWrapper command.Raw, (box kernel, box kernelPrepare, box kernelRun))
-    //                     kernel, kernelPrepare, kernelRun
+            let kernel = ctx.CreateKernel command
 
-    //         binder kernelPrepare
-    //         ctx.CommandQueue.Add(kernelRun()) |> ignore
-    //     }
+            ctx.CommandQueue.Post <| MsgSetArguments(fun () -> binder kernel.SetArguments)
+            ctx.CommandQueue.Post <| Msg.CreateRunMsg<_,_,_>(kernel)
+        }

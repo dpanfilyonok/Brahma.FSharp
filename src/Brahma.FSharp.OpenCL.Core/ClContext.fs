@@ -1,13 +1,9 @@
 namespace Brahma.FSharp
 
-open OpenCL.Net
-
 open Microsoft.FSharp.Quotations
 open FSharp.Quotations.Evaluator
-
 open System
 open System.Runtime.InteropServices
-
 open OpenCL.Net
 open System.Collections.Generic
 open FSharp.Quotations
@@ -26,31 +22,15 @@ type internal ExprWrapper(e: Expr) =
     override this.ToString() =
         e.ToString()
 
-[<RequireQualifiedAccess>]
-type ClPlatform =
-    | Intel
-    | AMD
-    | NVIDIA
-    | Pattern of string
-
-[<RequireQualifiedAccess>]
-type ClDeviceType =
-    | CPU
-    | GPU
-    | Default
-
 type ClContext(device: Device) as this =
     let clContext =
         let error = ref Unchecked.defaultof<ErrorCode>
         let ctx = Cl.CreateContext(null, 1u, [| device |], null, System.IntPtr.Zero, error)
 
         if !error <> ErrorCode.Success then
-            raise (Cl.Exception !error)
+            raise <| Cl.Exception !error
 
         ctx
-
-    // let a =
-    //     this.GetNewProcessor()
 
     let tryReplay (chOpt: AsyncReplyChannel<_> option) resp queue =
         match chOpt with
@@ -118,7 +98,7 @@ type ClContext(device: Device) as this =
     member private this.HandleToGPU(queue, toGpu: ToGPUCrate) =
         { new ToGPUCrateEvaluator<int> with
             member this.Eval a =
-                let write (src:array<'t>) (dst:Buffer<'t>) =
+                let write (src:array<'t>) (dst:ClBuffer<'t>) =
                     let eventID = ref Unchecked.defaultof<Event>
 
                     let mem = dst.ClMemory
@@ -144,7 +124,7 @@ type ClContext(device: Device) as this =
     member private this.HandleToHost (queue, toHost:ToHostCrate) =
         { new ToHostCrateEvaluator<int> with
             member this.Eval a =
-                let read (src:Buffer<'t>) (dst:array<'t>)=
+                let read (src:ClBuffer<'t>) (dst:array<'t>)=
                     let eventID = ref Unchecked.defaultof<Event>
                     let mem = src.ClMemory
                     let elementSize = src.ElementSize
@@ -152,8 +132,8 @@ type ClContext(device: Device) as this =
                                                      System.IntPtr(src.Length * elementSize), dst, 0u, null, eventID)
 
                     //printfn "%A" (Cl.Exception error)
-                    if error <> ErrorCode.Success
-                    then tryReplay a.ReplyChannel (Error ((Cl.Exception error):> Exception)) (Some queue)
+                    if error <> ErrorCode.Success then
+                        tryReplay a.ReplyChannel (Error ((Cl.Exception error):> Exception)) (Some queue)
                     dst
 
                 let res = read a.Source a.Destination
@@ -193,7 +173,7 @@ type ClContext(device: Device) as this =
             let queue = Cl.CreateCommandQueue(clContext, device, props, error)
 
             if !error <> ErrorCode.Success then
-                raise (Cl.Exception !error)
+                raise <| Cl.Exception !error
 
             queue
 
@@ -208,6 +188,7 @@ type ClContext(device: Device) as this =
                 //printfn "ToHost"
                 itIsFirstNonqueueMsg  <- true
                 this.HandleToHost(commandQueue, a) |> ignore
+                // TODO must wait here
 
             | MsgToGPU a ->
                 //printfn "ToGPU"

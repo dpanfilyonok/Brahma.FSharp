@@ -13,6 +13,7 @@ type ClPlatform =
 type ClDeviceType =
     | CPU
     | GPU
+    | Default
 
 module Device =
     open System.Text.RegularExpressions

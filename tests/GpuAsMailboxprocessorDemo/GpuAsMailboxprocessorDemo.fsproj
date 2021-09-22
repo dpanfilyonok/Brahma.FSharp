@@ -17,21 +17,19 @@
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <Optimize>true</Optimize>
     <Tailcalls>true</Tailcalls>
-
   </PropertyGroup>
   <ItemGroup>
-        <Compile Include="AssemblyInfo.fs" />
-        <Compile Include="PrefixSum.fs" />
-        <Compile Include="PreparePositions.fs" />
-        <Compile Include="SetPositions.fs" />
-        <Compile Include="Merge.fs" />
-        <Compile Include="EWiseAdd.fs" />
-        <Compile Include="App.fs" />
-        <Compile Include="Program.fs" />
-        <Content Include="app.config" />
+    <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="PrefixSum.fs" />
+    <Compile Include="PreparePositions.fs" />
+    <Compile Include="SetPositions.fs" />
+    <Compile Include="Merge.fs" />
+    <Compile Include="EWiseAdd.fs" />
+    <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Brahma.FSharp.OpenCL.Core\Brahma.FSharp.OpenCL.Core.fsproj" />
+    <ProjectReference Include="..\..\src\Brahma.FSharp.OpenCL.Core\Brahma.FSharp.OpenCL.Core.fsproj" />
+    <ProjectReference Include="..\..\src\YC.OpenCL.NET\YC.OpenCL.NET.csproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
