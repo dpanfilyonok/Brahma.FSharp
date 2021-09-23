@@ -24,15 +24,15 @@ module internal Merge =
                     firstSide
                     secondSide
                     sumOfSides
-                    (firstRowsBuffer: int[])
-                    (firstColumnsBuffer: int[])
-                    (firstValuesBuffer: 'a[])
-                    (secondRowsBuffer: int[])
-                    (secondColumnsBuffer: int[])
-                    (secondValuesBuffer: 'a[])
-                    (allRowsBuffer: int[])
-                    (allColumnsBuffer: int[])
-                    (allValuesBuffer: 'a[]) ->
+                    (firstRowsBuffer: Buffer<int>)
+                    (firstColumnsBuffer: Buffer<int>)
+                    (firstValuesBuffer: Buffer<'a>)
+                    (secondRowsBuffer: Buffer<int>)
+                    (secondColumnsBuffer: Buffer<int>)
+                    (secondValuesBuffer: Buffer<'a>)
+                    (allRowsBuffer: Buffer<int>)
+                    (allColumnsBuffer: Buffer<int>)
+                    (allValuesBuffer: Buffer<'a>) ->
 
                     let i = ndRange.GlobalID0
 
@@ -154,6 +154,6 @@ module internal Merge =
                     allColumns
                     allValues
             ))
-            processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
+            processor.Post(Msg.CreateRunMsg<_,_>(kernel))
 
             allRows, allColumns, allValues

@@ -10,7 +10,7 @@ module Lib =
     let getNewMAddM<'t> (gpu: GPU) op =
         let kernelFun =
             <@
-                fun (r:_2D) mSize (a:array<'t>) (b:array<'t>) (c:array<'t>) ->
+                fun (r:_2D) mSize (a:Buffer<'t>) (b:Buffer<'t>) (c:Buffer<'t>) ->
                     let tx = r.GlobalID0
                     let ty = r.GlobalID1
                     c.[ty * mSize + tx] <- (%op) a.[ty * mSize + tx] b.[ty * mSize + tx]
@@ -19,12 +19,12 @@ module Lib =
         let kernel = gpu.CreateKernel(kernelFun)
         fun (processor:MailboxProcessor<_>) rng mSize (a:Buffer<'t>) (b:Buffer<'t>) (res:Buffer<'t>) ->
             kernel.SetArguments rng mSize a b res
-            processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
+            processor.Post(Msg.CreateRunMsg<_,_>(kernel))
 
     let getNewMxMAdd<'t1,'t2,'t3> (gpu: GPU) opAdd opMult =
         let kernelFun =
             <@
-                fun (r:_2D) mSize (a:array<'t1>) (b:array<'t2>) (c:array<'t3>) ->
+                fun (r:_2D) mSize (a:Buffer<'t1>) (b:Buffer<'t2>) (c:Buffer<'t3>) ->
                     let tx = r.GlobalID0
                     let ty = r.GlobalID1
                     let mutable buf = c.[ty * mSize + tx]
@@ -37,17 +37,17 @@ module Lib =
 
         fun (processor:MailboxProcessor<_>) rng mSize (a:Buffer<'t1>) (b:Buffer<'t2>) (res:Buffer<'t3>) ->
             kernel.SetArguments rng mSize a b res
-            processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
+            processor.Post(Msg.CreateRunMsg<_,_>(kernel))
 
     let getNewVectorVectorElementwiseOp<'t1,'t2,'t3> (gpu:GPU) op =
         let kernelFun =
-            <@ fun (range:_1D) (a1:array<'t1>) (a2:array<'t2>) (res:array<'t3>) ->
+            <@ fun (range:_1D) (a1:Buffer<'t1>) (a2:Buffer<'t2>) (res:Buffer<'t3>) ->
                 let i = range.GlobalID0
                 res.[i] <- (%op) a1.[i] a2.[i] @>
         let kernel = gpu.CreateKernel(kernelFun)
         fun (processor:MailboxProcessor<_>) rng (a1:Buffer<'t1>) (a2:Buffer<'t2>) (res:Buffer<'t3>) ->
             kernel.SetArguments rng a1 a2 res
-            processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
+            processor.Post(Msg.CreateRunMsg<_,_>(kernel))
 
 type Host() =
 
@@ -66,7 +66,7 @@ type Host() =
         let mSize = 3 * 1024
         let size = mSize * mSize
         let localWorkSize = 32
-        let d = (new _2D(mSize, mSize, localWorkSize, localWorkSize))
+        let d = _2D(mSize, mSize, localWorkSize, localWorkSize)
 
         let aBlocks = Array.init 4 (fun _ -> Array.init size (fun _ -> 1))
         let bBlocks = Array.init 4 (fun _ -> Array.init size (fun _ -> 2))

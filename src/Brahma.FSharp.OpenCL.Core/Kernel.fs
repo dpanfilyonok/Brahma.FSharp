@@ -6,14 +6,14 @@ open Microsoft.FSharp.Quotations
 open FSharp.Quotations.Evaluator
 open Brahma.FSharp.OpenCL.Translator
 
-type GpuKernel<'TRange, 'a, 't when 'TRange :> INDRangeDimension>
+type GpuKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
     (device, context, srcLambda: Expr<'TRange ->'a>, ?kernelName) =
 
     let kernelName = defaultArg kernelName "brahmaKernel"
 
     let clCode =
         let translatorOptions = []
-        let codeGenerator = new Translator.FSQuotationToOpenCLTranslator()
+        let codeGenerator = Translator.FSQuotationToOpenCLTranslator()
         let ast, newLambda = codeGenerator.Translate(srcLambda, translatorOptions)
         let code = Printer.AST.print ast
         code
@@ -63,7 +63,7 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> INDRangeDimension>
                 , argSize
                 , argVal)
         if error <> ErrorCode.Success
-        then raise (new CLException(error))
+        then raise (CLException error)
 
     let range = ref Unchecked.defaultof<'TRange>
 
@@ -81,16 +81,7 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> INDRangeDimension>
                     |> List.tryFindIndex (fun v -> v.Name.EndsWith "Mutex")
                     |> Option.defaultValue flattenArgs.Length
 
-                let argsWithoutMutexes = 
-                    flattenArgs.[0 .. firstMutexIdx - 1]
-                    |> List.map (fun v ->                         
-                        if v.Type.IsArray
-                        then
-                            let vName = v.Name
-                            let vType = typedefof<Buffer<_>>.MakeGenericType(v.Type.GetElementType())
-                            Var(vName, vType, false)
-                        else v
-                     )
+                let argsWithoutMutexes = flattenArgs.[0 .. firstMutexIdx - 1]                    
 
                 /// For each atomic variable throws exception if variable's type is not array,
                 /// otherwise returns length of array
@@ -141,14 +132,14 @@ type GpuKernel<'TRange, 'a, 't when 'TRange :> INDRangeDimension>
                         args := x.Tail @ mutexArgs |> Array.ofList
 
                         !args
-                        |> Array.iteri (fun i x -> setupArgument i x)                       
+                        |> Array.iteri setupArgument
                     @@>
                 )
 
             | _ -> failwithf "Invalid kernel expression. Must be lambda, but given\n%O" qExpr
 
             |> fun kernelPrepare ->
-                <@ %%kernelPrepare: 'TRange -> 't @>.Compile()
+                <@ %%kernelPrepare: 'TRange -> 'a @>.Compile()
 
         getStarterFunction srcLambda
 

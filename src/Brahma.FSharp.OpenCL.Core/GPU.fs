@@ -47,7 +47,7 @@ type GPU(device: Device) =
     member this.ClContext = clContext
 
     member this.CreateKernel (srcLambda) =
-        new GpuKernel<_,_,_>(device, clContext, srcLambda)
+        new GpuKernel<_,_>(device, clContext, srcLambda)
     
     member this.Allocate<'t> (length:int,                               
                               ?hostAccessMode: HostAccessMode, 

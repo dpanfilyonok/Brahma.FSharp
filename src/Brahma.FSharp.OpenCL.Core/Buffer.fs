@@ -30,6 +30,8 @@ type AllocationMode =
 
 type Buffer<'t> private (clContext: OpenCL.Net.Context, length:int, data:option<array<'t>>, hostAccessMode, allocationMode, deviceAccessMode) =
     
+    let (dummyBuff:array<'t>) = Array.zeroCreate 0
+    
     let elementSize = System.Runtime.InteropServices.Marshal.SizeOf(typedefof<'t>)
     let intPtrSize = System.IntPtr(System.Runtime.InteropServices.Marshal.SizeOf(typedefof<System.IntPtr>))
    
@@ -92,10 +94,11 @@ type Buffer<'t> private (clContext: OpenCL.Net.Context, length:int, data:option<
     member this.Item
         with get index = 
             failwith "Kernel only."
-            Unchecked.defaultof<'t>
+            dummyBuff.[index]
 
         and set index value =
             failwith "Kernel only."
+            dummyBuff.[index] <- value
             ()
 
 

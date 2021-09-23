@@ -13,10 +13,10 @@ module internal PreparePositions =
             <@
                 fun (ndRange: _1D)
                     length
-                    (allRowsBuffer: int[])
-                    (allColumnsBuffer: int[])
-                    (allValuesBuffer: 'a[])
-                    (rawPositionsBuffer: int[]) ->
+                    (allRowsBuffer: Buffer<int>)
+                    (allColumnsBuffer: Buffer<int>)
+                    (allValuesBuffer: Buffer<'a>)
+                    (rawPositionsBuffer: Buffer<int>) ->
 
                     let i = ndRange.GlobalID0
 
@@ -39,5 +39,5 @@ module internal PreparePositions =
             let rawPositionsGpu = gpu.Allocate<int>(length, hostAccessMode = HostAccessMode.NotAccessible)
             //printfn "3"
             processor.Post(Msg.MsgSetArguments(fun () -> kernel.SetArguments ndRange length allRows allColumns allValues rawPositionsGpu))
-            processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
+            processor.Post(Msg.CreateRunMsg<_,_>(kernel))
             rawPositionsGpu

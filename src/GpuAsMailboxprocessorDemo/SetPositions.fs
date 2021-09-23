@@ -12,13 +12,13 @@ module internal SetPositions =
             <@
                 fun (ndRange: _1D)
                     prefixSumArrayLength
-                    (allRowsBuffer: int[])
-                    (allColumnsBuffer: int[])
-                    (allValuesBuffer: 'a[])
-                    (prefixSumArrayBuffer: int[])
-                    (resultRowsBuffer: int[])
-                    (resultColumnsBuffer: int[])
-                    (resultValuesBuffer: 'a[]) ->
+                    (allRowsBuffer: Buffer<int>)
+                    (allColumnsBuffer: Buffer<int>)
+                    (allValuesBuffer: Buffer<'a>)
+                    (prefixSumArrayBuffer: Buffer<int>)
+                    (resultRowsBuffer: Buffer<int>)
+                    (resultColumnsBuffer: Buffer<int>)
+                    (resultValuesBuffer: Buffer<'a>) ->
 
                     let i = ndRange.GlobalID0
 
@@ -79,6 +79,6 @@ module internal SetPositions =
                     resultColumns
                     resultValues
             ))
-            processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
+            processor.Post(Msg.CreateRunMsg<_,_>(kernel))
             resultRows, resultColumns, resultValues, resultLength
 

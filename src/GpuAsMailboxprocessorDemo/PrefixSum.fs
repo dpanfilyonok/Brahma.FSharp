@@ -22,8 +22,8 @@ module internal PrefixSum =
                 fun (ndRange: _1D)
                     inputArrayLength
                     bunchLength
-                    (resultBuffer: int[])
-                    (verticesBuffer: int[])
+                    (resultBuffer: Buffer<int>)
+                    (verticesBuffer: Buffer<int>)
                      ->
 
                     let i = ndRange.GlobalID0 + bunchLength
@@ -36,7 +36,7 @@ module internal PrefixSum =
         fun (processor:MailboxProcessor<_>) (inputArray:Buffer<int>) (inputArrayLength:int) (vertices:Buffer<int>) (bunchLength: int) ->
             let ndRange = _1D(Utils.getDefaultGlobalSize inputArrayLength - bunchLength, workGroupSize)
             processor.Post(Msg.MsgSetArguments(fun () -> kernel.SetArguments ndRange inputArrayLength bunchLength inputArray vertices))
-            processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
+            processor.Post(Msg.CreateRunMsg<_,_>(kernel))
 
     let private getNewScan (gpu:GPU) =
 
@@ -47,9 +47,9 @@ module internal PrefixSum =
                 fun (ndRange: _1D)
                     inputArrayLength
                     verticesLength
-                    (resultBuffer: int[])
-                    (verticesBuffer: int[])
-                    (totalSumBuffer: int[]) ->
+                    (resultBuffer: Buffer<int>)
+                    (verticesBuffer: Buffer<int>)
+                    (totalSumBuffer: Buffer<int>) ->
 
                     let resultLocalBuffer = localArray<int> workGroupSize
                     let i = ndRange.GlobalID0
@@ -93,7 +93,7 @@ module internal PrefixSum =
             let ndRange = _1D(Utils.getDefaultGlobalSize inputArrayLength, workGroupSize)
             processor.Post(Msg.MsgSetArguments(fun () -> 
                 kernel.SetArguments ndRange inputArrayLength verticesLength inputArray vertices totalSum))
-            processor.Post(Msg.CreateRunMsg<_,_,_>(kernel))
+            processor.Post(Msg.CreateRunMsg<_,_>(kernel))
 
     let runExcludeInplace (gpu:GPU) =
 
