@@ -548,6 +548,7 @@ let localMemTests =
                         let local_buf: array<int> = localArray localWorkSize
 
                         local_buf.[range.LocalID0] <- range.LocalID0
+                        barrier()
                         output.[range.GlobalID0] <- local_buf.[(range.LocalID0 + 1) % localWorkSize]
                 @>
 
