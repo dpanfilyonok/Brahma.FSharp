@@ -22,28 +22,28 @@ type Run<'TRange,'a when 'TRange :> INDRangeDimension>
     member this.ReplyChannel = replyChannel
 
 type RunCrate =
-    abstract member Apply<'ret> : RunCrateEvaluator<'ret> -> 'ret
+    abstract member Apply : RunCrateEvaluator -> unit
 
-and RunCrateEvaluator<'ret> =
-    abstract member Eval<'TRange, 'a, 't when 'TRange :> INDRangeDimension> : Run<'TRange, 'a> -> 'ret
+and RunCrateEvaluator =
+    abstract member Eval<'TRange, 'a when 'TRange :> INDRangeDimension> : Run<'TRange, 'a> -> unit
 
 type ToHostCrate =
-    abstract member Apply<'ret> : ToHostCrateEvaluator<'ret> -> 'ret
+    abstract member Apply : ToHostCrateEvaluator -> unit
 
-and ToHostCrateEvaluator<'ret> =
-    abstract member Eval<'a> : ToHost<'a> -> 'ret
+and ToHostCrateEvaluator =
+    abstract member Eval<'a> : ToHost<'a> -> unit
 
 type ToGPUCrate =
-    abstract member Apply<'ret> : ToGPUCrateEvaluator<'ret> -> 'ret
+    abstract member Apply : ToGPUCrateEvaluator -> unit
 
-and ToGPUCrateEvaluator<'ret> =
-    abstract member Eval<'a> : ToGPU<'a> -> 'ret
+and ToGPUCrateEvaluator =
+    abstract member Eval<'a> : ToGPU<'a> -> unit
 
 type FreeCrate =
-    abstract member Apply<'ret> : FreeCrateEvaluator<'ret> -> 'ret
+    abstract member Apply : FreeCrateEvaluator -> unit
 
-and FreeCrateEvaluator<'ret> =
-    abstract member Eval<'a> : Free<'a> -> 'ret
+and FreeCrateEvaluator =
+    abstract member Eval<'a> : Free<'a> -> unit
 
 
 type SyncObject (numToWait) =
@@ -82,10 +82,10 @@ type Msg =
         }
         |> MsgToGPU
 
-    static member CreateFreeMsg<'t>(src, ?ch) =
+    static member CreateFreeMsg(src, ?ch) =
         {
             new FreeCrate with
-                member this.Apply e = e.Eval (Free<'t>(src, ?replyChannel = ch))
+                member this.Apply e = e.Eval (Free(src, ?replyChannel = ch))
         }
         |> MsgFree
 

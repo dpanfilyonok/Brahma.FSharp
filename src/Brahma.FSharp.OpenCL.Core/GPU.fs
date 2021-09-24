@@ -67,7 +67,7 @@ type GPU(device: Device) =
     member private this.HandleFree (free:FreeCrate) =
         free.Apply
                 {
-                    new FreeCrateEvaluator<int>
+                    new FreeCrateEvaluator
                     with member this.Eval (a:Free<'t>) =
                             try 
                                 a.Source.Free()
@@ -76,13 +76,12 @@ type GPU(device: Device) =
                             | e ->  
                                 tryReplay a.ReplyChannel (Error e) None
                                 raise e
-                            0
                 }
 
     member private this.HandleToGPU (queue, toGpu:ToGPUCrate) =
         toGpu.Apply
                 {
-                    new ToGPUCrateEvaluator<int>
+                    new ToGPUCrateEvaluator
                     with member this.Eval (a) =
                             let write (src:array<'t>) (dst:Buffer<'t>) =
                                 let eventID = ref Unchecked.defaultof<Event>
@@ -103,14 +102,13 @@ type GPU(device: Device) =
                                     | e -> printfn "%A" e
                                 else tryReplay a.ReplyChannel (Ok ()) (Some queue)
 
-                            write a.Source a.Destination
-                            0
+                            write a.Source a.Destination                 
                 }
 
     member private this.HandleToHost (queue, toHost:ToHostCrate) =
         toHost.Apply
                 {
-                    new ToHostCrateEvaluator<int>
+                    new ToHostCrateEvaluator
                     with member this.Eval (a) =
                             let read (src:Buffer<'t>) (dst:array<'t>)=
                                 let eventID = ref Unchecked.defaultof<Event>
@@ -126,13 +124,12 @@ type GPU(device: Device) =
 
                             let res = read a.Source a.Destination
                             tryReplay a.ReplyChannel (Ok res) (Some queue)
-                            0
                 }
 
     member private this.HandleRun (queue, run:RunCrate) =
         run.Apply
                 {
-                    new RunCrateEvaluator<int>
+                    new RunCrateEvaluator
                     with member this.Eval (a) =
                             
                             let range = a.Kernel.Range
@@ -151,8 +148,6 @@ type GPU(device: Device) =
                                 with 
                                 | e -> printfn "%A" e
                             else tryReplay a.ReplyChannel (Ok()) (Some queue)
-                            
-                            0
                 }
 
     member this.GetNewProcessor () = MailboxProcessor.Start(fun inbox ->

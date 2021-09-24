@@ -128,8 +128,8 @@ module internal PrefixSum =
                 verticesArrays <- swap verticesArrays
                 verticesLength <- (verticesLength - 1) / workGroupSize + 1
 
-            processor.Post(Msg.CreateFreeMsg<_>(firstVertices))
-            processor.Post(Msg.CreateFreeMsg<_>(secondVertices))
+            processor.Post(Msg.CreateFreeMsg(firstVertices))
+            processor.Post(Msg.CreateFreeMsg(secondVertices))
             //printfn "1"
 
             inputArray, totalSum
