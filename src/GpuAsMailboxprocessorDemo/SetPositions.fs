@@ -48,13 +48,9 @@ module internal SetPositions =
             //printfn "6"
             let resultLength =
                 //printfn "7"
-                let res = processor.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(r, resultLength, ch))
-                match res with 
-                | Error e -> raise e
-                | Ok x ->  
-                    //printfn "11"
-                    processor.Post(Msg.CreateFreeMsg<_>(r))
-                    x.[0]
+                let res = processor.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(r, resultLength, ch))                
+                processor.Post(Msg.CreateFreeMsg<_>(r))
+                res.[0]
             //printfn "8"
             //printfn "Result length = %A" resultLength
             //sw.Start()

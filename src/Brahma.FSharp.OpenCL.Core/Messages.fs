@@ -2,24 +2,21 @@ namespace Brahma.FSharp.OpenCL
 
 open OpenCL.Net
 
-type Free<'t>(src:Buffer<'t>, ?replyChannel:AsyncReplyChannel<Result<unit, System.Exception>>) =
+type Free<'t>(src:Buffer<'t>) =
     member this.Source = src
-    member this.ReplyChannel = replyChannel
 
-type ToHost<'t>(src:Buffer<'t>, dst: array<'t>, ?replyChannel:AsyncReplyChannel<Result<array<'t>, System.Exception>>) =
+type ToHost<'t>(src:Buffer<'t>, dst: array<'t>, ?replyChannel:AsyncReplyChannel<array<'t>>) =
     member this.Destination = dst
     member this.Source = src
     member this.ReplyChannel = replyChannel
 
-type ToGPU<'t>(src:array<'t>, dst: Buffer<'t>, ?replyChannel:AsyncReplyChannel<Result<unit, System.Exception>>) =
+type ToGPU<'t>(src:array<'t>, dst: Buffer<'t>) =
     member this.Destination = dst
     member this.Source = src
-    member this.ReplyChannel = replyChannel
 
 type Run<'TRange,'a when 'TRange :> INDRangeDimension>
-        (kernel:GpuKernel<'TRange,'a>, ?replyChannel:AsyncReplyChannel<Result<unit, System.Exception>>) =
+        (kernel:GpuKernel<'TRange,'a>) =
     member this.Kernel = kernel
-    member this.ReplyChannel = replyChannel
 
 type RunCrate =
     abstract member Apply : RunCrateEvaluator -> unit
@@ -75,24 +72,24 @@ type Msg =
         }
         |> MsgToHost
 
-    static member CreateToGPUMsg<'t>(src, dst, ?ch) =
+    static member CreateToGPUMsg<'t>(src, dst) =
         {
             new ToGPUCrate with
-                member this.Apply e = e.Eval (ToGPU<'t>(src, dst, ?replyChannel = ch))
+                member this.Apply e = e.Eval (ToGPU<'t>(src, dst))
         }
         |> MsgToGPU
 
-    static member CreateFreeMsg(src, ?ch) =
+    static member CreateFreeMsg(src) =
         {
             new FreeCrate with
-                member this.Apply e = e.Eval (Free(src, ?replyChannel = ch))
+                member this.Apply e = e.Eval (Free src)
         }
         |> MsgFree
 
-    static member CreateRunMsg<'TRange,'a when 'TRange :> INDRangeDimension> (kernel, ?ch) =
+    static member CreateRunMsg<'TRange,'a when 'TRange :> INDRangeDimension> (kernel) =
         {
             new RunCrate with
-                member this.Apply e = e.Eval (Run<'TRange,'a>(kernel, ?replyChannel = ch)) 
+                member this.Apply e = e.Eval (Run<'TRange,'a> kernel)
         }
         |> MsgRun
 

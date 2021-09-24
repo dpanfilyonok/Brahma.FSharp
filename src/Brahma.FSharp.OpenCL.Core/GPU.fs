@@ -1,12 +1,7 @@
 namespace Brahma.FSharp.OpenCL
 
 open OpenCL.Net
-
-open Microsoft.FSharp.Quotations
-open FSharp.Quotations.Evaluator
-
 open System
-open System.Runtime.InteropServices
 
 type GPU(device: Device) =
 
@@ -27,20 +22,12 @@ type GPU(device: Device) =
 
         queue
 
-    let tryReplay (chOpt:option<AsyncReplyChannel<_>>) resp queue =
-        match chOpt with
-        | Some ch -> 
-            match queue with
-            | Some queue -> 
-                let error = OpenCL.Net.Cl.Finish(queue)
-                if error <> ErrorCode.Success
-                then
-                    let e = (Cl.Exception error):> Exception 
-                    ch.Reply  <| Error e
-                    raise e
-                else ch.Reply resp
-            | None -> ch.Reply resp
-        | None -> ()
+    let finish queue =
+        let error = Cl.Finish(queue)
+        if error <> ErrorCode.Success
+        then
+            let e = (Cl.Exception error):> Exception         
+            raise e
 
     member this.ClDevice = device
 
@@ -68,14 +55,7 @@ type GPU(device: Device) =
         free.Apply
                 {
                     new FreeCrateEvaluator
-                    with member this.Eval (a:Free<'t>) =
-                            try 
-                                a.Source.Free()
-                                tryReplay a.ReplyChannel (Ok ()) None
-                            with 
-                            | e ->  
-                                tryReplay a.ReplyChannel (Error e) None
-                                raise e
+                    with member this.Eval (a:Free<'t>) = a.Source.Free()
                 }
 
     member private this.HandleToGPU (queue, toGpu:ToGPUCrate) =
@@ -83,47 +63,36 @@ type GPU(device: Device) =
                 {
                     new ToGPUCrateEvaluator
                     with member this.Eval (a) =
-                            let write (src:array<'t>) (dst:Buffer<'t>) =
-                                let eventID = ref Unchecked.defaultof<Event>
+                            let eventID = ref Unchecked.defaultof<Event>
 
-                                let mem = dst.ClMemory
-                                let elementSize = dst.ElementSize
-                                let error = Cl.EnqueueWriteBuffer(queue, mem, Bool.False, System.IntPtr(0),
-                                                                  System.IntPtr(dst.Length * elementSize), src, 0u, null, eventID);
+                            let mem = a.Destination.ClMemory
+                            let elementSize = a.Destination.ElementSize
+                            let error = Cl.EnqueueWriteBuffer(queue, mem, Bool.False, System.IntPtr(0),
+                                                              System.IntPtr(a.Destination.Length * elementSize), a.Source, 0u, null, eventID)
 
-                                //printfn "%A" (Cl.Exception error)
-                                if error <> ErrorCode.Success 
-                                then 
-                                    try 
-                                        let e = (Cl.Exception error) :> Exception
-                                        tryReplay a.ReplyChannel (Error e) (Some queue)
-                                        raise e
-                                    with 
-                                    | e -> printfn "%A" e
-                                else tryReplay a.ReplyChannel (Ok ()) (Some queue)
-
-                            write a.Source a.Destination                 
+                            if error <> ErrorCode.Success 
+                            then raise (Cl.Exception error)
                 }
 
     member private this.HandleToHost (queue, toHost:ToHostCrate) =
         toHost.Apply
                 {
                     new ToHostCrateEvaluator
-                    with member this.Eval (a) =
-                            let read (src:Buffer<'t>) (dst:array<'t>)=
-                                let eventID = ref Unchecked.defaultof<Event>
-                                let mem = src.ClMemory
-                                let elementSize = src.ElementSize
-                                let error = Cl.EnqueueReadBuffer(queue, mem, Bool.False, System.IntPtr(0),
-                                                                 System.IntPtr(src.Length * elementSize), dst, 0u, null, eventID)
+                    with member this.Eval (a) =                            
+                            let eventID = ref Unchecked.defaultof<Event>
+                            let mem = a.Source.ClMemory
+                            let elementSize = a.Source.ElementSize
+                            let error = Cl.EnqueueReadBuffer(queue, mem, Bool.False, System.IntPtr(0),
+                                                             System.IntPtr(a.Source.Length * elementSize), a.Destination, 0u, null, eventID)                                
+                            
+                            if error <> ErrorCode.Success
+                            then raise (Cl.Exception error)
 
-                                //printfn "%A" (Cl.Exception error)
-                                if error <> ErrorCode.Success
-                                then tryReplay a.ReplyChannel (Error ((Cl.Exception error):> Exception)) (Some queue)
-                                dst
-
-                            let res = read a.Source a.Destination
-                            tryReplay a.ReplyChannel (Ok res) (Some queue)
+                            finish queue
+                                                        
+                            match a.ReplyChannel with
+                            | Some ch -> ch.Reply a.Destination
+                            | None -> ()
                 }
 
     member private this.HandleRun (queue, run:RunCrate) =
@@ -135,19 +104,11 @@ type GPU(device: Device) =
                             let range = a.Kernel.Range
                             let workDim = uint32 range.Dimensions
                             let eventID = ref Unchecked.defaultof<Event>
-                            let error =
-                                Cl.EnqueueNDRangeKernel(queue, a.Kernel.ClKernel, workDim, null,
-                                                        range.GlobalWorkSize, range.LocalWorkSize, 0u, null, eventID)
-                            
+                            let error = Cl.EnqueueNDRangeKernel(queue, a.Kernel.ClKernel, workDim, null,
+                                                                range.GlobalWorkSize, range.LocalWorkSize, 0u, null, eventID)
+
                             if error <> ErrorCode.Success
-                            then 
-                                try 
-                                    let e = (Cl.Exception error) :> Exception
-                                    tryReplay a.ReplyChannel (Error e) (Some queue)
-                                    raise e
-                                with 
-                                | e -> printfn "%A" e
-                            else tryReplay a.ReplyChannel (Ok()) (Some queue)
+                            then raise (Cl.Exception error)
                 }
 
     member this.GetNewProcessor () = MailboxProcessor.Start(fun inbox ->
@@ -164,47 +125,44 @@ type GPU(device: Device) =
             | MsgToHost a ->
                 //printfn "ToHost"
                 itIsFirstNonqueueMsg  <- true
-                this.HandleToHost(commandQueue, a) |> ignore
+                this.HandleToHost(commandQueue, a)
 
             | MsgToGPU a ->
                 //printfn "ToGPU"
                 itIsFirstNonqueueMsg  <- true
-                this.HandleToGPU(commandQueue, a) |> ignore
+                this.HandleToGPU(commandQueue, a)
 
             | MsgRun a ->
                 //printfn "Run"
                 itIsFirstNonqueueMsg  <- true
-                this.HandleRun(commandQueue, a) |> ignore
+                this.HandleRun(commandQueue, a)
 
             | MsgFree a ->
                 //printfn "Free"
                 if itIsFirstNonqueueMsg 
                 then                    
-                    OpenCL.Net.Cl.Finish(commandQueue)
+                    finish commandQueue
                     itIsFirstNonqueueMsg  <- false
                 this.HandleFree a
 
-            | MsgSetArguments a ->
-                try 
-                    //printfn "SetArgs" 
-                    if itIsFirstNonqueueMsg 
-                    then                    
-                        OpenCL.Net.Cl.Finish(commandQueue)
-                        itIsFirstNonqueueMsg  <- false
-                    a ()
-                with 
-                | e -> printfn "%A" e
+            | MsgSetArguments a ->                
+                //printfn "SetArgs" 
+                if itIsFirstNonqueueMsg 
+                then                    
+                    finish commandQueue
+                    itIsFirstNonqueueMsg  <- false
+                a ()                
 
             | MsgNotifyMe ch ->
                 //printfn "Notify"
                 itIsFirstNonqueueMsg  <- true
-                OpenCL.Net.Cl.Finish(commandQueue)
+                finish commandQueue
                 ch.Reply ()
 
             | MsgBarrier o ->
                 //printfn "Barrier"
                 itIsFirstNonqueueMsg  <- true
-                OpenCL.Net.Cl.Finish(commandQueue)
+                finish commandQueue
                 o.ImReady()
                 while not <| o.CanContinue() do ()
 

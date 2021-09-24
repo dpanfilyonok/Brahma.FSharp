@@ -35,11 +35,7 @@ let setArgsAndCheckResult command argsSetUpFunction (outBuf:Buffer<'a>) (expecte
 
     processor.Post(Msg.MsgSetArguments(fun () -> argsSetUpFunction kernel))
     processor.Post(Msg.CreateRunMsg<_,_>(kernel))
-    let actual = 
-        let res = processor.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(outBuf, localOut, ch))
-        match res with 
-        | Error e -> raise e
-        | Ok x -> x
+    let actual = processor.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(outBuf, localOut, ch))
 
     Expect.sequenceEqual expectedArr actual "Arrays should be equals"
 
@@ -300,11 +296,7 @@ let operatorsAndMathFunctionsTests =
             use outBuf = gpu.Allocate<'a>(zs)
             processor.Post(Msg.MsgSetArguments(fun () -> kernel.SetArguments range inBufXs inBufYs outBuf))
             processor.Post(Msg.CreateRunMsg<_,_>(kernel))
-            let actual = 
-                let res = processor.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(outBuf, zs, ch))
-                match res with 
-                | Error e -> raise e
-                | Ok x -> x
+            let actual = processor.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(outBuf, zs, ch))
             
             Expect.sequenceEqual expected actual ":("
 
@@ -494,11 +486,7 @@ let kernelArgumentsTests =
             processor.Post(Msg.CreateRunMsg<_,_>(kernel))
             
             let localOut = Array.zeroCreate intInArr.Length
-            let actual = 
-                let res = processor.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(inBuf, localOut, ch))
-                match res with 
-                | Error e -> raise e
-                | Ok x -> x
+            let actual = processor.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(inBuf, localOut, ch))
 
             let expected = [|4; 1; 4; 3|]
             Expect.sequenceEqual expected actual "Arrays should be equals"

@@ -106,6 +106,7 @@ type Host() =
 
         processors
         |> Array.mapi (fun i p -> p.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(_resBlocks.[i], resBlocks.[i], ch)))
+        |> ignore
 
         resBlocks
         |> Array.iter (fun x -> printfn "%A" x)
@@ -175,7 +176,7 @@ type Host() =
 
         let sum = GraphBLAS.FSharp.Backend.Common.PrefixSum.runExcludeInplace gpu
         let _,r = sum processor gpuArr gpuRes
-        processor.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(r, res, ch))
+        let _ = processor.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(r, res, ch))
 
         printfn "Sum: %A" res
 
