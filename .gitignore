@@ -278,3 +278,5 @@ coverage.*.xml
 docs/coverage/
 
 tests/Brahma.FSharp.Tests/Generated
+
+Data/
