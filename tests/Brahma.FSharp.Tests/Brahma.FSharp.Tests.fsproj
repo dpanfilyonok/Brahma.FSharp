@@ -143,7 +143,9 @@
     <Content Include="Expected\Template Test 13.cl">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="Expected\Template Test 14.cl" />
+    <Content Include="Expected\Template Test 14.cl">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="Expected\Template Test 15.cl">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

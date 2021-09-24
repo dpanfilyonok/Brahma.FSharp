@@ -1,4 +1,6 @@
-__kernel void brahmaKernel (__global int * buf)
+int fUnitFunc ()
 {int x = 3 ;
- int f = x ;
+ return x ;}
+__kernel void brahmaKernel (__global int * buf)
+{int f = fUnitFunc () ;
  buf [0] = f ;}

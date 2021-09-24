@@ -1,9 +1,5 @@
 open Expecto
 
-open FSharp.Quotations.Evaluator
-open Microsoft.FSharp.Quotations
-//open Brahma.OpenCL
-//open Brahma.FSharp.OpenCL.WorkflowBuilder
 open Brahma.FSharp.Tests
 
 [<Tests>]

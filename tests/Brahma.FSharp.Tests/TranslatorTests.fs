@@ -489,7 +489,7 @@ let lambdaLiftingTests = testList "Let transformation tests" [
 
         checkCode command "Template Test 13.gen" "Template Test 13.cl"
 
-    ptestCase "Template Let Transformation Test 14" <| fun _ ->
+    testCase "Template Let Transformation Test 14" <| fun _ ->
         let command =
             <@ fun (range: _1D) (buf: array<int>) ->
                 let f (y: int) =
@@ -575,7 +575,7 @@ let lambdaLiftingTests = testList "Let transformation tests" [
 
         checkCode command "Renamer Test.gen" "Renamer Test.cl"
 
-    ptestCase "Nested functions" <| fun _ ->
+    testCase "Nested functions" <| fun _ ->
         let command =
             <@ fun (range: _1D) (buf: array<int>) ->
                 let f x y = x - y
@@ -586,8 +586,8 @@ let lambdaLiftingTests = testList "Let transformation tests" [
         checkCode command "Nested.Function.gen" "Nested.Function.cl"
 ]
 
-let curryingTests = testList "Currying translation test" [
-    ptestCase "Nested functions. Carring 1." <| fun _ ->
+let curryingTests = ptestList "Currying translation test" [
+    testCase "Nested functions. Carring 1." <| fun _ ->
         let command =
             <@ fun (range: _1D) (buf: array<int>) ->
                 let f x y = x - y
@@ -617,7 +617,7 @@ let curryingTests = testList "Currying translation test" [
         checkCode command "Nested.Function.Carring2.gen" "Nested.Function.Carring2.cl"
 ]
 
-let localMemoryTests = testList "Test of local memory declaration functions." [
+let localMemoryTests = ptestList "Test of local memory declaration functions." [
     testCase "Local int" <| fun _ ->
         let command =
             <@ fun (range: _1D) ->
@@ -647,7 +647,7 @@ let localMemoryTests = testList "Test of local memory declaration functions." [
 ]
 
 let localMemoryAllocationTests = ptestList "Translation of local memory allocation functions." [
-    ptestCase "Constant array translation. Local copy test 1" <| fun _ ->
+    testCase "Constant array translation. Local copy test 1" <| fun _ ->
         let cArray1 = [| 1; 2; 3 |]
 
         let command =
@@ -664,7 +664,7 @@ let localMemoryAllocationTests = ptestList "Translation of local memory allocati
 ]
 
 let printfTests = testList "Translation of printf" [
-    testCase "Printf test 1" <| fun _ ->
+    ptestCase "Printf test 1" <| fun _ ->
         let command = <@ fun (range: _1D) -> printf "%d %f" 10 15.0 @>
         checkCode command "Printf test 1.gen" "Printf test 1.cl"
 
@@ -691,21 +691,21 @@ let printfTests = testList "Translation of printf" [
 
         checkCode command "Printf test 3.gen" "Printf test 3.cl"
 
-    testCase "Printf test 4: printfn" <| fun _ ->
+    ptestCase "Printf test 4: printfn" <| fun _ ->
         let command = <@ fun (range: _1D) -> printfn "%d %f" 10 15.0 @>
         checkCode command "Printf test 4.gen" "Printf test 4.cl"
 
-    testCase "Printf test 5: printf without args" <| fun _ ->
+    ptestCase "Printf test 5: printf without args" <| fun _ ->
         let command = <@ fun (range: _1D) -> printf "I am complied" @>
         checkCode command "Printf test 5.gen" "Printf test 5.cl"
 
-    testCase "Printf test 6: printfn without args" <| fun _ ->
+    ptestCase "Printf test 6: printfn without args" <| fun _ ->
         let command = <@ fun (range: _1D) -> printfn "I am complied too" @>
         checkCode command "Printf test 6.gen" "Printf test 6.cl"
 ]
 
 let tests =
-    ptestList "Tests for translator" [
+    testList "Tests for translator" [
         basicLocalIdTests
         basicBinOpsTests
         controlFlowTests
