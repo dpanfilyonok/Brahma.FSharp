@@ -562,7 +562,7 @@ let localMemTests =
 
             setArgsAndCheckResult command (fun (kernel:GpuKernel<_,_>) -> kernel.SetArguments range inBuffer outBuffer) outBuffer expected                    
 
-        testCase "Local array. Test 2" <| fun _ ->
+        ptestCase "Local array. Test 2" <| fun _ ->
             let command =
                 <@ fun (range: _1D) (buf: Buffer<int64>) ->
                     let localBuf = localArray 42
