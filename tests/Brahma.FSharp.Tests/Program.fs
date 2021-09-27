@@ -7,8 +7,8 @@ let allTests =
     testList "All tests" [
         Translator.tests
         Full.tests
-        Atomic.tests
-        Workflow.tests
+        //Atomic.tests
+        //Workflow.tests
         QuotationTransformers.tests
         Union.tests
     ]
@@ -16,7 +16,7 @@ let allTests =
 
 [<EntryPoint>]
 let main argv =
-    printfn "%O\n" context
+    printfn "%O\n" gpu
 
     allTests
     |> runTestsWithCLIArgs [] argv

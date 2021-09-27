@@ -1,26 +1,30 @@
 ﻿module Translator
 
 open Expecto
-open Brahma.OpenCL
-open Brahma.FSharp.OpenCL.Core
+open Brahma.FSharp.OpenCL
 open OpenCL.Net
 open Brahma.FSharp.Tests
 
 let basePath = "Expected/"
 let generatedPath = "Generated/"
-System.IO.Directory.CreateDirectory(generatedPath) |> ignore
 
-let provider = context.Provider
+do System.IO.Directory.CreateDirectory(generatedPath) |> ignore
 
-let checkCode command outFile expected =
-    let code = ref ""
-    provider.Compile(command, outCode = code) |> ignore
+let gpu =
+    let deviceType = DeviceType.Default
+    let platformName = "Intel*"
+    let devices = Device.getDevices platformName deviceType
+    GPU(devices.[0])
 
+let checkCode command outFile expected =        
+    let kernel = gpu.CreateKernel command
+    let code = kernel.ClCode
+    
     let targetPath = System.IO.Path.Combine(generatedPath, outFile)
     let expectedPath = System.IO.Path.Combine(basePath, expected)
-    System.IO.File.WriteAllText(targetPath, !code)
+    System.IO.File.WriteAllText(targetPath, code)
 
-    Utils.filesAreEqual targetPath expectedPath
+    Utils.filesAreEqual targetPath expectedPath  
 
 let basicLocalIdTests = testList "Basic tests on LocalID translation" [
         testCase "LocalID of 1D" <| fun _ ->

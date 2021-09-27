@@ -5,8 +5,7 @@ open Brahma.FSharp.Tests.Utils
 open Brahma.FSharp.OpenCL.Translator
 open Brahma.FSharp.OpenCL.AST
 open Brahma.FSharp.OpenCL.Printer
-open Brahma.OpenCL
-open Brahma.FSharp.OpenCL.Core
+open Brahma.FSharp.OpenCL
 
 type SimpleUnion =
     | SimpleOne
@@ -73,17 +72,20 @@ let translateUnionTests =
     ]
 
 let compileTests =
-    let provider = ComputeProvider.Create()
-    // platformMessage provider "union compile tests"
+    let gpu =
+        let deviceType = OpenCL.Net.DeviceType.Default
+        let platformName = "Intel*"
+        let devices = Device.getDevices platformName deviceType
+        GPU(devices.[0])
 
     let testGen testCase name outFile expectedFile command =
         testCase name <| fun _ ->
-            let code = ref ""
-            provider.Compile(command, outCode = code) |> ignore
+            let kernel = gpu.CreateKernel command
+            let code = kernel.ClCode
 
             let targetPath = System.IO.Path.Combine(generatedPath, outFile)
             let expectedPath = System.IO.Path.Combine(basePath, expectedFile)
-            System.IO.File.WriteAllText(targetPath, !code)
+            System.IO.File.WriteAllText(targetPath, code)
 
             filesAreEqual targetPath expectedPath
 

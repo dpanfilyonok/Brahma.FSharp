@@ -170,6 +170,9 @@ namespace OpenCL.Net
         UseHostPtr = (1 << 3),
         AllocHostPtr = (1 << 4),
         CopyHostPtr = (1 << 5),
+        HostWriteOnly = (1 << 6),
+        HostReadOnly = (1 << 7),
+        HostNoAccess = (1 << 8)
     };
 
     public enum ContextInfo : uint // cl_uint

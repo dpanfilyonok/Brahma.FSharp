@@ -84,7 +84,15 @@ module Type =
                 else
                     // NOTE why ArrayType is different from RefType from C lang perspective
                     ArrayType(go baseT, size |> Option.get) :> Type<Lang>
-            | s when s.StartsWith "fsharpref" -> RefType(go (_type.GetGenericArguments().[0].Name), []) :> Type<Lang>
+            | s when s.StartsWith "buffer" -> 
+                let baseT = _type.GetGenericArguments().[0].Name
+                if isKernelArg then
+                    RefType(go baseT, []) :> Type<Lang>
+                else
+                    // NOTE why ArrayType is different from RefType from C lang perspective
+                    ArrayType(go baseT, size |> Option.get) :> Type<Lang>
+                    
+            | s when s.StartsWith "fsharpref" -> RefType(go (_type.GetGenericArguments().[0].Name), []) :> Type<Lang>            
             | f when f.StartsWith "fsharpfunc" ->
                 //            go (_type.GetGenericArguments().[1].Name)
                 translate (_type.GetGenericArguments().[1]) isKernelArg size context

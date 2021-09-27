@@ -3,10 +3,12 @@ module Workflow
 open FSharp.Quotations
 open Expecto
 open System.Collections.Generic
-open Brahma.OpenCL
-open Brahma.FSharp.OpenCL.WorkflowBuilder
+//open Brahma.OpenCL
+//open Brahma.FSharp.OpenCL.WorkflowBuilder
 
-let ctx = OpenCLEvaluationContext()
+//TODO: redesign me
+
+(*let ctx = OpenCLEvaluationContext()
 
 let eqMsg = "Values should be equal"
 
@@ -184,3 +186,4 @@ let tests =
         commonAPITests
     ]
     |> fun x -> Expecto.Sequenced(Synchronous, x)
+*)
