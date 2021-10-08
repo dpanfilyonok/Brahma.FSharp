@@ -32,6 +32,80 @@ type ClContext(device: Device) as this =
 
         ctx
 
+    let getNewProcessor () = MailboxProcessor.Start <| fun inbox ->
+        let commandQueue =
+            printfn "Aaaa"
+            let error = ref Unchecked.defaultof<ErrorCode>
+            let props = CommandQueueProperties.None
+            let queue = Cl.CreateCommandQueue(clContext, device, props, error)
+
+            if !error <> ErrorCode.Success then
+                raise <| Cl.Exception !error
+
+            queue
+
+        let mutable itIsFirstNonqueueMsg = true
+
+        printfn "MB is started"
+
+        let rec loop i = async {
+            let! msg = inbox.Receive()
+            match msg with
+            | MsgToHost a ->
+                //printfn "ToHost"
+                itIsFirstNonqueueMsg  <- true
+                this.HandleToHost(commandQueue, a) |> ignore
+                // TODO must wait here
+
+            | MsgToGPU a ->
+                //printfn "ToGPU"
+                itIsFirstNonqueueMsg  <- true
+                this.HandleToGPU(commandQueue, a) |> ignore
+
+            | MsgRun a ->
+                //printfn "Run"
+                itIsFirstNonqueueMsg  <- true
+                this.HandleRun(commandQueue, a) |> ignore
+
+            | MsgFree a ->
+                //printfn "Free"
+                if itIsFirstNonqueueMsg then
+                    OpenCL.Net.Cl.Finish(commandQueue) |> ignore
+                    itIsFirstNonqueueMsg  <- false
+                this.HandleFree a |> ignore
+
+            | MsgSetArguments a ->
+                try
+                    printfn "SetArgs"
+                    if itIsFirstNonqueueMsg then
+                        OpenCL.Net.Cl.Finish(commandQueue) |> ignore
+                        itIsFirstNonqueueMsg  <- false
+                    a ()
+                with
+                | e -> printfn "%A" e
+
+            | MsgNotifyMe ch ->
+                //printfn "Notify"
+                itIsFirstNonqueueMsg  <- true
+                OpenCL.Net.Cl.Finish(commandQueue) |> ignore
+                ch.Reply ()
+
+            | MsgBarrier o ->
+                //printfn "Barrier"
+                itIsFirstNonqueueMsg  <- true
+                OpenCL.Net.Cl.Finish(commandQueue) |> ignore
+                o.ImReady()
+                while not <| o.CanContinue() do ()
+
+            | MsgFinish c ->
+                OpenCL.Net.Cl.Finish(commandQueue) |> ignore
+                c.Reply()
+
+            return! loop 0
+        }
+
+        loop 0
+
     let tryReplay (chOpt: AsyncReplyChannel<_> option) resp queue =
         match chOpt with
         | Some ch ->
@@ -48,9 +122,9 @@ type ClContext(device: Device) as this =
         | None -> ()
 
     new(?platform: ClPlatform, ?deviceType: ClDeviceType) =
-        let platform = defaultArg platform (ClPlatform.Pattern "*")
-        let deviceType = defaultArg deviceType ClDeviceType.Default
-        let device = (Device.getDevices "" DeviceType.Gpu).[0]
+        let platform = defaultArg platform (ClPlatform.Pattern "Intel*")
+        let deviceType = defaultArg deviceType ClDeviceType.CPU
+        let device = (Device.getDevices "Intel*" DeviceType.Gpu).[0]
         ClContext device
 
     member this.Device = device
@@ -59,7 +133,7 @@ type ClContext(device: Device) as this =
     member val IsCachingEnabled = false with get, set
     member val internal CompilingCache = Dictionary<ExprWrapper, obj * obj * obj>() with get
 
-    member val CommandQueue = this.GetNewProcessor() with get
+    member val CommandQueue = getNewProcessor () with get
 
     override this.ToString() =
         let mutable e = ErrorCode.Unknown
@@ -80,6 +154,14 @@ type ClContext(device: Device) as this =
 
     member this.CreateKernel srcLambda =
         new GpuKernel<_,_,_>(device, clContext, srcLambda)
+
+    member this.Allocate<'t> (length:int,
+                              hostAccessMode: HostAccessMode,
+                              allocationMode: AllocationMode,
+                              deviceAccessMode : DeviceAccessMode
+                              ) =
+
+        new ClBuffer<'t>(clContext, Size length, { HostAccessMode = hostAccessMode; AllocationMode = allocationMode; DeviceAccessMode = deviceAccessMode })
 
     member private this.HandleFree(free: FreeCrate) =
         { new FreeCrateEvaluator<int> with
@@ -128,7 +210,7 @@ type ClContext(device: Device) as this =
                     let eventID = ref Unchecked.defaultof<Event>
                     let mem = src.ClMemory
                     let elementSize = src.ElementSize
-                    let error = Cl.EnqueueReadBuffer(queue, mem, Bool.False, System.IntPtr(0),
+                    let error = Cl.EnqueueReadBuffer(queue, mem, Bool.True, System.IntPtr(0),
                                                      System.IntPtr(src.Length * elementSize), dst, 0u, null, eventID)
 
                     //printfn "%A" (Cl.Exception error)
@@ -137,6 +219,7 @@ type ClContext(device: Device) as this =
                     dst
 
                 let res = read a.Source a.Destination
+                printfn "%A" res
                 tryReplay a.ReplyChannel (Ok res) (Some queue)
                 0
         }
@@ -152,86 +235,22 @@ type ClContext(device: Device) as this =
                     Cl.EnqueueNDRangeKernel(queue, a.Kernel.ClKernel, workDim, null,
                                             range.GlobalWorkSize, range.LocalWorkSize, 0u, null, eventID)
 
-                if error <> ErrorCode.Success
-                then
+                if error <> ErrorCode.Success then
                     try
                         let e = (Cl.Exception error) :> Exception
                         tryReplay a.ReplyChannel (Error e) (Some queue)
                         raise e
                     with
                     | e -> printfn "%A" e
-                else tryReplay a.ReplyChannel (Ok()) (Some queue)
+                else
+                    tryReplay a.ReplyChannel (Ok()) (Some queue)
 
                 0
         }
         |> run.Apply
 
-    member this.GetNewProcessor() = MailboxProcessor.Start <| fun inbox ->
-        let commandQueue =
-            let error = ref Unchecked.defaultof<ErrorCode>
-            let props = CommandQueueProperties.None
-            let queue = Cl.CreateCommandQueue(clContext, device, props, error)
+    member this.GetNewProcessor() = getNewProcessor ()
 
-            if !error <> ErrorCode.Success then
-                raise <| Cl.Exception !error
-
-            queue
-
-        let mutable itIsFirstNonqueueMsg = true
-
-        printfn "MB is started"
-
-        let rec loop i = async {
-            let! msg = inbox.Receive()
-            match msg with
-            | MsgToHost a ->
-                //printfn "ToHost"
-                itIsFirstNonqueueMsg  <- true
-                this.HandleToHost(commandQueue, a) |> ignore
-                // TODO must wait here
-
-            | MsgToGPU a ->
-                //printfn "ToGPU"
-                itIsFirstNonqueueMsg  <- true
-                this.HandleToGPU(commandQueue, a) |> ignore
-
-            | MsgRun a ->
-                //printfn "Run"
-                itIsFirstNonqueueMsg  <- true
-                this.HandleRun(commandQueue, a) |> ignore
-
-            | MsgFree a ->
-                //printfn "Free"
-                if itIsFirstNonqueueMsg then
-                    OpenCL.Net.Cl.Finish(commandQueue) |> ignore
-                    itIsFirstNonqueueMsg  <- false
-                this.HandleFree a |> ignore
-
-            | MsgSetArguments a ->
-                try
-                    //printfn "SetArgs"
-                    if itIsFirstNonqueueMsg then
-                        OpenCL.Net.Cl.Finish(commandQueue) |> ignore
-                        itIsFirstNonqueueMsg  <- false
-                    a ()
-                with
-                | e -> printfn "%A" e
-
-            | MsgNotifyMe ch ->
-                //printfn "Notify"
-                itIsFirstNonqueueMsg  <- true
-                OpenCL.Net.Cl.Finish(commandQueue) |> ignore
-                ch.Reply ()
-
-            | MsgBarrier o ->
-                //printfn "Barrier"
-                itIsFirstNonqueueMsg  <- true
-                OpenCL.Net.Cl.Finish(commandQueue) |> ignore
-                o.ImReady()
-                while not <| o.CanContinue() do ()
-
-            return! loop 0
-        }
-
-        loop 0
-
+type A() =
+    let a = System.Random()
+    member val S = a.Next()

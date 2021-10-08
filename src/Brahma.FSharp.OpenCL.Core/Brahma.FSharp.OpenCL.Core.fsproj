@@ -19,7 +19,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="KernelLangExtentions.fs" />
     <Compile Include="ClException.fs" />
     <Compile Include="NDRangeDimensions.fs" />
     <Compile Include="Device.fs" />

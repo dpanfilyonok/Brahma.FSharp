@@ -41,7 +41,7 @@ type ClMemFlags =
         {
             HostAccessMode = HostAccessMode.ReadWrite
             DeviceAccessMode = DeviceAccessMode.ReadWrite
-            AllocationMode = AllocationMode.AllocAndCopyHostPtr
+            AllocationMode = AllocationMode.AllocHostPtr
         }
 
 type BufferInitParam<'a> =
@@ -68,11 +68,11 @@ type ClBuffer<'a>
     let clMemoryFlags =
         let mutable flags = MemFlags.None
 
-        // match memFlags.HostAccessMode with
-        // | HostAccessMode.ReadWrite -> ()
-        // | HostAccessMode.ReadOnly -> flags <- flags ||| MemFlags.HostReadOnly
-        // | HostAccessMode.WriteOnly -> flags <- flags ||| MemFlags.HostWriteOnly
-        // | HostAccessMode.NotAccessible -> flags <- flags ||| MemFlags.HostNoAccess
+        match memFlags.HostAccessMode with
+        | HostAccessMode.ReadWrite -> ()
+        | HostAccessMode.ReadOnly -> flags <- flags ||| MemFlags.HostReadOnly
+        | HostAccessMode.WriteOnly -> flags <- flags ||| MemFlags.HostWriteOnly
+        | HostAccessMode.NotAccessible -> flags <- flags ||| MemFlags.HostNoAccess
 
         match memFlags.DeviceAccessMode with
         | DeviceAccessMode.ReadWrite -> flags <- flags ||| MemFlags.ReadWrite
@@ -89,6 +89,10 @@ type ClBuffer<'a>
         //     | Some x -> flags <- flags ||| MemFlags.CopyHostPtr
         //     | None -> flags <- flags ||| MemFlags.AllocHostPtr
 
+        match data with
+        | Size _ -> () //flags <- flags ||| MemFlags.AllocHostPtr // ????
+        | Data x -> flags <- flags ||| MemFlags.CopyHostPtr
+
         flags
 
     let buffer =
@@ -97,6 +101,8 @@ type ClBuffer<'a>
             match data with
             | Data array -> IntPtr(array.Length * elementSize), array :> System.Array
             | Size size -> IntPtr(size * elementSize), null
+
+        printfn "%A" (size, data)
 
         let buf = Cl.CreateBuffer(clContext, clMemoryFlags, size, data, error)
 
@@ -121,7 +127,7 @@ type ClBuffer<'a>
 
         buffer.Dispose()
 
-    member this.Dispose() = this.Free()
+    member this.Dispose() = (this :> IDisposable).Dispose()
 
     interface IDisposable with
         member this.Dispose() = this.Dispose()
@@ -129,4 +135,39 @@ type ClBuffer<'a>
     interface IClMem with
         member this.Size = intPtrSize
         member this.Data = box buffer
+
+type ClArray<'a when 'a : struct>(buffer: ClBuffer<'a>) =
+    member internal this.Buffer = buffer
+
+    member this.Length = buffer.Length
+
+    member this.Item
+        with get (idx: int) : 'a = FailIfOutsideKernel()
+        and set (idx: int) (value: 'a) = FailIfOutsideKernel()
+
+    member this.Dispose() = (this :> IDisposable).Dispose()
+
+    interface IDisposable with
+        member this.Dispose() = buffer.Dispose()
+
+    interface IClMem with
+        member this.Size = (buffer :> IClMem).Size
+        member this.Data = (buffer :> IClMem).Data
+
+    override this.ToString() =
+        sprintf "%O, %A" (buffer :> IClMem).Data (buffer :> IClMem).Size
+
+type ClCell<'a when 'a : struct>(buffer: ClBuffer<'a>) =
+    member internal this.Buffer = buffer
+
+    // static member inline (!) (cell: ClCell<'a>) : 'a = failIfOutsideKernel ()
+
+    member this.Dispose() = (this :> IDisposable).Dispose()
+
+    interface IDisposable with
+        member this.Dispose() = buffer.Dispose()
+
+    interface IClMem with
+        member this.Size = (buffer :> IClMem).Size
+        member this.Data = (buffer :> IClMem).Data
 

@@ -2,6 +2,9 @@ namespace Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 
 open FSharp.Reflection
 open FSharp.Quotations
+// open Bra
+
+open Brahma.FSharp
 
 module Utils =
     let rec getFunctionArgTypes (funType: System.Type) =

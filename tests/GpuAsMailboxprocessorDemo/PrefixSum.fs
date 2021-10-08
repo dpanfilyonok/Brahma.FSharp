@@ -31,7 +31,7 @@ module internal PrefixSum =
         do! runCommand update <| fun a -> a ndRange inputArrayLength bunchLength inputArray vertices
     }
 
-    let private getNewScan (inputArray: ClArray<int>) (inputArrayLength: int) (vertices: ClArray<int>) (verticesLength: int) (totalSum: ClCell<int>) = opencl {
+    let private getNewScan (inputArray: ClArray<int>) (inputArrayLength: int) (vertices: ClArray<int>) (verticesLength: int) (totalSum: ClArray<int>) = opencl {
         let workGroupSize = Utils.defaultWorkGroupSize
 
         let scan =
@@ -83,7 +83,7 @@ module internal PrefixSum =
         do! runCommand scan <| fun a -> a ndRange inputArrayLength verticesLength inputArray vertices totalSum
     }
 
-    let runExcludeInplace (inputArray: ClArray<int>) (totalSum: ClCell<int>) = opencl {
+    let runExcludeInplace (inputArray: ClArray<int>) (totalSum: ClArray<int>) = opencl {
         let workGroupSize = Utils.defaultWorkGroupSize
 
         use! firstVertices = ClArray.alloc<int> ((inputArray.Length - 1) / workGroupSize + 1)

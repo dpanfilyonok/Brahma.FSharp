@@ -4,6 +4,7 @@ open FSharp.Quotations
 open Brahma.FSharp.OpenCL.Translator
 open FSharp.Core.LanguagePrimitives
 open FSharp.Quotations.Evaluator
+open Brahma.FSharp
 
 type Mutex = int
 

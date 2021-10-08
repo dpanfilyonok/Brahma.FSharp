@@ -66,6 +66,7 @@ type Msg =
     | MsgSetArguments of (unit -> unit)
     | MsgNotifyMe of AsyncReplyChannel<unit>
     | MsgBarrier of SyncObject
+    | MsgFinish of AsyncReplyChannel<unit>
 
     static member CreateToHostMsg<'t> (src, dst, ?ch) =
         {

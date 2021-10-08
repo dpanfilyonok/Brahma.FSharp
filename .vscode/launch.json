@@ -6,14 +6,15 @@
     "configurations": [
         {
             "name": ".NET Core Launch (console)",
-            "type": "clr",
+            "type": "coreclr",
             "request": "launch",
-            "preLaunchTask": "build",
-            "program": "${workspaceFolder}/tests/Brahma.FSharp.Tests/bin/Debug/net461/Brahma.FSharp.Tests.exe",
+            // "preLaunchTask": "build ${workspaceFolder}\\tests\\GpuAsMailboxprocessorDemo",
+            "program": "${workspaceFolder}/tests/GpuAsMailboxprocessorDemo/bin/Debug/net5.0/GpuAsMBP.exe",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
-            "console": "internalConsole"
+            "console": "internalConsole",
+            "requireExactSource": false
         }
     ]
 }

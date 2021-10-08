@@ -53,10 +53,10 @@ type ClTaskBuilder() =
         this.TryFinally(body', fun () -> x.Dispose())
 
 module ClTask =
-    // let runSync (context: ClContext) (ClTask f) =
-    //     let res = f context
-    //     context.CommandQueue.Finish() |> ignore
-    //     res
+    let runSync (context: ClContext) (ClTask f) =
+        let res = f context
+        context.CommandQueue.PostAndReply(fun ch -> MsgFinish ch)
+        res
 
     let ask = ClTask id
 
@@ -64,12 +64,17 @@ module ClTask =
 module ClTaskImpl =
     let opencl = ClTaskBuilder()
 
+    let (>>=) x f = opencl.Bind(x, f)
+
     let runCommand (command: Expr<'range -> 'a>) (binder: ('range -> 'b) -> unit) : ClTask<unit> =
         opencl {
             let! ctx = ClTask.ask
 
+            printfn "kek"
+
             let kernel = ctx.CreateKernel command
 
             ctx.CommandQueue.Post <| MsgSetArguments(fun () -> binder kernel.SetArguments)
+            ctx.CommandQueue.PostAndReply(fun ch -> Msg.MsgNotifyMe ch)
             ctx.CommandQueue.Post <| Msg.CreateRunMsg<_,_,_>(kernel)
         }

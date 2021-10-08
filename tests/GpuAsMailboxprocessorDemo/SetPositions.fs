@@ -37,10 +37,11 @@ module internal SetPositions =
                         resultValuesBuffer.[index] <- allValuesBuffer.[i]
             @>
 
-        use! resultLengthGpu = ClCell.alloc<int> ()
+        use! resultLengthGpu = ClArray.alloc<int> 1
         let! _,r = PrefixSum.runExcludeInplace positions resultLengthGpu
         let prefixSumArrayLength = positions.Length
-        let! resLen = ClCell.toHost r
+        let! resLen = ClArray.toHost r
+        let resLen = resLen.[0]
 
         let! resultRows = ClArray.alloc<int> resLen
         let! resultColumns = ClArray.alloc<int> resLen

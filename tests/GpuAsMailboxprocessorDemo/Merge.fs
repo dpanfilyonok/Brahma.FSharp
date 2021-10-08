@@ -4,15 +4,6 @@ open Brahma.FSharp
 open OpenCL.Net
 open GraphBLAS.FSharp.Backend.Common
 
-type COOMatrix<'a> =
-    {
-        RowCount: int
-        ColumnCount: int
-        Rows: int[]
-        Columns: int[]
-        Values: 'a[]
-    }
-
 [<AutoOpen>]
 module internal Merge =
     let merge

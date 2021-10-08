@@ -1,6 +1,11 @@
 namespace Brahma.FSharp
 
 [<AutoOpen>]
+type KernelLangExtentions =
+    static member FailIfOutsideKernel() =
+        failwith "Seems that you try to use openCL kernel function as regular F# function!"
+
+[<AutoOpen>]
 module KernelLangExtentions =
     let inline internal failIfOutsideKernel () =
         failwith "Seems that you try to use openCL kernel function as regular F# function!"
