@@ -15,6 +15,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="API.fs" />
     <Compile Include="Namer.fs" />
     <Compile Include="Common.fs" />
     <Compile Include="QuotationTransformers\Utilities\Utils.fs" />

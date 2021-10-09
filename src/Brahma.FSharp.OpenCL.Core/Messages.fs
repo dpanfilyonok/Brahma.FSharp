@@ -1,6 +1,7 @@
 namespace Brahma.FSharp.OpenCL
 
 open OpenCL.Net
+open Brahma.FSharp
 
 type Free<'t>(src:Buffer<'t>) =
     member this.Source = src

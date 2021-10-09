@@ -89,8 +89,16 @@ module Body =
         | "op_bitwiseor" -> Binop(BitOr, args.[0], args.[1]) :> Statement<_>, tContext
         | "op_leftshift" -> Binop(LeftShift, args.[0], args.[1]) :> Statement<_>, tContext
         | "op_rightshift" -> Binop(RightShift, args.[0], args.[1]) :> Statement<_>, tContext
-        | "op_booleanand" -> Binop(And, args.[0], args.[1]) :> Statement<_>, tContext
-        | "op_booleanor" -> Binop(Or, args.[0], args.[1]) :> Statement<_>, tContext
+        | "op_booleanand" ->
+            if targetContext.TranslatorOptions |> Array.contains UseNativeBooleanType then
+                Binop(And, args.[0], args.[1]) :> Statement<_>, tContext
+            else
+                Binop(BitAnd, args.[0], args.[1]) :> Statement<_>, tContext
+        | "op_booleanor" ->
+            if targetContext.TranslatorOptions |> Array.contains UseNativeBooleanType then
+                Binop(Or, args.[0], args.[1]) :> Statement<_>, tContext
+            else
+                Binop(BitOr, args.[0], args.[1]) :> Statement<_>, tContext
         | "atomicadd" ->
             tContext.Flags.enableAtomic <- true
             FunCall("atom_add", [args.[0]; args.[1]]) :> Statement<_>, tContext
@@ -327,7 +335,7 @@ module Body =
             let l, tContext = translateCond cond targetContext
             let r, tContext = translateCond _then tContext
             let e, tContext = translateCond _else tContext
-            let asBit = tContext.TranslatorOptions.Contains(BoolAsBit)
+            let asBit = tContext.TranslatorOptions |> Array.contains BoolAsBit
             let o1 =
                 match r with
                 | :? Const<Lang> as c when c.Val = "1" -> l

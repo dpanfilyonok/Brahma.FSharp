@@ -12,10 +12,10 @@ open OpenCL.Net
 [<AutoOpen>]
 module Common =
     let gpu =
-        let deviceType = DeviceType.Default
+        let deviceType = DeviceType.Cpu
         let platformName = "*"
         let devices = Device.getDevices platformName deviceType
-        GPU(devices.[0])        
+        GPU(devices.[0])
 
     (*let finalize f =
         try
@@ -54,7 +54,7 @@ module Utils =
     let platformMessage (gpu: GPU) testName =
         printfn "Run %s on %A" testName gpu.ClDevice
 
-    let openclCompile (command: Expr<('a -> 'b)>) =        
+    let openclCompile (command: Expr<('a -> 'b)>) =
         let kernel = gpu.CreateKernel command
         kernel.ClCode
 

@@ -110,7 +110,7 @@ and private printUnOp (uo: Unop<'lang>) =
     | UOp.Decr -> print uo.Expr ++ wordL "--"
 
 and private printCast (c: Cast<'lang>) =
-    let t = Types.Print c.Type
+    let t = Types.print c.Type
     let expr = print c.Expr
     (t |> bracketL) ++ expr
 
