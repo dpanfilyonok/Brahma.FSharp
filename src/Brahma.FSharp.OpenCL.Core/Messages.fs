@@ -3,15 +3,15 @@ namespace Brahma.FSharp.OpenCL
 open OpenCL.Net
 open Brahma.FSharp
 
-type Free<'t>(src:Buffer<'t>) =
+type Free<'t>(src:IBuffer<'t>) =
     member this.Source = src
 
-type ToHost<'t>(src:Buffer<'t>, dst: array<'t>, ?replyChannel:AsyncReplyChannel<array<'t>>) =
+type ToHost<'t>(src:IBuffer<'t>, dst: array<'t>, ?replyChannel:AsyncReplyChannel<array<'t>>) =
     member this.Destination = dst
     member this.Source = src
     member this.ReplyChannel = replyChannel
 
-type ToGPU<'t>(src:array<'t>, dst: Buffer<'t>) =
+type ToGPU<'t>(src:array<'t>, dst: IBuffer<'t>) =
     member this.Destination = dst
     member this.Source = src
 
@@ -65,6 +65,7 @@ type Msg =
     | MsgSetArguments of (unit -> unit)
     | MsgNotifyMe of AsyncReplyChannel<unit>
     | MsgBarrier of SyncObject
+    | MsgFinish of AsyncReplyChannel<unit>
 
     static member CreateToHostMsg<'t> (src, dst, ?ch) =
         {

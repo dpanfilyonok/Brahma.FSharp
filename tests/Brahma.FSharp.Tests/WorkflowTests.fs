@@ -17,12 +17,12 @@ let gpuMap (f: Expr<'a -> 'b>) (input: array<'a>) =
         let res = Array.zeroCreate input.Length
 
         let code =
-            <@ fun (range: _1D) (input: array<'a>) (output: array<'b>) ->
+            <@ fun (range: Range1D) (input: array<'a>) (output: array<'b>) ->
                 let idx = range.GlobalID0
                 output.[idx] <- (%f) input.[idx] @>
 
         let binder kernelP =
-            let range = _1D <| input.Length
+            let range = Range1D <| input.Length
             kernelP range input res
 
         do! runCommand code binder
@@ -144,12 +144,12 @@ let loopTests = testList "Loop tests" [
 let asyncRunTests = testList "Tests of async workflow" [
     ptestCase "Test 1" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (xs: array<int>) -> xs.[range.GlobalID0] <- range.LocalID0 @>
+            <@ fun (range: Range1D) (xs: array<int>) -> xs.[range.GlobalID0] <- range.LocalID0 @>
 
         let workflow globalWorkSize localWorkSize =
             opencl {
                 let xs = Array.zeroCreate globalWorkSize
-                let range = _1D (globalWorkSize, localWorkSize)
+                let range = Range1D (globalWorkSize, localWorkSize)
 
                 let binder prepareF = prepareF range xs
 

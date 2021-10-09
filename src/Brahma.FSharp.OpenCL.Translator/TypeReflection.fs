@@ -44,7 +44,7 @@ let collectTypes
     types.Keys |> List.ofSeq
 
 let collectStructs expr =
-    let escapeNames = [| "_1D"; "_2D"; "_3D" |]
+    let escapeNames = [| "Range1D"; "Range2D"; "Range3D" |]
 
     let nestedTypes (t: System.Type) =
         seq {

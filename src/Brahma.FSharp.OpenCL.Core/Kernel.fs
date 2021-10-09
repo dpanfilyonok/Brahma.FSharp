@@ -12,9 +12,9 @@ type GpuKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
     let kernelName = defaultArg kernelName "brahmaKernel"
 
     let clCode =
-        let translatorOptions = []
-        let codeGenerator = Translator.FSQuotationToOpenCLTranslator()
-        let ast, newLambda = codeGenerator.Translate(srcLambda, translatorOptions)
+        let translatorOptions = [||]
+        let codeGenerator = Translator.FSQuotationToOpenCLTranslator(translatorOptions)
+        let ast, newLambda = codeGenerator.Translate(srcLambda)
         let code = Printer.AST.print ast
         code
 
@@ -26,7 +26,7 @@ type GpuKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
         if error <> ErrorCode.Success
         then failwithf "Program creation failed: %A" error
 
-        let options =  
+        let options =
             " -cl-fast-relaxed-math -cl-mad-enable -cl-unsafe-math-optimizations "
         let error = Cl.BuildProgram(program, 1u, [|device|], options, null, System.IntPtr.Zero)
 
@@ -81,7 +81,7 @@ type GpuKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
                     |> List.tryFindIndex (fun v -> v.Name.EndsWith "Mutex")
                     |> Option.defaultValue flattenArgs.Length
 
-                let argsWithoutMutexes = flattenArgs.[0 .. firstMutexIdx - 1]                    
+                let argsWithoutMutexes = flattenArgs.[0 .. firstMutexIdx - 1]
 
                 /// For each atomic variable throws exception if variable's type is not array,
                 /// otherwise returns length of array
@@ -106,14 +106,14 @@ type GpuKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
                                 | _ -> failwith "Non-array variables as global mutex parameters is not supported. Wrap it into array instead."
                             )
                     )
-                
+
                 let regularArgs =
                     let expr (v:Var) = Expr.Var(v)
                     Expr.NewArray(
                             typeof<obj>,
                             argsWithoutMutexes |> List.map (fun v -> Expr.Coerce ((expr v), typeof<obj>))
                             )
-                
+
                 Expr.Lambdas(
                     argsWithoutMutexes
                     |> List.map List.singleton,

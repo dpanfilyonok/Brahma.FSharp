@@ -1,4 +1,4 @@
-namespace Brahma.FSharp
+namespace Brahma.FSharp.OpenCL
 
 open System
 

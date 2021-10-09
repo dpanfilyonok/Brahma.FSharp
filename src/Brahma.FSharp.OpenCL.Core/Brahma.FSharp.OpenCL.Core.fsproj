@@ -22,10 +22,13 @@
     <Compile Include="ClException.fs" />
     <Compile Include="NDRangeDimensions.fs" />
     <Compile Include="Device.fs" />
-    <Compile Include="Buffer.fs" />
+    <Compile Include="IBuffer.fs" />
     <Compile Include="Kernel.fs" />
     <Compile Include="Messages.fs" />
-    <Compile Include="GPU.fs" />
+    <Compile Include="ComputeProvider.fs" />
+    <Compile Include="Buffer.fs" />
+    <Compile Include="ClTask.fs" />
+    <Compile Include="ClArray.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Brahma.FSharp.OpenCL.Printer\Brahma.FSharp.OpenCL.Printer.fsproj" />

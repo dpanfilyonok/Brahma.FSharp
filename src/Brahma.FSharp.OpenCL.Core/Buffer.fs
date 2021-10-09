@@ -3,19 +3,9 @@ namespace Brahma.FSharp.OpenCL
 open OpenCL.Net
 open System
 open System.Runtime.InteropServices
-
-
-type IClMem =
-    abstract member Size : IntPtr
-    abstract member Data : obj
+open Brahma.FSharp.OpenCL.Translator
 
 //memory flags: https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clCreateBuffer.html
-
-[<RequireQualifiedAccess>]
-type DeviceAccessMode =
-    | ReadWrite
-    | ReadOnly
-    | WriteOnly
 
 [<RequireQualifiedAccess>]
 type HostAccessMode =
@@ -25,106 +15,139 @@ type HostAccessMode =
     | NotAccessible
 
 [<RequireQualifiedAccess>]
+type DeviceAccessMode =
+    | ReadWrite
+    | ReadOnly
+    | WriteOnly
+
+[<RequireQualifiedAccess>]
 type AllocationMode =
     | UseHostPtr
     | AllocHostPtr
     | CopyHostPtr
     | AllocAndCopyHostPtr
 
-type Buffer<'t> private (clContext: OpenCL.Net.Context, length:int, data:option<array<'t>>, hostAccessMode, allocationMode, deviceAccessMode) =
+type ClMemFlags =
+    {
+        HostAccessMode: HostAccessMode
+        DeviceAccessMode: DeviceAccessMode
+        AllocationMode: AllocationMode
+    }
 
-    let (dummyBuff:array<'t>) = Array.zeroCreate 0
+    static member Default =
+        {
+            HostAccessMode = HostAccessMode.ReadWrite
+            DeviceAccessMode = DeviceAccessMode.ReadWrite
+            AllocationMode = AllocationMode.AllocHostPtr
+        }
 
-    // let elementSize = Marshal.SizeOf(if typeof<'t> = typeof<bool> then typeof<byte> else typeof<'t>)
-    let elementSize = Marshal.SizeOf(typeof<'t>)
+type BufferInitParam<'a> =
+    | Data of 'a[]
+    | Size of int
 
-    let intPtrSize = IntPtr(Marshal.SizeOf(typedefof<IntPtr>))
+type Buffer<'a>
+    (
+        provider: ComputeProvider,
+        data: BufferInitParam<'a>,
+        ?memFlags: ClMemFlags
+    ) =
+
+    let memFlags = defaultArg memFlags ClMemFlags.Default
+
+    let elementSize =
+        if provider.Translator.TranslatorOptions |> Array.contains UseNativeBooleanType then
+            Marshal.SizeOf(typeof<'a>)
+        else
+            Marshal.SizeOf(if typeof<'a> = typeof<bool> then typeof<SpecificBool> else typeof<'a>)
+
+    let intPtrSize = IntPtr(Marshal.SizeOf typedefof<IntPtr>)
 
     let pinnedMemory =
         match data with
-        | None -> None
-        | Some x ->
-                System.Runtime.InteropServices.GCHandle.Alloc(x, System.Runtime.InteropServices.GCHandleType.Pinned)
-                |> Some
+        | Data array -> Some <| GCHandle.Alloc(array, GCHandleType.Pinned)
+        | _ -> None
 
     let clMemoryFlags =
         let mutable flags = MemFlags.None
-        match hostAccessMode with
-        | None -> ()
-        | Some x -> match x with
-                    | HostAccessMode.ReadWrite -> ()
-                    | HostAccessMode.ReadOnly -> flags <- flags ||| MemFlags.HostReadOnly
-                    | HostAccessMode.WriteOnly -> flags <- flags ||| MemFlags.HostWriteOnly
-                    | HostAccessMode.NotAccessible -> flags <- flags ||| MemFlags.HostNoAccess
 
-        match allocationMode with
-        | None ->
-            match data with
-            | None -> () //flags <- flags ||| MemFlags.AllocHostPtr // ????
-            | Some x -> flags <- flags ||| MemFlags.CopyHostPtr
-        | Some x -> match x with
-                    | AllocationMode.UseHostPtr -> flags <- flags ||| MemFlags.UseHostPtr
-                    | AllocationMode.AllocHostPtr -> flags <- flags ||| MemFlags.AllocHostPtr
-                    | AllocationMode.CopyHostPtr -> flags <- flags ||| MemFlags.CopyHostPtr
-                    | AllocationMode.AllocAndCopyHostPtr -> flags <- flags ||| MemFlags.AllocHostPtr ||| MemFlags.CopyHostPtr
+        match memFlags.HostAccessMode with
+        | HostAccessMode.ReadWrite -> ()
+        | HostAccessMode.ReadOnly -> flags <- flags ||| MemFlags.HostReadOnly
+        | HostAccessMode.WriteOnly -> flags <- flags ||| MemFlags.HostWriteOnly
+        | HostAccessMode.NotAccessible -> flags <- flags ||| MemFlags.HostNoAccess
 
-        match deviceAccessMode with
-        | None -> flags <- flags ||| MemFlags.ReadWrite
-        | Some x -> match x with
-                    | DeviceAccessMode.ReadWrite -> flags <- flags ||| MemFlags.ReadWrite
-                    | DeviceAccessMode.ReadOnly -> flags <- flags ||| MemFlags.ReadOnly
-                    | DeviceAccessMode.WriteOnly -> flags <- flags ||| MemFlags.WriteOnly
+        match memFlags.DeviceAccessMode with
+        | DeviceAccessMode.ReadWrite -> flags <- flags ||| MemFlags.ReadWrite
+        | DeviceAccessMode.ReadOnly -> flags <- flags ||| MemFlags.ReadOnly
+        | DeviceAccessMode.WriteOnly -> flags <- flags ||| MemFlags.WriteOnly
+
+        match memFlags.AllocationMode with
+        | AllocationMode.UseHostPtr -> flags <- flags ||| MemFlags.UseHostPtr
+        | AllocationMode.AllocHostPtr -> flags <- flags ||| MemFlags.AllocHostPtr
+        | AllocationMode.CopyHostPtr -> flags <- flags ||| MemFlags.CopyHostPtr
+        | AllocationMode.AllocAndCopyHostPtr -> flags <- flags ||| MemFlags.AllocHostPtr ||| MemFlags.CopyHostPtr
+        // предполагаем, что нам правильно передали флаги (что для нужных параметров буфера нужные флаги)
+        //     match data with
+        //     | Some x -> flags <- flags ||| MemFlags.CopyHostPtr
+        //     | None -> flags <- flags ||| MemFlags.AllocHostPtr
+
+        match data with
+        | Size _ -> () //flags <- flags ||| MemFlags.AllocHostPtr // ????
+        | Data x -> flags <- flags ||| MemFlags.CopyHostPtr
 
         flags
 
     let buffer =
         let error = ref Unchecked.defaultof<ErrorCode>
-        let size = System.IntPtr(length * elementSize)
-        let data =
+        let (size, data) =
             match data with
-            | None ->  null
-            // | Some data -> (if typeof<'t> = typeof<bool> then data |> Array.map Convert.ToByte :> System.Array else data :> System.Array)
-            | Some data -> data :> System.Array
+            | Data array ->
+                IntPtr(array.Length * elementSize),
+                if provider.Translator.TranslatorOptions |> Array.contains UseNativeBooleanType then
+                    array :> System.Array
+                else
+                    if typeof<'a> = typeof<bool> then
+                        array |> Array.map Convert.ToByte :> System.Array
+                    else
+                        array :> System.Array
+            | Size size ->
+                IntPtr(size * elementSize),
+                null
 
+        let buf = Cl.CreateBuffer(provider.ClContext, clMemoryFlags, size, data, error)
 
-        let buf = Cl.CreateBuffer(clContext, clMemoryFlags, size, data, error)
-
-        if !error <> ErrorCode.Success
-        then raise (Cl.Exception !error)
+        if !error <> ErrorCode.Success then
+            raise (Cl.Exception !error)
 
         buf
 
-    member this.ClMemory = buffer
-    member this.Length = length
-    member this.ElementSize = elementSize
-
     member this.Item
-        with get index =
-            failwith "Kernel only."
-            dummyBuff.[index]
+        with get (idx: int) : 'a = FailIfOutsideKernel()
+        and set (idx: int) (value: 'a) = FailIfOutsideKernel()
 
-        and set index value =
-            failwith "Kernel only."
-            dummyBuff.[index] <- value
-            ()
+    interface IBuffer<'a> with
+        member this.ClMemory = buffer
 
+        member this.Length =
+            match data with
+            | Data array -> array.Length
+            | Size size -> size
 
-    member this.Free() =
-        match pinnedMemory with
-        | None -> ()
-        | Some x -> x.Free()
-        buffer.Dispose()
+        member this.ElementSize = elementSize
 
+        member this.Free() =
+            match pinnedMemory with
+            | Some x -> x.Free()
+            | None -> ()
 
-    interface System.IDisposable with
-        member this.Dispose() = this.Free()
+            buffer.Dispose()
+
+    interface IDisposable with
+        member this.Dispose() = (this :> IBuffer<'a>).Free()
 
     interface IClMem with
         member this.Size = intPtrSize
         member this.Data = box buffer
 
-    new (clContext: OpenCL.Net.Context, data:array<'t>, ?hostAccessMode:HostAccessMode, ?allocationMode:AllocationMode, ?deviceAccessMode:DeviceAccessMode) =
-        new Buffer<_>(clContext, data.Length, Some data, hostAccessMode, allocationMode, deviceAccessMode)
-
-    new (clContext: OpenCL.Net.Context, length:int, ?hostAccessMode:HostAccessMode, ?allocationMode:AllocationMode, ?deviceAccessMode:DeviceAccessMode) =
-        new Buffer<_>(clContext, length, None, hostAccessMode, allocationMode, deviceAccessMode)
+    member this.Dispose() = (this :> IDisposable).Dispose()
+    member this.Length = (this :> IBuffer<'a>).Length
