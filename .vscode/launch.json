@@ -6,10 +6,10 @@
     "configurations": [
         {
             "name": ".NET Core Launch (console)",
-            "type": "clr",
+            "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/tests/Brahma.FSharp.Tests/bin/Debug/net461/Brahma.FSharp.Tests.exe",
+            "program": "${workspaceFolder}/tests/Brahma.FSharp.Tests/bin/Debug/net5.0/Brahma.FSharp.Tests.exe",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
