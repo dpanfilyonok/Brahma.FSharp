@@ -3,7 +3,6 @@ namespace Brahma.FSharp.OpenCL
 open OpenCL.Net
 open System
 open Brahma.FSharp.OpenCL.Translator
-open FSharp.Quotations
 
 type ComputeProvider(device: Device) as this =
     let clContext =
@@ -96,8 +95,6 @@ type ComputeProvider(device: Device) as this =
     member this.ClDevice = device
 
     member this.ClContext = clContext
-
-    member this.CreateKernel(srcLambda: Expr<'a -> 'b>) = ClKernel<_,_>(device, clContext, srcLambda)
 
     member private this.HandleFree(free: IFreeCrate) =
         { new IFreeCrateEvaluator with

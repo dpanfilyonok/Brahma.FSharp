@@ -1,6 +1,7 @@
 namespace Brahma.FSharp.OpenCL
 
 open OpenCL.Net
+open FSharp.Quotations
 
 exception EmptyDevicesException of string
 
@@ -70,3 +71,6 @@ type ClContext(provider: ComputeProvider) =
         ClContext(ComputeProvider device)
 
     member this.Provider = provider
+
+    member this.CreateKernel(srcLambda: Expr<'a -> 'b>) = ClKernel<_,_>(provider, srcLambda)
+

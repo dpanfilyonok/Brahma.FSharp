@@ -22,10 +22,11 @@
     <Compile Include="ClException.fs" />
     <Compile Include="NDRangeDimensions.fs" />
     <Compile Include="IBuffer.fs" />
-    <Compile Include="ClKernel.fs" />
+    <Compile Include="IKernel.fs" />
     <Compile Include="Messages.fs" />
     <Compile Include="ComputeProvider.fs" />
     <Compile Include="ClBuffer.fs" />
+    <Compile Include="ClKernel.fs" />
     <Compile Include="ClContext.fs" />
     <Compile Include="ClTask.fs" />
     <Compile Include="DataStructures.fs" />

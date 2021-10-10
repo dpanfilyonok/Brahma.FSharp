@@ -78,7 +78,7 @@ let main argv =
         let! b = ClArray.alloc<bool> 100_000
         do! runCommand copy <| fun x ->
             x
-            <| Range1D(Utils.getDefaultGlobalSize inputArray.Length, Utils.defaultWorkGroupSize)
+            <| Range1D.CreateValid(inputArray.Length, Utils.defaultWorkGroupSize)
             <| a
             <| b
 

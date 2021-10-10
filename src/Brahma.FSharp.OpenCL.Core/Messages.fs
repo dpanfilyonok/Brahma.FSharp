@@ -12,7 +12,7 @@ type ToGPU<'a when 'a: struct>(src: 'a[], dst: IBuffer<'a>) =
     member this.Destination = dst
     member this.Source = src
 
-type Run<'TRange, 'a when 'TRange :> INDRangeDimension>(kernel: ClKernel<'TRange, 'a>) =
+type Run<'TRange, 'a when 'TRange :> INDRangeDimension>(kernel: IKernel<'TRange, 'a>) =
     member this.Kernel = kernel
 
 type IRunCrate =

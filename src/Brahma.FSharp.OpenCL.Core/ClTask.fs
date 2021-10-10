@@ -70,7 +70,7 @@ module ClTaskImpl =
         opencl {
             let! ctx = ClTask.ask
 
-            let kernel = ctx.Provider.CreateKernel command
+            let kernel = ctx.CreateKernel command
 
             ctx.Provider.CommandQueue.Post <| MsgSetArguments(fun () -> binder kernel.SetArguments)
             ctx.Provider.CommandQueue.PostAndReply <| MsgNotifyMe
