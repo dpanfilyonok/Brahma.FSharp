@@ -1,16 +1,6 @@
 namespace Brahma.FSharp.OpenCL
 
 open FSharp.Quotations
-open OpenCL.Net
-
-type ClContext(provider: ComputeProvider) =
-    new(?platform: ClPlatform, ?deviceType: ClDeviceType) =
-        let platform = defaultArg platform (ClPlatform.Pattern "Intel*")
-        let deviceType = defaultArg deviceType ClDeviceType.CPU
-        let device = (Device.getDevices "Intel*" DeviceType.Cpu).[0]
-        ClContext(ComputeProvider device)
-
-    member this.Provider = provider
 
 type ClTask<'a> =
     ClTask of (ClContext -> 'a)
@@ -85,4 +75,11 @@ module ClTaskImpl =
             ctx.Provider.CommandQueue.Post <| MsgSetArguments(fun () -> binder kernel.SetArguments)
             ctx.Provider.CommandQueue.PostAndReply <| MsgNotifyMe
             ctx.Provider.CommandQueue.Post <| Msg.CreateRunMsg<_,_>(kernel)
+        }
+
+    let runKernel (kernel: ClKernel<'range, 'a>) (processor: MailboxProcessor<Msg>) (binder: ('range -> 'a) -> unit) : ClTask<unit> =
+        opencl {
+            processor.Post <| MsgSetArguments(fun () -> binder kernel.SetArguments)
+            processor.PostAndReply <| MsgNotifyMe
+            processor.Post <| Msg.CreateRunMsg<_,_>(kernel)
         }

@@ -2,13 +2,12 @@ namespace Brahma.FSharp.OpenCL
 
 open OpenCL.Net
 open System
-open System.Runtime.InteropServices
 
 type IClMem =
     abstract member Size : IntPtr
     abstract member Data : obj
 
-type IBuffer<'a> =
+type IBuffer<'a when 'a : struct> =
     inherit IClMem
     inherit IDisposable
 

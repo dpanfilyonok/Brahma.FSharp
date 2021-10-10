@@ -1,6 +1,4 @@
-namespace Brahma.FSharp.OpenCL.Translator
-
-open Brahma.FSharp.OpenCL.AST
+namespace Brahma.FSharp.OpenCL
 
 [<AutoOpen>]
 type KernelLangExtentions =
@@ -34,14 +32,3 @@ module KernelLangExtentions =
     // работает для всех типов
     let inline xchg (p: 'a) (value: 'a) = failIfOutsideKernel (); p
     let inline cmpxchg (p: 'a) (cmp: 'a) (value: 'a) = failIfOutsideKernel (); if p = cmp then value else p
-
-[<AutoOpen>]
-module MetaInfo =
-    let [<Literal>] NDRange1D = "range1d"
-    let [<Literal>] NDRange2D = "range2d"
-    let [<Literal>] NDRange3D = "range3d"
-
-    let [<Literal>] Buffer = "clarray"
-
-    type SpecificBool = byte
-    let CSpecificBool = UChar

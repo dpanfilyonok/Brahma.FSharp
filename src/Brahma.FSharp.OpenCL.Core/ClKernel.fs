@@ -6,7 +6,7 @@ open Microsoft.FSharp.Quotations
 open FSharp.Quotations.Evaluator
 open Brahma.FSharp.OpenCL.Translator
 
-type GpuKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
+type ClKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
     (device, context, srcLambda: Expr<'TRange ->'a>, ?kernelName) =
 
     let kernelName = defaultArg kernelName "brahmaKernel"

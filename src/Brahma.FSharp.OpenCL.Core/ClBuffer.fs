@@ -45,7 +45,7 @@ type BufferInitParam<'a> =
     | Data of 'a[]
     | Size of int
 
-type Buffer<'a>
+type ClBuffer<'a when 'a : struct>
     (
         provider: ComputeProvider,
         data: BufferInitParam<'a>,
@@ -86,14 +86,11 @@ type Buffer<'a>
         | AllocationMode.AllocHostPtr -> flags <- flags ||| MemFlags.AllocHostPtr
         | AllocationMode.CopyHostPtr -> flags <- flags ||| MemFlags.CopyHostPtr
         | AllocationMode.AllocAndCopyHostPtr -> flags <- flags ||| MemFlags.AllocHostPtr ||| MemFlags.CopyHostPtr
-        // предполагаем, что нам правильно передали флаги (что для нужных параметров буфера нужные флаги)
-        //     match data with
-        //     | Some x -> flags <- flags ||| MemFlags.CopyHostPtr
-        //     | None -> flags <- flags ||| MemFlags.AllocHostPtr
 
-        match data with
-        | Size _ -> () //flags <- flags ||| MemFlags.AllocHostPtr // ????
-        | Data x -> flags <- flags ||| MemFlags.CopyHostPtr
+        // TODO fix flags
+        // match data with
+        // | Size _ -> () //flags <- flags ||| MemFlags.AllocHostPtr // ????
+        // | Data _ -> flags <- flags ||| MemFlags.CopyHostPtr
 
         flags
 
@@ -117,13 +114,9 @@ type Buffer<'a>
         let buf = Cl.CreateBuffer(provider.ClContext, clMemoryFlags, size, data, error)
 
         if !error <> ErrorCode.Success then
-            raise (Cl.Exception !error)
+            raise <| Cl.Exception !error
 
         buf
-
-    member this.Item
-        with get (idx: int) : 'a = FailIfOutsideKernel()
-        and set (idx: int) (value: 'a) = FailIfOutsideKernel()
 
     interface IBuffer<'a> with
         member this.ClMemory = buffer

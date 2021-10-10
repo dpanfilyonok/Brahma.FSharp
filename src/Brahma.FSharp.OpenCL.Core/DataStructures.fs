@@ -1,9 +1,8 @@
 namespace Brahma.FSharp.OpenCL
 
 open System
-open Brahma.FSharp.OpenCL.Translator
 
-type ClArray<'a when 'a : struct>(buffer: Buffer<'a>) =
+type ClArray<'a when 'a : struct>(buffer: ClBuffer<'a>) =
     member internal this.Buffer = buffer
 
     member this.Length = buffer.Length
@@ -12,7 +11,6 @@ type ClArray<'a when 'a : struct>(buffer: Buffer<'a>) =
         with get (idx: int) : 'a = FailIfOutsideKernel()
         and set (idx: int) (value: 'a) = FailIfOutsideKernel()
 
-    member this.Dispose() = (this :> IDisposable).Dispose()
 
     interface IDisposable with
         member this.Dispose() = buffer.Dispose()
@@ -20,16 +18,49 @@ type ClArray<'a when 'a : struct>(buffer: Buffer<'a>) =
     interface IClMem with
         member this.Size = (buffer :> IClMem).Size
         member this.Data = (buffer :> IClMem).Data
+
+    member this.Dispose() = (this :> IDisposable).Dispose()
 
     override this.ToString() =
         sprintf "%O, %A" (buffer :> IClMem).Data (buffer :> IClMem).Size
 
-type ClCell<'a when 'a : struct>(buffer: Buffer<'a>) =
+    static member ToDevice
+        (
+            array: 'a[],
+            ?hostAccessMode: HostAccessMode,
+            ?deviceAccessMode: DeviceAccessMode,
+            ?allocationMode: AllocationMode
+        ) =
+
+        opencl {
+            let hostAccessMode = defaultArg hostAccessMode ClMemFlags.Default.HostAccessMode
+            let deviceAccessMode = defaultArg deviceAccessMode ClMemFlags.Default.DeviceAccessMode
+            let allocationMode = defaultArg allocationMode ClMemFlags.Default.AllocationMode
+
+            let! context = ClTask.ask
+
+            let buffer =
+                new ClBuffer<'a>(
+                    context.Provider,
+                    Data array,
+                    {
+                        HostAccessMode = hostAccessMode
+                        DeviceAccessMode = deviceAccessMode
+                        AllocationMode = allocationMode
+                    }
+                )
+            // context.CommandQueue.Post <| Msg.CreateToHostMsg(buffer, array)
+            return new ClArray<'a>(buffer)
+        }
+
+    // TODO impl alloc
+
+type ClCell<'a when 'a : struct>(buffer: ClBuffer<'a>) =
     member internal this.Buffer = buffer
 
-    // static member inline (!) (cell: ClCell<'a>) : 'a = failIfOutsideKernel ()
-
-    member this.Dispose() = (this :> IDisposable).Dispose()
+    member this.Value
+        with get () : 'a = FailIfOutsideKernel()
+        and set (value: 'a) = FailIfOutsideKernel()
 
     interface IDisposable with
         member this.Dispose() = buffer.Dispose()
@@ -37,6 +68,8 @@ type ClCell<'a when 'a : struct>(buffer: Buffer<'a>) =
     interface IClMem with
         member this.Size = (buffer :> IClMem).Size
         member this.Data = (buffer :> IClMem).Data
+
+    member this.Dispose() = (this :> IDisposable).Dispose()
 
 // fsharplint:disable-next-line
 type clarray<'a when 'a : struct> = ClArray<'a>
@@ -48,7 +81,7 @@ module ClArray =
     let toDevice (array: 'a[]) = opencl {
         let! context = ClTask.ask
 
-        let buffer = new Buffer<'a>(context.Provider, Data array, { ClMemFlags.Default  with AllocationMode = AllocationMode.UseHostPtr })
+        let buffer = new ClBuffer<'a>(context.Provider, Data array, { ClMemFlags.Default  with AllocationMode = AllocationMode.UseHostPtr })
         // context.CommandQueue.Post <| Msg.CreateToHostMsg(buffer, array)
         return new ClArray<'a>(buffer)
     }
@@ -68,7 +101,7 @@ module ClArray =
     let alloc<'a when 'a : struct> (size: int) = opencl {
         let! context = ClTask.ask
 
-        let buffer = new Buffer<'a>(context.Provider, Size size)
+        let buffer = new ClBuffer<'a>(context.Provider, Size size)
         return new ClArray<'a>(buffer)
     }
 
@@ -76,7 +109,7 @@ module ClCell =
     let toDevice (value: 'a) = opencl {
         let! context = ClTask.ask
 
-        let buffer = new Buffer<'a>(context.Provider, Size 1)
+        let buffer = new ClBuffer<'a>(context.Provider, Size 1)
         context.Provider.CommandQueue.Post <| Msg.CreateToHostMsg(buffer, [| value |])
         return new ClCell<'a>(buffer)
     }
@@ -94,6 +127,6 @@ module ClCell =
     let alloc<'a when 'a : struct> () = opencl {
         let! context = ClTask.ask
 
-        let buffer = new Buffer<'a>(context.Provider, Size 1)
+        let buffer = new ClBuffer<'a>(context.Provider, Size 1)
         return new ClCell<'a>(buffer)
     }

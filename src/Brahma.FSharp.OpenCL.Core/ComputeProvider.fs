@@ -2,12 +2,8 @@ namespace Brahma.FSharp.OpenCL
 
 open OpenCL.Net
 open System
-
-open OpenCL.Net
-open System
-open System.Runtime.InteropServices
-
 open Brahma.FSharp.OpenCL.Translator
+open FSharp.Quotations
 
 type ComputeProvider(device: Device) as this =
     let clContext =
@@ -22,7 +18,7 @@ type ComputeProvider(device: Device) as this =
     let finish queue =
         let error = Cl.Finish(queue)
         if error <> ErrorCode.Success then
-            raise (Cl.Exception error :> Exception)
+            raise <| Cl.Exception error
 
     let getNewProcessor () = MailboxProcessor.Start <| fun inbox ->
         let commandQueue =
@@ -59,16 +55,14 @@ type ComputeProvider(device: Device) as this =
 
             | MsgFree a ->
                 //printfn "Free"
-                if itIsFirstNonqueueMsg
-                then
+                if itIsFirstNonqueueMsg then
                     finish commandQueue
                     itIsFirstNonqueueMsg  <- false
                 this.HandleFree a
 
             | MsgSetArguments a ->
                 //printfn "SetArgs"
-                if itIsFirstNonqueueMsg
-                then
+                if itIsFirstNonqueueMsg then
                     finish commandQueue
                     itIsFirstNonqueueMsg  <- false
                 a ()
@@ -103,67 +97,62 @@ type ComputeProvider(device: Device) as this =
 
     member this.ClContext = clContext
 
-    member this.CreateKernel(srcLambda) = GpuKernel<_,_>(device, clContext, srcLambda)
+    member this.CreateKernel(srcLambda: Expr<'a -> 'b>) = ClKernel<_,_>(device, clContext, srcLambda)
 
-    member private this.HandleFree (free:FreeCrate) =
-        free.Apply
-                {
-                    new FreeCrateEvaluator
-                    with member this.Eval (a:Free<'t>) = a.Source.Free()
-                }
+    member private this.HandleFree(free: IFreeCrate) =
+        { new IFreeCrateEvaluator with
+            member this.Eval crate = crate.Source.Free()
+        }
+        |> free.Apply
 
-    member private this.HandleToGPU (queue, toGpu:ToGPUCrate) =
-        toGpu.Apply
-                {
-                    new ToGPUCrateEvaluator
-                    with member this.Eval (a) =
-                            let eventID = ref Unchecked.defaultof<Event>
+    member private this.HandleToGPU(queue, toGpu: IToGPUCrate) =
+        { new IToGPUCrateEvaluator with
+            member this.Eval crate =
+                let eventID = ref Unchecked.defaultof<Event>
 
-                            let mem = a.Destination.ClMemory
-                            let elementSize = a.Destination.ElementSize
-                            let error = Cl.EnqueueWriteBuffer(queue, mem, Bool.False, System.IntPtr(0),
-                                                              System.IntPtr(a.Destination.Length * elementSize), a.Source, 0u, null, eventID)
+                let mem = crate.Destination.ClMemory
+                let elementSize = crate.Destination.ElementSize
+                let error = Cl.EnqueueWriteBuffer(queue, mem, Bool.False, IntPtr(0),
+                                                  IntPtr(crate.Destination.Length * elementSize), crate.Source, 0u, null, eventID)
 
-                            if error <> ErrorCode.Success
-                            then raise (Cl.Exception error)
-                }
+                if error <> ErrorCode.Success then
+                    raise (Cl.Exception error)
+        }
+        |> toGpu.Apply
 
-    member private this.HandleToHost (queue, toHost:ToHostCrate) =
-        toHost.Apply
-                {
-                    new ToHostCrateEvaluator
-                    with member this.Eval (a) =
-                            let eventID = ref Unchecked.defaultof<Event>
-                            let mem = a.Source.ClMemory
-                            let elementSize = a.Source.ElementSize
-                            let error = Cl.EnqueueReadBuffer(queue, mem, Bool.False, System.IntPtr(0),
-                                                             System.IntPtr(a.Source.Length * elementSize), a.Destination, 0u, null, eventID)
+    member private this.HandleToHost(queue, toHost: IToHostCrate) =
+        { new IToHostCrateEvaluator with
+            member this.Eval crate =
+                let eventID = ref Unchecked.defaultof<Event>
+                let mem = crate.Source.ClMemory
+                let elementSize = crate.Source.ElementSize
+                let error = Cl.EnqueueReadBuffer(queue, mem, Bool.False, IntPtr(0),
+                                                 IntPtr(crate.Source.Length * elementSize), crate.Destination, 0u, null, eventID)
 
-                            if error <> ErrorCode.Success
-                            then raise (Cl.Exception error)
+                if error <> ErrorCode.Success then
+                    raise (Cl.Exception error)
 
-                            finish queue
+                finish queue
 
-                            match a.ReplyChannel with
-                            | Some ch -> ch.Reply a.Destination
-                            | None -> ()
-                }
+                match crate.ReplyChannel with
+                | Some ch -> ch.Reply crate.Destination
+                | None -> ()
+        }
+        |> toHost.Apply
 
-    member private this.HandleRun (queue, run:RunCrate) =
-        run.Apply
-                {
-                    new RunCrateEvaluator
-                    with member this.Eval (a) =
+    member private this.HandleRun(queue, run: IRunCrate) =
+        { new IRunCrateEvaluator with
+            member this.Eval crate =
+                let range = crate.Kernel.Range
+                let workDim = uint32 range.Dimensions
+                let eventID = ref Unchecked.defaultof<Event>
+                let error = Cl.EnqueueNDRangeKernel(queue, crate.Kernel.ClKernel, workDim, null,
+                                                    range.GlobalWorkSize, range.LocalWorkSize, 0u, null, eventID)
 
-                            let range = a.Kernel.Range
-                            let workDim = uint32 range.Dimensions
-                            let eventID = ref Unchecked.defaultof<Event>
-                            let error = Cl.EnqueueNDRangeKernel(queue, a.Kernel.ClKernel, workDim, null,
-                                                                range.GlobalWorkSize, range.LocalWorkSize, 0u, null, eventID)
-
-                            if error <> ErrorCode.Success
-                            then raise (Cl.Exception error)
-                }
+                if error <> ErrorCode.Success then
+                    raise (Cl.Exception error)
+        }
+        |> run.Apply
 
     member this.GetNewProcessor () = getNewProcessor ()
 
