@@ -11,9 +11,8 @@ type ClArray<'a when 'a : struct>(buffer: ClBuffer<'a>) =
         with get (idx: int) : 'a = FailIfOutsideKernel()
         and set (idx: int) (value: 'a) = FailIfOutsideKernel()
 
-
     interface IDisposable with
-        member this.Dispose() = buffer.Dispose()
+        member this.Dispose() = buffer.Provider.CommandQueue.Post <| Msg.CreateFreeMsg(buffer)
 
     interface IClMem with
         member this.Size = (buffer :> IClMem).Size
@@ -23,37 +22,6 @@ type ClArray<'a when 'a : struct>(buffer: ClBuffer<'a>) =
 
     override this.ToString() =
         sprintf "%O, %A" (buffer :> IClMem).Data (buffer :> IClMem).Size
-
-    static member ToDevice
-        (
-            array: 'a[],
-            ?hostAccessMode: HostAccessMode,
-            ?deviceAccessMode: DeviceAccessMode,
-            ?allocationMode: AllocationMode
-        ) =
-
-        opencl {
-            let hostAccessMode = defaultArg hostAccessMode ClMemFlags.Default.HostAccessMode
-            let deviceAccessMode = defaultArg deviceAccessMode ClMemFlags.Default.DeviceAccessMode
-            let allocationMode = defaultArg allocationMode ClMemFlags.Default.AllocationMode
-
-            let! context = ClTask.ask
-
-            let buffer =
-                new ClBuffer<'a>(
-                    context.Provider,
-                    Data array,
-                    {
-                        HostAccessMode = hostAccessMode
-                        DeviceAccessMode = deviceAccessMode
-                        AllocationMode = allocationMode
-                    }
-                )
-            // context.CommandQueue.Post <| Msg.CreateToHostMsg(buffer, array)
-            return new ClArray<'a>(buffer)
-        }
-
-    // TODO impl alloc
 
 type ClCell<'a when 'a : struct>(buffer: ClBuffer<'a>) =
     member internal this.Buffer = buffer
@@ -78,11 +46,18 @@ type clarray<'a when 'a : struct> = ClArray<'a>
 type clcell<'a when 'a : struct> = ClCell<'a>
 
 module ClArray =
+    // or allocate with null ptr and write
     let toDevice (array: 'a[]) = opencl {
         let! context = ClTask.ask
 
-        let buffer = new ClBuffer<'a>(context.Provider, Data array, { ClMemFlags.Default  with AllocationMode = AllocationMode.UseHostPtr })
-        // context.CommandQueue.Post <| Msg.CreateToHostMsg(buffer, array)
+        let buffer = context.Provider.CreateBuffer(Data array, allocationMode = AllocationMode.AllocAndCopyHostPtr)
+        return new ClArray<'a>(buffer)
+    }
+
+    let alloc<'a when 'a : struct> (size: int) = opencl {
+        let! context = ClTask.ask
+
+        let buffer = context.Provider.CreateBuffer(Size size, allocationMode = AllocationMode.AllocHostPtr)
         return new ClArray<'a>(buffer)
     }
 
@@ -98,19 +73,27 @@ module ClArray =
     // TODO impl it
     let copy (clArray: ClArray<'a>) = opencl { return clArray }
 
-    let alloc<'a when 'a : struct> (size: int) = opencl {
-        let! context = ClTask.ask
+    // TODO impl it
+    let copyTo (destination: ClArray<'a>) (source: ClArray<'a>) = opencl {
+        return 0
+    }
 
-        let buffer = new ClBuffer<'a>(context.Provider, Size size)
-        return new ClArray<'a>(buffer)
+    let close (clArray: ClArray<'a>) = opencl {
+        clArray.Dispose()
     }
 
 module ClCell =
     let toDevice (value: 'a) = opencl {
         let! context = ClTask.ask
 
-        let buffer = new ClBuffer<'a>(context.Provider, Size 1)
-        context.Provider.CommandQueue.Post <| Msg.CreateToHostMsg(buffer, [| value |])
+        let buffer = context.Provider.CreateBuffer(Data [| value |], allocationMode = AllocationMode.AllocAndCopyHostPtr)
+        return new ClCell<'a>(buffer)
+    }
+
+    let alloc<'a when 'a : struct> () = opencl {
+        let! context = ClTask.ask
+
+        let buffer = context.Provider.CreateBuffer(Size 1, allocationMode = AllocationMode.AllocHostPtr)
         return new ClCell<'a>(buffer)
     }
 
@@ -123,10 +106,3 @@ module ClCell =
     }
 
     let copy (clCell: ClCell<'a>) = opencl { return clCell }
-
-    let alloc<'a when 'a : struct> () = opencl {
-        let! context = ClTask.ask
-
-        let buffer = new ClBuffer<'a>(context.Provider, Size 1)
-        return new ClCell<'a>(buffer)
-    }

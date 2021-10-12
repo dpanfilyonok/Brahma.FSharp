@@ -7,7 +7,6 @@ open Brahma.FSharp.OpenCL.Translator
 open System
 open System.Runtime.InteropServices
 
-// TODO refactor
 type ClKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
     (
         provider: ComputeProvider,

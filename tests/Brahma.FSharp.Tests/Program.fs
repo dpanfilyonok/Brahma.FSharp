@@ -3,17 +3,46 @@ open Expecto
 open Brahma.FSharp.Tests
 open Brahma.FSharp.OpenCL
 
-// [<Tests>]
-// let allTests =
-//     testList "All tests" [
-//         Translator.tests
-//         Full.tests
-//         //Atomic.tests
-//         //Workflow.tests
-//         QuotationTransformers.tests
-//         Union.tests
-//     ]
-//     |> testSequenced
+[<Tests>]
+let allTests =
+    testList "All tests" [
+        Full.tests
+        Translator.tests
+        // Atomic.tests
+        Workflow.tests
+        QuotationTransformers.tests
+        Union.tests
+    ]
+    |> testSequenced
+
+
+[<EntryPoint>]
+let main argv =
+    allTests
+    |> runTestsWithCLIArgs [] argv
+
+    // let command =
+    //     <@
+    //         fun (range: Range1D) (inBuf:ClArray<int>) (outBuf:ClArray<int>) ->
+    //             let i = range.GlobalID0
+    //             outBuf.[i] <- inBuf.[i]
+    //     @>
+
+
+    // opencl {
+    //     let a = [|1;2;3;4|]
+    //     let b = [|0; 0; 0; 0|]
+    //     use! inBuf = ClArray.toDevice a
+    //     use! outBuf = ClArray.toDevice b
+    //     do! runCommand command <| fun x ->
+    //         x (Range1D(4)) inBuf outBuf
+
+    //     return! ClArray.toHost outBuf
+    // }
+    // |> ClTask.runSync context
+    // |> printfn "%A"
+
+    // 0
 
 // module internal Utils =
 //     let defaultWorkGroupSize = 256
@@ -51,41 +80,70 @@ open Brahma.FSharp.OpenCL
 //         return outputArray
 //     }
 
-module internal Utils =
-    let defaultWorkGroupSize = 256
+// module internal Utils =
+//     let defaultWorkGroupSize = 256
 
-    let getDefaultGlobalSize n =
-        let m = n - 1
-        m - m % defaultWorkGroupSize + defaultWorkGroupSize
+//     let getDefaultGlobalSize n =
+//         let m = n - 1
+//         m - m % defaultWorkGroupSize + defaultWorkGroupSize
 
-[<EntryPoint>]
-let main argv =
-    let inputArray = Array.create 100_000 true
-    let inputArrayLength = inputArray.Length
-    let copy =
-        <@
-            fun (ndRange: Range1D)
-                (inputArrayBuffer: bool clarray)
-                (outputArrayBuffer: bool clarray) ->
+// [<EntryPoint>]
+// let main argv =
+//     let inputArray = Array.create 100_000 1
+//     let inputArrayLength = inputArray.Length
+//     let copy =
+//         <@
+//             fun (ndRange: Range1D)
+//                 (inputArrayBuffer: int clarray)
+//                 (outputArrayBuffer: int clarray) ->
 
-                let i = ndRange.GlobalID0
-                if i < inputArrayLength then
-                    outputArrayBuffer.[i] <- inputArrayBuffer.[i]
-        @>
+//                 let i = ndRange.GlobalID0
+//                 if i < inputArrayLength then
+//                     outputArrayBuffer.[i] <- inputArrayBuffer.[i]
+//         @>
 
-    opencl {
-        let! a = ClArray.toDevice inputArray
-        let! b = ClArray.alloc<bool> 100_000
-        do! runCommand copy <| fun x ->
-            x
-            <| Range1D.CreateValid(inputArray.Length, Utils.defaultWorkGroupSize)
-            <| a
-            <| b
+//     opencl {
+//         use! a = ClArray.ToDevice(inputArray, allocationMode = AllocationMode.UseHostPtr)
+//         use! b = ClArray.alloc<int> 100_000
+//         do! runCommand copy <| fun x ->
+//             x
+//             <| Range1D.CreateValid(inputArray.Length, Utils.defaultWorkGroupSize)
+//             <| a
+//             <| b
 
-        return! ClArray.toHost b
-    }
-    |> ClTask.runSync (ClContext(deviceType = ClDeviceType.CPU))
-    |> printfn "%A"
+//         return! ClArray.toHost b
+//     }
+//     |> ClTask.runSync (ClContext(deviceType = ClDeviceType.CPU))
+//     |> printfn "%A"
+
+//     0
+    // let kernel =
+    //     <@
+    //         fun (range: Range1D) (a: int clarray) ->
+    //             let gid = range.GlobalID0
+    //             a.[gid] <- 1
+    //     @>
+
+    // opencl {
+    //     use! a = ClArray.alloc<int> 128
+    //     do! runCommand kernel <| fun x ->
+    //         x
+    //         <| Range1D(128, 128)
+    //         <| a
+
+    //     // use res =
+    //     //     opencl {
+    //     //         return
+    //     //             { new System.IDisposable with
+    //     //                 member this.Dispose() = ()
+    //     //             }
+    //     //     }
+    //     // let! s = opencl {return res}
+    //     return! ClArray.toHost a
+
+    // }
+    // |> ClTask.runSync (ClContext(deviceType = ClDeviceType.CPU))
+    // |> printfn "%A"
 
     // let kernel = gpu.CreateKernel copy
     // let a = gpu.Allocate<bool>(inputArray)
@@ -98,7 +156,9 @@ let main argv =
     // p.PostAndReply(fun ch -> Msg.MsgNotifyMe ch)
     // printfn "%A" inputArray
 
-    0
+
+
+    // 0
 
 // [<EntryPoint>]
 // let main argv =
@@ -158,3 +218,15 @@ let main argv =
 //     // p.Post <| Msg.CreateT
 
 //     0
+
+// TODO тест на булы с копирование
+// TODO тест на сложные операции с булами
+// TODO тест на простые операции с булами
+// TODO реализация копирования массивов
+// TODO проверка что в транляторе все работает
+// TODO проверка что в кернеле все верно
+// TODO проверка что в буфере все верно
+// TODO прверить синхронизацию при toHost
+// TODO подумать на апи ClArray
+// TODO тест на use!
+// TODO parallel

@@ -59,25 +59,25 @@ type Msg =
 
     static member CreateToHostMsg<'a when 'a: struct>(src, dst, ?ch) =
         { new IToHostCrate with
-            member this.Apply e = e.Eval(ToHost<'a>(src, dst, ?replyChannel = ch))
+            member this.Apply evaluator = evaluator.Eval <| ToHost<'a>(src, dst, ?replyChannel = ch)
         }
         |> MsgToHost
 
     static member CreateToGPUMsg<'a when 'a: struct>(src, dst) =
         { new IToGPUCrate with
-            member this.Apply e = e.Eval(ToGPU<'a>(src, dst))
+            member this.Apply evaluator = evaluator.Eval <| ToGPU<'a>(src, dst)
         }
         |> MsgToGPU
 
-    static member CreateFreeMsg(src) =
+    static member CreateFreeMsg<'a when 'a: struct>(src) =
         { new IFreeCrate with
-            member this.Apply e = e.Eval(Free src)
+            member this.Apply evaluator = evaluator.Eval <| Free<'a>(src)
         }
         |> MsgFree
 
     static member CreateRunMsg<'TRange, 'a when 'TRange :> INDRangeDimension>(kernel) =
         { new IRunCrate with
-            member this.Apply e = e.Eval(Run<'TRange, 'a> kernel)
+            member this.Apply evaluator = evaluator.Eval <| Run<'TRange, 'a>(kernel)
         }
         |> MsgRun
 

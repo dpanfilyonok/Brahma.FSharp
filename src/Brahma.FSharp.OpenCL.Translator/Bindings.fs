@@ -10,6 +10,5 @@ module Bindings =
 
     let [<Literal>] Buffer = "clarray"
 
-    // TODO rename it
-    type SpecificBool = byte
-    let CSpecificBool = UChar
+    type BoolHostAlias = byte
+    let BoolClAlias = UChar

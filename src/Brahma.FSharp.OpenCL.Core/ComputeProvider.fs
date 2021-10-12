@@ -38,48 +38,49 @@ type ComputeProvider(device: Device) as this =
             let! msg = inbox.Receive()
             match msg with
             | MsgToHost a ->
-                //printfn "ToHost"
+                printfn "ToHost"
                 itIsFirstNonqueueMsg  <- true
                 this.HandleToHost(commandQueue, a)
 
             | MsgToGPU a ->
-                //printfn "ToGPU"
+                printfn "ToGPU"
                 itIsFirstNonqueueMsg  <- true
                 this.HandleToGPU(commandQueue, a)
 
             | MsgRun a ->
-                //printfn "Run"
+                printfn "Run"
                 itIsFirstNonqueueMsg  <- true
                 this.HandleRun(commandQueue, a)
 
             | MsgFree a ->
-                //printfn "Free"
+                printfn "Free"
                 if itIsFirstNonqueueMsg then
                     finish commandQueue
                     itIsFirstNonqueueMsg  <- false
                 this.HandleFree a
 
             | MsgSetArguments a ->
-                //printfn "SetArgs"
+                printfn "SetArgs"
                 if itIsFirstNonqueueMsg then
                     finish commandQueue
                     itIsFirstNonqueueMsg  <- false
                 a ()
 
             | MsgNotifyMe ch ->
-                //printfn "Notify"
+                printfn "Notify"
                 itIsFirstNonqueueMsg  <- true
                 finish commandQueue
                 ch.Reply ()
 
             | MsgBarrier o ->
-                //printfn "Barrier"
+                printfn "Barrier"
                 itIsFirstNonqueueMsg  <- true
                 finish commandQueue
                 o.ImReady()
                 while not <| o.CanContinue() do ()
 
             | MsgFinish c ->
+                printfn "Finish"
                 OpenCL.Net.Cl.Finish(commandQueue) |> ignore
                 c.Reply()
 

@@ -2,7 +2,7 @@ namespace Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 
 open FSharp.Reflection
 open FSharp.Quotations
-open Brahma.FSharp.OpenCL.Translator
+open Brahma.FSharp.OpenCL
 
 module Utils =
     let rec getFunctionArgTypes (funType: System.Type) =

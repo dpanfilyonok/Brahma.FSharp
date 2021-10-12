@@ -7,6 +7,8 @@ open Brahma.FSharp.OpenCL.Translator
 
 //memory flags: https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clCreateBuffer.html
 
+// except
+
 [<RequireQualifiedAccess>]
 type HostAccessMode =
     | ReadWrite
@@ -26,6 +28,7 @@ type AllocationMode =
     | AllocHostPtr
     | CopyHostPtr
     | AllocAndCopyHostPtr
+    | Default
 
 type ClMemFlags =
     {
@@ -38,13 +41,14 @@ type ClMemFlags =
         {
             HostAccessMode = HostAccessMode.ReadWrite
             DeviceAccessMode = DeviceAccessMode.ReadWrite
-            AllocationMode = AllocationMode.AllocHostPtr
+            AllocationMode = AllocationMode.Default
         }
 
 type BufferInitParam<'a> =
     | Data of 'a[]
     | Size of int
 
+// нужны все таки отдельные параметры и аллок хост - обязательный??
 type ClBuffer<'a when 'a : struct>
     (
         provider: ComputeProvider,
@@ -58,7 +62,7 @@ type ClBuffer<'a when 'a : struct>
         if provider.Translator.TranslatorOptions |> Array.contains UseNativeBooleanType then
             Marshal.SizeOf(typeof<'a>)
         else
-            Marshal.SizeOf(if typeof<'a> = typeof<bool> then typeof<SpecificBool> else typeof<'a>)
+            Marshal.SizeOf(if typeof<'a> = typeof<bool> then typeof<BoolHostAlias> else typeof<'a>)
 
     let intPtrSize = IntPtr(Marshal.SizeOf typedefof<IntPtr>)
 
@@ -77,20 +81,27 @@ type ClBuffer<'a when 'a : struct>
         | HostAccessMode.NotAccessible -> flags <- flags ||| MemFlags.HostNoAccess
 
         match memFlags.DeviceAccessMode with
-        | DeviceAccessMode.ReadWrite -> flags <- flags ||| MemFlags.ReadWrite
+        | DeviceAccessMode.ReadWrite -> flags <- flags ||| MemFlags.ReadWrite // default
         | DeviceAccessMode.ReadOnly -> flags <- flags ||| MemFlags.ReadOnly
         | DeviceAccessMode.WriteOnly -> flags <- flags ||| MemFlags.WriteOnly
+
+        match data with
+        | Size _  when
+            memFlags.AllocationMode = AllocationMode.UseHostPtr ||
+            memFlags.AllocationMode = AllocationMode.CopyHostPtr ||
+            memFlags.AllocationMode = AllocationMode.AllocAndCopyHostPtr -> failwith "lol"
+        | Data _ when
+            memFlags.AllocationMode <> AllocationMode.UseHostPtr &&
+            memFlags.AllocationMode <> AllocationMode.CopyHostPtr &&
+            memFlags.AllocationMode <> AllocationMode.AllocAndCopyHostPtr -> failwith "lol"
+        | _ -> ()
 
         match memFlags.AllocationMode with
         | AllocationMode.UseHostPtr -> flags <- flags ||| MemFlags.UseHostPtr
         | AllocationMode.AllocHostPtr -> flags <- flags ||| MemFlags.AllocHostPtr
         | AllocationMode.CopyHostPtr -> flags <- flags ||| MemFlags.CopyHostPtr
         | AllocationMode.AllocAndCopyHostPtr -> flags <- flags ||| MemFlags.AllocHostPtr ||| MemFlags.CopyHostPtr
-
-        // TODO fix flags
-        // match data with
-        // | Size _ -> () //flags <- flags ||| MemFlags.AllocHostPtr // ????
-        // | Data _ -> flags <- flags ||| MemFlags.CopyHostPtr
+        | AllocationMode.Default -> ()
 
         flags
 
@@ -118,6 +129,8 @@ type ClBuffer<'a when 'a : struct>
 
         buf
 
+    member this.Provider = provider
+
     interface IBuffer<'a> with
         member this.ClMemory = buffer
 
@@ -144,3 +157,28 @@ type ClBuffer<'a when 'a : struct>
 
     member this.Dispose() = (this :> IDisposable).Dispose()
     member this.Length = (this :> IBuffer<'a>).Length
+
+[<AutoOpen>]
+module ComputeProviderBufferextension =
+    type ComputeProvider with
+        member this.CreateBuffer
+            (
+                data: BufferInitParam<'a>,
+                ?hostAccessMode: HostAccessMode,
+                ?deviceAccessMode: DeviceAccessMode,
+                ?allocationMode: AllocationMode
+            ) =
+
+            let hostAccessMode = defaultArg hostAccessMode ClMemFlags.Default.HostAccessMode
+            let deviceAccessMode = defaultArg deviceAccessMode ClMemFlags.Default.DeviceAccessMode
+            let allocationMode = defaultArg allocationMode ClMemFlags.Default.AllocationMode
+
+            new ClBuffer<'a>(
+                this,
+                data,
+                {
+                    HostAccessMode = hostAccessMode
+                    DeviceAccessMode = deviceAccessMode
+                    AllocationMode = allocationMode
+                }
+            )

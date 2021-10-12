@@ -2,55 +2,67 @@ namespace Brahma.FSharp.OpenCL
 
 open FSharp.Quotations
 
-type ClTask<'a> =
-    ClTask of (ClContext -> 'a)
+type ClTask<'a> = ClTask of (ClContext -> 'a)
 
 type ClTaskBuilder() =
-    let runEvaluation (ClTask f) = f
+    let runComputation (ClTask f) env = f env
 
-    member this.Bind(m, k) = ClTask <| fun env ->
-        let res = runEvaluation m env
-        runEvaluation <| k res <| env
+    member this.Bind(x, f) =
+        ClTask <| fun env ->
+            let x' = runComputation x env
+            runComputation (f x') env
 
-    member this.Return x = ClTask <| fun _ ->
+    member this.Return(x) =
+        ClTask <| fun _ ->
+            x
+
+    member this.ReturnFrom(x) =
         x
 
-    member this.ReturnFrom m = m
-
     member this.Zero() =
-        this.Return()
+        this.Return(())
 
-    member this.Combine(m1, m2) = ClTask <| fun env ->
-        runEvaluation m1 env
-        runEvaluation m2 env
+    member this.Combine(m1, m2) =
+        this.Bind(m1, (fun () -> m2))
 
-    member this.Delay(rest) = ClTask <| fun env ->
-        runEvaluation (rest()) env
+    member this.Delay(rest) =
+        this.Bind(this.Zero(), (fun () -> rest ()))
 
-    member this.While(predicate, body) = ClTask <| fun env ->
-        while predicate() do
-            runEvaluation body env
+    member this.Run(m) = m
 
-    member this.For(elems, body) = ClTask <| fun env ->
-        for elem in elems do
-            runEvaluation (body elem) env
+    member this.TryWith(ClTask body, handler) =
+        ClTask <| fun env ->
+            try
+                body env
+            with
+            | e ->
+                let (ClTask handlerBody) = handler e
+                handlerBody env
 
-    member this.TryWith(tryBlock, handler) = ClTask <| fun env ->
-        try
-            runEvaluation tryBlock env
-        with
-        | e ->
-            runEvaluation (handler e) env
+    member this.TryFinally(ClTask body, finalizer) =
+        ClTask <| fun env ->
+            try
+                body env
+            finally
+                finalizer ()
 
-    member this.TryFinally(body, compensation) =
-        try
-            this.ReturnFrom(body())
-        finally
-            compensation()
+    member this.Using(disposableRes: #System.IDisposable, f) =
+        this.TryFinally(
+            this.Delay(fun () -> f disposableRes),
+            fun () -> disposableRes.Dispose()
+        )
 
-    member this.Using(x: #System.IDisposable, f) =
-        let body' = fun () -> f x
-        this.TryFinally(body', fun () -> x.Dispose())
+    member this.While(cond, body) =
+        if not (cond ()) then
+            this.Zero()
+        else
+            this.Combine(this.Run(body), this.Delay(fun () -> this.While(cond, body)))
+
+    member this.For(xs: seq<'T>, f) =
+        this.Bind(
+            this.Return(xs.GetEnumerator()),
+            fun en -> this.While((fun () -> en.MoveNext()), this.Delay(fun () -> f en.Current))
+        )
 
 module ClTask =
     let runSync (context: ClContext) (ClTask f) =
@@ -73,13 +85,11 @@ module ClTaskImpl =
             let kernel = ctx.CreateKernel command
 
             ctx.Provider.CommandQueue.Post <| MsgSetArguments(fun () -> binder kernel.SetArguments)
-            ctx.Provider.CommandQueue.PostAndReply <| MsgNotifyMe
-            ctx.Provider.CommandQueue.Post <| Msg.CreateRunMsg<_,_>(kernel)
+            ctx.Provider.CommandQueue.Post <| Msg.CreateRunMsg<_, _>(kernel)
         }
 
     let runKernel (kernel: ClKernel<'range, 'a>) (processor: MailboxProcessor<Msg>) (binder: ('range -> 'a) -> unit) : ClTask<unit> =
         opencl {
             processor.Post <| MsgSetArguments(fun () -> binder kernel.SetArguments)
-            processor.PostAndReply <| MsgNotifyMe
-            processor.Post <| Msg.CreateRunMsg<_,_>(kernel)
+            processor.Post <| Msg.CreateRunMsg<_, _>(kernel)
         }

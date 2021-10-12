@@ -40,7 +40,7 @@ module Type =
                 if context.TranslatorOptions |> Array.contains UseNativeBooleanType then
                     PrimitiveType<Lang>(Bool) :> Type<Lang>
                 else
-                    PrimitiveType<Lang>(CSpecificBool) :> Type<Lang>
+                    PrimitiveType<Lang>(BoolClAlias) :> Type<Lang>
             | "float"
             | "double" ->
                 context.Flags.enableFP64 <- true

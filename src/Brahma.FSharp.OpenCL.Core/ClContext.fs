@@ -8,28 +8,30 @@ exception EmptyDevicesException of string
 [<RequireQualifiedAccess>]
 type ClPlatform =
     | Intel
-    | AMD
-    | NVIDIA
-    | Pattern of string
+    | Amd
+    | Nvidia
+    | Any
+    | Custom of pattern: string
 
     static member internal ConvertToPattern(platform: ClPlatform) =
         match platform with
         | Intel -> "Intel*"
-        | AMD -> "AMD*"
-        | NVIDIA -> "NVIDIA*"
-        | Pattern pattern -> pattern
+        | Amd -> "AMD*"
+        | Nvidia -> "NVIDIA*"
+        | Any -> "*"
+        | Custom pattern -> pattern
 
 [<RequireQualifiedAccess>]
 type ClDeviceType =
     | CPU
     | GPU
-    | Any
+    | Default
 
     static member internal ConvertToDeviceType(deviceType: ClDeviceType) =
         match deviceType with
         | CPU -> DeviceType.Cpu
         | GPU -> DeviceType.Gpu
-        | Any -> DeviceType.Default
+        | Default -> DeviceType.Default
 
 module internal Device =
     open System.Text.RegularExpressions
@@ -60,8 +62,8 @@ module internal Device =
 
 type ClContext(provider: ComputeProvider) =
     new(?platform: ClPlatform, ?deviceType: ClDeviceType) =
-        let platform = defaultArg platform (ClPlatform.Pattern "*")
-        let deviceType = defaultArg deviceType ClDeviceType.Any
+        let platform = defaultArg platform (ClPlatform.Custom "*")
+        let deviceType = defaultArg deviceType ClDeviceType.Default
 
         let device =
             Device.getFirstAppropriateDevice
