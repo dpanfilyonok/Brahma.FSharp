@@ -77,14 +77,14 @@ module ClTask =
 
     let runSync (context: ClContext) (ClTask f) =
         let res = f context
-        context.Provider.CommandQueue.PostAndReply <| MsgFinish
+        context.Provider.CommandQueue.PostAndReply <| MsgNotifyMe
         res
 
     // TODO fix it
     let inParallel (tasks: seq<ClTask<'a>>) = opencl {
         let! ctx = ask
 
-        ctx.Provider.CommandQueue.PostAndReply <| Msg.MsgFinish
+        ctx.Provider.CommandQueue.PostAndReply <| Msg.MsgNotifyMe
 
         let syncMsgs = Msg.CreateBarrierMessages (Seq.length tasks)
         let ctxs = Array.create (Seq.length tasks) (ctx.WithNewComputeProvider())

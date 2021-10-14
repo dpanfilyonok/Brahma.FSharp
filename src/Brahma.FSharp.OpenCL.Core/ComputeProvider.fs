@@ -70,11 +70,6 @@ type ComputeProvider(context: Context, device: Device) as this =
                     o.ImReady()
                     while not <| o.CanContinue() do ()
 
-                | MsgFinish c ->
-                    // printfn "Finish %A" <| this.GetHashCode()
-                    OpenCL.Net.Cl.Finish(commandQueue) |> ignore
-                    c.Reply()
-
                 return! loop 0
             }
 

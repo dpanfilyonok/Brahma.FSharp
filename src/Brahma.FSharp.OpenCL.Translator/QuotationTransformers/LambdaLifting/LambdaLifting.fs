@@ -43,31 +43,6 @@ module LambdaLifting =
                 inExpr |> parameterLiftExprImpl extendedCtx
             )
 
-        // | Patterns.PropertySet (o, prop, idxs, value) ->
-        //     // let localFreeVars = Utils.collectFreeVars definition
-        //     // let freeFunctionVars = Utils.collectFreeFunctionVars definition
-
-        //     // let getSetFreeVars (fVar: Var) =
-        //     //     Context.getFunctionFreeVariables fVar ctx
-        //     //     |> Option.defaultValue List.empty
-        //     //     |> Set.ofList
-
-        //     // let extendedFreeVars =
-        //     //     freeFunctionVars
-        //     //     |> Set.map getSetFreeVars
-        //     //     |> Set.unionMany
-
-        //     // let freeVars = Set.union localFreeVars extendedFreeVars |> Set.toList
-
-        //     // let (substitution, newFuncVar) = Context.makeApplication f freeVars
-        //     // let newDefinition = parameterLiftExprImpl ctx definition
-        //     // let extendedCtx =
-        //     //     ctx
-        //     //     |> Context.setFunctionFreeVariables f freeVars
-        //     //     |> Context.setFunctionSubstitution f substitution
-
-        //     failwith ""
-
         | ExprShape.ShapeLambda (x, body) ->
             Expr.Lambda(x, parameterLiftExprImpl ctx body)
 

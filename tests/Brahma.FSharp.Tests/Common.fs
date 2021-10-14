@@ -3,7 +3,6 @@ namespace Brahma.FSharp.Tests
 open System.IO
 open Brahma.FSharp.OpenCL
 open Expecto
-//open Brahma.FSharp.OpenCL.WorkflowBuilder
 open Brahma.FSharp.OpenCL.Translator
 open Brahma.FSharp.OpenCL.Printer.AST
 open FSharp.Quotations

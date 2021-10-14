@@ -6,7 +6,7 @@ open Microsoft.FSharp.Core.LanguagePrimitives
 
 [<AutoOpen>]
 module VarDefsToLambdaTransformer =
-    // TODO need way to define expression vs statements (now it very primitive)
+    // TODO need way to identify expression vs statements (now it is very primitive)
     let rec isPrimitiveExpression (expr: Expr) =
         match expr with
         | Patterns.Value _

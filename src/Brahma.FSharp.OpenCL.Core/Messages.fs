@@ -55,7 +55,6 @@ type Msg =
     | MsgSetArguments of (unit -> unit)
     | MsgNotifyMe of AsyncReplyChannel<unit>
     | MsgBarrier of SyncObject
-    | MsgFinish of AsyncReplyChannel<unit>
 
     static member CreateToHostMsg<'a when 'a: struct>(src, dst, ?ch) =
         { new IToHostCrate with

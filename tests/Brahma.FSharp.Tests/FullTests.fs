@@ -1,11 +1,7 @@
 ﻿module Full
 
-//open Brahma.FSharp.OpenCL.WorkflowBuilder
-open Brahma.FSharp.OpenCL.Translator
 open Expecto
-open OpenCL.Net
 open Brahma.FSharp.OpenCL
-//open Brahma.FSharp.OpenCL.Extensions
 open FSharp.Quotations
 open Brahma.FSharp.Tests
 
@@ -20,8 +16,6 @@ let intInArr = [| 0 .. defaultInArrayLength - 1 |]
 let float32Arr = Array.init defaultInArrayLength float32
 let default1D = Range1D(defaultInArrayLength, 1)
 let default2D = Range2D(defaultInArrayLength, 1)
-let deviceType = DeviceType.Default
-let platformName = "*"
 
 let checkResult command (inArr: 'a[]) (expectedArr: 'a[]) =
     let actual =
@@ -1014,7 +1008,7 @@ let letQuotationTransformerSystemTests =
 
 let structTests =
     testList "Struct tests" [
-        testCase "Simple seq of struct." <| fun _ ->
+        ptestCase "Simple seq of struct." <| fun _ ->
             let command =
                 <@
                     fun (range: Range1D) (buf:  ClArray<TestStruct>) ->

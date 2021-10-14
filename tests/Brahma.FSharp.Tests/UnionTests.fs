@@ -84,7 +84,7 @@ let compileTests =
 
     let newUnionTestList = testList "NewUnion" [
         testGen
-            testCase
+            ptestCase
             "Test 1: TranslateTest.A"
             "Union.Compile.Test1.gen"
             "Union.Compile.Test1.cl"
@@ -95,7 +95,7 @@ let compileTests =
             @>
 
         testGen
-            testCase
+            ptestCase
             "Test 2: TranslateTest.B"
             "Union.Compile.Test2.gen"
             "Union.Compile.Test2.cl"
@@ -106,7 +106,7 @@ let compileTests =
             @>
 
         testGen
-            testCase
+            ptestCase
             "Test 3: TranslateTest.C"
             "Union.Compile.Test3.gen"
             "Union.Compile.Test3.cl"
