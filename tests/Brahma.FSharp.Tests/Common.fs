@@ -46,7 +46,7 @@ module Utils =
 
     let openclCompile (command: Expr<('a -> 'b)>) =
         let kernel = context.CreateKernel command
-        kernel.ClCode
+        kernel.Code
 
     let openclTranslate (expr: Expr) =
         let translator = FSQuotationToOpenCLTranslator()

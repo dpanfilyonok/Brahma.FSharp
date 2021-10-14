@@ -40,6 +40,25 @@ let bindTests = testList "Simple bind tests" [
 
         let output = ClTask.runSync context workflow
         Expect.equal output [| 12; 15; 20; 27 |] eqMsg
+
+    testCase "'use!' should free resources after all" <| fun () ->
+        let log = ResizeArray()
+
+        opencl {
+            use! resource = opencl {
+                return
+                    { new System.IDisposable with
+                        member this.Dispose() = log.Add "disposed"
+                    }
+            }
+
+            do! opencl { return log.Add "1" }
+            return! opencl { log.Add "2" }
+        }
+        |> ClTask.runSync context
+
+        "Last value should be 'disposed'"
+        |> Expect.isTrue (log.[log.Count - 1] = "disposed")
 ]
 
 let loopTests = testList "Loop tests" [

@@ -9,7 +9,7 @@ open System.Runtime.InteropServices
 
 type ClKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
     (
-        provider: ComputeProvider,
+        clContext: IContext,
         srcLambda: Expr<'TRange ->'a>,
         ?kernelName
     ) =
@@ -17,20 +17,20 @@ type ClKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
     let kernelName = defaultArg kernelName "brahmaKernel"
 
     let (clCode, newLambda) =
-        let (ast, newLambda) = provider.Translator.Translate(srcLambda)
+        let (ast, newLambda) = clContext.Translator.Translate(srcLambda)
         let code = Printer.AST.print ast
         code, newLambda
 
     let compileQuery additionalSources =
         let (program, error) =
             let sources = additionalSources @ [clCode] |> List.toArray
-            Cl.CreateProgramWithSource(provider.ClContext, uint32 sources.Length, sources, null)
+            Cl.CreateProgramWithSource(clContext.Context, uint32 sources.Length, sources, null)
 
         if error <> ErrorCode.Success then
             failwithf "Program creation failed: %A" error
 
         let options = " -cl-fast-relaxed-math -cl-mad-enable -cl-unsafe-math-optimizations "
-        let error = Cl.BuildProgram(program, 1u, [| provider.ClDevice |], options, null, IntPtr.Zero)
+        let error = Cl.BuildProgram(program, 1u, [| clContext.Device |], options, null, IntPtr.Zero)
 
         if error <> ErrorCode.Success then
             failwithf "Program compilation failed: %A" error
@@ -51,6 +51,7 @@ type ClKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
         clKernel
 
     let toIMem a =
+        // TODO extend types for private args (now only int supported)
         match box a with
         | :? IClMem as buf -> buf.Size, buf.Data
         | :? int as i -> IntPtr(Marshal.SizeOf i), box i
@@ -81,6 +82,7 @@ type ClKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
 
                     let argsWithoutMutexes = flattenArgs.[0 .. firstMutexIdx - 1]
 
+                    // TODO fix atomics
                     /// For each atomic variable throws exception if variable's type is not array,
                     /// otherwise returns length of array
                     let mutexLengths =
@@ -139,13 +141,14 @@ type ClKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
 
             getStarterFunction newLambda
 
-        member this.ClKernel = kernel
+        member this.Kernel = kernel
         member this.Range = !range :> INDRangeDimension
         member this.ReleaseAllBuffers() = usedBuffers := [||]
-        member this.ClCode = clCode
+        member this.Code = clCode
 
     member this.SetArguments = (this :> IKernel<_,_>).SetArguments
-    member this.ClKernel = (this :> IKernel<_,_>).ClKernel
+    member this.Kernel = (this :> IKernel<_,_>).Kernel
     member this.Range = (this :> IKernel<_,_>).Range
+    member this.Code = (this :> IKernel<_,_>).Code
     member this.ReleaseAllBuffers() = (this :> IKernel<_,_>).ReleaseAllBuffers
-    member this.ClCode = (this :> IKernel<_,_>).ClCode
+

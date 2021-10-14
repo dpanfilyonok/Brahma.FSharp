@@ -13,6 +13,8 @@ int x1 (__global int * m, private int n)
 {int l = m [9] ;
  int r = rUnitFunc (l, m, n) ;
  return (r + m [3]) ;}
+int ItemUnitFunc (__global int * m)
+{return x1 (m, 7) ;}
 __kernel void brahmaKernel (__global int * m)
 {int p = m [0] ;
- m [0] = x1 (m, 7) ;}
+ m [0] = ItemUnitFunc (m) ;}

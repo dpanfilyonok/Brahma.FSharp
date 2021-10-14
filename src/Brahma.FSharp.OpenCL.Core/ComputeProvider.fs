@@ -2,100 +2,90 @@ namespace Brahma.FSharp.OpenCL
 
 open OpenCL.Net
 open System
-open Brahma.FSharp.OpenCL.Translator
 
-type ComputeProvider(device: Device) as this =
-    let clContext =
-        let error = ref Unchecked.defaultof<ErrorCode>
-        let ctx = Cl.CreateContext(null, 1u, [| device |], null, System.IntPtr.Zero, error)
-
-        if !error <> ErrorCode.Success then
-            raise <| Cl.Exception !error
-
-        ctx
-
+type ComputeProvider(context: Context, device: Device) as this =
     let finish queue =
         let error = Cl.Finish(queue)
         if error <> ErrorCode.Success then
             raise <| Cl.Exception error
 
-    let getNewProcessor () = MailboxProcessor.Start <| fun inbox ->
-        let commandQueue =
-            let error = ref Unchecked.defaultof<ErrorCode>
-            let props = CommandQueueProperties.None
-            let queue = Cl.CreateCommandQueue(clContext, device, props, error)
+    let getNewProcessor () =
+        let processor = MailboxProcessor.Start <| fun inbox ->
+            let commandQueue =
+                let error = ref Unchecked.defaultof<ErrorCode>
+                let props = CommandQueueProperties.None
+                let queue = Cl.CreateCommandQueue(context, device, props, error)
 
-            if !error <> ErrorCode.Success then
-                raise <| Cl.Exception !error
+                if !error <> ErrorCode.Success then
+                    raise <| Cl.Exception !error
 
-            queue
+                queue
 
-        let mutable itIsFirstNonqueueMsg = true
+            let mutable itIsFirstNonqueueMsg = true
 
-        printfn "MB is started"
+            // printfn "MB is started"
 
-        let rec loop i = async {
-            let! msg = inbox.Receive()
-            match msg with
-            | MsgToHost a ->
-                printfn "ToHost"
-                itIsFirstNonqueueMsg  <- true
-                this.HandleToHost(commandQueue, a)
+            let rec loop i = async {
+                let! msg = inbox.Receive()
+                match msg with
+                | MsgToHost a ->
+                    // printfn "ToHost %A" <| this.GetHashCode()
+                    itIsFirstNonqueueMsg  <- true
+                    this.HandleToHost(commandQueue, a)
 
-            | MsgToGPU a ->
-                printfn "ToGPU"
-                itIsFirstNonqueueMsg  <- true
-                this.HandleToGPU(commandQueue, a)
+                | MsgToGPU a ->
+                    // printfn "ToGPU %A" <| this.GetHashCode()
+                    itIsFirstNonqueueMsg  <- true
+                    this.HandleToGPU(commandQueue, a)
 
-            | MsgRun a ->
-                printfn "Run"
-                itIsFirstNonqueueMsg  <- true
-                this.HandleRun(commandQueue, a)
+                | MsgRun a ->
+                    // printfn "Run %A" <| this.GetHashCode()
+                    itIsFirstNonqueueMsg  <- true
+                    this.HandleRun(commandQueue, a)
 
-            | MsgFree a ->
-                printfn "Free"
-                if itIsFirstNonqueueMsg then
+                | MsgFree a ->
+                    // printfn "Free %A" <| this.GetHashCode()
+                    if itIsFirstNonqueueMsg then
+                        finish commandQueue
+                        itIsFirstNonqueueMsg  <- false
+                    this.HandleFree a
+
+                | MsgSetArguments a ->
+                    // printfn "SetArgs %A" <| this.GetHashCode()
+                    if itIsFirstNonqueueMsg then
+                        finish commandQueue
+                        itIsFirstNonqueueMsg  <- false
+                    a ()
+
+                | MsgNotifyMe ch ->
+                    // printfn "Notify %A" <| this.GetHashCode()
+                    itIsFirstNonqueueMsg  <- true
                     finish commandQueue
-                    itIsFirstNonqueueMsg  <- false
-                this.HandleFree a
+                    ch.Reply ()
 
-            | MsgSetArguments a ->
-                printfn "SetArgs"
-                if itIsFirstNonqueueMsg then
+                | MsgBarrier o ->
+                    // printfn "Barrier %A" <| this.GetHashCode()
+                    itIsFirstNonqueueMsg  <- true
                     finish commandQueue
-                    itIsFirstNonqueueMsg  <- false
-                a ()
+                    o.ImReady()
+                    while not <| o.CanContinue() do ()
 
-            | MsgNotifyMe ch ->
-                printfn "Notify"
-                itIsFirstNonqueueMsg  <- true
-                finish commandQueue
-                ch.Reply ()
+                | MsgFinish c ->
+                    // printfn "Finish %A" <| this.GetHashCode()
+                    OpenCL.Net.Cl.Finish(commandQueue) |> ignore
+                    c.Reply()
 
-            | MsgBarrier o ->
-                printfn "Barrier"
-                itIsFirstNonqueueMsg  <- true
-                finish commandQueue
-                o.ImReady()
-                while not <| o.CanContinue() do ()
+                return! loop 0
+            }
 
-            | MsgFinish c ->
-                printfn "Finish"
-                OpenCL.Net.Cl.Finish(commandQueue) |> ignore
-                c.Reply()
+            loop 0
 
-            return! loop 0
-        }
+        // TODO rethink error handling?
+        processor.Error.AddHandler(new Handler<_>(fun _ e -> raise e))
 
-        loop 0
+        processor
 
     member val CommandQueue = getNewProcessor () with get
-
-    member val Translator = FSQuotationToOpenCLTranslator() with get
-
-    member this.ClDevice = device
-
-    member this.ClContext = clContext
 
     member private this.HandleFree(free: IFreeCrate) =
         { new IFreeCrateEvaluator with
@@ -108,7 +98,7 @@ type ComputeProvider(device: Device) as this =
             member this.Eval crate =
                 let eventID = ref Unchecked.defaultof<Event>
 
-                let mem = crate.Destination.ClMemory
+                let mem = crate.Destination.Memory
                 let elementSize = crate.Destination.ElementSize
                 let error = Cl.EnqueueWriteBuffer(queue, mem, Bool.False, IntPtr(0),
                                                   IntPtr(crate.Destination.Length * elementSize), crate.Source, 0u, null, eventID)
@@ -122,7 +112,7 @@ type ComputeProvider(device: Device) as this =
         { new IToHostCrateEvaluator with
             member this.Eval crate =
                 let eventID = ref Unchecked.defaultof<Event>
-                let mem = crate.Source.ClMemory
+                let mem = crate.Source.Memory
                 let elementSize = crate.Source.ElementSize
                 let error = Cl.EnqueueReadBuffer(queue, mem, Bool.False, IntPtr(0),
                                                  IntPtr(crate.Source.Length * elementSize), crate.Destination, 0u, null, eventID)
@@ -144,29 +134,10 @@ type ComputeProvider(device: Device) as this =
                 let range = crate.Kernel.Range
                 let workDim = uint32 range.Dimensions
                 let eventID = ref Unchecked.defaultof<Event>
-                let error = Cl.EnqueueNDRangeKernel(queue, crate.Kernel.ClKernel, workDim, null,
+                let error = Cl.EnqueueNDRangeKernel(queue, crate.Kernel.Kernel, workDim, null,
                                                     range.GlobalWorkSize, range.LocalWorkSize, 0u, null, eventID)
 
                 if error <> ErrorCode.Success then
                     raise (Cl.Exception error)
         }
         |> run.Apply
-
-    member this.GetNewProcessor () = getNewProcessor ()
-
-    override this.ToString() =
-        let mutable e = ErrorCode.Unknown
-        let deviceName = Cl.GetDeviceInfo(this.ClDevice, DeviceInfo.Name, &e).ToString()
-        if deviceName.Length < 20 then
-            sprintf "%s" deviceName
-        else
-            let platform = Cl.GetDeviceInfo(this.ClDevice, DeviceInfo.Platform, &e).CastTo<Platform>()
-            let platformName = Cl.GetPlatformInfo(platform, PlatformInfo.Name, &e).ToString()
-            let deviceType =
-                match Cl.GetDeviceInfo(this.ClDevice, DeviceInfo.Type, &e).CastTo<DeviceType>() with
-                | DeviceType.Cpu -> "CPU"
-                | DeviceType.Gpu -> "GPU"
-                | DeviceType.Accelerator -> "Accelerator"
-                | _ -> "another"
-
-            sprintf "%s, %s" platformName deviceType

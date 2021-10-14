@@ -64,20 +64,48 @@ type ClTaskBuilder() =
             fun en -> this.While((fun () -> en.MoveNext()), this.Delay(fun () -> f en.Current))
         )
 
-module ClTask =
-    let runSync (context: ClContext) (ClTask f) =
-        let res = f context
-        context.Provider.CommandQueue.PostAndReply <| MsgFinish
-        res
-
-    let ask = ClTask id
-
 [<AutoOpen>]
 module ClTaskImpl =
     let opencl = ClTaskBuilder()
 
     let (>>=) x f = opencl.Bind(x, f)
 
+module ClTask =
+    let private runComputation (ClTask f) env = f env
+
+    let ask = ClTask id
+
+    let runSync (context: ClContext) (ClTask f) =
+        let res = f context
+        context.Provider.CommandQueue.PostAndReply <| MsgFinish
+        res
+
+    // TODO fix it
+    let inParallel (tasks: seq<ClTask<'a>>) = opencl {
+        let! ctx = ask
+
+        ctx.Provider.CommandQueue.PostAndReply <| Msg.MsgFinish
+
+        let syncMsgs = Msg.CreateBarrierMessages (Seq.length tasks)
+        let ctxs = Array.create (Seq.length tasks) (ctx.WithNewComputeProvider())
+
+        return
+            tasks
+            |> Seq.mapi
+                (fun i task ->
+                    opencl {
+                        let! ctx = ask
+                        let! res = task
+                        ctx.Provider.CommandQueue.Post <| syncMsgs.[i]
+                        return res
+                    }
+                    |> fun task -> runComputation task <| ctx.WithNewComputeProvider()
+                )
+            |> Seq.toArray
+    }
+
+[<AutoOpen>]
+module ClTaskOpened =
     let runCommand (command: Expr<'range -> 'a>) (binder: ('range -> 'a) -> unit) : ClTask<unit> =
         opencl {
             let! ctx = ClTask.ask

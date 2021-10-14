@@ -12,7 +12,7 @@ type ClArray<'a when 'a : struct>(buffer: ClBuffer<'a>) =
         and set (idx: int) (value: 'a) = FailIfOutsideKernel()
 
     interface IDisposable with
-        member this.Dispose() = buffer.Provider.CommandQueue.Post <| Msg.CreateFreeMsg(buffer)
+        member this.Dispose() = buffer.ClContext.Provider.CommandQueue.Post <| Msg.CreateFreeMsg(buffer)
 
     interface IClMem with
         member this.Size = (buffer :> IClMem).Size
@@ -50,14 +50,14 @@ module ClArray =
     let toDevice (array: 'a[]) = opencl {
         let! context = ClTask.ask
 
-        let buffer = context.Provider.CreateBuffer(Data array, allocationMode = AllocationMode.AllocAndCopyHostPtr)
+        let buffer = context.CreateBuffer(Data array, allocationMode = AllocationMode.AllocAndCopyHostPtr)
         return new ClArray<'a>(buffer)
     }
 
     let alloc<'a when 'a : struct> (size: int) = opencl {
         let! context = ClTask.ask
 
-        let buffer = context.Provider.CreateBuffer(Size size, allocationMode = AllocationMode.AllocHostPtr)
+        let buffer = context.CreateBuffer(Size size, allocationMode = AllocationMode.AllocHostPtr)
         return new ClArray<'a>(buffer)
     }
 
@@ -65,17 +65,17 @@ module ClArray =
         let! context = ClTask.ask
 
         let array = Array.zeroCreate<'a> clArray.Length
-        context.Provider.CommandQueue.Post <| Msg.CreateToHostMsg(clArray.Buffer, array)
+        return context.Provider.CommandQueue.PostAndReply(fun ch -> Msg.CreateToHostMsg(clArray.Buffer, array, ch))
+    }
 
-        return array
+    // TODO impl it using clEnqueCopy
+    let copy (clArray: ClArray<'a>) = opencl {
+        failwith "Not implemented yet"
     }
 
     // TODO impl it
-    let copy (clArray: ClArray<'a>) = opencl { return clArray }
-
-    // TODO impl it
     let copyTo (destination: ClArray<'a>) (source: ClArray<'a>) = opencl {
-        return 0
+        failwith "Not implemented yet"
     }
 
     let close (clArray: ClArray<'a>) = opencl {
@@ -86,14 +86,14 @@ module ClCell =
     let toDevice (value: 'a) = opencl {
         let! context = ClTask.ask
 
-        let buffer = context.Provider.CreateBuffer(Data [| value |], allocationMode = AllocationMode.AllocAndCopyHostPtr)
+        let buffer = context.CreateBuffer(Data [| value |], allocationMode = AllocationMode.AllocAndCopyHostPtr)
         return new ClCell<'a>(buffer)
     }
 
     let alloc<'a when 'a : struct> () = opencl {
         let! context = ClTask.ask
 
-        let buffer = context.Provider.CreateBuffer(Size 1, allocationMode = AllocationMode.AllocHostPtr)
+        let buffer = context.CreateBuffer(Size 1, allocationMode = AllocationMode.AllocHostPtr)
         return new ClCell<'a>(buffer)
     }
 
@@ -101,8 +101,8 @@ module ClCell =
         let! context = ClTask.ask
 
         let array = Array.zeroCreate<'a> 1
-        context.Provider.CommandQueue.Post <| Msg.CreateToHostMsg(clCell.Buffer, array)
-        return array.[0]
+        return context.Provider.CommandQueue.PostAndReply(fun ch -> Msg.CreateToHostMsg(clCell.Buffer, array, ch)).[0]
     }
 
+    // TODO impl it
     let copy (clCell: ClCell<'a>) = opencl { return clCell }

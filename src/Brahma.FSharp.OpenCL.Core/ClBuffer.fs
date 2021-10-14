@@ -7,7 +7,7 @@ open Brahma.FSharp.OpenCL.Translator
 
 //memory flags: https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clCreateBuffer.html
 
-// except
+exception InvalidMemFlagsException of string
 
 [<RequireQualifiedAccess>]
 type HostAccessMode =
@@ -51,15 +51,15 @@ type BufferInitParam<'a> =
 // нужны все таки отдельные параметры и аллок хост - обязательный??
 type ClBuffer<'a when 'a : struct>
     (
-        provider: ComputeProvider,
-        data: BufferInitParam<'a>,
+        clContext: IContext,
+        initParam: BufferInitParam<'a>,
         ?memFlags: ClMemFlags
     ) =
 
     let memFlags = defaultArg memFlags ClMemFlags.Default
 
     let elementSize =
-        if provider.Translator.TranslatorOptions |> Array.contains UseNativeBooleanType then
+        if clContext.Translator.TranslatorOptions |> Array.contains UseNativeBooleanType then
             Marshal.SizeOf(typeof<'a>)
         else
             Marshal.SizeOf(if typeof<'a> = typeof<bool> then typeof<BoolHostAlias> else typeof<'a>)
@@ -67,7 +67,7 @@ type ClBuffer<'a when 'a : struct>
     let intPtrSize = IntPtr(Marshal.SizeOf typedefof<IntPtr>)
 
     let pinnedMemory =
-        match data with
+        match initParam with
         | Data array -> Some <| GCHandle.Alloc(array, GCHandleType.Pinned)
         | _ -> None
 
@@ -85,15 +85,17 @@ type ClBuffer<'a when 'a : struct>
         | DeviceAccessMode.ReadOnly -> flags <- flags ||| MemFlags.ReadOnly
         | DeviceAccessMode.WriteOnly -> flags <- flags ||| MemFlags.WriteOnly
 
-        match data with
-        | Size _  when
-            memFlags.AllocationMode = AllocationMode.UseHostPtr ||
-            memFlags.AllocationMode = AllocationMode.CopyHostPtr ||
-            memFlags.AllocationMode = AllocationMode.AllocAndCopyHostPtr -> failwith "lol"
-        | Data _ when
-            memFlags.AllocationMode <> AllocationMode.UseHostPtr &&
-            memFlags.AllocationMode <> AllocationMode.CopyHostPtr &&
-            memFlags.AllocationMode <> AllocationMode.AllocAndCopyHostPtr -> failwith "lol"
+        let ifDataFlags = [
+            AllocationMode.UseHostPtr
+            AllocationMode.CopyHostPtr
+            AllocationMode.AllocAndCopyHostPtr
+        ]
+
+        match initParam with
+        | Size _  when ifDataFlags |> List.contains memFlags.AllocationMode ->
+            raise <| InvalidMemFlagsException(sprintf "One of following flags should be setted %O" ifDataFlags)
+        | Data _ when ifDataFlags |> List.contains memFlags.AllocationMode |> not ->
+            raise <| InvalidMemFlagsException(sprintf "Neither of following flags should be setted %O" ifDataFlags)
         | _ -> ()
 
         match memFlags.AllocationMode with
@@ -108,10 +110,10 @@ type ClBuffer<'a when 'a : struct>
     let buffer =
         let error = ref Unchecked.defaultof<ErrorCode>
         let (size, data) =
-            match data with
+            match initParam with
             | Data array ->
                 IntPtr(array.Length * elementSize),
-                if provider.Translator.TranslatorOptions |> Array.contains UseNativeBooleanType then
+                if clContext.Translator.TranslatorOptions |> Array.contains UseNativeBooleanType then
                     array :> System.Array
                 else
                     if typeof<'a> = typeof<bool> then
@@ -122,20 +124,20 @@ type ClBuffer<'a when 'a : struct>
                 IntPtr(size * elementSize),
                 null
 
-        let buf = Cl.CreateBuffer(provider.ClContext, clMemoryFlags, size, data, error)
+        let buf = Cl.CreateBuffer(clContext.Context, clMemoryFlags, size, data, error)
 
         if !error <> ErrorCode.Success then
             raise <| Cl.Exception !error
 
         buf
 
-    member this.Provider = provider
+    member this.ClContext = clContext
 
     interface IBuffer<'a> with
-        member this.ClMemory = buffer
+        member this.Memory = buffer
 
         member this.Length =
-            match data with
+            match initParam with
             | Data array -> array.Length
             | Size size -> size
 
@@ -157,28 +159,3 @@ type ClBuffer<'a when 'a : struct>
 
     member this.Dispose() = (this :> IDisposable).Dispose()
     member this.Length = (this :> IBuffer<'a>).Length
-
-[<AutoOpen>]
-module ComputeProviderBufferextension =
-    type ComputeProvider with
-        member this.CreateBuffer
-            (
-                data: BufferInitParam<'a>,
-                ?hostAccessMode: HostAccessMode,
-                ?deviceAccessMode: DeviceAccessMode,
-                ?allocationMode: AllocationMode
-            ) =
-
-            let hostAccessMode = defaultArg hostAccessMode ClMemFlags.Default.HostAccessMode
-            let deviceAccessMode = defaultArg deviceAccessMode ClMemFlags.Default.DeviceAccessMode
-            let allocationMode = defaultArg allocationMode ClMemFlags.Default.AllocationMode
-
-            new ClBuffer<'a>(
-                this,
-                data,
-                {
-                    HostAccessMode = hostAccessMode
-                    DeviceAccessMode = deviceAccessMode
-                    AllocationMode = allocationMode
-                }
-            )

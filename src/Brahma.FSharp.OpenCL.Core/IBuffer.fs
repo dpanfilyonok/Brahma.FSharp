@@ -11,7 +11,7 @@ type IBuffer<'a when 'a : struct> =
     inherit IClMem
     inherit IDisposable
 
-    abstract ClMemory : IMem
+    abstract Memory : IMem
     abstract Length : int
     abstract ElementSize : int
     abstract Free : unit -> unit

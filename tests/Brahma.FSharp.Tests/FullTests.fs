@@ -481,13 +481,11 @@ let kernelArgumentsTests =
             Expect.sequenceEqual actual expected "Arrays should be equals"
 
         testCase "Kernel arguments. Sequential commands over single buffer." <| fun _ ->
-
             let command =
                 <@
                     fun (range: Range1D) i x (buf: ClArray<int>) ->
                         buf.[i] <- x + x
                 @>
-
 
             let expected = [|4; 1; 4; 3|]
 
@@ -496,9 +494,8 @@ let kernelArgumentsTests =
                     let! ctx = ClTask.ask
                     let kernel = ctx.CreateKernel command
 
-                    use inBuf = new ClBuffer<int>(ctx.Provider, Data intInArr, { ClMemFlags.Default with AllocationMode = AllocationMode.AllocAndCopyHostPtr })
+                    use inBuf = new ClBuffer<int>(ctx, Data intInArr, { ClMemFlags.Default with AllocationMode = AllocationMode.AllocAndCopyHostPtr })
 
-                    // TODO как тут обработка ClArray вообще происходит в Core
                     ctx.Provider.CommandQueue.Post(Msg.MsgSetArguments(fun () -> kernel.SetArguments default1D 0 2 (new ClArray<_>(inBuf))))
                     ctx.Provider.CommandQueue.Post(Msg.CreateRunMsg<_,_>(kernel))
 
@@ -1087,6 +1084,168 @@ let structTests =
 //         <| "Exception should be thrown"
 // ]
 
+let specificTestCases = testList "Specific Test Cases" [
+    testCase "Executing copy kernel on boolean array should not raise exception" <| fun () ->
+        let inputArray = Array.create 100_000 true
+        let inputArrayLength = inputArray.Length
+        let copy =
+            <@
+                fun (ndRange: Range1D)
+                    (inputArrayBuffer: bool clarray)
+                    (outputArrayBuffer: bool clarray) ->
+
+                    let i = ndRange.GlobalID0
+                    if i < inputArrayLength then
+                        outputArrayBuffer.[i] <- inputArrayBuffer.[i]
+            @>
+
+        let actual =
+            opencl {
+                use! input = ClArray.toDevice inputArray
+                use! output = ClArray.alloc<bool> 100_000
+                do! runCommand copy <| fun x ->
+                    x
+                    <| Range1D.CreateValid(inputArray.Length, 256)
+                    <| input
+                    <| output
+
+                return! ClArray.toHost output
+            }
+            |> ClTask.runSync context
+
+        "Arrays should be equal"
+        |> Expect.sequenceEqual actual inputArray
+
+    testProperty "'lor' on boolean type should work correctly" <| fun (array: bool[]) ->
+        if array.Length = 0 then ()
+        else
+            let reversed = Seq.rev array |> Seq.toArray
+            let inputArrayLength = array.Length
+            let command =
+                <@
+                    fun (ndRange: Range1D)
+                        (array: bool clarray)
+                        (reversed: bool clarray) ->
+
+                        let i = ndRange.GlobalID0
+                        if i < inputArrayLength then
+                            array.[i] <- array.[i] || reversed.[i] || false
+                @>
+
+            let expected =
+                (array, reversed)
+                ||> Array.zip
+                |> Array.map (fun (x, y) -> x || y)
+
+            let actual =
+                opencl {
+                    use! array' = ClArray.toDevice array
+                    use! reversed' = ClArray.toDevice reversed
+                    do! runCommand command <| fun x ->
+                        x
+                        <| Range1D.CreateValid(inputArrayLength, 256)
+                        <| array'
+                        <| reversed'
+
+                    return! ClArray.toHost array'
+                }
+                |> ClTask.runSync context
+
+            "Arrays should be equal"
+            |> Expect.sequenceEqual actual expected
+
+    testProperty "'land' on boolean type should work correctly" <| fun (array: bool[]) ->
+        if array.Length = 0 then ()
+        else
+            let reversed = Seq.rev array |> Seq.toArray
+            let inputArrayLength = array.Length
+            let command =
+                <@
+                    fun (ndRange: Range1D)
+                        (array: bool clarray)
+                        (reversed: bool clarray) ->
+
+                        let i = ndRange.GlobalID0
+                        if i < inputArrayLength then
+                            array.[i] <- array.[i] && reversed.[i] && true
+                @>
+
+            let expected =
+                (array, reversed)
+                ||> Array.zip
+                |> Array.map (fun (x, y) -> x && y)
+
+            let actual =
+                opencl {
+                    use! array' = ClArray.toDevice array
+                    use! reversed' = ClArray.toDevice reversed
+                    do! runCommand command <| fun x ->
+                        x
+                        <| Range1D.CreateValid(inputArrayLength, 256)
+                        <| array'
+                        <| reversed'
+
+                    return! ClArray.toHost array'
+                }
+                |> ClTask.runSync context
+
+            "Arrays should be equal"
+            |> Expect.sequenceEqual actual expected
+
+    ptestCase "Running tasks in parallel should not raise exception" <| fun () ->
+        let fill = opencl {
+            let kernel =
+                <@
+                    fun (range: Range1D) (buffer: int clarray) ->
+                        let i = range.GlobalID0
+                        buffer.[i] <- 1
+                @>
+
+            use! array = ClArray.alloc<int> 256
+            do! runCommand kernel <| fun x ->
+                x
+                <| Range1D.CreateValid(256, 256)
+                <| array
+
+            return! ClArray.toHost array
+        }
+
+        opencl {
+            return!
+                List.replicate 3 fill
+                |> ClTask.inParallel
+        }
+        |> ClTask.runSync context
+        |> ignore
+
+        // using native api
+        // let f (m: Msg) (ctx: ClContext)  =
+        //     let kernel =
+        //         <@
+        //             fun (r: Range1D) (buffer: int clarray) ->
+        //                 let i = r.GlobalID0
+        //                 buffer.[i] <- 1
+        //         @>
+
+        //     use buf = ctx.CreateBuffer(Size 256, allocationMode = AllocationMode.AllocHostPtr)
+        //     let k = ctx.CreateKernel kernel
+        //     ctx.Provider.CommandQueue.Post(Msg.MsgSetArguments(fun () -> k.SetArguments (Range1D.CreateValid(256, 256))(new ClArray<_>(buf))))
+        //     ctx.Provider.CommandQueue.Post(Msg.CreateRunMsg<_,_>(k))
+        //     let localOut = Array.zeroCreate 256
+        //     let s = ctx.Provider.CommandQueue.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(buf, localOut, ch))
+        //     ctx.Provider.CommandQueue.Post <| m
+        //     s
+
+        // let syncMsgs = Msg.CreateBarrierMessages 3
+
+        // [
+        //     f syncMsgs.[0] <| context.WithComputeProvider()
+        //     f syncMsgs.[0] <| context.WithComputeProvider()
+        //     f syncMsgs.[0] <| context.WithComputeProvider()
+        // ]
+        // |> printfn "%A"
+]
+
 let tests =
     testList "System tests with running kernels" [
         letTransformationTests
@@ -1101,6 +1260,7 @@ let tests =
         quotationInjectionTests
         localMemTests
         structTests
+        specificTestCases
     ]
     |> fun x -> Expecto.Sequenced(Synchronous, x)
 
