@@ -19,6 +19,7 @@ open Microsoft.FSharp.Quotations
 open System.Collections.Generic
 open Brahma.FSharp.OpenCL.AST
 open Microsoft.FSharp.Reflection
+open System
 
 exception InvalidKernelException of string
 
@@ -27,15 +28,15 @@ type Flags() =
     member val enableFP64 = false with get, set
 
 type TranslatorOption =
+    | UseNativeBooleanType
     | BoolAsBit
 
-type TargetContext<'lang, 'vDecl>() =
+type TargetContext<'lang, 'vDecl>([<ParamArray>] translatorOptions: TranslatorOption[]) =
     let mutable topLevelVarsDeclarations = ResizeArray<'vDecl>()
     let mutable varDecls = ResizeArray<'vDecl>()
     let mutable flags = Flags()
     let mutable namer = Namer()
     let mutable tn = 0
-    let mutable translatorOptions = ResizeArray<TranslatorOption>()
 
     member val TupleDecls = Dictionary<string, int>()
     member val TupleList = List<StructType<Lang>>()
@@ -68,7 +69,7 @@ type TargetContext<'lang, 'vDecl>() =
 
     // NOTE is it really clone context (is it fully clone)
     member this.Clone() =
-        let context = TargetContext()
+        let context = TargetContext(translatorOptions)
 
         context.UserDefinedTypes.AddRange this.UserDefinedTypes
 
@@ -84,7 +85,6 @@ type TargetContext<'lang, 'vDecl>() =
 
         context.Flags.enableFP64 <- this.Flags.enableFP64
         context.Flags.enableAtomic <- this.Flags.enableAtomic
-        context.TranslatorOptions.AddRange translatorOptions
         context
 
 [<AutoOpen>]

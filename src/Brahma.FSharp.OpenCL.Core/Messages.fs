@@ -1,98 +1,85 @@
 namespace Brahma.FSharp.OpenCL
 
-open OpenCL.Net
-
-type Free<'t>(src:Buffer<'t>) =
+type Free<'a when 'a: struct>(src: IBuffer<'a>) =
     member this.Source = src
 
-type ToHost<'t>(src:Buffer<'t>, dst: array<'t>, ?replyChannel:AsyncReplyChannel<array<'t>>) =
+type ToHost<'a when 'a: struct>(src: IBuffer<'a>, dst: 'a[], ?replyChannel: AsyncReplyChannel<'a[]>) =
     member this.Destination = dst
     member this.Source = src
     member this.ReplyChannel = replyChannel
 
-type ToGPU<'t>(src:array<'t>, dst: Buffer<'t>) =
+type ToGPU<'a when 'a: struct>(src: 'a[], dst: IBuffer<'a>) =
     member this.Destination = dst
     member this.Source = src
 
-type Run<'TRange,'a when 'TRange :> INDRangeDimension>
-        (kernel:GpuKernel<'TRange,'a>) =
+type Run<'TRange, 'a when 'TRange :> INDRangeDimension>(kernel: IKernel<'TRange, 'a>) =
     member this.Kernel = kernel
 
-type RunCrate =
-    abstract member Apply : RunCrateEvaluator -> unit
+type IRunCrate =
+    abstract member Apply : IRunCrateEvaluator -> unit
+and IRunCrateEvaluator =
+    abstract member Eval : Run<'TRange, 'a> -> unit
 
-and RunCrateEvaluator =
-    abstract member Eval<'TRange, 'a when 'TRange :> INDRangeDimension> : Run<'TRange, 'a> -> unit
+type IToHostCrate =
+    abstract member Apply : IToHostCrateEvaluator -> unit
+and IToHostCrateEvaluator =
+    abstract member Eval : ToHost<'a> -> unit
 
-type ToHostCrate =
-    abstract member Apply : ToHostCrateEvaluator -> unit
+type IToGPUCrate =
+    abstract member Apply : IToGPUCrateEvaluator -> unit
+and IToGPUCrateEvaluator =
+    abstract member Eval : ToGPU<'a> -> unit
 
-and ToHostCrateEvaluator =
-    abstract member Eval<'a> : ToHost<'a> -> unit
+type IFreeCrate =
+    abstract member Apply : IFreeCrateEvaluator -> unit
+and IFreeCrateEvaluator =
+    abstract member Eval : Free<'a> -> unit
 
-type ToGPUCrate =
-    abstract member Apply : ToGPUCrateEvaluator -> unit
-
-and ToGPUCrateEvaluator =
-    abstract member Eval<'a> : ToGPU<'a> -> unit
-
-type FreeCrate =
-    abstract member Apply : FreeCrateEvaluator -> unit
-
-and FreeCrateEvaluator =
-    abstract member Eval<'a> : Free<'a> -> unit
-
-
-type SyncObject (numToWait) =
+type SyncObject(numToWait: int) =
     let mutable canContinue = false
 
     let mutable counter = 0
 
-    member this.ImReady () =
-        lock this (fun () ->
-                       counter <- counter + 1
-                       if counter = numToWait
-                       then canContinue <- true)
+    member this.ImReady() =
+        lock this <| fun () ->
+            counter <- counter + 1
+            if counter = numToWait then canContinue <- true
 
-    member this.CanContinue () = canContinue
+    member this.CanContinue() = canContinue
 
 type Msg =
-    | MsgToHost of ToHostCrate
-    | MsgToGPU of ToGPUCrate
-    | MsgRun of RunCrate
-    | MsgFree of FreeCrate
+    | MsgToHost of IToHostCrate
+    | MsgToGPU of IToGPUCrate
+    | MsgRun of IRunCrate
+    | MsgFree of IFreeCrate
     | MsgSetArguments of (unit -> unit)
     | MsgNotifyMe of AsyncReplyChannel<unit>
     | MsgBarrier of SyncObject
 
-    static member CreateToHostMsg<'t> (src, dst, ?ch) =
-        {
-            new ToHostCrate with
-                member this.Apply e = e.Eval (ToHost<'t>(src, dst, ?replyChannel = ch))
+    static member CreateToHostMsg<'a when 'a: struct>(src, dst, ?ch) =
+        { new IToHostCrate with
+            member this.Apply evaluator = evaluator.Eval <| ToHost<'a>(src, dst, ?replyChannel = ch)
         }
         |> MsgToHost
 
-    static member CreateToGPUMsg<'t>(src, dst) =
-        {
-            new ToGPUCrate with
-                member this.Apply e = e.Eval (ToGPU<'t>(src, dst))
+    static member CreateToGPUMsg<'a when 'a: struct>(src, dst) =
+        { new IToGPUCrate with
+            member this.Apply evaluator = evaluator.Eval <| ToGPU<'a>(src, dst)
         }
         |> MsgToGPU
 
-    static member CreateFreeMsg(src) =
-        {
-            new FreeCrate with
-                member this.Apply e = e.Eval (Free src)
+    static member CreateFreeMsg<'a when 'a: struct>(src) =
+        { new IFreeCrate with
+            member this.Apply evaluator = evaluator.Eval <| Free<'a>(src)
         }
         |> MsgFree
 
-    static member CreateRunMsg<'TRange,'a when 'TRange :> INDRangeDimension> (kernel) =
-        {
-            new RunCrate with
-                member this.Apply e = e.Eval (Run<'TRange,'a> kernel)
+    static member CreateRunMsg<'TRange, 'a when 'TRange :> INDRangeDimension>(kernel) =
+        { new IRunCrate with
+            member this.Apply evaluator = evaluator.Eval <| Run<'TRange, 'a>(kernel)
         }
         |> MsgRun
 
-    static member CreateBarrierMessages numOfQueuesOnBarrier =
+    static member CreateBarrierMessages(numOfQueuesOnBarrier: int) =
         let s = SyncObject numOfQueuesOnBarrier
-        Array.init numOfQueuesOnBarrier (fun i -> MsgBarrier s)
+        Array.init numOfQueuesOnBarrier (fun _ -> MsgBarrier s)

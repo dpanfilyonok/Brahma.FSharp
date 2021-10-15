@@ -31,4 +31,5 @@ module Transformer =
         |> makeVarNameUnique
         |> transformVarDefsToLambda
         |> transformMutableVarsToRef
+        |> makeVarNameUnique
         |> lambdaLifting

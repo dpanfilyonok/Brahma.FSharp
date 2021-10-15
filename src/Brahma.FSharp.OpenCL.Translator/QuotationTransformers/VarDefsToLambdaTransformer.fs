@@ -6,6 +6,7 @@ open Microsoft.FSharp.Core.LanguagePrimitives
 
 [<AutoOpen>]
 module VarDefsToLambdaTransformer =
+    // TODO need way to identify expression vs statements (now it is very primitive)
     let rec isPrimitiveExpression (expr: Expr) =
         match expr with
         | Patterns.Value _
@@ -46,6 +47,24 @@ module VarDefsToLambdaTransformer =
                         Expr.Application(Expr.Var fVar, Expr.Value((), typeof<unit>))
                     ),
                     transformVarDefsToLambda inExpr
+                )
+
+        | Patterns.PropertySet(Some o, prop, idxs, value) ->
+            if isPrimitiveExpression value then
+                Expr.PropertySet(o, prop, value, idxs)
+            else
+                let fType = FSharpType.MakeFunctionType(typeof<unit>, prop.PropertyType)
+                let fVar = Var(prop.Name + "UnitFunc", fType)
+
+                Expr.PropertySet(
+                    o,
+                    prop,
+                    Expr.Let(
+                        fVar,
+                        Expr.Lambda(Var("unitVar", typeof<unit>), transformVarDefsToLambda value),
+                        Expr.Application(Expr.Var fVar, Expr.Value((), typeof<unit>))
+                    ),
+                    idxs
                 )
 
         | ExprShape.ShapeVar _ -> expr

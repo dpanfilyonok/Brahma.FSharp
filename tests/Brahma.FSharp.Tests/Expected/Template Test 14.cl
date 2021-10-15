@@ -10,5 +10,7 @@ int f (private int y)
  return g3 (y2, y2) ;}
 int z (private int y4)
 {return (y4 - 2) ;}
+int ItemUnitFunc ()
+{return f (z (7)) ;}
 __kernel void brahmaKernel (__global int * buf)
-{buf [0] = f (z (7)) ;}
+{buf [0] = ItemUnitFunc () ;}

@@ -52,8 +52,8 @@ type Translator() =
     let defaultInArrayLength = 4
     let intInArr = [|0..defaultInArrayLength-1|]
     let float32Arr = Array.init defaultInArrayLength (fun i -> float32 i)
-    let _1d = new _1D(defaultInArrayLength, 1)
-    let _2d = new _2D(defaultInArrayLength, 1)
+    let _1d = new Range1D(defaultInArrayLength, 1)
+    let _2d = new Range2D(defaultInArrayLength, 1)
     let deviceType = DeviceType.Default
     let platformName = "*"
 
@@ -78,7 +78,7 @@ type Translator() =
     member this.``Some structs``() =
         let command =
             <@
-                fun (range:_1D) (buf:array<int>) (s1:a) (s2:b) ->
+                fun (range:Range1D) (buf:array<int>) (s1:a) (s2:b) ->
                     buf.[0] <- s1.x
                     buf.[1] <- s2.x
             @>
@@ -94,7 +94,7 @@ type Translator() =
     member this.``Struct with bool``() =
         let command =
             <@
-                fun (range:_1D) (buf:array<int>) (s:e)  ->
+                fun (range:Range1D) (buf:array<int>) (s:e)  ->
                     buf.[0] <- s.x
             @>
 
@@ -107,7 +107,7 @@ type Translator() =
     member this.``New struct``() =
         let command =
             <@
-                fun (range:_1D) (buf:array<int>)  ->
+                fun (range:Range1D) (buf:array<int>)  ->
                 let s = new a(1, 2)
                 buf.[0] <- s.x
             @>
@@ -120,7 +120,7 @@ type Translator() =
     member this.``Change field``() =
         let command =
             <@
-                fun (range:_1D) (buf:array<int>)  ->
+                fun (range:Range1D) (buf:array<int>)  ->
                 let mutable s = new a(1, 2)
                 s.x <- 6
                 buf.[0] <- s.x
@@ -134,7 +134,7 @@ type Translator() =
     member this.``Arr of structs``() =
         let command =
             <@
-                fun(range:_1D) (buf:array<int>) (arr:array<a>) ->
+                fun(range:Range1D) (buf:array<int>) (arr:array<a>) ->
                     buf.[0] <- arr.[0].x
             @>
         let s1 = new a(2, 2)
@@ -148,7 +148,7 @@ type Translator() =
     member this.``Struct with 2 constructors``() =
         let command =
             <@
-                fun(range:_1D) (buf:array<int>) (s:c) ->
+                fun(range:Range1D) (buf:array<int>) (s:c) ->
                     buf.[0] <- s.x + s.y
                     let s2 = new c(6)
                     let s3 = new c(s2.y + 6)
@@ -164,7 +164,7 @@ type Translator() =
     member this.``Constructor``() =
         let command =
             <@
-                fun(range:_1D) (buf:array<int>)  ->
+                fun(range:Range1D) (buf:array<int>)  ->
                     let z = (new c(6)).x + 4
                     buf.[1] <- z
             @>
@@ -177,7 +177,7 @@ type Translator() =
     member this.``Struct with arr``() =
         let command =
             <@
-                fun(range:_1D) (buf:array<int>) (s:d) ->
+                fun(range:Range1D) (buf:array<int>) (s:d) ->
                     buf.[0] <- s.x
 
             @>
@@ -190,7 +190,7 @@ type Translator() =
     member this.``Some tuples``() =
         let command =
             <@
-                fun (range:_1D) (buf:array<int>) (k1:int*int) (k2:int64*byte) (k3:float32*int) ->
+                fun (range:Range1D) (buf:array<int>) (k1:int*int) (k2:int64*byte) (k3:float32*int) ->
                     let x = fst k1
                     buf.[0] <- x
                     buf.[1] <- int(fst k3)
@@ -203,7 +203,7 @@ type Translator() =
     member this.``Multiple assignment``() =
         let command =
             <@
-                fun (range:_1D) (buf:array<int>) ->
+                fun (range:Range1D) (buf:array<int>) ->
                     let (a, b) = (1, 2)
                     buf.[0] <- a
             @>
@@ -216,7 +216,7 @@ type Translator() =
     member this.``Multiple assignment doesn't work``() =
         let command =
             <@
-                fun (range:_1D) (buf:array<int>) ->
+                fun (range:Range1D) (buf:array<int>) ->
                     let (a, b) = (1, 2)
                     buf.[0] <- fst (a, b)
             @>
@@ -228,7 +228,7 @@ type Translator() =
     member this.``fst, snd and new tuple``() =
         let command =
             <@
-                fun (range:_1D) (buf:array<int>) (k:int*int)  ->
+                fun (range:Range1D) (buf:array<int>) (k:int*int)  ->
                     let k2 = (3, 8)
                     let k3 = (2, 5uy)
                     let k4 = (1,2)
@@ -247,7 +247,7 @@ type Translator() =
     member this.``Arr of tuples``() =
         let command =
             <@
-                fun (range:_1D) (buf:array<int>)  (k1:int*int) (arr:array<int*int>) (arr2:array<int*byte>)  ->
+                fun (range:Range1D) (buf:array<int>)  (k1:int*int) (arr:array<int*int>) (arr2:array<int*byte>)  ->
                     let k2 = (5, 6)
                     let k3 = (0, 1uy)
                     arr2.[0] <- k3
@@ -264,7 +264,7 @@ type Translator() =
     member this.``Triple``() =
         let command =
             <@
-                fun (range:_1D) (buf:array<int>) (k:int*int*int)  ->
+                fun (range:Range1D) (buf:array<int>) (k:int*int*int)  ->
                     buf.[0] <- first k
                     buf.[1] <- second k
                     buf.[2] <- third k
@@ -277,7 +277,7 @@ type Translator() =
     member this.``Write buffer``() =
         let command =
             <@
-                fun (range:_1D) (buf:array<a>) ->
+                fun (range:Range1D) (buf:array<a>) ->
                     if range.GlobalID0 = 0
                     then
                         buf.[0] <- buf.[1]
@@ -307,7 +307,7 @@ type Translator() =
     member this.``Tuples ToGPU``() =
         let command =
             <@
-                fun (range:_1D) (buf:array<_>) ->
+                fun (range:Range1D) (buf:array<_>) ->
                     buf.[0] <- buf.[1]
                     buf.[1] <- buf.[2]
             @>
@@ -351,7 +351,7 @@ let _go() =
     let scratch = Array.init (4 * 49) (fun _ -> byte 0)
     let size = 4 * 49
 
-    let command global_memory_index local_memory_index= <@ fun (range:_2D) (buf:array<byte>) (dst:array<byte>)->
+    let command global_memory_index local_memory_index= <@ fun (range:Range2D) (buf:array<byte>) (dst:array<byte>)->
         let i = range.GlobalID0
         let j = range.GlobalID1
         let local_buf = local (Array.zeroCreate size)

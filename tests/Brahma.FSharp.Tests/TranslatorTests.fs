@@ -10,26 +10,19 @@ let generatedPath = "Generated/"
 
 do System.IO.Directory.CreateDirectory(generatedPath) |> ignore
 
-let gpu =
-    let deviceType = DeviceType.Default
-    let platformName = "Intel*"
-    let devices = Device.getDevices platformName deviceType
-    GPU(devices.[0])
+let checkCode command outFile expected =
+    let code = Utils.openclCompile command
 
-let checkCode command outFile expected =        
-    let kernel = gpu.CreateKernel command
-    let code = kernel.ClCode
-    
     let targetPath = System.IO.Path.Combine(generatedPath, outFile)
     let expectedPath = System.IO.Path.Combine(basePath, expected)
     System.IO.File.WriteAllText(targetPath, code)
 
-    Utils.filesAreEqual targetPath expectedPath  
+    Utils.filesAreEqual targetPath expectedPath
 
 let basicLocalIdTests = testList "Basic tests on LocalID translation" [
         testCase "LocalID of 1D" <| fun _ ->
             let command =
-                <@ fun (range: _1D) (buf: array<int>) ->
+                <@ fun (range: Range1D) (buf: int clarray) ->
                     let id = range.LocalID0
                     buf.[id] <- 0
                 @>
@@ -38,7 +31,7 @@ let basicLocalIdTests = testList "Basic tests on LocalID translation" [
 
         testCase "LocalID of 2D" <| fun _ ->
             let command =
-                <@ fun (range: _2D) (buf: array<int>) ->
+                <@ fun (range: Range2D) (buf: int clarray) ->
                     let v = range.LocalID0
                     let id = range.LocalID1
                     buf.[id] <- v
@@ -49,13 +42,13 @@ let basicLocalIdTests = testList "Basic tests on LocalID translation" [
 
 let basicBinOpsTests = testList "Basic operations translation tests" [
     testCase "Array item set" <| fun _ ->
-        let command = <@ fun (range: _1D) (buf: array<int>) -> buf.[0] <- 0 @>
+        let command = <@ fun (range: Range1D) (buf: int clarray) -> buf.[0] <- 0 @>
 
         checkCode command "Array.Item.Set.gen" "Array.Item.Set.cl"
 
     testCase "Binding" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let x = 1
                 buf.[0] <- x
             @>
@@ -63,14 +56,14 @@ let basicBinOpsTests = testList "Basic operations translation tests" [
         checkCode command "Binding.gen" "Binding.cl"
 
     testCase "Binop plus" <| fun _ ->
-        let command = <@ fun (range: _1D) (buf: array<int>) -> buf.[0] <- 1 + 2 @>
+        let command = <@ fun (range: Range1D) (buf: int clarray) -> buf.[0] <- 1 + 2 @>
 
         checkCode command "Binop.Plus.gen" "Binop.Plus.cl"
 
 
     testCase "Binary operations. Math." <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let x = 0
                 let y = x + 1
                 let z = y * 2
@@ -85,13 +78,13 @@ let basicBinOpsTests = testList "Basic operations translation tests" [
 
 let controlFlowTests = testList "Control flow translation tests" [
     testCase "If Then" <| fun _ ->
-        let command = <@ fun (range: _1D) (buf: array<int>) -> if 0 = 2 then buf.[0] <- 1 @>
+        let command = <@ fun (range: Range1D) (buf: int clarray) -> if 0 = 2 then buf.[0] <- 1 @>
 
         checkCode command "If.Then.gen" "If.Then.cl"
 
     testCase "If Then Else" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 if 0 = 2 then
                     buf.[0] <- 1
                 else
@@ -102,7 +95,7 @@ let controlFlowTests = testList "Control flow translation tests" [
 
     testCase "For Integer Loop" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 for i in 1 .. 3 do
                     buf.[0] <- i
             @>
@@ -111,7 +104,7 @@ let controlFlowTests = testList "Control flow translation tests" [
 
     testCase "Sequential bindings" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let x = 1
                 let y = x + 1
                 buf.[0] <- y
@@ -121,7 +114,7 @@ let controlFlowTests = testList "Control flow translation tests" [
 
     testCase "Binding in IF." <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 if 2 = 0 then
                     let x = 1
                     buf.[0] <- x
@@ -134,7 +127,7 @@ let controlFlowTests = testList "Control flow translation tests" [
 
     testCase "Binding in FOR." <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 for i in 0 .. 3 do
                     let x = i * i
                     buf.[0] <- x
@@ -144,7 +137,7 @@ let controlFlowTests = testList "Control flow translation tests" [
 
     testCase "Simple WHILE loop." <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 while buf.[0] < 5 do
                     buf.[0] <- buf.[0] + 1
             @>
@@ -153,7 +146,7 @@ let controlFlowTests = testList "Control flow translation tests" [
 
     testCase "Binding in WHILE." <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 while buf.[0] < 5 do
                     let x = buf.[0] + 1
                     buf.[0] <- x * x
@@ -165,7 +158,7 @@ let controlFlowTests = testList "Control flow translation tests" [
         "WHILE with single statement in the body and this stetement is assignment of constant. \
         This test translates to openCL correctly but breaks openCL compiler on ubuntu 18.04" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 while true do
                     buf.[0] <- 1
             @>
@@ -174,7 +167,7 @@ let controlFlowTests = testList "Control flow translation tests" [
 
     testCase "WHILE with complex condition" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 while buf.[0] < 5 && (buf.[1] < 6 || buf.[2] > 2) do
                     buf.[0] <- 2 + buf.[0]
             @>
@@ -183,7 +176,7 @@ let controlFlowTests = testList "Control flow translation tests" [
 
     testCase "Simple seq." <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 buf.[0] <- 2
                 buf.[1] <- 3
             @>
@@ -192,7 +185,7 @@ let controlFlowTests = testList "Control flow translation tests" [
 
     testCase "Seq with bindings." <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let x = 2
                 buf.[0] <- x
                 let y = 2
@@ -205,7 +198,7 @@ let controlFlowTests = testList "Control flow translation tests" [
 let namesResolvingTests = testList "Tests on variables renaming." [
     testCase "Bindings with equal names." <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let x = 2
                 buf.[0] <- x
                 let x = 3
@@ -216,7 +209,7 @@ let namesResolvingTests = testList "Tests on variables renaming." [
 
     testCase "Binding and FOR counter conflict 1." <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let i = 2
 
                 for i in 1 .. 2 do
@@ -227,7 +220,7 @@ let namesResolvingTests = testList "Tests on variables renaming." [
 
     testCase "Binding and FOR counter conflict 2." <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 for i in 1 .. 2 do
                     let i = 2
                     buf.[1] <- i
@@ -237,7 +230,7 @@ let namesResolvingTests = testList "Tests on variables renaming." [
 
     testCase "Binding and FOR counter conflict 3." <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 for i in 0 .. 1 do
                     let i = i + 2
                     buf.[i] <- 2
@@ -247,7 +240,7 @@ let namesResolvingTests = testList "Tests on variables renaming." [
 
     testCase "Binding and FOR counter conflict 4." <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let i = 1
 
                 for i in 0 .. i + 1 do
@@ -263,7 +256,7 @@ let quotationsInjectionTests = testList "Quotations injection tests" [
         let myF = <@ fun x -> x * x @>
 
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 buf.[0] <- (%myF) 2
                 buf.[1] <- (%myF) 4
             @>
@@ -274,7 +267,7 @@ let quotationsInjectionTests = testList "Quotations injection tests" [
         let myF = <@ fun x y -> x - y @>
 
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 buf.[0] <- (%myF) 2 3
                 buf.[1] <- (%myF) 4 5
             @>
@@ -286,19 +279,19 @@ let quotationsInjectionTests = testList "Quotations injection tests" [
 let constantArrayTests = testList "Constant array translation tests." [
     testCase "Constant array translation. Test 1" <| fun _ ->
         let cArray1 = [| 1; 2; 3 |]
-        let command = <@ fun (range: _1D) (buf: array<int>) -> buf.[0] <- cArray1.[1] @>
+        let command = <@ fun (range: Range1D) (buf: int clarray) -> buf.[0] <- cArray1.[1] @>
         checkCode command "Constant array translation. Test 1.gen" "Constant array translation. Test 1.cl"
 
     testCase "Constant array translation. Test 2" <| fun _ ->
         let cArray1 = [| 1; 2; 3 |]
-        let command = <@ fun (range: _1D) (buf: array<int>) -> buf.[0] <- 1 + cArray1.[1] @>
+        let command = <@ fun (range: Range1D) (buf: int clarray) -> buf.[0] <- 1 + cArray1.[1] @>
         checkCode command "Constant array translation. Test 2.gen" "Constant array translation. Test 2.cl"
 ]
 
 let lambdaLiftingTests = testList "Let transformation tests" [
     testCase "Template Let Transformation Test 0" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let f = 3
                 buf.[0] <- f
             @>
@@ -307,7 +300,7 @@ let lambdaLiftingTests = testList "Let transformation tests" [
 
     testCase "Template Let Transformation Test 1" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let f =
                     let x = 3
                     x
@@ -319,7 +312,7 @@ let lambdaLiftingTests = testList "Let transformation tests" [
 
     testCase "Template Let Transformation Test 2" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let f =
                     let x =
                         let y = 3
@@ -334,7 +327,7 @@ let lambdaLiftingTests = testList "Let transformation tests" [
 
     testCase "Template Let Transformation Test 3" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let f =
                     let f = 5
                     f
@@ -346,7 +339,7 @@ let lambdaLiftingTests = testList "Let transformation tests" [
 
     testCase "Template Let Transformation Test 4" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let f =
                     let f =
                         let f = 5
@@ -361,7 +354,7 @@ let lambdaLiftingTests = testList "Let transformation tests" [
 
     testCase "Template Let Transformation Test 5" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let f a b =
                     let x y z = y + z
                     x a b
@@ -373,7 +366,7 @@ let lambdaLiftingTests = testList "Let transformation tests" [
 
     testCase "Template Let Transformation Test 6" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let f x y =
                     let x = x
                     x + y
@@ -385,7 +378,7 @@ let lambdaLiftingTests = testList "Let transformation tests" [
 
     testCase "Template Let Transformation Test 7" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let f y =
                     let x y = 6 - y
                     x y
@@ -397,7 +390,7 @@ let lambdaLiftingTests = testList "Let transformation tests" [
 
     testCase "Template Let Transformation Test 8" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (m: array<int>) ->
+            <@ fun (range: Range1D) (m: int clarray) ->
                 let p = m.[0]
 
                 let x n =
@@ -421,7 +414,7 @@ let lambdaLiftingTests = testList "Let transformation tests" [
 
     testCase "Template Let Transformation Test 9" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let x n =
                     let r = 8
                     let h = r + n
@@ -434,7 +427,7 @@ let lambdaLiftingTests = testList "Let transformation tests" [
 
     testCase "Template Let Transformation Test 10" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let p = 9
 
                 let x n b =
@@ -448,7 +441,7 @@ let lambdaLiftingTests = testList "Let transformation tests" [
 
     testCase "Template Let Transformation Test 11" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let p = 1
 
                 let m =
@@ -463,7 +456,7 @@ let lambdaLiftingTests = testList "Let transformation tests" [
 
     testCase "Template Let Transformation Test 12" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let f x y =
                     let y = y
                     let y = y
@@ -477,7 +470,7 @@ let lambdaLiftingTests = testList "Let transformation tests" [
 
     testCase "Template Let Transformation Test 13" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let f y =
                     let y = y
                     let y = y
@@ -491,7 +484,7 @@ let lambdaLiftingTests = testList "Let transformation tests" [
 
     testCase "Template Let Transformation Test 14" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let f (y: int) =
                     let y = y
                     let y = y
@@ -511,7 +504,7 @@ let lambdaLiftingTests = testList "Let transformation tests" [
 
     testCase "Template Let Transformation Test 15" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let f y =
                     let Argi index = if index = 0 then buf.[1] else buf.[2]
                     Argi y
@@ -523,7 +516,7 @@ let lambdaLiftingTests = testList "Let transformation tests" [
 
     testCase "Template Let Transformation Test 16" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let f y =
                     if y = 0 then
                         let z a = a + 1
@@ -538,7 +531,7 @@ let lambdaLiftingTests = testList "Let transformation tests" [
 
     testCase "Let renamed" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let f x =
                     let g = 1 + x
                     g
@@ -550,7 +543,7 @@ let lambdaLiftingTests = testList "Let transformation tests" [
 
     testCase "Let renamed 2" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let f m k =
                     let g q w = 1 + q + w
                     let t p = 7 - p
@@ -563,7 +556,7 @@ let lambdaLiftingTests = testList "Let transformation tests" [
 
     testCase "Renamer Test" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let f x y =
                     let y = y
                     let y = y
@@ -577,7 +570,7 @@ let lambdaLiftingTests = testList "Let transformation tests" [
 
     testCase "Nested functions" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let f x y = x - y
                 buf.[0] <- f 2 3
                 buf.[1] <- f 4 5
@@ -589,7 +582,7 @@ let lambdaLiftingTests = testList "Let transformation tests" [
 let curryingTests = ptestList "Currying translation test" [
     testCase "Nested functions. Carring 1." <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let f x y = x - y
                 let g = f 2
                 buf.[0] <- g 3
@@ -600,7 +593,7 @@ let curryingTests = ptestList "Currying translation test" [
 
     testCase "Nested functions. Currying 2." <| fun _ ->
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 let f x y =
                     let gg = ref 0
 
@@ -620,7 +613,7 @@ let curryingTests = ptestList "Currying translation test" [
 let localMemoryTests = ptestList "Test of local memory declaration functions." [
     testCase "Local int" <| fun _ ->
         let command =
-            <@ fun (range: _1D) ->
+            <@ fun (range: Range1D) ->
                 let mutable x = local ()
                 x <- 0
             @>
@@ -629,7 +622,7 @@ let localMemoryTests = ptestList "Test of local memory declaration functions." [
 
     testCase "Local float" <| fun _ ->
         let command =
-            <@ fun (range: _1D) ->
+            <@ fun (range: Range1D) ->
                 let mutable x = local ()
                 x <- 0.0
             @>
@@ -638,7 +631,7 @@ let localMemoryTests = ptestList "Test of local memory declaration functions." [
 
     testCase "Local int array" <| fun _ ->
         let command =
-            <@ fun (range: _1D) ->
+            <@ fun (range: Range1D) ->
                 let xs = localArray 5
                 xs.[range.LocalID0] <- range.LocalID0
             @>
@@ -651,7 +644,7 @@ let localMemoryAllocationTests = ptestList "Translation of local memory allocati
         let cArray1 = [| 1; 2; 3 |]
 
         let command =
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: int clarray) ->
                 //let c = local (Array.zeroCreate 3)//cArray1
                 //buf.[0] <- c.[1]
                 buf.[0] <- 1
@@ -665,12 +658,12 @@ let localMemoryAllocationTests = ptestList "Translation of local memory allocati
 
 let printfTests = testList "Translation of printf" [
     ptestCase "Printf test 1" <| fun _ ->
-        let command = <@ fun (range: _1D) -> printf "%d %f" 10 15.0 @>
+        let command = <@ fun (range: Range1D) -> printf "%d %f" 10 15.0 @>
         checkCode command "Printf test 1.gen" "Printf test 1.cl"
 
     testCase "Printf test 2" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (xs: array<int>) ->
+            <@ fun (range: Range1D) (xs: int clarray) ->
                 let gid = range.GlobalID0
                 let x = 10
 
@@ -681,7 +674,7 @@ let printfTests = testList "Translation of printf" [
 
     testCase "Printf test 3" <| fun _ ->
         let command =
-            <@ fun (range: _1D) (xs: array<int>) ->
+            <@ fun (range: Range1D) (xs: int clarray) ->
                 let mutable i = 0
 
                 while i < 10 do
@@ -692,15 +685,15 @@ let printfTests = testList "Translation of printf" [
         checkCode command "Printf test 3.gen" "Printf test 3.cl"
 
     ptestCase "Printf test 4: printfn" <| fun _ ->
-        let command = <@ fun (range: _1D) -> printfn "%d %f" 10 15.0 @>
+        let command = <@ fun (range: Range1D) -> printfn "%d %f" 10 15.0 @>
         checkCode command "Printf test 4.gen" "Printf test 4.cl"
 
     ptestCase "Printf test 5: printf without args" <| fun _ ->
-        let command = <@ fun (range: _1D) -> printf "I am complied" @>
+        let command = <@ fun (range: Range1D) -> printf "I am complied" @>
         checkCode command "Printf test 5.gen" "Printf test 5.cl"
 
     ptestCase "Printf test 6: printfn without args" <| fun _ ->
-        let command = <@ fun (range: _1D) -> printfn "I am complied too" @>
+        let command = <@ fun (range: Range1D) -> printfn "I am complied too" @>
         checkCode command "Printf test 6.gen" "Printf test 6.cl"
 ]
 

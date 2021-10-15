@@ -40,7 +40,7 @@ and private printSpaceModeifier (sm: AddressSpaceQualifier<_>) =
 and private printVarDecl (vd: VarDecl<'lang>) =
     [
         if vd.SpaceModifier.IsSome then yield printSpaceModeifier vd.SpaceModifier.Value
-        yield Types.Print vd.Type
+        yield Types.print vd.Type
         yield wordL vd.Name
         if vd.Type :? ArrayType<_> then yield wordL "[" ^^ wordL (string vd.Type.Size) ^^ wordL "]"
         if vd.Expr.IsSome && not <| vd.IsLocal() then

@@ -72,16 +72,9 @@ let translateUnionTests =
     ]
 
 let compileTests =
-    let gpu =
-        let deviceType = OpenCL.Net.DeviceType.Default
-        let platformName = "Intel*"
-        let devices = Device.getDevices platformName deviceType
-        GPU(devices.[0])
-
     let testGen testCase name outFile expectedFile command =
         testCase name <| fun _ ->
-            let kernel = gpu.CreateKernel command
-            let code = kernel.ClCode
+            let code = openclCompile command
 
             let targetPath = System.IO.Path.Combine(generatedPath, outFile)
             let expectedPath = System.IO.Path.Combine(basePath, expectedFile)
@@ -91,33 +84,33 @@ let compileTests =
 
     let newUnionTestList = testList "NewUnion" [
         testGen
-            testCase
+            ptestCase
             "Test 1: TranslateTest.A"
             "Union.Compile.Test1.gen"
             "Union.Compile.Test1.cl"
-            <@ fun (range: _1D) ->
+            <@ fun (range: Range1D) ->
                 let x = A(5, 6.0)
                 let mutable y = 5
                 y <- 7
             @>
 
         testGen
-            testCase
+            ptestCase
             "Test 2: TranslateTest.B"
             "Union.Compile.Test2.gen"
             "Union.Compile.Test2.cl"
-            <@ fun (range: _1D) ->
+            <@ fun (range: Range1D) ->
                 let x = B(5.0)
                 let mutable y = 5
                 y <- 7
             @>
 
         testGen
-            testCase
+            ptestCase
             "Test 3: TranslateTest.C"
             "Union.Compile.Test3.gen"
             "Union.Compile.Test3.cl"
-            <@ fun (range: _1D) ->
+            <@ fun (range: Range1D) ->
                 let x = C
                 let mutable y = 5
                 y <- 7
@@ -128,7 +121,7 @@ let compileTests =
             "Test 4: OuterUnion.Outer"
             "Union.Compile.Test4.gen"
             "Union.Compile.Test4.cl"
-            <@ fun (range: _1D) ->
+            <@ fun (range: Range1D) ->
                 let x = Inner SimpleOne
                 let mutable y = 5
                 y <- 7
@@ -139,7 +132,7 @@ let compileTests =
             "Test 5: OuterUnion.Inner"
             "Union.Compile.Test5.gen"
             "Union.Compile.Test5.cl"
-            <@ fun (range: _1D) ->
+            <@ fun (range: Range1D) ->
                 let x = Inner(SimpleTwo 29)
                 let mutable y = 5
                 y <- 7
@@ -153,7 +146,7 @@ let compileTests =
                 "Test 1: simple pattern matching"
                 "Union.Compile.Test6.gen"
                 "Union.Compile.Test6.cl"
-                <@ fun (range: _1D) ->
+                <@ fun (range: Range1D) ->
                     let t = Case1
                     let mutable x = 5
 
@@ -171,7 +164,7 @@ let compileTests =
                 "Test 1: simple pattern matching bindings"
                 "Union.Compile.Test7.gen"
                 "Union.Compile.Test7.cl"
-                <@ fun (range: _1D) ->
+                <@ fun (range: Range1D) ->
                     let t = Case1
                     let mutable m = 5
 
