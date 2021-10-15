@@ -247,7 +247,7 @@ let quotationTransformerTest =
         genTest
             testCase
             "Test 0"
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: array<int>) ->
                 let mutable x = 1
                 let f y = x <- y
                 f 10
@@ -256,7 +256,7 @@ let quotationTransformerTest =
             <@
                 let f xRef (y: int) = xRef := y
 
-                fun (range: _1D) (buf: array<int>) ->
+                fun (range: Range1D) (buf: array<int>) ->
                     let mutable x = 1
                     let xRef = ref x
 
@@ -267,7 +267,7 @@ let quotationTransformerTest =
         genTest
             testCase
             "Test 1"
-            <@ fun (range: _1D) (buf: array<int>) ->
+            <@ fun (range: Range1D) (buf: array<int>) ->
                 let mutable x = 1
                 let f y = x <- x + y
                 f 10
@@ -276,7 +276,7 @@ let quotationTransformerTest =
             <@
                 let f xRef (y: int) = xRef := !xRef + y
 
-                fun (range: _1D) (buf: array<int>) ->
+                fun (range: Range1D) (buf: array<int>) ->
                     let mutable x = 1
                     let xRef = ref x
 
@@ -287,7 +287,7 @@ let quotationTransformerTest =
         genTest
             testCase
             "Test 2: simple lambda lifting without capturing variables"
-            <@ fun (range: _1D) ->
+            <@ fun (range: Range1D) ->
                 let f x =
                     let g y = y + 1
                     g x
@@ -295,12 +295,12 @@ let quotationTransformerTest =
                 f 2 @>
             <@ let g y = y + 1
                let f x = g x
-               fun (range: _1D) -> f 2 @>
+               fun (range: Range1D) -> f 2 @>
 
         genTest
             testCase
             "Test 3: simple lambda lifting with capturing variables"
-            <@ fun (range: _1D) ->
+            <@ fun (range: Range1D) ->
                 let f x =
                     let g y = y + x
                     g (x + 1)
@@ -309,13 +309,13 @@ let quotationTransformerTest =
             @>
             <@ let g x y = y + x
                let f x = g x (x + 1)
-               fun (range: _1D) -> f 2
+               fun (range: Range1D) -> f 2
             @>
 
         genTest
             testCase
             "Test 4"
-            <@ fun (range: _1D) (arr: array<int>) ->
+            <@ fun (range: Range1D) (arr: array<int>) ->
                 let x =
                     let mutable y = 0
 
@@ -339,7 +339,7 @@ let quotationTransformerTest =
 
                    !yRef
 
-               fun (range: _1D) (arr: array<int>) ->
+               fun (range: Range1D) (arr: array<int>) ->
                    let x1 = x1UnitFunc arr
                    x1
             @>
@@ -347,7 +347,7 @@ let quotationTransformerTest =
         genTest
             testCase
             "Test 5"
-            <@ fun (range: _1D) (arr: array<int>) ->
+            <@ fun (range: Range1D) (arr: array<int>) ->
                 let mutable x = if 0 > 1 then 2 else 3
 
                 let mutable y =
@@ -371,7 +371,7 @@ let quotationTransformerTest =
 
                let f (arr: array<int>) xRef yRef z = arr.[0] <- !xRef + !yRef + z
 
-               fun (range: _1D) (arr: array<int>) ->
+               fun (range: Range1D) (arr: array<int>) ->
                    let mutable x = xUnitFunc ()
                    let xRef = ref x
 

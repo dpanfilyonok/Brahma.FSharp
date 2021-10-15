@@ -28,7 +28,7 @@ let private printFunFormalParam (param: FunFormalArg<_>) =
         | _ -> yield wordL "private"
 
         match param.DeclSpecs.Type with
-        | Some t -> yield Types.Print t
+        | Some t -> yield Types.print t
         | None -> failwith "Could not print a formal arg with undefined type"
 
         yield wordL param.Name
@@ -50,7 +50,7 @@ let Print<'lang> (funDecl: FunDecl<'lang>) =
             | Some Kernel -> yield wordL "__kernel"
             | None -> ()
             match funDecl.DeclSpecs.Type with
-            | Some t -> yield Types.Print t
+            | Some t -> yield Types.print t
             | None -> failwith "Could not print a func declaration with undefined return type"
             yield wordL funDecl.Name
         ]

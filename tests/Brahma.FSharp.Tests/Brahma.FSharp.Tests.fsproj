@@ -9,8 +9,8 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Common.fs" />
-    <Compile Include="TranslatorTests.fs" />
     <Compile Include="FullTests.fs" />
+    <Compile Include="TranslatorTests.fs" />
     <Compile Include="AtomicTests.fs" />
     <Compile Include="StructAndTuple.fs" />
     <Compile Include="WorkflowTests.fs" />
@@ -20,9 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Brahma.FSharp.OpenCL.Core\Brahma.FSharp.OpenCL.Core.fsproj" />
-    <ProjectReference Include="..\..\src\Brahma.FSharp.OpenCL.Extensions\Brahma.FSharp.OpenCL.Extensions.fsproj" />
     <ProjectReference Include="..\..\src\Brahma.FSharp.OpenCL.Translator\Brahma.FSharp.OpenCL.Translator.fsproj" />
-    <ProjectReference Include="..\..\src\Brahma.FSharp.OpenCL.WorkflowBuilder\Brahma.FSharp.OpenCL.WorkflowBuilder.fsproj" />  
     <ProjectReference Include="..\..\src\YC.OpenCL.NET\YC.OpenCL.NET.csproj" />
   </ItemGroup>
   <ItemGroup>

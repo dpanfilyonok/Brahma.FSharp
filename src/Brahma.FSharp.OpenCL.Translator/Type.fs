@@ -21,41 +21,8 @@ open FSharp.Reflection
 open Microsoft.FSharp.Collections
 
 module Type =
-    let printElementType (_type: string) (context: TargetContext<_, _>) =
-        let pType =
-            match _type.ToLowerInvariant() with
-            | "int"
-            | "int32" -> PrimitiveType<Lang>(Int)
-            | "int16" -> PrimitiveType<Lang>(Short)
-            | "uint16" -> PrimitiveType<Lang>(UShort)
-            | "uint32" -> PrimitiveType<Lang>(UInt)
-            | "float32"
-            | "single" -> PrimitiveType<Lang>(Float)
-            | "byte" -> PrimitiveType<Lang>(UChar)
-            | "int64" -> PrimitiveType<Lang>(Long)
-            | "uint64" -> PrimitiveType<Lang>(ULong)
-            | "boolean" -> PrimitiveType<Lang>(Bool)
-            | "float"
-            | "double" ->
-                context.Flags.enableFP64 <- true
-                PrimitiveType<Lang>(Double)
-            | other -> failwithf "Unsuported tuple type: %s" other
-
-        match pType.Type with
-        | UChar -> "uchar"
-        | Short -> "short"
-        | UShort -> "ushort"
-        | Int -> "int"
-        | UInt -> "uint"
-        | Float -> "float"
-        | Long -> "long"
-        | ULong -> "ulong"
-        | Double -> "double"
-        | Bool -> "bool"
-        | other -> failwithf "Unsuported tuple type: %O" other
-
     // как указатель транслируем только массивы и refType
-    let rec translate (_type: System.Type) isKernelArg size (context: TargetContext<_, _>) : Type<Lang> =
+    let rec translate (type': System.Type) isKernelArg size (context: TargetContext<_, _>) : Type<Lang> =
         let rec go (str: string) =
             let mutable low = str.ToLowerInvariant()
             match low with
@@ -69,7 +36,11 @@ module Type =
             | "byte" -> PrimitiveType<Lang>(UChar) :> Type<Lang>
             | "int64" -> PrimitiveType<Lang>(Long) :> Type<Lang>
             | "uint64" -> PrimitiveType<Lang>(ULong) :> Type<Lang>
-            | "boolean" -> PrimitiveType<Lang>(Bool) :> Type<Lang>
+            | "boolean" ->
+                if context.TranslatorOptions |> Array.contains UseNativeBooleanType then
+                    PrimitiveType<Lang>(Bool) :> Type<Lang>
+                else
+                    PrimitiveType<Lang>(BoolClAlias) :> Type<Lang>
             | "float"
             | "double" ->
                 context.Flags.enableFP64 <- true
@@ -84,31 +55,31 @@ module Type =
                 else
                     // NOTE why ArrayType is different from RefType from C lang perspective
                     ArrayType(go baseT, size |> Option.get) :> Type<Lang>
-            | s when s.StartsWith "buffer" -> 
-                let baseT = _type.GetGenericArguments().[0].Name
+            | s when s.StartsWith Buffer ->
+                let baseT = type'.GetGenericArguments().[0].Name
                 if isKernelArg then
                     RefType(go baseT, []) :> Type<Lang>
                 else
                     // NOTE why ArrayType is different from RefType from C lang perspective
                     ArrayType(go baseT, size |> Option.get) :> Type<Lang>
-                    
-            | s when s.StartsWith "fsharpref" -> RefType(go (_type.GetGenericArguments().[0].Name), []) :> Type<Lang>            
+
+            | s when s.StartsWith "fsharpref" -> RefType(go (type'.GetGenericArguments().[0].Name), []) :> Type<Lang>
             | f when f.StartsWith "fsharpfunc" ->
                 //            go (_type.GetGenericArguments().[1].Name)
-                translate (_type.GetGenericArguments().[1]) isKernelArg size context
+                translate (type'.GetGenericArguments().[1]) isKernelArg size context
             | tp when tp.Contains("tuple") ->
                 let types =
-                    if _type.Name.EndsWith("[]") then
-                        _type
+                    if type'.Name.EndsWith("[]") then
+                        type'
                             .UnderlyingSystemType
                             .ToString()
-                            .Substring(15, _type.UnderlyingSystemType.ToString().Length - 18)
+                            .Substring(15, type'.UnderlyingSystemType.ToString().Length - 18)
                             .Split(',')
                     else
-                        _type
+                        type'
                             .UnderlyingSystemType
                             .ToString()
-                            .Substring(15, _type.UnderlyingSystemType.ToString().Length - 16)
+                            .Substring(15, type'.UnderlyingSystemType.ToString().Length - 16)
                             .Split(',')
                 let mutable n = 0
                 let baseTypes = [| for i in 0 .. types.Length - 1 -> types.[i].Substring(7) |]
@@ -141,7 +112,7 @@ module Type =
                 structType :> Type<_>
             | other -> failwithf "Unsupported kernel type: %s" other
 
-        go _type.Name
+        go type'.Name
 
     let translateStructDecls structs (targetContext: TargetContext<_, _>) =
         let translateStruct (t: System.Type) =

@@ -1,14 +1,15 @@
 open Expecto
 
 open Brahma.FSharp.Tests
+open Brahma.FSharp.OpenCL
 
 [<Tests>]
 let allTests =
     testList "All tests" [
-        Translator.tests
         Full.tests
-        //Atomic.tests
-        //Workflow.tests
+        Translator.tests
+        // Atomic.tests
+        Workflow.tests
         QuotationTransformers.tests
         Union.tests
     ]
@@ -16,7 +17,5 @@ let allTests =
 
 [<EntryPoint>]
 let main argv =
-    printfn "%O\n" gpu
-
     allTests
     |> runTestsWithCLIArgs [] argv

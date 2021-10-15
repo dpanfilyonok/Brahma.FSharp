@@ -37,29 +37,29 @@ let private printPrimitiveType (pType: PrimitiveType<'lang>) =
     | TypeName tname -> tname
     |> wordL
 
-let rec Print<'lang> (_type: Type<'lang>) =
-    match _type with
+let rec print<'lang> (type': Type<'lang>) =
+    match type' with
     | :? PrimitiveType<'lang> as pt -> printPrimitiveType pt
-    | :? RefType<'lang> as rt -> Print rt.BaseType ^^ wordL "*"
-    | :? ArrayType<'lang> as art -> Print art.BaseType
+    | :? RefType<'lang> as rt -> print rt.BaseType ^^ wordL "*"
+    | :? ArrayType<'lang> as art -> print art.BaseType
     | :? Image2DType<'lang> as imgt ->
         match imgt.Modifier with
         | true -> wordL "read_only image2D"
         | false -> wordL "write_only image2D"
-    | :? StructInplaceType<'lang> as s -> PrintStructInplaceType s
+    | :? StructInplaceType<'lang> as s -> printStructInplaceType s
     | :? StructType<'lang> as s -> wordL s.Name
-    | :? UnionClInplaceType<'lang> as u -> PrintUnionInplaceType u
+    | :? UnionClInplaceType<'lang> as u -> printUnionInplaceType u
     | :? TupleType<'lang> as t -> wordL ("tuple" + t.Number.ToString())
-    | t -> failwithf "Printer. Unsupported type: %A" t
+    | _ -> failwithf "Printer. Unsupported type: %A" type'
 
-and PrintAggregatingInplaceType keyword typeName fields =
+and printAggregatingInplaceType keyword typeName fields =
     let header = [ wordL keyword; wordL typeName ] |> spaceListL
 
     let body =
         [
             for field in fields ->
                 [
-                    Print field.Type
+                    print field.Type
                     wordL field.Name
                     wordL ";"
                 ]
@@ -70,6 +70,6 @@ and PrintAggregatingInplaceType keyword typeName fields =
 
     header ^^ body
 
-and PrintUnionInplaceType (t: UnionClInplaceType<_>) = PrintAggregatingInplaceType "union" t.Name t.Fields
+and printUnionInplaceType (t: UnionClInplaceType<_>) = printAggregatingInplaceType "union" t.Name t.Fields
 
-and PrintStructInplaceType (t: StructInplaceType<_>) = PrintAggregatingInplaceType "struct" t.Name t.Fields
+and printStructInplaceType (t: StructInplaceType<_>) = printAggregatingInplaceType "struct" t.Name t.Fields

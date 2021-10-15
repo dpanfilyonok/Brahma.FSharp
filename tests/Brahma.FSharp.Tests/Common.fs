@@ -3,25 +3,16 @@ namespace Brahma.FSharp.Tests
 open System.IO
 open Brahma.FSharp.OpenCL
 open Expecto
-//open Brahma.FSharp.OpenCL.WorkflowBuilder
 open Brahma.FSharp.OpenCL.Translator
 open Brahma.FSharp.OpenCL.Printer.AST
 open FSharp.Quotations
-open OpenCL.Net
 
 [<AutoOpen>]
 module Common =
-    let gpu =
-        let deviceType = DeviceType.Default
-        let platformName = "*"
-        let devices = Device.getDevices platformName deviceType
-        GPU(devices.[0])        
-
-    (*let finalize f =
-        try
-            f ()
-        finally
-            context.Provider.CloseAllBuffers()*)
+    let context =
+        let deviceType = ClDeviceType.Default
+        let platformName = ClPlatform.Any
+        ClContext(platformName, deviceType)
 
 module CustomDatatypes =
     [<Struct>]
@@ -36,8 +27,6 @@ module CustomDatatypes =
             WrappedInt(x.InnerValue - y.InnerValue)
 
 module Utils =
-    let getValidGlobalSize wgSize neededSize = (neededSize + wgSize - 1) / wgSize * wgSize
-
     let filesAreEqual file1 file2 =
         let all1 =
             (File.ReadAllText file1)
@@ -51,16 +40,16 @@ module Utils =
 
         Expect.equal all1 all2 "Files should be equals as strings"
 
-    let platformMessage (gpu: GPU) testName =
-        printfn "Run %s on %A" testName gpu.ClDevice
+    let platformMessage (provider: ComputeProvider) testName =
+        printfn "Run %s on %A" testName provider
 
-    let openclCompile (command: Expr<('a -> 'b)>) =        
-        let kernel = gpu.CreateKernel command
-        kernel.ClCode
+    let openclCompile (command: Expr<('a -> 'b)>) =
+        let kernel = context.CreateKernel command
+        kernel.Code
 
     let openclTranslate (expr: Expr) =
         let translator = FSQuotationToOpenCLTranslator()
-        let (ast, methods) = translator.Translate(expr, [])
+        let (ast, methods) = translator.Translate(expr)
         print ast
 
     let openclTransformQuotation (expr: Expr) =

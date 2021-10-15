@@ -21,7 +21,7 @@ As target function for ```atomic``` it`s possible to use anonymous lambda functi
 *)
 
 <@
-    fun (range: _1D) (buffer: int[]) ->
+    fun (range: Range1D) (buffer: int[]) ->
         atomic (+) buffer.[0] 1 |> ignore
 @>
 
@@ -32,7 +32,7 @@ You can use quoted lambdas that inserted inside kernel quotation by splicing ope
 let f = <@ fun x y -> x + 2 * y @>
 
 <@
-    fun (range: _1D) (buffer: int[]) ->
+    fun (range: Range1D) (buffer: int[]) ->
         atomic %f buffer.[0] 1 |> ignore
 @>
 
@@ -41,7 +41,7 @@ You cannot use arbitary named functions in atomic expressions, but you can use a
 *)
 
 <@
-    fun (range: _1D) (buffer: int[]) ->
+    fun (range: Range1D) (buffer: int[]) ->
         atomic min buffer.[0] 0 |> ignore
 @>
 
@@ -55,12 +55,12 @@ There are some specific named functions, which can only be used as target functi
 *)
 
 <@
-    fun (range: _1D) (buffer: int[]) ->
+    fun (range: Range1D) (buffer: int[]) ->
         atomic inc buffer.[0] |> ignore
 @>
 
 <@
-    fun (range: _1D) (buffer: bool[]) ->
+    fun (range: Range1D) (buffer: bool[]) ->
         atomic xchg buffer.[0] false |> ignore
 @>
 
@@ -70,7 +70,7 @@ You can use srtp atomic functions in generic kernels. Following kernel can be us
 
 let inline kernel () =
     <@
-        fun (range: _1D) (result: 'a[]) (value: 'a) ->
+        fun (range: Range1D) (result: 'a[]) (value: 'a) ->
             atomic (+) result.[0] value |> ignore
     @>
 
@@ -85,7 +85,7 @@ let inline kernel () =
 *)
 
 <@
-    fun (range: _1D) (buffer: int[]) ->
+    fun (range: Range1D) (buffer: int[]) ->
         let g x = atomic (+) buffer.[0] x
         g 1 |> ignore
 @>
@@ -95,21 +95,21 @@ But following kernels is not supported:
 *)
 
 <@
-    fun (range: _1D) (buffer: int[]) ->
+    fun (range: Range1D) (buffer: int[]) ->
         // function without application of first parameter
         let g x y = atomic (+) x y
         g buffer.[0] 1 |> ignore
 @>
 
 <@
-    fun (range: _1D) (result: int[]) ->
+    fun (range: Range1D) (result: int[]) ->
         // implicit argument
         let g = atomic (+) result.[0]
         g 1 |> ignore
 @>
 
 <@
-    fun (range: _1D) (result: int[]) ->
+    fun (range: Range1D) (result: int[]) ->
         // function's argument in closure of target function
         let g y = atomic (fun x -> x + y + 1) result.[0]
         g 1 |> ignore
@@ -124,7 +124,7 @@ Use
 *)
 
 <@
-    fun (range: _1D) (buffer: int[]) ->
+    fun (range: Range1D) (buffer: int[]) ->
         atomic (+) buffer.[0] 1 |> ignore
 @>
 
@@ -133,6 +133,6 @@ instead of
 *)
 
 <@
-    fun (range: _1D) (buffer: int[]) ->
+    fun (range: Range1D) (buffer: int[]) ->
         atomic (fun x -> x + 1) buffer.[0] |> ignore
 @>

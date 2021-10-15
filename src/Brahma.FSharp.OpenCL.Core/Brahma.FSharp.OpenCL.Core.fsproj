@@ -20,16 +20,21 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="ClException.fs" />
-    <Compile Include="NDRangeDimentions.fs" />
-    <Compile Include="Device.fs" />
-    <Compile Include="Buffer.fs" />
-    <Compile Include="Kernel.fs" />
+    <Compile Include="NDRangeDimensions.fs" />
+    <Compile Include="IBuffer.fs" />
+    <Compile Include="IKernel.fs" />
     <Compile Include="Messages.fs" />
-    <Compile Include="GPU.fs" />
+    <Compile Include="ComputeProvider.fs" />
+    <Compile Include="IContext.fs" />
+    <Compile Include="ClBuffer.fs" />
+    <Compile Include="ClKernel.fs" />
+    <Compile Include="ClContext.fs" />
+    <Compile Include="ClTask.fs" />
+    <Compile Include="DataStructures.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Brahma.FSharp.OpenCL.Printer\Brahma.FSharp.OpenCL.Printer.fsproj" />
-    <ProjectReference Include="..\Brahma.FSharp.OpenCL.Translator\Brahma.FSharp.OpenCL.Translator.fsproj" />        
+    <ProjectReference Include="..\Brahma.FSharp.OpenCL.Translator\Brahma.FSharp.OpenCL.Translator.fsproj" />
     <ProjectReference Include="..\YC.OpenCL.NET\YC.OpenCL.NET.csproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

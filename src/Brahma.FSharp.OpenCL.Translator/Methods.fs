@@ -105,15 +105,17 @@ type KernelFunc(var: Var, expr: Expr, context: TargetContext<Lang,Statement<Lang
     inherit Method(var, expr, context)
 
     override this.TranslateArgs(args, _, _, context) =
-        let brahmaDimensionsTypes =
-            ["_1d"; "_2d"; "_3d"]
-            |> List.map (fun s -> "brahma.fsharp.opencl." + s)
+        let brahmaDimensionsTypes = [
+            NDRange1D
+            NDRange2D
+            NDRange3D
+        ]
 
         args
         |> List.filter
             (fun (variable: Var) ->
                 brahmaDimensionsTypes
-                |> (not << List.contains (variable.Type.FullName.ToLowerInvariant()))
+                |> (not << List.contains (variable.Type.Name.ToLowerInvariant()))
             )
         |> List.map
             (fun variable ->

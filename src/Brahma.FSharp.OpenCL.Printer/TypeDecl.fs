@@ -32,7 +32,7 @@ let PrintStructDeclaration (decl: StructDecl<_>) =
         [
             for f in decl.StructType.Fields ->
                 [
-                    Types.Print f.Type
+                    Types.print f.Type
                     wordL f.Name
                     wordL ";"
                 ]

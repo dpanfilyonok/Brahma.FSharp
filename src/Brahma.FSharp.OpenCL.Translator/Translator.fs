@@ -19,10 +19,11 @@ open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.AST
 open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 open Brahma.FSharp.OpenCL.Translator.TypeReflection
+open System
 
 #nowarn "3390"
 
-type FSQuotationToOpenCLTranslator() =
+type FSQuotationToOpenCLTranslator([<ParamArray>] translatorOptions: TranslatorOption[]) =
     let mainKernelName = "brahmaKernel"
 
     let collectData (expr: Expr) (functions: (Var * Expr) list) =
@@ -118,8 +119,10 @@ type FSQuotationToOpenCLTranslator() =
         |> List.find (fun method -> method :? KernelFunc)
         |> fun kernel -> kernel.FunExpr
 
-    member this.Translate(qExpr, translatorOptions: TranslatorOption list) =
+    member this.TranslatorOptions = translatorOptions
+
+    member this.Translate(qExpr) =
         let lockObject = obj ()
 
         lock lockObject <| fun () ->
-            translate qExpr translatorOptions
+            translate qExpr (List.ofArray translatorOptions)
