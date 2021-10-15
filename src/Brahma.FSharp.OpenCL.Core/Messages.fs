@@ -1,6 +1,6 @@
 namespace Brahma.FSharp.OpenCL
 
-type Free<'a when 'a: struct>(src: IBuffer<'a>) =
+type Free<'a when 'a: struct>(src: System.IDisposable) =
     member this.Source = src
 
 type ToHost<'a when 'a: struct>(src: IBuffer<'a>, dst: 'a[], ?replyChannel: AsyncReplyChannel<'a[]>) =

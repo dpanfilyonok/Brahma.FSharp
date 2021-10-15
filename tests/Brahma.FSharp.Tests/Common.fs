@@ -44,7 +44,7 @@ module Utils =
         printfn "Run %s on %A" testName provider
 
     let openclCompile (command: Expr<('a -> 'b)>) =
-        let kernel = context.CreateKernel command
+        let kernel = context.CreateClKernel command
         kernel.Code
 
     let openclTranslate (expr: Expr) =

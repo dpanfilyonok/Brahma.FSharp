@@ -2,6 +2,7 @@ open Expecto
 
 open Brahma.FSharp.Tests
 open Brahma.FSharp.OpenCL
+open FSharp.Quotations
 
 [<Tests>]
 let allTests =

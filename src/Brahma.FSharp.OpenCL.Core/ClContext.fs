@@ -100,24 +100,46 @@ type ClContext private (context: Context, device: Device, translator: FSQuotatio
     member this.WithNewComputeProvider() =
         ClContext(this.Context, this.Device, this.Translator, ComputeProvider(this.Context, this.Device))
 
-    member this.CreateKernel(srcLambda: Expr<'a -> 'b>) =
+    member this.CreateClKernel(srcLambda: Expr<'a -> 'b>) =
         ClKernel<_,_>(this, srcLambda)
 
-    member this.CreateBuffer
+    member this.CreateClBuffer
         (
-            initParam: BufferInitParam<'a>,
+            data: 'a[],
             ?hostAccessMode: HostAccessMode,
             ?deviceAccessMode: DeviceAccessMode,
             ?allocationMode: AllocationMode
         ) =
 
-        let hostAccessMode = defaultArg hostAccessMode ClMemFlags.Default.HostAccessMode
-        let deviceAccessMode = defaultArg deviceAccessMode ClMemFlags.Default.DeviceAccessMode
-        let allocationMode = defaultArg allocationMode ClMemFlags.Default.AllocationMode
+        let hostAccessMode = defaultArg hostAccessMode ClMemFlags.DefaultIfData.HostAccessMode
+        let deviceAccessMode = defaultArg deviceAccessMode ClMemFlags.DefaultIfData.DeviceAccessMode
+        let allocationMode = defaultArg allocationMode ClMemFlags.DefaultIfData.AllocationMode
 
         new ClBuffer<'a>(
             this,
-            initParam,
+            Data data,
+            {
+                HostAccessMode = hostAccessMode
+                DeviceAccessMode = deviceAccessMode
+                AllocationMode = allocationMode
+            }
+        )
+
+    member this.CreateClBuffer
+        (
+            size: int,
+            ?hostAccessMode: HostAccessMode,
+            ?deviceAccessMode: DeviceAccessMode,
+            ?allocationMode: AllocationMode
+        ) =
+
+        let hostAccessMode = defaultArg hostAccessMode ClMemFlags.DefaultIfNoData.HostAccessMode
+        let deviceAccessMode = defaultArg deviceAccessMode ClMemFlags.DefaultIfNoData.DeviceAccessMode
+        let allocationMode = defaultArg allocationMode ClMemFlags.DefaultIfNoData.AllocationMode
+
+        new ClBuffer<'a>(
+            this,
+            Size size,
             {
                 HostAccessMode = hostAccessMode
                 DeviceAccessMode = deviceAccessMode
