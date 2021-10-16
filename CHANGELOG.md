@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0-alpha9.1] - 2021-10-16
+
+### Fixed
+- ClArray memory management
+- API for buffers manipulation
+
 ## [2.0.0-alpha9] - 2021-10-15
 
 ### Added
@@ -127,8 +133,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - FSharp.Core form NuGet
 - .NET 4.5
 
-[Unreleased]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v2.0.0-alpha9...HEAD
-[2.0.0-alpha9]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v1.1.5...v2.0.0-alpha9
+[Unreleased]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v2.0.0-alpha9.1...HEAD
+[2.0.0-alpha9.1]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v1.1.5...v2.0.0-alpha9.1
 [2.0.0-alpha9]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v1.1.5...v2.0.0-alpha9
 [2.0.0-alpha8]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v1.1.5...v2.0.0-alpha8
 [2.0.0-alpha7.1]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v1.1.5...v2.0.0-alpha7.1
