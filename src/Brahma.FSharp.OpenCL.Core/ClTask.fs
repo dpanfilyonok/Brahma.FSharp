@@ -47,10 +47,11 @@ type ClTaskBuilder() =
                 finalizer ()
 
     member this.Using(disposableRes: #System.IDisposable, f) =
-        this.TryFinally(
-            this.Delay(fun () -> f disposableRes),
-            fun () -> disposableRes.Dispose()
-        )
+        ClTask <| fun env ->
+            try
+                runComputation (this.Delay(fun () -> f disposableRes)) env
+            finally
+                env.Provider.CommandQueue.Post <| Msg.CreateFreeMsg(disposableRes)
 
     member this.While(cond, body) =
         if not (cond ()) then
@@ -110,7 +111,7 @@ module ClTaskOpened =
         opencl {
             let! ctx = ClTask.ask
 
-            let kernel = ctx.CreateKernel command
+            let kernel = ctx.CreateClKernel command
 
             ctx.Provider.CommandQueue.Post <| MsgSetArguments(fun () -> binder kernel.SetArguments)
             ctx.Provider.CommandQueue.Post <| Msg.CreateRunMsg<_, _>(kernel)

@@ -37,11 +37,18 @@ type ClMemFlags =
         AllocationMode: AllocationMode
     }
 
-    static member Default =
+    static member DefaultIfData =
         {
             HostAccessMode = HostAccessMode.ReadWrite
             DeviceAccessMode = DeviceAccessMode.ReadWrite
-            AllocationMode = AllocationMode.Default
+            AllocationMode = AllocationMode.AllocAndCopyHostPtr
+        }
+
+    static member DefaultIfNoData =
+        {
+            HostAccessMode = HostAccessMode.ReadWrite
+            DeviceAccessMode = DeviceAccessMode.ReadWrite
+            AllocationMode = AllocationMode.AllocHostPtr
         }
 
 type BufferInitParam<'a> =
@@ -56,7 +63,11 @@ type ClBuffer<'a when 'a : struct>
         ?memFlags: ClMemFlags
     ) =
 
-    let memFlags = defaultArg memFlags ClMemFlags.Default
+    let memFlags =
+        match initParam with
+        | Data _ -> ClMemFlags.DefaultIfData
+        | Size _ -> ClMemFlags.DefaultIfNoData
+        |> defaultArg memFlags
 
     let elementSize =
         if clContext.Translator.TranslatorOptions |> Array.contains UseNativeBooleanType then

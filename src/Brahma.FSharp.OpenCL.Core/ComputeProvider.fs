@@ -84,7 +84,7 @@ type ComputeProvider(context: Context, device: Device) as this =
 
     member private this.HandleFree(free: IFreeCrate) =
         { new IFreeCrateEvaluator with
-            member this.Eval crate = crate.Source.Free()
+            member this.Eval crate = crate.Source.Dispose()
         }
         |> free.Apply
 
