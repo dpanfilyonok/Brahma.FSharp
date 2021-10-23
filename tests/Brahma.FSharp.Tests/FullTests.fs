@@ -1,4 +1,4 @@
-module Full
+﻿module Full
 
 open Expecto
 open Brahma.FSharp.OpenCL
@@ -1252,6 +1252,163 @@ let specificTestCases = testList "Specific Test Cases" [
         // |> printfn "%A"
 ]
 
+type T1 = None1 | Some1 of int
+
+let simpleDUTests = testList "Simple tests on discriminated unions" [
+    ptestCase "Option<int> with F#-native syntax" <| fun () ->
+        let rnd = System.Random()
+        let input1 = Array.init 100_000 (fun i -> rnd.Next())
+        let input2 = Array.init 100_000 (fun i -> rnd.Next())
+        let inputArrayLength = input1.Length
+        let add (op:Expr<Option<int> -> Option<int> -> Option<int>>) =
+            <@
+                fun (ndRange: Range1D)
+                    (input1: int clarray)
+                    (input2: int clarray)
+                    (output: int clarray) ->
+
+                    let i = ndRange.GlobalID0
+                    if i < inputArrayLength then
+                        let x = if input1.[i] < 0 then None else Some input1.[i]
+                        let y = if input2.[i] < 0 then None else Some input1.[i]
+                        output.[i] <- match (%op) x y with Some x -> x | None -> 0
+            @>
+
+        let actual =
+            opencl {
+                use! input1 = ClArray.toDevice input1
+                use! input2 = ClArray.toDevice input2
+                use! output = ClArray.alloc<int> 100_000
+                let op = <@ fun x y -> 
+                                match x with 
+                                 Some x -> match y with Some y -> Some (x + y) | None -> Some x
+                                | None -> match y with Some y -> Some y | None -> None  @>
+                do! runCommand (add (op)) <| fun x ->
+                    x
+                    <| Range1D.CreateValid(input1.Length, 256)
+                    <| input1
+                    <| input2
+                    <| output
+
+                return! ClArray.toHost output
+            }
+            |> ClTask.runSync context
+
+        let expected = Array.map2 (fun x y -> if x < 0 
+                                              then if y < 0 
+                                                   then 0 
+                                                   else y 
+                                              else x + y) input1 input2
+
+        "Arrays should be equal"
+        |> Expect.sequenceEqual actual expected
+
+    ptestCase "Option<int> with simplified syntax" <| fun () ->
+        let rnd = System.Random()
+        let input1 = Array.init 100_000 (fun i -> rnd.Next())
+        let input2 = Array.init 100_000 (fun i -> rnd.Next())
+        let inputArrayLength = input1.Length
+        let add (op:Expr<Option<int> -> Option<int> -> Option<int>>) =
+            <@
+                fun (ndRange: Range1D)
+                    (input1: int clarray)
+                    (input2: int clarray)
+                    (output: int clarray) ->
+
+                    let i = ndRange.GlobalID0
+                    if i < inputArrayLength then
+                        let mutable x = None
+                        let mutable y = None
+                        if input1.[i] >= 0 then x <- Some input1.[i]
+                        if input2.[i] >= 0 then y <- Some input2.[i]
+                        match (%op) x y with 
+                        Some x -> output.[i] <- x 
+                        | None -> output.[i] <- 0
+            @>
+
+        let actual =
+            opencl {
+                use! input1 = ClArray.toDevice input1
+                use! input2 = ClArray.toDevice input2
+                use! output = ClArray.alloc<int> 100_000
+                let op = <@ fun x y -> 
+                                match x with 
+                                 Some x -> match y with Some y -> Some (x + y) | None -> Some x
+                                | None -> match y with Some y -> Some y | None -> None  @>
+                do! runCommand (add (op)) <| fun x ->
+                    x
+                    <| Range1D.CreateValid(input1.Length, 256)
+                    <| input1
+                    <| input2
+                    <| output
+
+                return! ClArray.toHost output
+            }
+            |> ClTask.runSync context
+
+        let expected = Array.map2 (fun x y -> if x < 0 
+                                              then if y < 0 
+                                                   then 0 
+                                                   else y 
+                                              else x + y) input1 input2
+
+        "Arrays should be equal"
+        |> Expect.sequenceEqual actual expected
+
+    ptestCase "Simple custom non-generic DU" <| fun () ->
+        let rnd = System.Random()
+        let input1 = Array.init 100_000 (fun i -> rnd.Next())
+        let input2 = Array.init 100_000 (fun i -> rnd.Next())
+        let inputArrayLength = input1.Length
+        let add (op:Expr<T1 -> T1 -> T1>) =
+            <@
+                fun (ndRange: Range1D)
+                    (input1: int clarray)
+                    (input2: int clarray)
+                    (output: int clarray) ->
+
+                    let i = ndRange.GlobalID0
+                    if i < inputArrayLength then
+                        let mutable x = None1
+                        let mutable y = None1
+                        if input1.[i] >= 0 then x <- Some1 input1.[i]
+                        if input2.[i] >= 0 then y <- Some1 input2.[i]
+                        let z = (%op) x y
+                        match z with 
+                        Some1 x -> output.[i] <- x 
+                        | None1 -> output.[i] <- 0
+            @>
+
+        let actual =
+            opencl {
+                use! input1 = ClArray.toDevice input1
+                use! input2 = ClArray.toDevice input2
+                use! output = ClArray.alloc<int> 100_000
+                let op = <@ fun x y -> 
+                                match x with 
+                                 Some1 x -> match y with Some1 y -> Some1 (x + y) | None1 -> Some1 x
+                                | None1 -> match y with Some1 y -> Some1 y | None1 -> None1  @>
+                do! runCommand (add (op)) <| fun x ->
+                    x
+                    <| Range1D.CreateValid(input1.Length, 256)
+                    <| input1
+                    <| input2
+                    <| output
+
+                return! ClArray.toHost output
+            }
+            |> ClTask.runSync context
+
+        let expected = Array.map2 (fun x y -> if x < 0 
+                                              then if y < 0 
+                                                   then 0 
+                                                   else y 
+                                              else x + y) input1 input2
+
+        "Arrays should be equal"
+        |> Expect.sequenceEqual actual expected
+]
+
 let tests =
     testList "System tests with running kernels" [
         letTransformationTests
@@ -1267,5 +1424,6 @@ let tests =
         localMemTests
         structTests
         specificTestCases
+        simpleDUTests
     ]
     |> fun x -> Expecto.Sequenced(Synchronous, x)
