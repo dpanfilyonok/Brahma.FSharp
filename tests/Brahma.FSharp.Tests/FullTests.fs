@@ -334,7 +334,7 @@ let operatorsAndMathFunctionsTests =
         ]
 
 let pipeTests =
-    ptestList "Pipe tests" [
+    testList "Pipe tests" [
         // Lambda is not supported.
         ptestCase "Forward pipe." <| fun _ ->
             let command =
@@ -353,7 +353,7 @@ let pipeTests =
                 @>
             checkResult command intInArr [|3; 1; 2; 3|]
 
-        testCase "Check simple '|> ignore'" <| fun () ->
+        ptestCase "Check simple '|> ignore'" <| fun () ->
         let command =
             <@
                 fun (range:  Range1D) (buffer: ClArray<int>) ->
@@ -546,7 +546,7 @@ let quotationInjectionTests =
 let localMemTests =
     testList "Local memory tests" [
         // TODO: pointers to local data must be local too.
-        ptestCase "Local int. Work item counting" <| fun _ ->
+        testCase "Local int. Work item counting" <| fun _ ->
             let command =
                 <@ fun (range:  Range1D) (output: ClArray<int>) ->
                     let globalID = range.GlobalID0
@@ -1020,7 +1020,7 @@ let letQuotationTransformerSystemTests =
 
 let structTests =
     testList "Struct tests" [
-        ptestCase "Simple seq of struct." <| fun _ ->
+        testCase "Simple seq of struct." <| fun _ ->
             let command =
                 <@
                     fun (range: Range1D) (buf:  ClArray<TestStruct>) ->
@@ -1037,28 +1037,34 @@ let structTests =
             let command =
                 <@
                     fun (range: Range1D) (buf:  ClArray<TestStruct>) ->
-                        buf.[0] <- TestStruct(5,6.0)
+                        buf.[0] <- TestStruct(5, 6.0)
                 @>
 
-            checkResult command [|TestStruct(1, 2.0); TestStruct(3, 4.0)|] [|TestStruct(3, 4.0); TestStruct(1, 2.0)|]
+            checkResult command [|TestStruct(1, 2.0); TestStruct(3, 4.0)|]
+                                [|TestStruct(5, 6.0); TestStruct(3, 4.0)|]
 
-        ptestCase "Simple seq of struct prop set" <| fun _ ->
+        testCase "Simple seq of struct prop set" <| fun _ ->
             let command =
                 <@
-                    fun (range: Range1D) (buf:  ClArray<TestStruct>) -> ()
-                        //buf.[0].x <- 5
+                    fun (range: Range1D) (buf:  ClArray<TestStruct>) -> 
+                        let mutable y = buf.[0]
+                        y.x <- 5
+                        buf.[0] <- y
                 @>
 
             checkResult command [|TestStruct(1, 2.0)|] [|TestStruct(5, 2.0)|]
 
-        ptestCase "Simple seq of struct prop get." <| fun _ ->
+        testCase "Simple seq of struct prop get." <| fun _ ->
             let command =
                 <@
-                    fun (range: Range1D) (buf:  ClArray<TestStruct>) -> ()
-                        // buf.[0].x <- buf.[1].x + 1
+                    fun (range: Range1D) (buf:  ClArray<TestStruct>) ->
+                        let mutable y = buf.[0]
+                        y.x <- y.x + 3
+                        buf.[0] <- y
                 @>
 
-            checkResult command [|TestStruct(1, 2.0); TestStruct(3, 4.0)|] [|TestStruct(4, 2.0); TestStruct(3, 4.0)|]
+            checkResult command [|TestStruct(1, 2.0); TestStruct(3, 4.0)|] 
+                                [|TestStruct(4, 2.0); TestStruct(3, 4.0)|]
 
         testCase "Nested structs 1." <| fun _ -> ()
     ]
