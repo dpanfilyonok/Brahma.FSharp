@@ -34,6 +34,7 @@ module Type =
             | "float32"
             | "single" -> PrimitiveType<Lang>(Float) :> Type<Lang>
             | "byte" -> PrimitiveType<Lang>(UChar) :> Type<Lang>
+            | "sbyte" -> PrimitiveType<Lang>(Char) :> Type<Lang>
             | "int64" -> PrimitiveType<Lang>(Long) :> Type<Lang>
             | "uint64" -> PrimitiveType<Lang>(ULong) :> Type<Lang>
             | "boolean" ->

@@ -1,4 +1,4 @@
-﻿module Full
+module Full
 
 open Expecto
 open Brahma.FSharp.OpenCL
@@ -59,6 +59,15 @@ let arrayItemSetTests =
                     @>
 
                 checkResult command [|0UL; 1UL; 2UL; 3UL|] [|1UL; 1UL; 2UL; 3UL|]
+
+            testCase "Array item set. Sbyte" <| fun _ ->
+                let command =
+                    <@
+                        fun (range: Range1D) (buf: ClArray<sbyte>) ->
+                            buf.[0] <- 1y
+                    @>
+
+                checkResult command [|0y; 1y; 2y; 3y|] [|1y; 1y; 2y; 3y|]
 
             testCase "Array item set. Sequential operations." <| fun _ ->
                 let command =
