@@ -657,7 +657,7 @@ let localMemoryAllocationTests = ptestList "Translation of local memory allocati
 ]
 
 let printfTests = testList "Translation of printf" [
-    ptestCase "Printf test 1" <| fun _ ->
+    testCase "Printf test 1" <| fun _ ->
         let command = <@ fun (range: Range1D) -> printf "%d %f" 10 15.0 @>
         checkCode command "Printf test 1.gen" "Printf test 1.cl"
 
@@ -684,15 +684,15 @@ let printfTests = testList "Translation of printf" [
 
         checkCode command "Printf test 3.gen" "Printf test 3.cl"
 
-    ptestCase "Printf test 4: printfn" <| fun _ ->
+    testCase "Printf test 4: printfn" <| fun _ ->
         let command = <@ fun (range: Range1D) -> printfn "%d %f" 10 15.0 @>
         checkCode command "Printf test 4.gen" "Printf test 4.cl"
 
-    ptestCase "Printf test 5: printf without args" <| fun _ ->
+    testCase "Printf test 5: printf without args" <| fun _ ->
         let command = <@ fun (range: Range1D) -> printf "I am complied" @>
         checkCode command "Printf test 5.gen" "Printf test 5.cl"
 
-    ptestCase "Printf test 6: printfn without args" <| fun _ ->
+    testCase "Printf test 6: printfn without args" <| fun _ ->
         let command = <@ fun (range: Range1D) -> printfn "I am complied too" @>
         checkCode command "Printf test 6.gen" "Printf test 6.cl"
 ]
