@@ -111,7 +111,7 @@ module ClTaskOpened =
         opencl {
             let! ctx = ClTask.ask
 
-            let kernel = ctx.CreateClKernel command
+            let kernel = (ctx.CreateClKernel command).GetNewKernel()
 
             ctx.Provider.CommandQueue.Post <| MsgSetArguments(fun () -> binder kernel.SetArguments)
             ctx.Provider.CommandQueue.Post <| Msg.CreateRunMsg<_, _>(kernel)
