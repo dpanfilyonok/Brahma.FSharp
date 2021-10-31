@@ -18,27 +18,25 @@ open FSharp.Quotations
 
 [<EntryPoint>]
 let main argv =
-    let k =
+    let value = 10
+    let command =
         <@
-            fun (r: Range1D) (a: int clarray) (s: int clcell) ->
-                let i = r.GlobalID0
-                s.Value <- a.[i]
+            fun (range: Range1D) (cell: int) ->
+                atomic (fun x -> x + value) cell |> ignore
         @>
 
-    opencl {
-        use! a = ClArray.alloc<int> 512
-        use! s = ClCell.toDevice 1
+    // opencl {
+    //     use! s = ClCell.toDevice 1
 
-        do! runCommand k <| fun it ->
-            it
-            <| Range1D(512, 256)
-            <| a
-            <| s
+    //     do! runCommand k <| fun it ->
+    //         it
+    //         <| Range1D(512, 256)
+    //         <| s
 
-        return! ClCell.toHost s
-    }
-    // Utils.openclTranslate k
-    |> ClTask.runSync context
+    //     return! ClCell.toHost s
+    // }
+    Utils.openclTranslate command
+    // |> ClTask.runSync context
     |> printfn "%A"
 
     0
