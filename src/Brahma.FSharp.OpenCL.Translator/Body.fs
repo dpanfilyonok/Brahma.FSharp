@@ -239,6 +239,15 @@ module Body =
         | "item" ->
             let (idx, tContext, hVar) = itemHelper exprs hostVar targetContext
             Item(hVar, idx) :> Expression<_>, tContext
+        // TODO rewrite to active pattern
+        | "value" when
+            match expr with
+            | Patterns.Var v -> Some v
+            | _ -> None
+            |> Option.exists (fun v -> v.Type.Name.ToLower().StartsWith ClCell) ->
+
+            let (idx, tContext, hVar) = itemHelper [Expr.Value 0] hostVar targetContext
+            Item(hVar, idx) :> Expression<_>, tContext
         | _ -> failwithf "Unsupported property in kernel: %A" propName
 
     and private translatePropGet
@@ -280,6 +289,16 @@ module Body =
             match propInfo.Name.ToLowerInvariant() with
             | "item" ->
                 let idx, tContext, hVar = itemHelper exprs hostVar tContext
+                let item = Item(hVar, idx)
+                Assignment(Property(PropertyType.Item item), newVal) :> Statement<_>, tContext
+            // TODO rewrite to active pattern
+            | "value" when
+                match expr with
+                | Patterns.Var v -> Some v
+                | _ -> None
+                |> Option.exists (fun v -> v.Type.Name.ToLower().StartsWith ClCell) ->
+
+                let (idx, tContext, hVar) = itemHelper [Expr.Value 0] hostVar targetContext
                 let item = Item(hVar, idx)
                 Assignment(Property(PropertyType.Item item), newVal) :> Statement<_>, tContext
             | _ ->

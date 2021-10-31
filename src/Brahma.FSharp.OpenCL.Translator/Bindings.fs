@@ -8,7 +8,8 @@ module Bindings =
     let [<Literal>] NDRange2D = "range2d"
     let [<Literal>] NDRange3D = "range3d"
 
-    let [<Literal>] Buffer = "clarray"
+    let [<Literal>] ClArray = "clarray"
+    let [<Literal>] ClCell = "clcell"
 
     type BoolHostAlias = byte
     let BoolClAlias = UChar
