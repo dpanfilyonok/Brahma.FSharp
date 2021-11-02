@@ -51,7 +51,7 @@ type ClTaskBuilder() =
             try
                 runComputation (this.Delay(fun () -> f disposableRes)) env
             finally
-                env.Provider.CommandQueue.Post <| Msg.CreateFreeMsg(disposableRes)
+                env.CommandQueue.Post <| Msg.CreateFreeMsg(disposableRes)
 
     member this.While(cond, body) =
         if not (cond ()) then
@@ -78,17 +78,17 @@ module ClTask =
 
     let runSync (context: ClContext) (ClTask f) =
         let res = f context
-        context.Provider.CommandQueue.PostAndReply <| MsgNotifyMe
+        context.CommandQueue.PostAndReply <| MsgNotifyMe
         res
 
     // TODO fix it
     let inParallel (tasks: seq<ClTask<'a>>) = opencl {
         let! ctx = ask
 
-        ctx.Provider.CommandQueue.PostAndReply <| Msg.MsgNotifyMe
+        ctx.CommandQueue.PostAndReply <| Msg.MsgNotifyMe
 
         let syncMsgs = Msg.CreateBarrierMessages (Seq.length tasks)
-        let ctxs = Array.create (Seq.length tasks) (ctx.WithNewComputeProvider())
+        let ctxs = Array.create (Seq.length tasks) (ctx.WithNewCommandQueue())
 
         return
             tasks
@@ -97,10 +97,10 @@ module ClTask =
                     opencl {
                         let! ctx = ask
                         let! res = task
-                        ctx.Provider.CommandQueue.Post <| syncMsgs.[i]
+                        ctx.CommandQueue.Post <| syncMsgs.[i]
                         return res
                     }
-                    |> fun task -> runComputation task <| ctx.WithNewComputeProvider()
+                    |> fun task -> runComputation task <| ctx.WithNewCommandQueue()
                 )
             |> Seq.toArray
     }
@@ -113,12 +113,12 @@ module ClTaskOpened =
 
             let kernel = ctx.CreateClKernel command
 
-            ctx.Provider.CommandQueue.Post <| MsgSetArguments(fun () -> binder kernel.SetArguments)
-            ctx.Provider.CommandQueue.Post <| Msg.CreateRunMsg<_, _>(kernel)
+            ctx.CommandQueue.Post <| MsgSetArguments(fun () -> binder kernel.ArgumentsSetter)
+            ctx.CommandQueue.Post <| Msg.CreateRunMsg<_, _>(kernel)
         }
 
     let runKernel (kernel: ClKernel<'range, 'a>) (processor: MailboxProcessor<Msg>) (binder: ('range -> 'a) -> unit) : ClTask<unit> =
         opencl {
-            processor.Post <| MsgSetArguments(fun () -> binder kernel.SetArguments)
+            processor.Post <| MsgSetArguments(fun () -> binder kernel.ArgumentsSetter)
             processor.Post <| Msg.CreateRunMsg<_, _>(kernel)
         }

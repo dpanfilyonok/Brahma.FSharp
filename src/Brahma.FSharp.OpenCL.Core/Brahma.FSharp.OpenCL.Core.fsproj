@@ -24,7 +24,7 @@
     <Compile Include="IBuffer.fs" />
     <Compile Include="IKernel.fs" />
     <Compile Include="Messages.fs" />
-    <Compile Include="ComputeProvider.fs" />
+    <Compile Include="CommandQueueProvider.fs" />
     <Compile Include="IContext.fs" />
     <Compile Include="ClBuffer.fs" />
     <Compile Include="ClKernel.fs" />

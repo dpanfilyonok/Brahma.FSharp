@@ -68,7 +68,7 @@ type ClKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
     let usedBuffers = ref [||]
 
     interface IKernel<'TRange, 'a> with
-        member this.SetArguments =
+        member this.ArgumentsSetter =
             let args = ref [||]
             let getStarterFunction qExpr =
                 match qExpr with
@@ -146,7 +146,7 @@ type ClKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
         member this.ReleaseAllBuffers() = usedBuffers := [||]
         member this.Code = clCode
 
-    member this.SetArguments = (this :> IKernel<_,_>).SetArguments
+    member this.ArgumentsSetter = (this :> IKernel<_,_>).ArgumentsSetter
     member this.Kernel = (this :> IKernel<_,_>).Kernel
     member this.Range = (this :> IKernel<_,_>).Range
     member this.Code = (this :> IKernel<_,_>).Code

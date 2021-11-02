@@ -628,15 +628,15 @@ let kernelArgumentsTests =
 
                     let inArr = ctx.CreateClArray(intInArr)
 
-                    ctx.Provider.CommandQueue.Post(Msg.MsgSetArguments(fun () -> kernel.SetArguments default1D 0 2 inArr))
-                    ctx.Provider.CommandQueue.Post(Msg.CreateRunMsg<_,_>(kernel))
+                    ctx.CommandQueue.Post(Msg.MsgSetArguments(fun () -> kernel.ArgumentsSetter default1D 0 2 inArr))
+                    ctx.CommandQueue.Post(Msg.CreateRunMsg<_,_>(kernel))
 
-                    ctx.Provider.CommandQueue.Post(Msg.MsgSetArguments(fun () -> kernel.SetArguments default1D 2 2 inArr))
-                    ctx.Provider.CommandQueue.Post(Msg.CreateRunMsg<_,_>(kernel))
+                    ctx.CommandQueue.Post(Msg.MsgSetArguments(fun () -> kernel.ArgumentsSetter default1D 2 2 inArr))
+                    ctx.CommandQueue.Post(Msg.CreateRunMsg<_,_>(kernel))
 
                     let localOut = Array.zeroCreate intInArr.Length
-                    let res = ctx.Provider.CommandQueue.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(inArr, localOut, ch))
-                    ctx.Provider.CommandQueue.Post <| Msg.CreateFreeMsg(inArr)
+                    let res = ctx.CommandQueue.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(inArr, localOut, ch))
+                    ctx.CommandQueue.Post <| Msg.CreateFreeMsg(inArr)
 
                     return res
                 }
@@ -677,13 +677,20 @@ let localMemTests =
         // TODO: pointers to local data must be local too.
         testCase "Local int. Work item counting" <| fun _ ->
             let command =
-                <@ fun (range:  Range1D) (output: ClArray<int>) ->
-                    let globalID = range.GlobalID0
-                    let mutable x = local ()
+                <@
+                    fun (range:  Range1D) (output: ClArray<int>) ->
+                        let globalID = range.GlobalID0
+                        let mutable x = local ()
 
-                    if globalID = 0 then x <- 0
-                    atomic (+) x 1 |> ignore
-                    if globalID = 0 then output.[0] <- x
+                        if globalID = 0 then x <- 0
+                        barrier ()
+
+                        atomic (+) x 1 |> ignore
+                        // fetch local value before read, dont work withour barrier
+                        barrier ()
+
+                        if globalID = 0 then
+                            output.[0] <- x
                 @>
 
             let expected = [|5|]
@@ -707,11 +714,11 @@ let localMemTests =
             let command =
                 <@
                     fun (range: Range1D) (input: ClArray<int>) (output: ClArray<int>) ->
-                        let local_buf: array<int> = localArray localWorkSize
+                        let localBuf = localArray<int> localWorkSize
 
-                        local_buf.[range.LocalID0] <- range.LocalID0
+                        localBuf.[range.LocalID0] <- range.LocalID0
                         barrier()
-                        output.[range.GlobalID0] <- local_buf.[(range.LocalID0 + 1) % localWorkSize]
+                        output.[range.GlobalID0] <- localBuf.[(range.LocalID0 + 1) % localWorkSize]
                 @>
 
 
@@ -1183,7 +1190,7 @@ let structTests =
 
             checkResult command [|TestStruct(1, 2.0)|] [|TestStruct(5, 2.0)|]
 
-        testCase "Simple seq of struct prop get." <| fun _ ->
+        ptestCase "Simple seq of struct prop get." <| fun _ ->
             let command =
                 <@
                     fun (range: Range1D) (buf:  ClArray<TestStruct>) ->
@@ -1199,7 +1206,8 @@ let structTests =
     ]
 
 let commonApiTests = testList "Common Api Tests" [
-    testCase "Using atomic in lambda should not raise exception if first parameter passed" <| fun () ->
+    // TODO is it correct?
+    ptestCase "Using atomic in lambda should not raise exception if first parameter passed" <| fun () ->
         let command =
             <@
                 fun (range:  Range1D) (buffer: int[]) ->
@@ -1209,7 +1217,8 @@ let commonApiTests = testList "Common Api Tests" [
 
         Utils.openclTranslate command |> ignore
 
-    testCase "Using atomic in lambda should raise exception if first parameter is argument" <| fun () ->
+    // TODO is it correct?
+    ptestCase "Using atomic in lambda should raise exception if first parameter is argument" <| fun () ->
         let command =
             <@
                 fun (range:  Range1D) (buffer: int[]) ->
@@ -1220,6 +1229,44 @@ let commonApiTests = testList "Common Api Tests" [
         Expect.throwsT<System.ArgumentException>
         <| fun () -> Utils.openclTranslate command |> ignore
         <| "Exception should be thrown"
+
+    testProperty "Parallel execution of kernel" <| fun _const ->
+        let n = 4
+        let l = 256
+        let getAllocator (context:ClContext)  =
+             let kernel =
+                 <@
+                     fun (r: Range1D) (buffer: ClArray<int>) ->
+                         let i = r.GlobalID0
+                         buffer.[i] <- _const
+                 @>
+             let k = context.CreateClKernel kernel
+             fun (q:MailboxProcessor<_>) ->
+                 let buf = context.CreateClArray(l, allocationMode = AllocationMode.AllocHostPtr)
+                 q.Post(Msg.MsgSetArguments(fun () -> k.ArgumentsSetter (Range1D(l, l)) buf))
+                 q.Post(Msg.CreateRunMsg<_,_>(k))
+                 buf
+
+        let allocator = getAllocator context
+        let allocOnGPU (q:MailboxProcessor<_>) allocator =
+            let b = allocator q
+            let res = Array.zeroCreate l
+            q.PostAndReply (fun ch -> Msg.CreateToHostMsg(b, res, ch))
+            q.Post (Msg.CreateFreeMsg b)
+            res
+
+
+        let actual =
+            Array.init n (fun _ ->
+                    let q = context.WithNewCommandQueue().CommandQueue
+                    q)
+            |> Array.mapi (fun i q -> async {return allocOnGPU q allocator})
+            |> Async.Parallel
+            |> Async.RunSynchronously
+
+        let expected = Array.init n (fun _ -> Array.create l _const)
+
+        Expect.sequenceEqual actual expected "Arrays should be equals"
 ]
 
 let booleanTests = testList "Boolean Tests" [

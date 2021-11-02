@@ -254,12 +254,13 @@ module AtomicProcessor =
                     | None ->
                         Var(
                             pointerVar.Name + "Mutex",
-                            if pointerVar.Type.IsArray then
+                            if pointerVar.Type.Name.ToLower().StartsWith ClArray then
                                 typeof<Mutex[]>
                             else
                                 typeof<Mutex>
                         )
 
+                // TODO is this correct?
                 do! State.modify (fun (state: Map<Var, Var>) -> state |> Map.add pointerVar mutexVar)
 
                 let atomicFuncBody =
@@ -271,6 +272,12 @@ module AtomicProcessor =
                                 Utils.getMethodInfoOfLambda <@ IntrinsicFunctions.GetArray<Mutex> @>,
                                 [Expr.Var mutexVar; idx]
                             )
+                        // | Patterns.PropertyGet (Some (Patterns.Var v), propInfo, args) when 
+                        //     v.Type.Name.ToLower().StartsWith ClArray &&
+                        //     propInfo.Name.ToLower().StartsWith "item"  -> Some v
+                        // | Patterns.PropertyGet (Some (Patterns.Var v), propInfo, args) when 
+                        //     v.Type.Name.ToLower().StartsWith ClCell &&
+                        //     propInfo.Name.ToLower().StartsWith "value"  -> Some v
                         | _ -> failwith "Invalid volatile argument. This exception should never occur :)"
                         |> Utils.createRefCall
 

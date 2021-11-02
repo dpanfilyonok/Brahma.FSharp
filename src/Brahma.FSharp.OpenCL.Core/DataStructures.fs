@@ -77,7 +77,7 @@ module ClArray =
         let! context = ClTask.ask
 
         let array = Array.zeroCreate<'a> clArray.Length
-        return context.Provider.CommandQueue.PostAndReply(fun ch -> Msg.CreateToHostMsg(clArray.Buffer, array, ch))
+        return context.CommandQueue.PostAndReply(fun ch -> Msg.CreateToHostMsg(clArray.Buffer, array, ch))
     }
 
     // TODO impl it using clEnqueCopy
@@ -92,7 +92,7 @@ module ClArray =
 
     let close (clArray: ClArray<'a>) = opencl {
         let! ctx = ClTask.ask
-        ctx.Provider.CommandQueue.Post <| Msg.CreateFreeMsg(clArray)
+        ctx.CommandQueue.Post <| Msg.CreateFreeMsg(clArray)
     }
 
 module ClCell =
@@ -114,7 +114,7 @@ module ClCell =
         let! context = ClTask.ask
 
         let array = Array.zeroCreate<'a> 1
-        return context.Provider.CommandQueue.PostAndReply(fun ch -> Msg.CreateToHostMsg(clCell.Buffer, array, ch)).[0]
+        return context.CommandQueue.PostAndReply(fun ch -> Msg.CreateToHostMsg(clCell.Buffer, array, ch)).[0]
     }
 
     // TODO impl it
