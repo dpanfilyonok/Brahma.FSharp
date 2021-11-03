@@ -59,22 +59,22 @@ let main argv =
     // // let value = 10
     let command =
         <@
-            fun (range: Range1D) (cell: int clarray) ->
-                atomic (fun x -> x + 1) cell.[0] |> ignore
+            fun (range: Range1D) (cell: int clcell) ->
+                atomic (fun x -> x + 1) cell.Value |> ignore
         @>
 
     Utils.openclTranslate command
     |> printfn "%A"
 
     opencl {
-        use! s = ClArray.alloc<int> 1
+        use! s = ClCell.alloc<int> ()
 
         do! runCommand command <| fun it ->
             it
             <| Range1D(512, 256)
             <| s
 
-        return! ClArray.toHost s
+        return! ClCell.toHost s
     }
     // Utils.openclTranslate command
     |> ClTask.runSync context

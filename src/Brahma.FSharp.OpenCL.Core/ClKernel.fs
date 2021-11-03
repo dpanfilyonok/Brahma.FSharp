@@ -103,7 +103,7 @@ type ClKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
                                     )
 
                                 | var when var.Type.Name.ToLower().StartsWith ClCell_ ->
-                                    Expr.Value 0
+                                    Expr.Value 1
 
                                 | _ ->
                                     failwithf "Something went wrong with type of atomic global var. \
