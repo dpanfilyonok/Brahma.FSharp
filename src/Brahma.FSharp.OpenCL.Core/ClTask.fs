@@ -81,7 +81,7 @@ module ClTask =
         context.CommandQueue.PostAndReply <| MsgNotifyMe
         res
 
-    // TODO fix it
+    // TODO mb swith to manual threads or smth like this
     let inParallel (tasks: seq<ClTask<'a>>) = opencl {
         let! ctx = ask
 
@@ -96,13 +96,14 @@ module ClTask =
                 (fun i task ->
                     opencl {
                         let! ctx = ask
-                        let! res = task
+                        let! result = task
                         ctx.CommandQueue.Post <| syncMsgs.[i]
-                        return res
+                        return result
                     }
-                    |> fun task -> runComputation task <| ctx.WithNewCommandQueue()
+                    |> fun task -> async { return runComputation task <| ctx.WithNewCommandQueue() }
                 )
-            |> Seq.toArray
+            |> Async.Parallel
+            |> Async.RunSynchronously
     }
 
 [<AutoOpen>]

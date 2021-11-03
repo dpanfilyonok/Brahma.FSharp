@@ -7,7 +7,6 @@ type INDRangeDimension =
     abstract member LocalWorkSize: IntPtr[] with get
     abstract member Dimensions: int
 
-[<Struct>]
 type Range1D(globalWorkSize: int, localWorkSize: int) =
     new(globalWorkSize) = Range1D(globalWorkSize, 1)
 
@@ -26,7 +25,6 @@ type Range1D(globalWorkSize: int, localWorkSize: int) =
         let globalSzie = (neededSize + wgSize - 1) / wgSize * wgSize
         Range1D(globalSzie, wgSize)
 
-[<Struct>]
 type Range2D(globalWorkSizeX: int, globalWorkSizeY: int, localWorkSizeX: int, localWorkSizeY: int) =
     new(globalWorkSizeX, globalWorkSizeY) = Range2D(globalWorkSizeX, globalWorkSizeY, 1, 1)
 
@@ -43,7 +41,6 @@ type Range2D(globalWorkSizeX: int, globalWorkSizeY: int, localWorkSizeX: int, lo
         member this.LocalWorkSize with get () = [| IntPtr localWorkSizeX; IntPtr localWorkSizeY |]
         member this.Dimensions = 2
 
-[<Struct>]
 type Range3D(globalWorkSizeX: int, globalWorkSizeY: int, globalWorkSizeZ: int, localWorkSizeX: int, localWorkSizeY: int, localWorkSizeZ: int) =
     new(globalWorkSizeX, globalWorkSizeY, globalWorkSizeZ) = Range3D(globalWorkSizeX, globalWorkSizeY, globalWorkSizeZ, 1, 1, 1)
 

@@ -17,23 +17,23 @@ let allTests =
     ]
     |> testSequenced
 
-[<Struct>]
-type TestStruct =
-    val mutable x: int
-    val mutable y: float
-    new(x, y) = { x = x; y = y }
+// [<Struct>]
+// type TestStruct =
+//     val mutable x: int
+//     val mutable y: float
+//     new(x, y) = { x = x; y = y }
 
-    override this.ToString() =
-        sprintf "%A, %A" this.x this.y
+//     override this.ToString() =
+//         sprintf "%A, %A" this.x this.y
 
-[<Struct>]
-type TestStruct2 =
-    [<MarshalAs(UnmanagedType.U1)>] val mutable x: bool
-    val mutable y: TestStruct
-    new(x, y) = { x = x; y = y }
+// [<Struct>]
+// type TestStruct2 =
+//     [<MarshalAs(UnmanagedType.U1)>] val mutable x: bool
+//     val mutable y: TestStruct
+//     new(x, y) = { x = x; y = y }
 
-    override this.ToString() =
-        sprintf "%A, %A" this.x this.y
+//     override this.ToString() =
+//         sprintf "%A, %A" this.x this.y
 
 [<EntryPoint>]
 let main argv =
@@ -57,30 +57,30 @@ let main argv =
     // }
     // |> ClTask.runSync context
     // // let value = 10
-    let command =
-        <@
-            fun (range: Range1D) (cell: int clcell) ->
-                atomic (fun x -> x + 1) cell.Value |> ignore
-        @>
+    // let command =
+    //     <@
+    //         fun (range: Range1D) (cell: int clcell) ->
+    //             atomic (fun x -> x + 1) cell.Value |> ignore
+    //     @>
 
-    Utils.openclTranslate command
-    |> printfn "%A"
-
-    opencl {
-        use! s = ClCell.alloc<int> ()
-
-        do! runCommand command <| fun it ->
-            it
-            <| Range1D(512, 256)
-            <| s
-
-        return! ClCell.toHost s
-    }
     // Utils.openclTranslate command
-    |> ClTask.runSync context
-    |> printfn "%A"
+    // |> printfn "%A"
 
-    0
+    // opencl {
+    //     use! s = ClCell.alloc<int> ()
+
+    //     do! runCommand command <| fun it ->
+    //         it
+    //         <| Range1D(512, 256)
+    //         <| s
+
+    //     return! ClCell.toHost s
+    // }
+    // // Utils.openclTranslate command
+    // |> ClTask.runSync context
+    // |> printfn "%A"
+
+    // 0
     // let s =
     //     testProperty "Parallel execution of kernel" <| fun _const ->
     //         let n = 4
@@ -119,5 +119,5 @@ let main argv =
     //         let expected = Array.init n (fun _ -> Array.create l _const)
 
     //         Expect.sequenceEqual actual expected "Arrays should be equals"
-    // s
-    // |> runTestsWithCLIArgs [] argv
+    allTests
+    |> runTestsWithCLIArgs [] argv

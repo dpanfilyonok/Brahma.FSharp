@@ -118,7 +118,7 @@ let dataStructuresApiTests = testList "Check correctness of data structures api"
 
         let actual =
             opencl {
-                use! cell = ClCell.alloc<int> ()
+                use! cell = ClCell.toDevice value
                 do! runCommand command <| fun it ->
                     it
                     <| default1D
@@ -170,7 +170,7 @@ let dataStructuresApiTests = testList "Check correctness of data structures api"
 
         let actual =
             opencl {
-                use! cell = ClCell.alloc<int> ()
+                use! cell = ClCell.toDevice 0
                 do! runCommand command <| fun it ->
                     it
                     <| default1D
@@ -195,7 +195,7 @@ let dataStructuresApiTests = testList "Check correctness of data structures api"
 
         let actual =
             opencl {
-                use! cell = ClCell.alloc<int> ()
+                use! cell = ClCell.toDevice 0
                 do! runCommand command <| fun it ->
                     it
                     <| default1D
@@ -1229,44 +1229,6 @@ let commonApiTests = testList "Common Api Tests" [
         Expect.throwsT<System.ArgumentException>
         <| fun () -> Utils.openclTranslate command |> ignore
         <| "Exception should be thrown"
-
-    testProperty "Parallel execution of kernel" <| fun _const ->
-        let n = 4
-        let l = 256
-        let getAllocator (context:ClContext)  =
-             let kernel =
-                 <@
-                     fun (r: Range1D) (buffer: ClArray<int>) ->
-                         let i = r.GlobalID0
-                         buffer.[i] <- _const
-                 @>
-             let k = context.CreateClKernel kernel
-             fun (q:MailboxProcessor<_>) ->
-                 let buf = context.CreateClArray(l, allocationMode = AllocationMode.AllocHostPtr)
-                 q.Post(Msg.MsgSetArguments(fun () -> k.ArgumentsSetter (Range1D(l, l)) buf))
-                 q.Post(Msg.CreateRunMsg<_,_>(k))
-                 buf
-
-        let allocator = getAllocator context
-        let allocOnGPU (q:MailboxProcessor<_>) allocator =
-            let b = allocator q
-            let res = Array.zeroCreate l
-            q.PostAndReply (fun ch -> Msg.CreateToHostMsg(b, res, ch))
-            q.Post (Msg.CreateFreeMsg b)
-            res
-
-
-        let actual =
-            Array.init n (fun _ ->
-                    let q = context.WithNewCommandQueue().CommandQueue
-                    q)
-            |> Array.mapi (fun i q -> async {return allocOnGPU q allocator})
-            |> Async.Parallel
-            |> Async.RunSynchronously
-
-        let expected = Array.init n (fun _ -> Array.create l _const)
-
-        Expect.sequenceEqual actual expected "Arrays should be equals"
 ]
 
 let booleanTests = testList "Boolean Tests" [
@@ -1379,7 +1341,7 @@ let booleanTests = testList "Boolean Tests" [
 ]
 
 let parallelExecutionTests = testList "Parallel Execution Tests" [
-    ptestCase "Running tasks in parallel should not raise exception" <| fun () ->
+    testCase "Running tasks in parallel should not raise exception" <| fun () ->
         let fill = opencl {
             let kernel =
                 <@
@@ -1397,40 +1359,18 @@ let parallelExecutionTests = testList "Parallel Execution Tests" [
             return! ClArray.toHost array
         }
 
-        opencl {
-            return!
-                List.replicate 3 fill
-                |> ClTask.inParallel
-        }
-        |> ClTask.runSync context
-        |> ignore
+        let expected = Array.replicate 3 (Array.create 256 1)
 
-        // using native api
-        // let f (m: Msg) (ctx: ClContext)  =
-        //     let kernel =
-        //         <@
-        //             fun (r: Range1D) (buffer: int clarray) ->
-        //                 let i = r.GlobalID0
-        //                 buffer.[i] <- 1
-        //         @>
+        let actual =
+            opencl {
+                return!
+                    List.replicate 3 fill
+                    |> ClTask.inParallel
+            }
+            |> ClTask.runSync context
 
-        //     use buf = ctx.CreateBuffer(Size 256, allocationMode = AllocationMode.AllocHostPtr)
-        //     let k = ctx.CreateKernel kernel
-        //     ctx.Provider.CommandQueue.Post(Msg.MsgSetArguments(fun () -> k.SetArguments (Range1D.CreateValid(256, 256))(new ClArray<_>(buf))))
-        //     ctx.Provider.CommandQueue.Post(Msg.CreateRunMsg<_,_>(k))
-        //     let localOut = Array.zeroCreate 256
-        //     let s = ctx.Provider.CommandQueue.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(buf, localOut, ch))
-        //     ctx.Provider.CommandQueue.Post <| m
-        //     s
-
-        // let syncMsgs = Msg.CreateBarrierMessages 3
-
-        // [
-        //     f syncMsgs.[0] <| context.WithComputeProvider()
-        //     f syncMsgs.[0] <| context.WithComputeProvider()
-        //     f syncMsgs.[0] <| context.WithComputeProvider()
-        // ]
-        // |> printfn "%A"
+        "Arrays should be equal"
+        |> Expect.sequenceEqual actual expected
 ]
 
 type T1 = None1 | Some1 of int

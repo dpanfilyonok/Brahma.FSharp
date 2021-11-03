@@ -99,7 +99,10 @@ type ClKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
                                 | var when var.Type.Name.ToLower().StartsWith ClArray_ ->
                                     Expr.PropertyGet(
                                         Expr.Var var,
-                                        typeof<IBuffer<_>>.GetProperty("Length")
+                                        typeof<IBuffer<_>>
+                                            .GetGenericTypeDefinition()
+                                            .MakeGenericType(var.Type.GenericTypeArguments.[0])
+                                            .GetProperty("Length")
                                     )
 
                                 | var when var.Type.Name.ToLower().StartsWith ClCell_ ->
@@ -122,7 +125,6 @@ type ClKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
                         |> List.map List.singleton,
 
                         <@@
-                            printfn "%A" (%%mutexLengths : int[])
                             let mutexArgs =
                                 (%%mutexLengths : int[])
                                 |> List.ofArray
