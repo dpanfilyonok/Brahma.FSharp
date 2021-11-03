@@ -106,9 +106,9 @@ type KernelFunc(var: Var, expr: Expr, context: TargetContext<Lang,Statement<Lang
 
     override this.TranslateArgs(args, _, _, context) =
         let brahmaDimensionsTypes = [
-            NDRange1D
-            NDRange2D
-            NDRange3D
+            Range1D_
+            Range2D_
+            Range3D_
         ]
 
         args

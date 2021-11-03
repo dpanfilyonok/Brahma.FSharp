@@ -7,4 +7,4 @@ type IKernel<'TRange, 'a when 'TRange :> INDRangeDimension> =
     abstract Kernel : Kernel
     abstract Range : INDRangeDimension
     abstract Code : string
-    abstract ReleaseAllBuffers : unit -> unit
+    abstract ReleaseBuffers : unit -> unit

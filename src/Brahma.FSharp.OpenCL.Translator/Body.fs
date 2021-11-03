@@ -244,7 +244,7 @@ module Body =
             match expr with
             | Patterns.Var v -> Some v
             | _ -> None
-            |> Option.exists (fun v -> v.Type.Name.ToLower().StartsWith ClCell) ->
+            |> Option.exists (fun v -> v.Type.Name.ToLower().StartsWith ClCell_) ->
 
             let (idx, tContext, hVar) = itemHelper [Expr.Value 0] hostVar targetContext
             Item(hVar, idx) :> Expression<_>, tContext
@@ -296,7 +296,7 @@ module Body =
                 match expr with
                 | Patterns.Var v -> Some v
                 | _ -> None
-                |> Option.exists (fun v -> v.Type.Name.ToLower().StartsWith ClCell) ->
+                |> Option.exists (fun v -> v.Type.Name.ToLower().StartsWith ClCell_) ->
 
                 let (idx, tContext, hVar) = itemHelper [Expr.Value 0] hostVar targetContext
                 let item = Item(hVar, idx)

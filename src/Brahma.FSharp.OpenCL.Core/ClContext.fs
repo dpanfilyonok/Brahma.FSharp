@@ -2,6 +2,7 @@ namespace Brahma.FSharp.OpenCL
 
 open OpenCL.Net
 open Brahma.FSharp.OpenCL.Translator
+open Brahma.FSharp.OpenCL.Shared
 open FSharp.Quotations
 
 exception EmptyDevicesException of string

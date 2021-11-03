@@ -4,6 +4,7 @@ open OpenCL.Net
 open System
 open System.Runtime.InteropServices
 open Brahma.FSharp.OpenCL.Translator
+open Brahma.FSharp.OpenCL.Shared
 
 //memory flags: https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clCreateBuffer.html
 
@@ -55,7 +56,6 @@ type BufferInitParam<'a> =
     | Data of 'a[]
     | Size of int
 
-// нужны все таки отдельные параметры и аллок хост - обязательный??
 type ClBuffer<'a when 'a : struct>
     (
         clContext: IContext,
@@ -160,6 +160,10 @@ type ClBuffer<'a when 'a : struct>
             | None -> ()
 
             buffer.Dispose()
+
+        member this.Item
+            with get (idx: int) : 'a = FailIfOutsideKernel()
+            and set (idx: int) (value: 'a) = FailIfOutsideKernel()
 
     interface IDisposable with
         member this.Dispose() = (this :> IBuffer<'a>).Free()

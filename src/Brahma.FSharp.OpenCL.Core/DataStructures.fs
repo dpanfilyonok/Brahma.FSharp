@@ -1,5 +1,7 @@
 namespace Brahma.FSharp.OpenCL
 
+open Brahma.FSharp.OpenCL.Translator
+open Brahma.FSharp.OpenCL.Shared
 open System
 
 type ClArray<'a when 'a : struct> internal (buffer: ClBuffer<'a>) =
@@ -23,6 +25,10 @@ type ClArray<'a when 'a : struct> internal (buffer: ClBuffer<'a>) =
         member this.Length = (buffer :> IBuffer<_>).Length
         member this.ElementSize = (buffer :> IBuffer<_>).ElementSize
         member this.Free() = (buffer :> IBuffer<_>).Free()
+
+        member this.Item
+            with get (idx: int) : 'a = FailIfOutsideKernel()
+            and set (idx: int) (value: 'a) = FailIfOutsideKernel()
 
     member this.Dispose() = (this :> IDisposable).Dispose()
 
@@ -48,6 +54,9 @@ type ClCell<'a when 'a : struct> internal (buffer: ClBuffer<'a>) =
         member this.Length = (buffer :> IBuffer<_>).Length
         member this.ElementSize = (buffer :> IBuffer<_>).ElementSize
         member this.Free() = (buffer :> IBuffer<_>).Free()
+        member this.Item
+            with get (idx: int) : 'a = FailIfOutsideKernel()
+            and set (idx: int) (value: 'a) = FailIfOutsideKernel()
 
     member this.Dispose() = (this :> IDisposable).Dispose()
 

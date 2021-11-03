@@ -21,7 +21,6 @@
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="ClException.fs" />
     <Compile Include="NDRangeDimensions.fs" />
-    <Compile Include="IBuffer.fs" />
     <Compile Include="IKernel.fs" />
     <Compile Include="Messages.fs" />
     <Compile Include="CommandQueueProvider.fs" />
@@ -36,6 +35,7 @@
     <ProjectReference Include="..\Brahma.FSharp.OpenCL.Printer\Brahma.FSharp.OpenCL.Printer.fsproj" />
     <ProjectReference Include="..\Brahma.FSharp.OpenCL.Translator\Brahma.FSharp.OpenCL.Translator.fsproj" />
     <ProjectReference Include="..\YC.OpenCL.NET\YC.OpenCL.NET.csproj" />
+    <ProjectReference Include="..\Brahma.FSharp.OpenCL.Shared\Brahma.FSharp.OpenCL.Shared.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

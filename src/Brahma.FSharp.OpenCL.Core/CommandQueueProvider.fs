@@ -2,6 +2,7 @@ namespace Brahma.FSharp.OpenCL
 
 open OpenCL.Net
 open System
+open Brahma.FSharp.OpenCL.Shared
 
 type CommandQueueProvider =
     static member CreateQueue(context: Context, device: Device) =

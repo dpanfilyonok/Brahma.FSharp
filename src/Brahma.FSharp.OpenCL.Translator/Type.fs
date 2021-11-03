@@ -56,7 +56,7 @@ module Type =
                 else
                     // NOTE why ArrayType is different from RefType from C lang perspective
                     ArrayType(go baseT, size |> Option.get) :> Type<Lang>
-            | s when s.StartsWith ClArray || s.StartsWith ClCell ->
+            | s when s.StartsWith ClArray_ || s.StartsWith ClCell_ || s.StartsWith IBuffer_ ->
                 let baseT = type'.GetGenericArguments().[0].Name
                 if isKernelArg then
                     RefType(go baseT, []) :> Type<Lang>

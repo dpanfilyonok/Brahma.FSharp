@@ -1,4 +1,4 @@
-namespace Brahma.FSharp.OpenCL
+﻿namespace Brahma.FSharp.OpenCL.Shared
 
 open OpenCL.Net
 open System
@@ -15,3 +15,5 @@ type IBuffer<'a when 'a : struct> =
     abstract Length : int
     abstract ElementSize : int
     abstract Free : unit -> unit
+    abstract Item : int -> 'a with get, set
+

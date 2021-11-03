@@ -57,64 +57,67 @@ let main argv =
     // }
     // |> ClTask.runSync context
     // // let value = 10
-    // // let command =
-    // //     <@
-    // //         fun (range: Range1D) (cell: int) ->
-    // //             atomic (fun x -> x + value) cell |> ignore
-    // //     @>
+    let command =
+        <@
+            fun (range: Range1D) (cell: int clarray) ->
+                atomic (fun x -> x + 1) cell.[0] |> ignore
+        @>
 
-    // // // opencl {
-    // // //     use! s = ClCell.toDevice 1
+    Utils.openclTranslate command
+    |> printfn "%A"
 
-    // // //     do! runCommand k <| fun it ->
-    // // //         it
-    // // //         <| Range1D(512, 256)
-    // // //         <| s
+    opencl {
+        use! s = ClArray.alloc<int> 1
 
-    // // //     return! ClCell.toHost s
-    // // // }
+        do! runCommand command <| fun it ->
+            it
+            <| Range1D(512, 256)
+            <| s
+
+        return! ClArray.toHost s
+    }
     // Utils.openclTranslate command
-    // // |> ClTask.runSync context
-    // |> printfn "%A"
+    |> ClTask.runSync context
+    |> printfn "%A"
 
-    // 0
-    let s =
-        testProperty "Parallel execution of kernel" <| fun _const ->
-            let n = 4
-            let l = 256
-            let getAllocator (context:ClContext)  =
-                 let kernel =
-                     <@
-                         fun (r: Range1D) (buffer: ClArray<int>) ->
-                             let i = r.GlobalID0
-                             buffer.[i] <- _const
-                     @>
-                 let k = context.CreateClKernel kernel
-                 fun (q:MailboxProcessor<_>) ->
-                     let buf = context.CreateClArray(l, allocationMode = AllocationMode.AllocHostPtr)
-                     q.Post(Msg.MsgSetArguments(fun () -> k.ArgumentsSetter (Range1D(l, l)) buf))
-                     q.Post(Msg.CreateRunMsg<_,_>(k))
-                     buf
+    0
+    // let s =
+    //     testProperty "Parallel execution of kernel" <| fun _const ->
+    //         let n = 4
+    //         let l = 256
+    //         let getAllocator (context:ClContext)  =
+    //              let kernel =
+    //                  <@
+    //                      fun (r: Range1D) (buffer: ClArray<int>) ->
+    //                          let i = r.GlobalID0
+    //                          buffer.[i] <- _const
+    //                  @>
+    //              let k = context.CreateClKernel kernel
+    //              fun (q:MailboxProcessor<_>) ->
+    //                  let buf = context.CreateClArray(l, allocationMode = AllocationMode.AllocHostPtr)
+    //                  q.Post(Msg.MsgSetArguments(fun () -> k.ArgumentsSetter (Range1D(l, l)) buf))
+    //                  q.Post(Msg.CreateRunMsg<_,_>(k))
+    //                  buf
 
-            let allocator = getAllocator context
-            let allocOnGPU (q:MailboxProcessor<_>) allocator =
-                let b = allocator q
-                let res = Array.zeroCreate l
-                q.PostAndReply (fun ch -> Msg.CreateToHostMsg(b, res, ch))
-                q.Post (Msg.CreateFreeMsg b)
-                res
+    //         let allocator = getAllocator context
+    //         let allocOnGPU (q:MailboxProcessor<_>) allocator =
+    //             let b = allocator q
+    //             let res = Array.zeroCreate l
+    //             q.PostAndReply (fun ch -> Msg.CreateToHostMsg(b, res, ch))
+    //             q.Post (Msg.CreateFreeMsg b)
+    //             res
 
 
-            let actual =
-                Array.init n (fun _ ->
-                        let q = context.CommandQueue
-                        q)
-                |> Array.mapi (fun i q -> async {return allocOnGPU q allocator})
-                |> Async.Parallel
-                |> Async.RunSynchronously
+    //         let actual =
+    //             Array.init n (fun _ ->
+    //                     let q = context.CommandQueue
+    //                     q)
+    //             |> Array.mapi (fun i q -> async {return allocOnGPU q allocator})
+    //             |> Async.Parallel
+    //             |> Async.RunSynchronously
 
-            let expected = Array.init n (fun _ -> Array.create l _const)
+    //         let expected = Array.init n (fun _ -> Array.create l _const)
 
-            Expect.sequenceEqual actual expected "Arrays should be equals"
-    s
-    |> runTestsWithCLIArgs [] argv
+    //         Expect.sequenceEqual actual expected "Arrays should be equals"
+    // s
+    // |> runTestsWithCLIArgs [] argv
