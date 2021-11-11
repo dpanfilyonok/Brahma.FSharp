@@ -46,16 +46,23 @@ type B =
 
 [<EntryPoint>]
 let main argv =
+    // let command =
+    //     <@
+    //         fun (range: Range1D) (buf: int clarray) ->
+    //             let s = [|0|]
+    //             if range.GlobalID0 = 0 then
+    //                 let b = buf.[0]
+    //                 buf.[0] <- buf.[1]
+    //                 buf.[1] <- b
+    //     @>
+
     let command =
-        <@
-            fun (range: Range1D) (buf: int clarray) ->
-                let s = [|0|]
-                if range.GlobalID0 = 0 then
-                    let b = buf.[0]
-                    buf.[0] <- buf.[1]
-                    buf.[1] <- b
+        <@ fun (range: Range1D) (buf: int clarray) ->
+            buf.[0] <- 2
+            buf.[1] <- 3
         @>
 
+    // printfn "%A" command
 
     // opencl {
     //     use! inBuf = ClArray.toDevice [| struct(6, 7); struct(7, 6) |]
@@ -75,9 +82,9 @@ let main argv =
     // let s : ValueTuple<ValueTuple<int, int>, int> = struct(struct(1,2), 2)
     // let a = s.
 
-    Utils.openclTranslate command
-    |> printfn "%A"
-    0
+    // Utils.openclTranslate command
+    // |> printfn "%A"
+    // 0
 
     // opencl {
     //     use! s = ClCell.alloc<int> ()
@@ -132,5 +139,5 @@ let main argv =
     //         let expected = Array.init n (fun _ -> Array.create l _const)
 
     //         Expect.sequenceEqual actual expected "Arrays should be equals"
-    // allTests
-    // |> runTestsWithCLIArgs [] argv
+    allTests
+    |> runTestsWithCLIArgs [] argv

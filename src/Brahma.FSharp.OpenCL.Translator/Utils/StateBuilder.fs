@@ -3,7 +3,7 @@ namespace Brahma.FSharp.OpenCL.Translator
 type State<'state, 'result> = State of ('state -> 'result * 'state)
 
 module State =
-    let run state (State f) =
+    let inline run state (State f) =
         f state
 
     let exec state (State f) =
@@ -12,10 +12,10 @@ module State =
     let eval state (State f) =
         fst (f state)
 
-    let return' x = State <| fun state ->
+    let inline return' x = State <| fun state ->
         (x, state)
 
-    let (>>=) x f = State <| fun state ->
+    let inline (>>=) x f = State <| fun state ->
         let (y, state') = run state x
         run state' (f y)
 
@@ -50,25 +50,29 @@ module State =
         |> fun args -> map List.rev args
 
 type StateBuilder<'state>() =
-    member this.Bind(x: State<'state, 'a>, f: 'a -> State<'state, 'b>) = State.(>>=) x f
-    member this.Return(x: 'a) : State<'state, 'a> = State.return' x
-    member this.ReturnFrom(x: State<'state, 'a>) = x
-    member this.Zero() : State<'state, unit> = State.return' ()
+    member inline this.Bind(x: State<'state, 'a>, f: 'a -> State<'state, 'b>) = State.(>>=) x f
+    member inline this.Return(x: 'a) : State<'state, 'a> = State.return' x
+    member inline this.ReturnFrom(x: State<'state, 'a>) = x
+    member inline this.Zero() : State<'state, unit> = State.return' ()
 
-    member this.Combine(x1: State<'state, _>, x2: State<'state, _>) =
+    member inline this.Combine(x1: State<'state, _>, x2: State<'state, _>) =
         State <| fun context ->
             let (_, context) = State.run context x1
             State.run context x2
 
-    member this.Delay(rest) =
+    member inline this.Delay(rest) =
         this.Bind(this.Zero(), (fun () -> rest ()))
 
-    member this.For(seq, f) =
-        seq
-        |> Seq.map f
-        |> Seq.reduceBack (fun x1 x2 -> this.Combine(x1, x2))
+    member inline this.Run(m) = m
 
-    member this.While(f, x) =
-        if f () then
-            this.Combine(x, this.While(f, x))
-        else this.Zero()
+    member this.For(seq: seq<'a>, f) =
+        this.Bind(
+            this.Return(seq.GetEnumerator()),
+            fun en -> this.While((fun () -> en.MoveNext()), this.Delay(fun () -> f en.Current))
+        )
+
+    member this.While(cond, body) =
+        if not (cond ()) then
+            this.Zero()
+        else
+            this.Combine(this.Run(body), this.Delay(fun () -> this.While(cond, body)))

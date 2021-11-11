@@ -364,7 +364,8 @@ module rec Body =
 
             | _ ->
                 let! translatedType = Type.translate sType false None
-                let stringValue = value.ToString()
+                // string null = ""
+                let stringValue = string value
                 return translatedType, stringValue
         }
         |> State.map (fun (type', value) -> Const(type', value))
@@ -457,7 +458,7 @@ module rec Body =
             go expr1
             go expr2
 
-            let! decls = State.gets (fun context -> context.VarDecls)
+            let! decls = State.gets (fun context -> ResizeArray(context.VarDecls))
             do! State.modify (fun context -> context.VarDecls.Clear(); context)
 
             for expr in linearized do
@@ -737,7 +738,7 @@ module rec Body =
                 return res :> Node<_>
             | Patterns.Var var ->
                 let! res = translateVar var
-                return res
+                return res :> Node<_>
             | Patterns.VarSet (var, expr) ->
                 let! res = translateVarSet var expr
                 return res :> Node<_>

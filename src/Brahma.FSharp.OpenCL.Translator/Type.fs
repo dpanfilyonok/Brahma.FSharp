@@ -125,16 +125,20 @@ module Type =
                         let a = StructType("tuple" + n.ToString(), elements)
                         return TupleType(a, n) :> Type<_>
 
-                // | x when context.UserDefinedTypes.Exists(fun t -> t.Name.ToLowerInvariant() = x) ->
-                //     let structType =
-                //         if context.UserDefinedStructsOpenCLDeclaration.ContainsKey x then
-                //             context.UserDefinedStructsOpenCLDeclaration.[x]
-                //         elif context.UserDefinedUnionsOpenCLDeclaration.ContainsKey x then
-                //             context.UserDefinedUnionsOpenCLDeclaration.[x] :> StructType<_>
-                //         else
-                //             failwithf "Declaration of struct %s doesn't exists" x
-                //     structType :> Type<_>
-                | other -> return failwithf "Unsupported kernel type: %s" other
+                | other ->
+                    let! f = State.gets (fun context -> context.UserDefinedTypes.Exists(fun t -> t.Name.ToLowerInvariant() = other))
+                    let! context = State.get
+                    if f then
+                        let structType =
+                            if context.UserDefinedStructsOpenCLDeclaration.ContainsKey other then
+                                context.UserDefinedStructsOpenCLDeclaration.[other]
+                            elif context.UserDefinedUnionsOpenCLDeclaration.ContainsKey other then
+                                context.UserDefinedUnionsOpenCLDeclaration.[other] :> StructType<_>
+                            else
+                                failwithf "Declaration of struct %s doesn't exists" other
+                        return structType :> Type<_>
+                    else
+                        return failwithf "Unsupported kernel type: %s" other
             }
 
             return! go type'.Name
