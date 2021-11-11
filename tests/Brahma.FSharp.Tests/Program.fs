@@ -4,6 +4,7 @@ open Brahma.FSharp.Tests
 open Brahma.FSharp.OpenCL
 open FSharp.Quotations
 open System.Runtime.InteropServices
+open System
 
 [<Tests>]
 let allTests =
@@ -16,6 +17,14 @@ let allTests =
         Union.tests
     ]
     |> testSequenced
+
+[<Struct>]
+type A =
+    val mutable X: int
+
+[<Struct>]
+type B =
+    val mutable Y: A
 
 // [<Struct>]
 // type TestStruct =
@@ -37,19 +46,19 @@ let allTests =
 
 [<EntryPoint>]
 let main argv =
-    // let command =
-    //     <@
-    //         fun (range: Range1D) (buf:  ClArray<TestStruct2>) ->
-    //             if range.GlobalID0 = 0
-    //             then
-    //                 let b = buf.[0]
-    //                 buf.[0] <- buf.[1]
-    //                 buf.[1] <- b
-    //     @>
+    let command =
+        <@
+            fun (range: Range1D) (buf: int clarray) ->
+                let s = [|0|]
+                if range.GlobalID0 = 0 then
+                    let b = buf.[0]
+                    buf.[0] <- buf.[1]
+                    buf.[1] <- b
+        @>
 
 
     // opencl {
-    //     use! inBuf = ClArray.toDevice [|TestStruct2(true, TestStruct(1, 2.0)); TestStruct2(true, TestStruct(3, 4.0))|]
+    //     use! inBuf = ClArray.toDevice [| struct(6, 7); struct(7, 6) |]
     //     do! runCommand command <| fun x ->
     //         x (Range1D(5, 5)) inBuf
 
@@ -63,8 +72,12 @@ let main argv =
     //             atomic (fun x -> x + 1) cell.Value |> ignore
     //     @>
 
-    // Utils.openclTranslate command
-    // |> printfn "%A"
+    // let s : ValueTuple<ValueTuple<int, int>, int> = struct(struct(1,2), 2)
+    // let a = s.
+
+    Utils.openclTranslate command
+    |> printfn "%A"
+    0
 
     // opencl {
     //     use! s = ClCell.alloc<int> ()
@@ -119,5 +132,5 @@ let main argv =
     //         let expected = Array.init n (fun _ -> Array.create l _const)
 
     //         Expect.sequenceEqual actual expected "Arrays should be equals"
-    allTests
-    |> runTestsWithCLIArgs [] argv
+    // allTests
+    // |> runTestsWithCLIArgs [] argv

@@ -94,11 +94,13 @@ type FSQuotationToOpenCLTranslator([<ParamArray>] translatorOptions: TranslatorO
         let context = TargetContext()
 
         let translatedStructs =
-            Type.translateStructDecls structs context
+            Type.translateStructDecls structs
+            |> State.eval context
             |> List.map (fun x -> x :> ITopDef<_>)
 
         let translatedUnions =
-            Type.translateDiscriminatedUnionDecls unions context
+            Type.translateDiscriminatedUnionDecls unions
+            |> State.eval context
             |> List.map (fun x -> x :> ITopDef<_>)
 
         let translatedTypes =
