@@ -34,13 +34,13 @@ type ClDeviceType =
         | GPU -> DeviceType.Gpu
         | Default -> DeviceType.Default
 
-module internal Device =
+module Device =
     open System.Text.RegularExpressions
 
     let private wildcardToRegex (pattern: string) =
         "^" + Regex.Escape(pattern).Replace("\\*", ".*").Replace("\\?", ".") + "$"
 
-    let getDevices platformName deviceType =
+    let internal getDevices platformName deviceType =
         let platformNameRegex = Regex(wildcardToRegex platformName, RegexOptions.IgnoreCase)
         let error = ref Unchecked.defaultof<ErrorCode>
 
@@ -55,7 +55,10 @@ module internal Device =
             )
         |> Array.concat
 
-    let getFirstAppropriateDevice platformName deviceType =
+    let getAllDevices platform deviceType =
+        getDevices (ClPlatform.ConvertToPattern platform) (ClDeviceType.ConvertToDeviceType deviceType)
+
+    let internal getFirstAppropriateDevice platformName deviceType =
         try
             (getDevices platformName deviceType).[0]
         with
@@ -63,15 +66,7 @@ module internal Device =
             raise <| EmptyDevicesException(sprintf "No %A devices on platform %A were found" deviceType platformName)
 
 type ClContext private (context: Context, device: Device, translator: FSQuotationToOpenCLTranslator, provider: ComputeProvider) =
-    new (?platform: ClPlatform, ?deviceType: ClDeviceType) =
-        let platform = defaultArg platform ClPlatform.Any
-        let deviceType = defaultArg deviceType ClDeviceType.Default
-
-        let device =
-            Device.getFirstAppropriateDevice
-            <| ClPlatform.ConvertToPattern platform
-            <| ClDeviceType.ConvertToDeviceType deviceType
-
+    new (device: Device) =
         let context =
             let error = ref Unchecked.defaultof<ErrorCode>
             let ctx = Cl.CreateContext(null, 1u, [| device |], null, System.IntPtr.Zero, error)
@@ -83,14 +78,45 @@ type ClContext private (context: Context, device: Device, translator: FSQuotatio
 
         let translator = FSQuotationToOpenCLTranslator()
         let provider = ComputeProvider(context, device)
-
+        
         ClContext(context, device, translator, provider)
+
+    new (?platform: ClPlatform, ?deviceType: ClDeviceType) =
+        let platform = defaultArg platform ClPlatform.Any
+        let deviceType = defaultArg deviceType ClDeviceType.Default
+
+        let device =
+            Device.getFirstAppropriateDevice
+            <| ClPlatform.ConvertToPattern platform
+            <| ClDeviceType.ConvertToDeviceType deviceType
+
+        
+        ClContext(device)
 
     interface IContext with
         member this.Context = context
         member this.Device = device
         member this.Translator = translator
         member this.Provider = provider
+
+    override this.ToString() =
+        let mutable e = ErrorCode.Unknown
+        let context = this
+        let device = context.Device
+        let deviceName = Cl.GetDeviceInfo(device, DeviceInfo.Name, &e).ToString()
+        if deviceName.Length < 20 then
+            sprintf "%s" deviceName
+        else
+            let platform = Cl.GetDeviceInfo(device, DeviceInfo.Platform, &e).CastTo<Platform>()
+            let platformName = Cl.GetPlatformInfo(platform, PlatformInfo.Name, &e).ToString()
+            let deviceType =
+                match Cl.GetDeviceInfo(device, DeviceInfo.Type, &e).CastTo<DeviceType>() with
+                | DeviceType.Cpu -> "CPU"
+                | DeviceType.Gpu -> "GPU"
+                | DeviceType.Accelerator -> "Accelerator"
+                | _ -> "another"
+
+            sprintf "%s, %s" platformName deviceType
 
     member this.Context = (this :> IContext).Context
     member this.Device = (this :> IContext).Device

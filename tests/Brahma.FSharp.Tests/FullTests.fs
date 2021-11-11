@@ -17,7 +17,7 @@ let float32Arr = Array.init defaultInArrayLength float32
 let default1D = Range1D(defaultInArrayLength, 1)
 let default2D = Range2D(defaultInArrayLength, 1)
 
-let checkResult command (inArr: 'a[]) (expectedArr: 'a[]) =
+let checkResult context command (inArr: 'a[]) (expectedArr: 'a[]) =            
     let actual =
         opencl {
             use! inBuf = ClArray.toDevice inArr
@@ -28,10 +28,11 @@ let checkResult command (inArr: 'a[]) (expectedArr: 'a[]) =
         }
         |> ClTask.runSync context
 
-    Expect.sequenceEqual actual expectedArr "Arrays should be equals"
+    Expect.sequenceEqual actual expectedArr <| sprintf "For context: %A. Arrays should be equals" context   
 
-let arrayItemSetTests =
-    testList "Array item set tests."
+let arrayItemSetTests context =
+    let inline checkResult cmd input expected = checkResult context cmd input expected
+    testList (sprintf "Array item set tests on %A" context)
         [
             testCase "Array item set" <| fun _ ->
                 let command =
@@ -80,7 +81,8 @@ let arrayItemSetTests =
                 checkResult command intInArr [|2; 4; 2; 3|]
         ]
 
-let typeCastingTests =
+let typeCastingTests context =
+    let inline checkResult cmd input expected = checkResult context cmd input expected
     testList "Type castings tests"
         [
             testCase "Type casting. Long" <| fun _ ->
@@ -203,7 +205,8 @@ let typeCastingTests =
         ]
 
 
-let bindingTests =
+let bindingTests context =
+    let inline checkResult cmd input expected = checkResult context cmd input expected
     testList "Bindings tests"
         [
             testCase "Bindings. Simple." <| fun _ ->
@@ -265,7 +268,8 @@ let bindingTests =
                 checkResult command intInArr [|25; 1; 2; 3|]
         ]
 
-let operatorsAndMathFunctionsTests =
+let operatorsAndMathFunctionsTests context =
+    let inline checkResult cmd input expected = checkResult context cmd input expected
     let testOpGen testCase
         (name: string)
         (binop: Expr<'a -> 'a -> 'a>)
@@ -333,7 +337,8 @@ let operatorsAndMathFunctionsTests =
                 checkResult command inA (inA |> Array.map System.Math.Sin)  //[|0.0; 0.841471; 0.9092974; 0.14112|]
         ]
 
-let pipeTests =
+let pipeTests context =
+    let inline checkResult cmd input expected = checkResult context cmd input expected
     testList "Pipe tests" [
         // Lambda is not supported.
         ptestCase "Forward pipe." <| fun _ ->
@@ -364,7 +369,8 @@ let pipeTests =
         checkResult command intInArr (intInArr |> Array.map ((+) 1))
 ]
 
-let controlFlowTests =
+let controlFlowTests context =
+    let inline checkResult cmd input expected = checkResult context cmd input expected
     testList "Control flow tests" [
         testCase "Control flow. If Then." <| fun _ ->
             let command =
@@ -416,7 +422,8 @@ let controlFlowTests =
             checkResult command intInArr [|26; 26; 26; 10|]
 ]
 
-let kernelArgumentsTests =
+let kernelArgumentsTests context =
+    let inline checkResult cmd input expected = checkResult context cmd input expected
     testList "Kernel arguments tests" [
         testCase "Kernel arguments. Simple 1D." <| fun _ ->
             let command =
@@ -516,7 +523,8 @@ let kernelArgumentsTests =
             Expect.sequenceEqual actual expected "Arrays should be equals"
     ]
 
-let quotationInjectionTests =
+let quotationInjectionTests context =
+    let inline checkResult cmd input expected = checkResult context cmd input expected
     testList "Quotation injection tests" [
         testCase "Quotations injections.  Quotations injections 1." <| fun _ ->
             let myF = <@ fun x -> x * x @>
@@ -543,7 +551,8 @@ let quotationInjectionTests =
             checkResult command intInArr [|3;5;2;3|]
     ]
 
-let localMemTests =
+let localMemTests context =
+    let inline checkResult cmd input expected = checkResult context cmd input expected
     testList "Local memory tests" [
         // TODO: pointers to local data must be local too.
         testCase "Local int. Work item counting" <| fun _ ->
@@ -615,7 +624,8 @@ let localMemTests =
             checkResult command [|0L; 1L; 2L; 3L|] [|1L; 1L; 2L; 3L|]
     ]
 
-let letTransformationTests =
+let letTransformationTests context =    
+    let inline checkResult cmd input expected = checkResult context cmd input expected
     testList "Let Transformation Tests" [
         testCase "Template Let Transformation Test 0" <| fun _ ->
             let command =
@@ -921,7 +931,8 @@ let letTransformationTests =
             checkResult command intInArr [|2; 3; 6; 7|]
     ]
 
-let letQuotationTransformerSystemTests =
+let letQuotationTransformerSystemTests context =
+    let inline checkResult cmd input expected = checkResult context cmd input expected
     testList "Let Transformation Tests Mutable Vars" [
         testCase "Test 0" <| fun _ ->
             let command =
@@ -1018,7 +1029,8 @@ let letQuotationTransformerSystemTests =
             checkResult command intInArr [|34; 34; 34; 34|]
     ]
 
-let structTests =
+let structTests context =
+    let inline checkResult cmd input expected = checkResult context cmd input expected
     testList "Struct tests" [
         testCase "Simple seq of struct." <| fun _ ->
             let command =
@@ -1416,20 +1428,21 @@ let simpleDUTests = testList "Simple tests on discriminated unions" [
 ]
 
 let tests =
-    testList "System tests with running kernels" [
-        letTransformationTests
-        letQuotationTransformerSystemTests
-        arrayItemSetTests
-        typeCastingTests
-        bindingTests
-        operatorsAndMathFunctionsTests
-        pipeTests
-        controlFlowTests
-        kernelArgumentsTests
-        quotationInjectionTests
-        localMemTests
-        structTests
-        specificTestCases
-        simpleDUTests
+    List.concat [
+        List.map letTransformationTests allAvailableContexts
+        List.map letQuotationTransformerSystemTests allAvailableContexts
+        List.map arrayItemSetTests allAvailableContexts
+        List.map typeCastingTests allAvailableContexts
+        List.map bindingTests allAvailableContexts
+        List.map operatorsAndMathFunctionsTests allAvailableContexts
+        List.map pipeTests allAvailableContexts
+        List.map controlFlowTests allAvailableContexts
+        List.map kernelArgumentsTests allAvailableContexts
+        List.map quotationInjectionTests allAvailableContexts
+        List.map localMemTests allAvailableContexts
+        List.map structTests allAvailableContexts
+        [specificTestCases]
+        [simpleDUTests]
     ]
+    |> testList "System tests with running kernels" 
     |> fun x -> Expecto.Sequenced(Synchronous, x)

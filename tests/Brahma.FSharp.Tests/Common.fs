@@ -14,6 +14,16 @@ module Common =
         let platformName = ClPlatform.Any
         ClContext(platformName, deviceType)
 
+    let allAvailableContexts =
+        let deviceType = ClDeviceType.Default
+        let platformName = ClPlatform.Any
+        let r = 
+            Device.getAllDevices platformName deviceType
+            |> Array.map ClContext
+            |> List.ofArray
+        printfn "contexts: %A" r.Length
+        r
+
 module CustomDatatypes =
     [<Struct>]
     type WrappedInt =
