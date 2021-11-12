@@ -553,8 +553,9 @@ let localMemTests =
                     let mutable x = local ()
 
                     if globalID = 0 then x <- 0
-                    barrier()
+                    barrier()                    
                     atomic (+) x 1 |> ignore
+                    barrier()
                     if globalID = 0 then output.[0] <- x
                 @>
 
