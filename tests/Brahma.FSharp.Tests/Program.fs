@@ -26,11 +26,11 @@ type A =
 type B =
     val mutable Y: A
 
-// [<Struct>]
-// type TestStruct =
-//     val mutable x: int
-//     val mutable y: float
-//     new(x, y) = { x = x; y = y }
+[<Struct>]
+type TestStruct =
+    val mutable x: int
+    val mutable y: float
+    new(x, y) = { x = x; y = y }
 
 //     override this.ToString() =
 //         sprintf "%A, %A" this.x this.y
@@ -56,11 +56,30 @@ let main argv =
     //                 buf.[1] <- b
     //     @>
 
-    let command =
-        <@ fun (range: Range1D) (buf: int clarray) ->
-            buf.[0] <- 2
-            buf.[1] <- 3
-        @>
+    // let command =
+    //     <@ fun (range: Range1D) (buf: int clarray) ->
+    //         buf.[0] <- 2
+    //         buf.[1] <- 3
+    //     @>
+
+    // let command =
+    //     <@
+    //         fun (range: Range1D) (buf:  ClArray<int>) ->
+    //             let x = 7
+    //             let f = 1
+    //             let z = 2
+    //             buf.[0] <- 1
+    //     @>
+
+    // let command =
+    //     <@
+    //         fun (range: Range1D) (buf:  ClArray<TestStruct>) ->
+    //             // let b = buf.[0]
+    //             buf.[0] <- buf.[0]
+    //     @>
+
+    let cArray1 = [|1;2;3|]
+    let command = <@ fun (range: Range1D) (buf: int clarray) -> buf.[0] <- cArray1.[1] @>
 
     // printfn "%A" command
 

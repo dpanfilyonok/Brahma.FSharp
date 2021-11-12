@@ -36,12 +36,14 @@ type Method(var: Var, expr: Expr, context: TargetContext<Lang,Statement<Lang>>) 
     abstract TranslateBody : Var list * Expr -> StatementBlock<Lang> * TargetContext<Lang, Statement<Lang>>
     default this.TranslateBody(args, body) =
         let (b, context) =
-            let clonedContext = context.Clone()
+            let clonedContext = context.DeepCopy()
 
             clonedContext.Namer.LetIn()
             args |> List.iter (fun v -> clonedContext.Namer.AddVar v.Name)
 
             Body.translate body |> State.run clonedContext
+
+        // printfn "%A" context
 
         match b with
         | :? StatementBlock<Lang> as sb -> sb
@@ -68,13 +70,13 @@ type Method(var: Var, expr: Expr, context: TargetContext<Lang,Statement<Lang>>) 
 
     abstract GetTopLevelVarDecls : TargetContext<Lang, Statement<Lang>> -> ITopDef<Lang> list
     default this.GetTopLevelVarDecls(context) =
-        context.TopLevelVarsDeclarations
+        context.TopLevelVarsDecls
         |> Seq.cast<_>
         |> List.ofSeq
 
     abstract GetTranslatedTuples : TargetContext<Lang, Statement<Lang>> -> ITopDef<Lang> list
     default this.GetTranslatedTuples(context) =
-        context.TupleList
+        context.TupleDecls.Values
         |> Seq.cast<_>
         |> List.ofSeq
 
@@ -119,7 +121,7 @@ type KernelFunc(var: Var, expr: Expr, context: TargetContext<Lang,Statement<Lang
             )
         |> List.map
             (fun variable ->
-                let vType = Type.translate variable.Type true None |> State.eval context
+                let vType = Type.translate variable.Type |> State.eval context
                 let declSpecs = DeclSpecifierPack(typeSpecifier = vType)
 
                 if vType :? RefType<_> then
@@ -139,7 +141,7 @@ type Function(var: Var, expr: Expr, context: TargetContext<Lang,Statement<Lang>>
     override this.TranslateArgs(args, globalVars, localVars, context) =
         args
         |> List.map (fun variable ->
-            let vType = Type.translate variable.Type true None |> State.eval context
+            let vType = Type.translate variable.Type |> State.eval context
             let declSpecs = DeclSpecifierPack(typeSpecifier = vType)
 
             if
@@ -157,7 +159,7 @@ type Function(var: Var, expr: Expr, context: TargetContext<Lang,Statement<Lang>>
         )
 
     override this.BuildFunction(args, body, context) =
-        let retFunType = Type.translate var.Type false None |> State.eval context
+        let retFunType = Type.translate var.Type |> State.eval context
         let declSpecs = DeclSpecifierPack(typeSpecifier = retFunType)
         let partAST =
             if (retFunType :?> PrimitiveType<_>).Type <> Void then
@@ -179,7 +181,7 @@ type AtomicFunc(var: Var, expr: Expr, qual: AddressSpaceQualifier<Lang>, context
         args
         |> List.mapi
             (fun i variable ->
-                let vType = Type.translate variable.Type true None |> State.eval context
+                let vType = Type.translate variable.Type |> State.eval context
                 let declSpecs = DeclSpecifierPack(typeSpecifier = vType)
 
                 if i = firstNonMutexIdx then
@@ -199,7 +201,7 @@ type AtomicFunc(var: Var, expr: Expr, qual: AddressSpaceQualifier<Lang>, context
             )
 
     override this.BuildFunction(args, body, context) =
-        let retFunType = Type.translate var.Type false None |> State.eval context
+        let retFunType = Type.translate var.Type |> State.eval context
         let declSpecs = DeclSpecifierPack(typeSpecifier = retFunType)
         let partAST = this.AddReturn body
 

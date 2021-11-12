@@ -23,6 +23,10 @@ open System
 
 exception InvalidKernelException of string
 
+type ArrayKind =
+    | RefArray
+    | ArrayArray of size: int
+
 type Flags() =
     member val enableAtomic = false with get, set
     member val enableFP64 = false with get, set
@@ -31,57 +35,49 @@ type TranslatorOption =
     | UseNativeBooleanType
     | BoolAsBit
 
-type TargetContext<'lang, 'vDecl>([<ParamArray>] translatorOptions: TranslatorOption[]) =
-    let mutable topLevelVarsDeclarations = ResizeArray<'vDecl>()
-    let mutable varDecls = ResizeArray<'vDecl>()
-    let mutable flags = Flags()
-    let mutable namer = Namer()
-    let mutable tn = 0
+type TargetContext<'lang, 'vDecl> =
+    {
+        // mutable data
+        TupleDecls: Dictionary<string, StructType<'lang>>
+        UserDefinedTypes: ResizeArray<System.Type>
+        UserDefinedStructsDecls: Dictionary<string, StructType<'lang>>
+        UserDefinedUnionsDecls: Dictionary<string, DiscriminatedUnionType<'lang>>
+        TopLevelVarsDecls: ResizeArray<'vDecl>
+        VarDecls: ResizeArray<'vDecl>
 
-    member val TupleDecls = Dictionary<string, int>()
-    member val TupleList = List<StructType<Lang>>()
-    member val UserDefinedTypes = ResizeArray<System.Type>()
-    member val InLocal = false with get, set
-    member val UserDefinedStructsOpenCLDeclaration = Dictionary<string, StructType<'lang>>()
-    member val UserDefinedUnionsOpenCLDeclaration = Dictionary<string, DiscriminatedUnionType<'lang>>()
+        // immutable
+        AKind: ArrayKind
+        Namer: Namer
+        Flags: Flags
+        TranslatorOptions: TranslatorOption list
+    }
 
-    member this.TupleNumber
-        with get() = tn
-        and set tn2 = tn <- tn2
+    static member Create([<ParamArray>] translatorOptions: TranslatorOption[]) =
+        {
+            TupleDecls = Dictionary<string, StructType<'lang>>()
+            UserDefinedTypes = ResizeArray<System.Type>()
+            UserDefinedStructsDecls = Dictionary<string, StructType<'lang>>()
+            UserDefinedUnionsDecls = Dictionary<string, DiscriminatedUnionType<'lang>>()
+            TopLevelVarsDecls = ResizeArray<'vDecl>()
+            VarDecls = ResizeArray<'vDecl>()
 
-    member this.TopLevelVarsDeclarations
-        with get() = topLevelVarsDeclarations
-        and  set v = topLevelVarsDeclarations <- v
+            AKind = RefArray
+            Namer = Namer()
+            Flags = Flags()
+            TranslatorOptions = translatorOptions |> Array.toList
+        }
 
-    member this.VarDecls
-        with get() = varDecls
-
-    member this.Flags
-        with get() = flags
-        and set v = flags <- v
-
-    member this.TranslatorOptions
-        with get() = translatorOptions
-
-    member this.Namer
-        with get() = namer
-        and set v = namer <- v
-
-    // NOTE is it really clone context (is it fully clone)
-    member this.Clone() =
-        let context = TargetContext(translatorOptions)
+    member this.DeepCopy() =
+        let context = TargetContext.Create(this.TranslatorOptions |> List.toArray)
 
         context.UserDefinedTypes.AddRange this.UserDefinedTypes
 
-        for x in this.UserDefinedStructsOpenCLDeclaration do
-            context.UserDefinedStructsOpenCLDeclaration.Add (x.Key,x.Value)
-        for x in this.UserDefinedUnionsOpenCLDeclaration do
-            context.UserDefinedUnionsOpenCLDeclaration.Add (x.Key,x.Value)
+        for x in this.UserDefinedStructsDecls do
+            context.UserDefinedStructsDecls.Add (x.Key,x.Value)
+        for x in this.UserDefinedUnionsDecls do
+            context.UserDefinedUnionsDecls.Add (x.Key,x.Value)
         for x in this.TupleDecls do
             context.TupleDecls.Add(x.Key,x.Value)
-        for x in this.TupleList do
-            context.TupleList.Add(x)
-        context.TupleNumber <- this.TupleNumber
 
         context.Flags.enableFP64 <- this.Flags.enableFP64
         context.Flags.enableAtomic <- this.Flags.enableAtomic

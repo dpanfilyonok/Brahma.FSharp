@@ -91,7 +91,7 @@ type FSQuotationToOpenCLTranslator([<ParamArray>] translatorOptions: TranslatorO
         let structs = collectStructs qExpr'
         let unions = collectDiscriminatedUnions qExpr
 
-        let context = TargetContext()
+        let context = TargetContext.Create()
 
         let translatedStructs =
             Type.translateStructDecls structs

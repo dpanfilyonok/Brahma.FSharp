@@ -47,6 +47,7 @@ module Utils =
     let openclTranslate (expr: Expr) =
         let translator = FSQuotationToOpenCLTranslator()
         let (ast, methods) = translator.Translate(expr)
+        // printfn "%A" methods
         print ast
 
     let openclTransformQuotation (expr: Expr) =

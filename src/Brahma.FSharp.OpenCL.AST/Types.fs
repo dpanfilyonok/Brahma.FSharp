@@ -133,11 +133,11 @@ type DiscriminatedUnionType<'lang>(name: string, fields: List<int * Field<'lang>
         List.tryFind (fun (_, f) -> f.Name = case) fields
         |> Option.map snd
 
-type TupleType<'lang>(baseStruct: StructType<'lang>, number: int) =
+type TupleType<'lang>(baseStruct: StructType<'lang>) =
     inherit Type<'lang>()
 
+    member this.BaseStruct = baseStruct
     override this.Size = baseStruct.Size
-    member this.Number = number
     override this.Matches _ = failwith "Not implemented: matches for tuples"
 
 type RefType<'lang>(baseType: Type<'lang>, typeQuals: TypeQualifier<'lang> list) =

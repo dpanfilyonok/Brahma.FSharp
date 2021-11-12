@@ -25,31 +25,9 @@ open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 open Brahma.FSharp.OpenCL
 
 module rec Body =
-    // TODO is it really clear context?
+    // new var scope
     let private clearContext (targetContext: TargetContext<'a, 'b>) =
-        let context =
-            TargetContext<'a, 'b>(
-                Namer = targetContext.Namer,
-                Flags = targetContext.Flags,
-                TopLevelVarsDeclarations = targetContext.TopLevelVarsDeclarations,
-                TupleNumber = targetContext.TupleNumber
-            )
-
-        for td in targetContext.TupleDecls do
-            context.TupleDecls.Add(td.Key, td.Value)
-
-        for t in targetContext.TupleList do
-            context.TupleList.Add(t)
-
-        for kvp in targetContext.UserDefinedStructsOpenCLDeclaration do
-            context.UserDefinedStructsOpenCLDeclaration.Add(kvp.Key, kvp.Value)
-
-        for kvp in targetContext.UserDefinedUnionsOpenCLDeclaration do
-            context.UserDefinedUnionsOpenCLDeclaration.Add(kvp.Key, kvp.Value)
-
-        context.UserDefinedTypes.AddRange(targetContext.UserDefinedTypes)
-
-        context
+        { targetContext with VarDecls = ResizeArray() }
 
     let private translateBinding (var: Var) newName (expr: Expr) =
         translation {
@@ -59,8 +37,8 @@ module rec Body =
                 | :? Const<_> as c ->
                     return c.Type
                 | :? ArrayInitializer<_> as ai ->
-                    return! Type.translate var.Type false (Some ai.Length)
-                | _ -> return! Type.translate var.Type false None
+                    return! Type.translate var.Type |> State.using (fun ctx -> { ctx with AKind = ArrayArray ai.Length })
+                | _ -> return! Type.translate var.Type
             }
 
             return VarDecl(varType, newName, Some body)
@@ -100,13 +78,13 @@ module rec Body =
             | "op_leftshift" -> return Binop(LeftShift, args.[0], args.[1]) :> Statement<_>
             | "op_rightshift" -> return Binop(RightShift, args.[0], args.[1]) :> Statement<_>
             | "op_booleanand" ->
-                let! flag = State.gets (fun context -> context.TranslatorOptions |> Array.contains UseNativeBooleanType)
+                let! flag = State.gets (fun context -> context.TranslatorOptions |> List.contains UseNativeBooleanType)
                 if flag then
                     return Binop(And, args.[0], args.[1]) :> Statement<_>
                 else
                     return Binop(BitAnd, args.[0], args.[1]) :> Statement<_>
             | "op_booleanor" ->
-                let! flag = State.gets (fun context -> context.TranslatorOptions |> Array.contains UseNativeBooleanType)
+                let! flag = State.gets (fun context -> context.TranslatorOptions |> List.contains UseNativeBooleanType)
                 if flag then
                     return Binop(Or, args.[0], args.[1]) :> Statement<_>
                 else
@@ -272,7 +250,7 @@ module rec Body =
                 match! State.gets (fun context -> context.UserDefinedTypes.Contains expr.Type) with
                 | true ->
                     let exprTypeName = expr.Type.Name.ToLowerInvariant()
-                    match! State.gets (fun context ->  context.UserDefinedStructsOpenCLDeclaration.ContainsKey exprTypeName) with
+                    match! State.gets (fun context ->  context.UserDefinedStructsDecls.ContainsKey exprTypeName) with
                     | true -> return! translateStructFieldGet expr propInfo.Name
                     | false -> return! translateUnionFieldGet expr propInfo
                 | false -> return! translateSpecificPropGet expr propName exprs
@@ -342,7 +320,7 @@ module rec Body =
         translation {
             match sType.Name.ToLowerInvariant() with
             | "boolean" ->
-                let! translatedType = Type.translate sType false None
+                let! translatedType = Type.translate sType
                 let stringValue = if value.ToString().ToLowerInvariant() = "false" then "0" else "1"
                 return translatedType, stringValue
 
@@ -354,7 +332,7 @@ module rec Body =
                     | "single[]" -> value :?> array<float32> |> Array.map string
                     | _ -> failwith "Unsupported array type."
 
-                let! translatedType = Type.translate sType false (Some array.Length)
+                let! translatedType = Type.translate sType |> State.using (fun ctx -> { ctx with AKind = ArrayArray array.Length })
                 let stringValue =
                     array
                     |> String.concat ", "
@@ -363,7 +341,7 @@ module rec Body =
                 return translatedType, stringValue
 
             | _ ->
-                let! translatedType = Type.translate sType false None
+                let! translatedType = Type.translate sType
                 // string null = ""
                 let stringValue = string value
                 return translatedType, stringValue
@@ -384,7 +362,7 @@ module rec Body =
                 let! l = translateCond if'
                 let! r = translateCond then'
                 let! e = translateCond else'
-                let! isBoolAsBit = State.gets (fun context -> context.TranslatorOptions |> Array.contains BoolAsBit)
+                let! isBoolAsBit = State.gets (fun context -> context.TranslatorOptions |> List.contains BoolAsBit)
                 let o1 =
                     match r with
                     | :? Const<Lang> as c when c.Val = "1" -> l
@@ -535,7 +513,7 @@ module rec Body =
     let translateUnionFieldGet expr (propInfo: PropertyInfo) =
         translation {
             let exprTypeName = expr.Type.Name.ToLowerInvariant()
-            let! unionType = State.gets (fun context -> context.UserDefinedUnionsOpenCLDeclaration.[exprTypeName])
+            let! unionType = State.gets (fun context -> context.UserDefinedUnionsDecls.[exprTypeName])
 
             let! unionValueExpr = translateAsExpr expr
 
@@ -631,7 +609,7 @@ module rec Body =
                 let p2 = constrInfo.GetMethodBody()
                 let! flag = State.gets (fun context -> context.UserDefinedTypes.Contains(constrInfo.DeclaringType))
                 if flag then
-                    let! structInfo = State.gets (fun context -> context.UserDefinedStructsOpenCLDeclaration.[constrInfo.DeclaringType.Name.ToLowerInvariant()])
+                    let! structInfo = State.gets (fun context -> context.UserDefinedStructsDecls.[constrInfo.DeclaringType.Name.ToLowerInvariant()])
                     let cArgs = exprs |> List.map (fun x -> translation { return! translateAsExpr x })
                     let res = NewStruct<_>(structInfo, cArgs |> List.map (State.eval context))
                     return res :> Node<_>
@@ -647,27 +625,26 @@ module rec Body =
                         for i in 0 .. exprs.Length - 1 ->
                             {
                                 Name = "_" + (i + 1).ToString()
-                                Type = Type.translate baseTypes.[i] false None |> State.eval context
+                                Type = Type.translate baseTypes.[i] |> State.eval context
                             }
                     ]
                 let mutable s = ""
                 for i in 0 .. baseTypes.Length - 1 do
                     s <- s + baseTypes.[i].Name
                 if not (context.TupleDecls.ContainsKey(s)) then
-                    do! State.modify (fun context -> context.TupleNumber <- context.TupleNumber + 1; context)
-                    do! State.modify (fun context -> context.TupleDecls.Add(s, context.TupleNumber); context)
-                    let! tn = State.gets (fun context -> context.TupleNumber.ToString())
-                    let a = StructType<Lang>("tuple" + tn, elements)
-                    do! State.modify (fun context -> context.TupleList.Add(a); context)
+                    let! index = State.gets (fun ctx -> ctx.TupleDecls.Count)
+                    let tupleDecl = StructType(sprintf "tuple %i" index, elements)
+                    do! State.modify (fun ctx -> ctx.TupleDecls.Add(s, tupleDecl); ctx)
                     let cArgs = exprs |> List.map (fun x -> translateAsExpr x)
+
                     let! context = State.get
-                    return NewStruct<_>(a, cArgs |> List.map (State.eval context)) :> Node<_>
+                    return NewStruct<_>(tupleDecl, cArgs |> List.map (State.eval context)) :> Node<_>
                 else
-                    let! tn = State.gets (fun context -> (context.TupleDecls.Item(s)).ToString())
-                    let a = StructType<Lang>("tuple" + tn, elements)
+                    let! tupleDecl = State.gets (fun ctx -> ctx.TupleDecls.[s])
                     let cArgs = exprs |> List.map (fun x -> translateAsExpr x)
+
                     let! context = State.get
-                    return NewStruct<_>(a, cArgs |> List.map (State.eval context)) :> Node<_>
+                    return NewStruct<_>(tupleDecl, cArgs |> List.map (State.eval context)) :> Node<_>
             | Patterns.NewUnionCase (unionCaseInfo, exprs) ->
                 let! context = State.get
                 let unionType = unionCaseInfo.DeclaringType
@@ -675,8 +652,7 @@ module rec Body =
                     failwithf "Union type %s is not registered" unionType.Name
 
                 let typeName = unionType.Name.ToLowerInvariant()
-                let unionInfo = context.UserDefinedUnionsOpenCLDeclaration.[typeName]
-
+                let unionInfo = context.UserDefinedUnionsDecls.[typeName]
 
                 let tag = Const(unionInfo.Tag.Type, string unionCaseInfo.Tag) :> Expression<_>
                 let args =
@@ -711,7 +687,7 @@ module rec Body =
             | Patterns.UnionCaseTest (expr, unionCaseInfo) ->
                 let! context = State.get
                 let unionTypeName = expr.Type.Name.ToLowerInvariant()
-                let unionDecl = context.UserDefinedUnionsOpenCLDeclaration.[unionTypeName]
+                let unionDecl = context.UserDefinedUnionsDecls.[unionTypeName]
 
                 let! unionVarExpr = translateAsExpr expr
                 let unionGetTagExpr = FieldGet(unionVarExpr, unionDecl.Tag.Name) :> Expression<_>
@@ -721,10 +697,10 @@ module rec Body =
             | Patterns.ValueWithName (_obj, sType, name) ->
                 let! context = State.get
                 // Here is the only use of TargetContext.InLocal
-                if sType.ToString().EndsWith "[]" && not context.InLocal then
+                if sType.ToString().EndsWith "[]" (*&& not context.InLocal*) then
                     context.Namer.AddVar name
                     let! res = translateValue _obj sType
-                    context.TopLevelVarsDeclarations.Add(
+                    context.TopLevelVarsDecls.Add(
                         VarDecl(res.Type, name, Some(res :> Expression<_>), AddressSpaceQualifier.Constant)
                     )
                     let var = Var(name, sType)
@@ -748,56 +724,42 @@ module rec Body =
             | _ -> return failwithf "OTHER!!! : %O" expr
         }
 
-    let private translateLet var expr inExpr =
-        translation {
-            let! bName = State.gets (fun context -> context.Namer.LetStart var.Name)
+    let private translateLet var expr inExpr = translation {
+        let! bName = State.gets (fun context -> context.Namer.LetStart var.Name)
 
-            let! vDecl = translation {
-                match expr with
-                | DerivedPatterns.SpecificCall <@@ local @@> (_, _, _) ->
-                    let! vType = Type.translate var.Type false None
-                    return VarDecl(vType, bName, None, spaceModifier = Local)
-                | DerivedPatterns.SpecificCall <@@ localArray @@> (_, _, [arg]) ->
-                    let! expr = translateCond arg
-                    let arrayLength =
-                        match expr with
-                        | :? Const<Lang> as c -> Some <| int c.Val
-                        | other -> failwithf "Calling localArray with a non-const argument %A" other
-                    let! arrayType = Type.translate var.Type false arrayLength
-                    return VarDecl(arrayType, bName, None, spaceModifier = Local)
-                | Patterns.DefaultValue _ ->
-                    let! vType = Type.translate var.Type false None
-                    return VarDecl(vType, bName, None)
-                | _ -> return! translateBinding var bName expr
-            }
-
-            do! State.modify (fun context -> context.VarDecls.Add vDecl; context)
-            do! State.modify (fun context -> context.Namer.LetIn var.Name; context)
-
-            //вот тут мб нужно проверять на call или application
-            let! res = translate inExpr |> State.using clearContext
-            let! sb = State.gets (fun (context : TranslationContext) -> context.VarDecls)
-
-            do! State.modify (fun context -> context.TupleDecls.Clear(); context)
-            do! State.modify (fun context -> context.TupleList.Clear(); context)
-
-            do! State.modify <| fun context ->
-                for td in context.TupleDecls do
-                    context.TupleDecls.Add(td.Key, td.Value)
-                for t in context.TupleList do
-                    context.TupleList.Add(t)
-                context.TupleNumber <- context.TupleNumber
-                context
-
-            match res with
-            | :? StatementBlock<Lang> as s -> sb.AddRange s.Statements
-            | _ -> sb.Add(res :?> Statement<_>)
-
-            do! State.modify (fun context -> context.Namer.LetOut(); context)
-            do! State.modify clearContext
-
-            return StatementBlock sb :> Node<_>
+        let! vDecl = translation {
+            match expr with
+            | DerivedPatterns.SpecificCall <@@ local @@> (_, _, _) ->
+                let! vType = Type.translate var.Type
+                return VarDecl(vType, bName, None, spaceModifier = Local)
+            | DerivedPatterns.SpecificCall <@@ localArray @@> (_, _, [arg]) ->
+                let! expr = translateCond arg
+                let arrayLength =
+                    match expr with
+                    | :? Const<Lang> as c -> int c.Val
+                    | other -> failwithf "Calling localArray with a non-const argument %A" other
+                let! arrayType = Type.translate var.Type |> State.using (fun ctx -> { ctx with AKind = ArrayArray arrayLength })
+                return VarDecl(arrayType, bName, None, spaceModifier = Local)
+            | Patterns.DefaultValue _ ->
+                let! vType = Type.translate var.Type
+                return VarDecl(vType, bName, None)
+            | _ -> return! translateBinding var bName expr
         }
+
+        do! State.modify (fun context -> context.VarDecls.Add vDecl; context)
+        do! State.modify (fun context -> context.Namer.LetIn var.Name; context)
+
+        let! sb = State.gets (fun (context : TranslationContext) -> context.VarDecls)
+        let! res = translate inExpr |> State.using clearContext
+
+        match res with
+        | :? StatementBlock<Lang> as s -> sb.AddRange s.Statements
+        | _ -> sb.Add(res :?> Statement<_>)
+
+        do! State.modify (fun context -> context.Namer.LetOut(); context)
+
+        return StatementBlock sb :> Node<_>
+    }
 
     let private translateProvidedCall expr =
         translation {

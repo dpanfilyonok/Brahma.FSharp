@@ -49,7 +49,7 @@ let rec print<'lang> (type': Type<'lang>) =
     | :? StructInplaceType<'lang> as s -> printStructInplaceType s
     | :? StructType<'lang> as s -> wordL s.Name
     | :? UnionClInplaceType<'lang> as u -> printUnionInplaceType u
-    | :? TupleType<'lang> as t -> wordL ("tuple" + t.Number.ToString())
+    | :? TupleType<'lang> as t -> wordL ("tuple" + t.BaseStruct.Name)
     | _ -> failwithf "Printer. Unsupported type: %A" type'
 
 and printAggregatingInplaceType keyword typeName fields =
