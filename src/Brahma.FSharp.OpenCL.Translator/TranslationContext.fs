@@ -35,7 +35,7 @@ type TranslatorOption =
     | UseNativeBooleanType
     | BoolAsBit
 
-type TargetContext<'lang, 'vDecl> =
+type TranslationContext<'lang, 'vDecl> =
     {
         // mutable data
         TupleDecls: Dictionary<string, StructType<'lang>>
@@ -45,7 +45,7 @@ type TargetContext<'lang, 'vDecl> =
         TopLevelVarsDecls: ResizeArray<'vDecl>
         VarDecls: ResizeArray<'vDecl>
 
-        // immutable
+        // immutable??
         AKind: ArrayKind
         Namer: Namer
         Flags: Flags
@@ -67,8 +67,9 @@ type TargetContext<'lang, 'vDecl> =
             TranslatorOptions = translatorOptions |> Array.toList
         }
 
+    // TODO rewrite
     member this.DeepCopy() =
-        let context = TargetContext.Create(this.TranslatorOptions |> List.toArray)
+        let context = TranslationContext.Create(this.TranslatorOptions |> List.toArray)
 
         context.UserDefinedTypes.AddRange this.UserDefinedTypes
 
@@ -83,47 +84,11 @@ type TargetContext<'lang, 'vDecl> =
         context.Flags.enableAtomic <- this.Flags.enableAtomic
         context
 
-[<AutoOpen>]
-module Extensions =
-    type Expr with
-        /// Builds an expression that represents the lambda
-        static member Lambdas(args: Var list list, body: Expr) =
-            let mkRLinear mk (vs, body) = List.foldBack (fun v acc -> mk (v, acc)) vs body
-
-            let mkTupledLambda (args, body) =
-                match args with
-                | [x] -> Expr.Lambda(x, body)
-                | [] -> Expr.Lambda(Var("unitVar", typeof<unit>), body)
-                | _ ->
-                    let tupledArg =
-                        Var(
-                            "tupledArg",
-                            FSharpType.MakeTupleType(args |> List.map (fun v -> v.Type) |> List.toArray)
-                        )
-
-                    Expr.Lambda(
-                        tupledArg,
-                        (args, [0 .. args.Length - 1], body)
-                        |||> List.foldBack2
-                            (fun var idxInTuple letExpr ->
-                                Expr.Let(
-                                    var,
-                                    Expr.TupleGet(Expr.Var tupledArg, idxInTuple),
-                                    letExpr
-                                )
-                            )
-                    )
-
-            mkRLinear mkTupledLambda (args, body)
-
-module internal Anchors =
-    let _localID0 = Unchecked.defaultof<int>
-
-type TranslationContext = TargetContext<Lang, Statement<Lang>>
+type TargetContext = TranslationContext<Lang, Statement<Lang>>
 
 [<AutoOpen>]
 module StateBuilder =
-    let translation = StateBuilder<TranslationContext>()
+    let translation = StateBuilder<TargetContext>()
     let state = StateBuilder<Map<Var, Var>>()
 
     let (>>=) = State.(>>=)

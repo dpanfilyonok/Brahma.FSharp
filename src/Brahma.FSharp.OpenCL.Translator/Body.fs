@@ -26,7 +26,7 @@ open Brahma.FSharp.OpenCL
 
 module rec Body =
     // new var scope
-    let private clearContext (targetContext: TargetContext<'a, 'b>) =
+    let private clearContext (targetContext: TranslationContext<'a, 'b>) =
         { targetContext with VarDecls = ResizeArray() }
 
     let private translateBinding (var: Var) newName (expr: Expr) =
@@ -696,7 +696,7 @@ module rec Body =
                 return Binop(BOp.EQ, unionGetTagExpr, tagExpr) :> Node<_>
             | Patterns.ValueWithName (_obj, sType, name) ->
                 let! context = State.get
-                // Here is the only use of TargetContext.InLocal
+                // Here is the only use of TranslationContext.InLocal
                 if sType.ToString().EndsWith "[]" (*&& not context.InLocal*) then
                     context.Namer.AddVar name
                     let! res = translateValue _obj sType
@@ -749,7 +749,7 @@ module rec Body =
         do! State.modify (fun context -> context.VarDecls.Add vDecl; context)
         do! State.modify (fun context -> context.Namer.LetIn var.Name; context)
 
-        let! sb = State.gets (fun (context : TranslationContext) -> context.VarDecls)
+        let! sb = State.gets (fun context -> context.VarDecls)
         let! res = translate inExpr |> State.using clearContext
 
         match res with

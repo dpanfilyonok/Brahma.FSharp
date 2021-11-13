@@ -57,7 +57,7 @@ let collectUnionTests =
 let translateUnionTests =
     let testGen testCase name (types: List<System.Type>) outFile expectedFile =
         testCase name <| fun _ ->
-            let context = TargetContext.Create()
+            let context = TranslationContext.Create()
             let unions = Type.translateDiscriminatedUnionDecls types |> State.eval context
             let ast = AST <| List.map (fun du -> du :> ITopDef<_>) unions
             let code = AST.print ast

@@ -4,7 +4,7 @@ open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.AST
 
 [<AbstractClass>]
-type Method(var: Var, expr: Expr, context: TargetContext<Lang,Statement<Lang>>) =
+type Method(var: Var, expr: Expr, context: TranslationContext<Lang,Statement<Lang>>) =
     member this.FunVar = var
     member this.FunExpr = expr
 
@@ -33,7 +33,7 @@ type Method(var: Var, expr: Expr, context: TargetContext<Lang,Statement<Lang>>) 
 
         adding subAST
 
-    abstract TranslateBody : Var list * Expr -> StatementBlock<Lang> * TargetContext<Lang, Statement<Lang>>
+    abstract TranslateBody : Var list * Expr -> StatementBlock<Lang> * TranslationContext<Lang, Statement<Lang>>
     default this.TranslateBody(args, body) =
         let (b, context) =
             let clonedContext = context.DeepCopy()
@@ -51,11 +51,11 @@ type Method(var: Var, expr: Expr, context: TargetContext<Lang,Statement<Lang>>) 
         | _ -> failwithf "Incorrect function body: %A" b
         , context
 
-    abstract TranslateArgs : Var list * string list * string list * TargetContext<Lang, Statement<Lang>> -> FunFormalArg<Lang> list
+    abstract TranslateArgs : Var list * string list * string list * TranslationContext<Lang, Statement<Lang>> -> FunFormalArg<Lang> list
 
-    abstract BuildFunction : FunFormalArg<Lang> list * StatementBlock<Lang> * TargetContext<Lang, Statement<Lang>> -> ITopDef<Lang>
+    abstract BuildFunction : FunFormalArg<Lang> list * StatementBlock<Lang> * TranslationContext<Lang, Statement<Lang>> -> ITopDef<Lang>
 
-    abstract GetPragmas : TargetContext<Lang, Statement<Lang>> -> ITopDef<Lang> list
+    abstract GetPragmas : TranslationContext<Lang, Statement<Lang>> -> ITopDef<Lang> list
     default this.GetPragmas(context) =
         let pragmas = ResizeArray()
 
@@ -68,13 +68,13 @@ type Method(var: Var, expr: Expr, context: TargetContext<Lang,Statement<Lang>>) 
 
         List.ofSeq pragmas
 
-    abstract GetTopLevelVarDecls : TargetContext<Lang, Statement<Lang>> -> ITopDef<Lang> list
+    abstract GetTopLevelVarDecls : TranslationContext<Lang, Statement<Lang>> -> ITopDef<Lang> list
     default this.GetTopLevelVarDecls(context) =
         context.TopLevelVarsDecls
         |> Seq.cast<_>
         |> List.ofSeq
 
-    abstract GetTranslatedTuples : TargetContext<Lang, Statement<Lang>> -> ITopDef<Lang> list
+    abstract GetTranslatedTuples : TranslationContext<Lang, Statement<Lang>> -> ITopDef<Lang> list
     default this.GetTranslatedTuples(context) =
         context.TupleDecls.Values
         |> Seq.cast<_>
@@ -103,7 +103,7 @@ type Method(var: Var, expr: Expr, context: TargetContext<Lang,Statement<Lang>>) 
     override this.ToString() =
         sprintf "%A\n%A" var expr
 
-type KernelFunc(var: Var, expr: Expr, context: TargetContext<Lang,Statement<Lang>>) =
+type KernelFunc(var: Var, expr: Expr, context: TranslationContext<Lang,Statement<Lang>>) =
     inherit Method(var, expr, context)
 
     override this.TranslateArgs(args, _, _, context) =
@@ -135,7 +135,7 @@ type KernelFunc(var: Var, expr: Expr, context: TargetContext<Lang,Statement<Lang
         let declSpecs = DeclSpecifierPack(typeSpecifier = retFunType, funQualifier = Kernel)
         FunDecl(declSpecs, var.Name, args, body) :> ITopDef<_>
 
-type Function(var: Var, expr: Expr, context: TargetContext<Lang,Statement<Lang>>) =
+type Function(var: Var, expr: Expr, context: TranslationContext<Lang,Statement<Lang>>) =
     inherit Method(var, expr, context)
 
     override this.TranslateArgs(args, globalVars, localVars, context) =
@@ -169,7 +169,7 @@ type Function(var: Var, expr: Expr, context: TargetContext<Lang,Statement<Lang>>
 
         FunDecl(declSpecs, var.Name, args, partAST) :> ITopDef<_>
 
-type AtomicFunc(var: Var, expr: Expr, qual: AddressSpaceQualifier<Lang>, context: TargetContext<Lang,Statement<Lang>>) =
+type AtomicFunc(var: Var, expr: Expr, qual: AddressSpaceQualifier<Lang>, context: TranslationContext<Lang,Statement<Lang>>) =
     inherit Method(var, expr, context)
 
     override this.TranslateArgs(args, globalVars, localVars, context) =

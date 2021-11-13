@@ -14,3 +14,6 @@ module Bindings =
 
     type BoolHostAlias = byte
     let BoolClAlias = UChar
+
+module internal Anchors =
+    let _localID0 = Unchecked.defaultof<int>
