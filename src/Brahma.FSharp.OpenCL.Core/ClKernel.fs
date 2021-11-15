@@ -33,7 +33,9 @@ type ClKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
         let error = Cl.BuildProgram(program, 1u, [| clContext.Device |], options, null, IntPtr.Zero)
 
         if error <> ErrorCode.Success then
-            failwithf "Program compilation failed: %A" error
+            let errorCode = ref ErrorCode.Success
+            let buildInfo = Cl.GetProgramBuildInfo(program, clContext.Device, ProgramBuildInfo.Log, errorCode)            
+            failwithf "Program compilation failed: %A \n   BUILD LOG:\n %A \n" error (buildInfo)
 
         program
 
