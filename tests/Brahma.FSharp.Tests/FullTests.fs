@@ -83,9 +83,9 @@ let arrayItemSetTests context =
 
 let typeCastingTests context =
     let inline checkResult cmd input expected = checkResult context cmd input expected
-    testList "Type castings tests"
+    testList (sprintf "Type castings tests on %A" context)
         [
-            testCase "Type casting. Long" <| fun _ ->
+            testCase "Long" <| fun _ ->
                 let command =
                     <@
                         fun (range: Range1D) (buf: ClArray<int64>) ->
@@ -94,7 +94,7 @@ let typeCastingTests context =
 
                 checkResult command [|0L; 1L|] [|1L; 1L|]
 
-            testCase "Type casting. Ulong" <| fun _ ->
+            testCase "Ulong" <| fun _ ->
                 let command =
                     <@
                         fun (range: Range1D) (buf: ClArray<uint64>) ->
@@ -103,7 +103,7 @@ let typeCastingTests context =
 
                 checkResult command [|0UL; 1UL; 2UL; 3UL|] [|1UL; 1UL; 2UL; 3UL|]
 
-            testCase "Type casting. ULong" <| fun _ ->
+            testCase "ULong" <| fun _ ->
                 let command =
                     <@
                         fun (range: Range1D) (buf: ClArray<uint64>) ->
@@ -207,7 +207,7 @@ let typeCastingTests context =
 
 let bindingTests context =
     let inline checkResult cmd input expected = checkResult context cmd input expected
-    testList "Bindings tests"
+    testList (sprintf "Bindings tests on %A" context) 
         [
             testCase "Bindings. Simple." <| fun _ ->
                 let command =
@@ -302,7 +302,7 @@ let operatorsAndMathFunctionsTests context =
 
             Expect.sequenceEqual actual expected ":("
 
-    testList "Operators and math functions tests"
+    testList (sprintf "Operators and math functions tests on %A" context) 
         [
             testOpGen testCase "Boolean or 1." <@ (||) @>
                 [|true; false; false; false|]
@@ -339,9 +339,9 @@ let operatorsAndMathFunctionsTests context =
 
 let pipeTests context =
     let inline checkResult cmd input expected = checkResult context cmd input expected
-    testList "Pipe tests" [
+    testList (sprintf "Pipe tests on %A" context) [
         // Lambda is not supported.
-        ptestCase "Forward pipe." <| fun _ ->
+        ptestCase "Forward pipe" <| fun _ ->
             let command =
                 <@
                     fun (range: Range1D) (buf: ClArray<int>) ->
@@ -350,7 +350,7 @@ let pipeTests context =
             checkResult command intInArr [|1; 1; 2; 3|]
 
         // Lambda is not supported.
-        ptestCase "Backward pipe." <| fun _ ->
+        ptestCase "Backward pipe" <| fun _ ->
             let command =
                 <@
                     fun (range: Range1D) (buf: ClArray<int>) ->
@@ -371,8 +371,8 @@ let pipeTests context =
 
 let controlFlowTests context =
     let inline checkResult cmd input expected = checkResult context cmd input expected
-    testList "Control flow tests" [
-        testCase "Control flow. If Then." <| fun _ ->
+    testList (sprintf "Control flow tests on %A" context) [
+        testCase "If Then" <| fun _ ->
             let command =
                 <@
                     fun (range: Range1D) (buf: ClArray<int>) ->
@@ -381,7 +381,7 @@ let controlFlowTests context =
 
             checkResult command intInArr [|0; 1; 2; 3|]
 
-        testCase "Control flow. If Then Else." <| fun _ ->
+        testCase "If Then Else" <| fun _ ->
             let command =
                 <@
                     fun (range: Range1D) (buf: ClArray<int>) ->
@@ -390,7 +390,7 @@ let controlFlowTests context =
 
             checkResult command intInArr [|2; 1; 2; 3|]
 
-        testCase "Control flow. For Integer Loop." <| fun _ ->
+        testCase "For Integer Loop" <| fun _ ->
             let command =
                 <@
                     fun (range: Range1D) (buf: ClArray<int>) ->
@@ -400,7 +400,7 @@ let controlFlowTests context =
 
             checkResult command intInArr [|0; 0; 0; 0|]
 
-        testCase "Control flow. WHILE loop simple test." <| fun _ ->
+        testCase "While loop simple test" <| fun _ ->
             let command =
                 <@
                     fun (range: Range1D) (buf: ClArray<int>) ->
@@ -424,8 +424,8 @@ let controlFlowTests context =
 
 let kernelArgumentsTests context =
     let inline checkResult cmd input expected = checkResult context cmd input expected
-    testList "Kernel arguments tests" [
-        testCase "Kernel arguments. Simple 1D." <| fun _ ->
+    testList (sprintf "Kernel arguments tests on %A" context) [
+        testCase "Simple 1D" <| fun _ ->
             let command =
                 <@
                     fun (range: Range1D) (buf: ClArray<int>) ->
@@ -435,7 +435,7 @@ let kernelArgumentsTests context =
 
             checkResult command intInArr [|0;2;4;6|]
 
-        testCase "Kernel arguments. Simple 1D with copy." <| fun _ ->
+        testCase "Simple 1D with copy" <| fun _ ->
             let command =
                 <@
                     fun (range: Range1D) (inBuf:ClArray<int>) (outBuf:ClArray<int>) ->
@@ -458,7 +458,7 @@ let kernelArgumentsTests context =
 
             Expect.sequenceEqual actual expected  "Arrays should be equals"
 
-        testCase "Kernel arguments. Simple 1D float." <| fun _ ->
+        testCase "Simple 1D float" <| fun _ ->
             let command =
                 <@
                     fun (range: Range1D) (buf: ClArray<float32>) ->
@@ -468,7 +468,7 @@ let kernelArgumentsTests context =
 
             checkResult command float32Arr [|0.0f; 1.0f; 4.0f; 9.0f|]
 
-        testCase "Kernel arguments. Int as arg." <| fun _ ->
+        testCase "Int as arg" <| fun _ ->
             let command =
                 <@
                     fun (range: Range1D) x (buf: ClArray<int>) ->
@@ -490,7 +490,7 @@ let kernelArgumentsTests context =
 
             Expect.sequenceEqual actual expected "Arrays should be equals"
 
-        testCase "Kernel arguments. Sequential commands over single buffer." <| fun _ ->
+        testCase "Sequential commands over single buffer" <| fun _ ->
             let command =
                 <@
                     fun (range: Range1D) i x (buf: ClArray<int>) ->
@@ -525,8 +525,8 @@ let kernelArgumentsTests context =
 
 let quotationInjectionTests context =
     let inline checkResult cmd input expected = checkResult context cmd input expected
-    testList "Quotation injection tests" [
-        testCase "Quotations injections.  Quotations injections 1." <| fun _ ->
+    testList ( sprintf "Quotation injection tests on %A" context) [
+        testCase "Quotations injections 1" <| fun _ ->
             let myF = <@ fun x -> x * x @>
 
             let command =
@@ -538,7 +538,7 @@ let quotationInjectionTests context =
 
             checkResult command intInArr [|4;16;2;3|]
 
-        testCase "Quotations injections. Quotations injections 2." <| fun _ ->
+        testCase "Quotations injections 2" <| fun _ ->
             let myF = <@ fun x y -> y - x @>
 
             let command =
@@ -553,7 +553,7 @@ let quotationInjectionTests context =
 
 let localMemTests context =
     let inline checkResult cmd input expected = checkResult context cmd input expected
-    testList "Local memory tests" [
+    testList (sprintf "Local memory tests on %A" context) [
         // TODO: pointers to local data must be local too.
         testCase "Local int. Work item counting" <| fun _ ->
             let command =
@@ -626,7 +626,7 @@ let localMemTests context =
 
 let letTransformationTests context =    
     let inline checkResult cmd input expected = checkResult context cmd input expected
-    testList "Let Transformation Tests" [
+    testList (sprintf "Let Transformation Tests on %A" context) [
         testCase "Template Let Transformation Test 0" <| fun _ ->
             let command =
                 <@
@@ -933,7 +933,7 @@ let letTransformationTests context =
 
 let letQuotationTransformerSystemTests context =
     let inline checkResult cmd input expected = checkResult context cmd input expected
-    testList "Let Transformation Tests Mutable Vars" [
+    testList (sprintf "Let Transformation Tests Mutable Vars on %A" context) [
         testCase "Test 0" <| fun _ ->
             let command =
                 <@
@@ -1031,7 +1031,7 @@ let letQuotationTransformerSystemTests context =
 
 let structTests context =
     let inline checkResult cmd input expected = checkResult context cmd input expected
-    testList "Struct tests" [
+    testList (sprintf "Struct tests on %A" context) [
         testCase "Simple seq of struct." <| fun _ ->
             let command =
                 <@
