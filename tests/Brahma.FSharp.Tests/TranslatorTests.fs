@@ -580,7 +580,7 @@ let lambdaLiftingTests = testList "Let transformation tests" [
 ]
 
 let curryingTests = ptestList "Currying translation test" [
-    testCase "Nested functions. Carring 1." <| fun _ ->
+    testCase "Nested functions.Carring 1." <| fun _ ->
         let command =
             <@ fun (range: Range1D) (buf: int clarray) ->
                 let f x y = x - y
@@ -591,7 +591,7 @@ let curryingTests = ptestList "Currying translation test" [
 
         checkCode command "Nested.Function.Carring.gen" "Nested.Function.Carring.cl"
 
-    testCase "Nested functions. Currying 2." <| fun _ ->
+    testCase "Nested functions.Currying 2." <| fun _ ->
         let command =
             <@ fun (range: Range1D) (buf: int clarray) ->
                 let f x y =
@@ -610,7 +610,7 @@ let curryingTests = ptestList "Currying translation test" [
         checkCode command "Nested.Function.Carring2.gen" "Nested.Function.Carring2.cl"
 ]
 
-let localMemoryTests = ptestList "Test of local memory declaration functions." [
+let localMemoryTests = ptestList "Test of local memory declaration functions" [
     testCase "Local int" <| fun _ ->
         let command =
             <@ fun (range: Range1D) ->
@@ -639,7 +639,7 @@ let localMemoryTests = ptestList "Test of local memory declaration functions." [
         checkCode command "LocalMemory.int [].gen" "LocalMemory.int [].cl"
 ]
 
-let localMemoryAllocationTests = ptestList "Translation of local memory allocation functions." [
+let localMemoryAllocationTests = ptestList "Translation of local memory allocation functions" [
     testCase "Constant array translation. Local copy test 1" <| fun _ ->
         let cArray1 = [| 1; 2; 3 |]
 
