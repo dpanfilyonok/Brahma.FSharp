@@ -25,6 +25,7 @@ open System
 
 type FSQuotationToOpenCLTranslator([<ParamArray>] translatorOptions: TranslatorOption[]) =
     let mainKernelName = "brahmaKernel"
+    let lockObject = obj ()
 
     let collectData (expr: Expr) (functions: (Var * Expr) list) =
         // global var names
@@ -88,8 +89,9 @@ type FSQuotationToOpenCLTranslator([<ParamArray>] translatorOptions: TranslatorO
     let translate qExpr translatorOptions =
         let qExpr' = preprocessQuotation qExpr
 
-        let structs = collectStructs qExpr'
-        let unions = collectDiscriminatedUnions qExpr
+        let structs = collectUserDefinedStructs qExpr'
+        // let unions = collectDiscriminatedUnions qExpr'
+        let tuples = collectTuples qExpr'
 
         let context = TranslationContext.Create()
 
@@ -98,25 +100,38 @@ type FSQuotationToOpenCLTranslator([<ParamArray>] translatorOptions: TranslatorO
             |> State.eval context
             |> List.map (fun x -> x :> ITopDef<_>)
 
-        let translatedUnions =
-            Type.translateDiscriminatedUnionDecls unions
+        // let translatedUnions =
+        //     Type.translateDiscriminatedUnionDecls unions
+        //     |> State.eval context
+        //     |> List.map (fun x -> x :> ITopDef<_>)
+
+        let translatedTyples =
+            Type.translateTuples tuples
             |> State.eval context
             |> List.map (fun x -> x :> ITopDef<_>)
 
         let translatedTypes =
             List.concat [ translatedStructs
-                          translatedUnions ]
+                        //   translatedUnions
+                          translatedTyples ]
 
         // TODO: Extract quotationTransformer to translator
         let (kernelExpr, functions) = transformQuotation qExpr' translatorOptions
         let (globalVars, localVars, atomicApplicationsInfo) = collectData kernelExpr functions
         let methods = constructMethods kernelExpr functions atomicApplicationsInfo context
 
-        let listCLFun = ResizeArray []
+        let listCLFun = ResizeArray()
         for method in methods do
             listCLFun.AddRange(method.Translate(globalVars, localVars, translatedTypes))
 
-        AST <| List.ofSeq listCLFun,
+        let s =
+            context.TupleDecls.Values
+            |> Seq.map StructDecl
+            |> Seq.cast<_>
+            |> List.ofSeq
+            |> ResizeArray
+
+        AST <| List.ofSeq (s.AddRange listCLFun; s),
         methods
         |> List.find (fun method -> method :? KernelFunc)
         |> fun kernel -> kernel.FunExpr
@@ -124,7 +139,5 @@ type FSQuotationToOpenCLTranslator([<ParamArray>] translatorOptions: TranslatorO
     member this.TranslatorOptions = translatorOptions
 
     member this.Translate(qExpr) =
-        let lockObject = obj ()
-
         lock lockObject <| fun () ->
             translate qExpr (List.ofArray translatorOptions)

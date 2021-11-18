@@ -24,6 +24,8 @@ open System.Collections.Generic
 open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 open Brahma.FSharp.OpenCL
 
+#nowarn "64"
+
 module rec Body =
     // new var scope
     let private clearContext (targetContext: TranslationContext<'a, 'b>) =
@@ -633,7 +635,7 @@ module rec Body =
                     s <- s + baseTypes.[i].Name
                 if not (context.TupleDecls.ContainsKey(s)) then
                     let! index = State.gets (fun ctx -> ctx.TupleDecls.Count)
-                    let tupleDecl = StructType(sprintf "tuple %i" index, elements)
+                    let tupleDecl = StructType(sprintf "tuple%i" index, elements)
                     do! State.modify (fun ctx -> ctx.TupleDecls.Add(s, tupleDecl); ctx)
                     let cArgs = exprs |> List.map (fun x -> translateAsExpr x)
 

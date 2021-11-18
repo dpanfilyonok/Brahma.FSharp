@@ -134,7 +134,8 @@ and private getZeros x =
 
 and printNewStruct (newStruct: NewStruct<_>) =
     let args = List.map print newStruct.ConstructorArgs |> commaListL
-    [ wordL "{"; args; wordL "}" ] |> spaceListL
+    let t = Types.print newStruct.Struct
+    [ t |> bracketL; wordL "{"; args; wordL "}" ] |> spaceListL
 
 and printNewUnion (newUnion: NewUnion<_>) =
     let arg = print newUnion.ConstructorArg

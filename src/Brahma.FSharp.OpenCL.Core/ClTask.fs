@@ -7,6 +7,7 @@ type ClTask<'a> = ClTask of (ClContext -> 'a)
 type ClTaskBuilder() =
     let runComputation (ClTask f) env = f env
 
+    // TODO make it inline
     member this.Bind(x, f) =
         ClTask <| fun env ->
             let x' = runComputation x env

@@ -43,8 +43,6 @@ type Method(var: Var, expr: Expr, context: TranslationContext<Lang,Statement<Lan
 
             Body.translate body |> State.run clonedContext
 
-        // printfn "%A" context
-
         match b with
         | :? StatementBlock<Lang> as sb -> sb
         | :? Statement<Lang> as s -> StatementBlock <| ResizeArray [s]
@@ -77,6 +75,7 @@ type Method(var: Var, expr: Expr, context: TranslationContext<Lang,Statement<Lan
     abstract GetTranslatedTuples : TranslationContext<Lang, Statement<Lang>> -> ITopDef<Lang> list
     default this.GetTranslatedTuples(context) =
         context.TupleDecls.Values
+        |> Seq.map StructDecl
         |> Seq.cast<_>
         |> List.ofSeq
 
@@ -90,12 +89,12 @@ type Method(var: Var, expr: Expr, context: TranslationContext<Lang,Statement<Lan
             let func = this.BuildFunction(translatedArgs, translatedBody, context)
             let pragmas = this.GetPragmas(context)
             let topLevelVarDecls = this.GetTopLevelVarDecls(context)
-            let translatedTuples = this.GetTranslatedTuples(context)
+            // let translatedTuples = this.GetTranslatedTuples(context)
 
             pragmas
-            @ translatedTuples
-            @ topLevelVarDecls
-            @ translatedTypes
+            // @ translatedTuples
+            // @ topLevelVarDecls
+            // @ translatedTypes
             @ [func]
 
         | _ -> failwithf "Incorrect OpenCL quotation: %A" expr
@@ -162,10 +161,9 @@ type Function(var: Var, expr: Expr, context: TranslationContext<Lang,Statement<L
         let retFunType = Type.translate var.Type |> State.eval context
         let declSpecs = DeclSpecifierPack(typeSpecifier = retFunType)
         let partAST =
-            if (retFunType :?> PrimitiveType<_>).Type <> Void then
-                this.AddReturn(body)
-            else
-                body :> Statement<_>
+            match retFunType with
+            | :? PrimitiveType<Lang> as t when t.Type = Void -> body :> Statement<_>
+            | _ -> this.AddReturn(body)
 
         FunDecl(declSpecs, var.Name, args, partAST) :> ITopDef<_>
 

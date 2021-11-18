@@ -84,39 +84,40 @@ module Type =
                 | RefArray -> return RefType(baseT, []) :> Type<Lang>
                 | ArrayArray size -> return ArrayType(baseT, size) :> Type<Lang>
 
-            | StartsWith "tuple" tName ->
-                // определяем значения типовых аргументов
-                let genericTypeArguments = type'.GenericTypeArguments |> List.ofArray
-                // список полей генерирумеой структуры
-                let! elements =
-                    genericTypeArguments
-                    |> List.mapi
-                        (fun i type' -> translation {
-                            let! translatedType = translate type'
-                            return {
-                                Name = "_" + (i + 1).ToString()
-                                Type = translatedType
-                            }
-                        })
-                    |> State.collect
+            // | StartsWith "tuple" tName
+            // | StartsWith "valuetuple" tName ->
+            //     // определяем значения типовых аргументов
+            //     let genericTypeArguments = type'.GenericTypeArguments |> List.ofArray
+            //     // список полей генерирумеой структуры
+            //     let! elements =
+            //         genericTypeArguments
+            //         |> List.mapi
+            //             (fun i type' -> translation {
+            //                 let! translatedType = translate type'
+            //                 return {
+            //                     Name = "_" + (i + 1).ToString()
+            //                     Type = translatedType
+            //                 }
+            //             })
+            //         |> State.collect
 
-                // идентификатор для пределения типа кортежа
-                let mutable s = ""
-                let mutable n = 0
+            //     // идентификатор для пределения типа кортежа
+            //     let mutable s = ""
+            //     let mutable n = 0
 
-                for i in 0 .. genericTypeArguments.Length - 1 do
-                    s <- s + genericTypeArguments.[i].Name
+            //     for i in 0 .. genericTypeArguments.Length - 1 do
+            //         s <- s + genericTypeArguments.[i].Name
 
-                match! State.gets (fun ctx -> ctx.TupleDecls.ContainsKey s) with
-                | false ->
-                    let! index = State.gets (fun ctx -> ctx.TupleDecls.Count)
-                    let tupleDecl = StructType(sprintf "tuple %i" index, elements)
-                    do! State.modify (fun ctx -> ctx.TupleDecls.Add(s, tupleDecl); ctx)
+            //     match! State.gets (fun ctx -> ctx.TupleDecls.ContainsKey s) with
+            //     | false ->
+            //         let! index = State.gets (fun ctx -> ctx.TupleDecls.Count)
+            //         let tupleDecl = StructType(sprintf "tuple%i" index, elements)
+            //         do! State.modify (fun ctx -> ctx.TupleDecls.Add(s, tupleDecl); ctx)
 
-                    return TupleType(tupleDecl) :> Type<_>
-                | true ->
-                    let! tupleDecl = State.gets (fun ctx -> ctx.TupleDecls.[s])
-                    return TupleType(tupleDecl) :> Type<_>
+            //         return TupleType(tupleDecl) :> Type<_>
+            //     | true ->
+            //         let! tupleDecl = State.gets (fun ctx -> ctx.TupleDecls.[s])
+            //         return TupleType(tupleDecl) :> Type<_>
 
             | other ->
                 let! f = State.gets (fun context -> context.UserDefinedTypes.Exists(fun t -> t.Name.ToLowerInvariant() = other.Name.ToLowerInvariant()))
@@ -133,6 +134,56 @@ module Type =
                 else
                     return failwithf "Unsupported kernel type: %s" <| other.Name.ToLowerInvariant()
         }
+
+    let translateTuples tuples = translation {
+        let go (type':System.Type) = translation {
+            let genericTypeArguments = type'.GenericTypeArguments |> List.ofArray
+            // список полей генерирумеой структуры
+            let! elements =
+                genericTypeArguments
+                |> List.mapi
+                    (fun i type' -> translation {
+                        let! translatedType = translate type'
+                        return {
+                            Name = "_" + (i + 1).ToString()
+                            Type = translatedType
+                        }
+                    })
+                |> State.collect
+
+            // идентификатор для пределения типа кортежа
+            let mutable s = ""
+            let mutable n = 0
+
+            for i in 0 .. genericTypeArguments.Length - 1 do
+                s <- s + genericTypeArguments.[i].Name
+
+            match! State.gets (fun ctx -> ctx.TupleDecls.ContainsKey s) with
+            | false ->
+                let! index = State.gets (fun ctx -> ctx.TupleDecls.Count)
+                let tupleDecl = StructType(sprintf "tuple%i" index, elements)
+                do! State.modify (fun ctx -> ctx.TupleDecls.Add(s, tupleDecl); ctx)
+
+                return tupleDecl
+            | true ->
+                let! tupleDecl = State.gets (fun ctx -> ctx.TupleDecls.[s])
+                return tupleDecl
+        }
+
+        do! State.modify (fun context -> context.UserDefinedTypes.AddRange(tuples); context)
+
+        return!
+            tuples
+            |> List.map
+                (fun t ->
+                    translation {
+                        let! r = go t
+                        do! State.modify (fun context -> context.UserDefinedStructsDecls.Add(t.Name.ToLowerInvariant(), r); context)
+                        return StructDecl r
+                    }
+                )
+            |> State.collect
+    }
 
     let translateStructDecls structs =
         translation {
