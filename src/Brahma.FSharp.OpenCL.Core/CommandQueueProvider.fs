@@ -2,19 +2,7 @@ namespace Brahma.FSharp.OpenCL
 
 open OpenCL.Net
 open System
-open Brahma.FSharp.OpenCL.Shared
 open System.Runtime.InteropServices
-open Brahma.FSharp.OpenCL.Translator
-open Brahma.FSharp.OpenCL.Shared
-open FSharp.Reflection
-open System.Runtime.CompilerServices
-
-type Alligment2() =
-    member val Offsets = ResizeArray<int>() with get
-    member val Length = 0 with get, set
-
-    override this.ToString() =
-        sprintf "%A %i" this.Offsets this.Length
 
 type CommandQueueProvider =
     static member CreateQueue(context: Context, device: Device) =
@@ -113,76 +101,23 @@ type CommandQueueProvider =
         { new IToHostCrateEvaluator with
             member this.Eval (crate: ToHost<'a>) =
                 let eventID = ref Unchecked.defaultof<Event>
-                let mem = crate.Source.Memory
+                let clMem = crate.Source.Memory
 
-                let roundUp n x =
-                    if x % n <> 0 then
-                        (x / n) * n + n
-                    else
-                        x
+                let marshaler = CustomMarshaler<'a>()
 
-                let getElementSize (type': Type) =
-                    let elementAlligment = Alligment2()
-                    let rec go (type': Type) =
-                        match type' with
-                        | _ when type' = typeof<bool> ->
-                            let size = Marshal.SizeOf typeof<BoolHostAlias>
-                            let offset = roundUp size elementAlligment.Length
-                            elementAlligment.Offsets.Add offset
-                            elementAlligment.Length <- offset + size
+                // TODO source or dest length??
+                let size = crate.Destination.Length * marshaler.ElementTypeSize
+                let hostMem = Marshal.AllocHGlobal size
 
-                        | _ when FSharpType.IsTuple type' ->
-                            FSharpType.GetTupleElements type' |> Array.iter go
-
-                        | _ ->
-                            let size = Marshal.SizeOf type'
-                            let offset = roundUp size elementAlligment.Length
-                            elementAlligment.Offsets.Add offset
-                            elementAlligment.Length <- offset + size
-
-                    go type'
-                    elementAlligment
-
-                let elementAlligment = getElementSize typeof<'a>
-                let elementSize = elementAlligment.Length
-
-                let size = crate.Destination.Length * elementAlligment.Length
-                let mem2 = Marshal.AllocHGlobal size
-                //
-
-                let error = Cl.EnqueueReadBuffer(queue, mem, Bool.False, IntPtr(0),
-                                                 IntPtr(crate.Source.Length * elementSize), mem2, 0u, null, eventID)
-
-                // FSharpValue.Mak
+                let error = Cl.EnqueueReadBuffer(queue, clMem, Bool.False, IntPtr(0),
+                                                 IntPtr(crate.Source.Length * marshaler.ElementTypeSize), hostMem, 0u, null, eventID)
 
                 if error <> ErrorCode.Success then
                     raise (Cl.Exception error)
 
                 CommandQueueProvider.Finish queue
 
-                for k = 0 to crate.Destination.Length - 1 do
-                    let start = IntPtr.Add(mem2, k * elementAlligment.Length)
-                    let mutable i = 0
-                    let rec go (type': Type) =
-                        match type' with
-                        // | _ when type' = typeof<bool> ->
-                        //     let offset = elementAlligment.Offsets.[i]
-                        //     let x = Marshal.PtrToStructure(IntPtr.Add(start, offset), type')
-                        //     i <- i + 1
-                        //     x
-
-                        | _ when FSharpType.IsTuple type' ->
-                            FSharpType.GetTupleElements type'
-                            |> Array.map go
-                            |> fun x -> FSharpValue.MakeTuple(x, type')
-
-                        | _ ->
-                            let offset = elementAlligment.Offsets.[i]
-                            let x = Marshal.PtrToStructure(IntPtr.Add(start, offset), type')
-                            i <- i + 1
-                            x
-
-                    crate.Destination.[i] <- unbox<'a> <| go typeof<'a>
+                marshaler.ReadFromUnmanaged(hostMem, crate.Destination)
 
                 match crate.ReplyChannel with
                 | Some ch -> ch.Reply crate.Destination

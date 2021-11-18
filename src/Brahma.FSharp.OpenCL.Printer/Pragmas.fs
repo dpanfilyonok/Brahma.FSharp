@@ -20,6 +20,9 @@ open Microsoft.FSharp.Text.StructuredFormat
 open Microsoft.FSharp.Text.StructuredFormat.LayoutOps
 open Brahma.FSharp.OpenCL.Printer
 
+// TODO formatting
+// TODO to module
+
 let Print (clp: CLPragma<_>) =
     match clp.Type with
     | CLGlobalInt32BaseAtomics ->

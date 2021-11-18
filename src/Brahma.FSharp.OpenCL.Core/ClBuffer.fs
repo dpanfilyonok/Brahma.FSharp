@@ -54,13 +54,6 @@ type ClMemFlags =
             AllocationMode = AllocationMode.AllocHostPtr
         }
 
-type Alligment() =
-    member val Offsets = ResizeArray<int>() with get
-    member val Length = 0 with get, set
-
-    override this.ToString() =
-        sprintf "%A %i" this.Offsets this.Length
-
 type BufferInitParam<'a> =
     | Data of 'a[]
     | Size of int
@@ -78,36 +71,9 @@ type ClBuffer<'a when 'a : struct>
         | Size _ -> ClMemFlags.DefaultIfNoData
         |> defaultArg memFlags
 
-    let roundUp n x =
-        if x % n <> 0 then
-            (x / n) * n + n
-        else
-            x
-
-    let getElementSize (type': Type) =
-        let elementAlligment = Alligment()
-        let rec go (type': Type) =
-            match type' with
-            | _ when type' = typeof<bool> ->
-                let size = Marshal.SizeOf typeof<BoolHostAlias>
-                let offset = roundUp size elementAlligment.Length
-                elementAlligment.Offsets.Add offset
-                elementAlligment.Length <- offset + size
-
-            | _ when FSharpType.IsTuple type' ->
-                FSharpType.GetTupleElements type' |> Array.iter go
-
-            | _ ->
-                let size = Marshal.SizeOf type'
-                let offset = roundUp size elementAlligment.Length
-                elementAlligment.Offsets.Add offset
-                elementAlligment.Length <- offset + size
-
-        go type'
-        elementAlligment
+    let marshaler = CustomMarshaler<'a>()
 
     let intPtrSize = IntPtr(Marshal.SizeOf typedefof<IntPtr>)
-    let elementAlligment = getElementSize typeof<'a>
 
     // let pinnedMemory =
     //     match initParam with
@@ -153,44 +119,17 @@ type ClBuffer<'a when 'a : struct>
     // NOTE булы на девайсе вообще не поддерживаются в Opencl
     // NOTE нужно ли поддерживать вектора
 
-    do printfn "%O" elementAlligment
-
     let buffer =
         let error = ref Unchecked.defaultof<ErrorCode>
-        let (size, data) =
+        let buf =
             match initParam with
             | Data array ->
-                let size = array.Length * elementAlligment.Length
-                let mem = Marshal.AllocHGlobal size
-                for k = 0 to array.Length - 1 do
-                    let start = IntPtr.Add(mem, k * elementAlligment.Length)
-                    let mutable i = 0
-                    let rec go (structure: obj) =
-                        match structure with
-                        | :? bool ->
-                            let offset = elementAlligment.Offsets.[i]
-                            Marshal.StructureToPtr(structure, IntPtr.Add(start, offset), false)
-                            i <- i + 1
+                let (size, data) = marshaler.WriteToUnmanaged(array)
+                Cl.CreateBuffer(clContext.Context, clMemoryFlags, IntPtr size, data, error)
 
-                        | :? ITuple as tuple ->
-                            let typleSize = tuple.Length
-                            [ 0 .. typleSize - 1 ] |> List.iter (fun i -> go tuple.[i])
-
-                        | _ ->
-                            let offset = elementAlligment.Offsets.[i]
-                            Marshal.StructureToPtr(structure, IntPtr.Add(start, offset), false)
-                            i <- i + 1
-
-                    go array.[k]
-
-                IntPtr size, mem
-
-            // TODO null return
             | Size size ->
-                IntPtr(size * elementAlligment.Length),
-                Marshal.AllocHGlobal (size * elementAlligment.Length)
-
-        let buf = Cl.CreateBuffer(clContext.Context, clMemoryFlags, size, data, error)
+                let size = IntPtr(size * marshaler.ElementTypeSize)
+                Cl.CreateBuffer(clContext.Context, clMemoryFlags, size, null, error)
 
         if !error <> ErrorCode.Success then
             raise <| Cl.Exception !error
@@ -207,7 +146,7 @@ type ClBuffer<'a when 'a : struct>
             | Data array -> array.Length
             | Size size -> size
 
-        member this.ElementSize = elementAlligment.Length
+        member this.ElementSize = marshaler.ElementTypeSize
 
         member this.Free() =
             // match pinnedMemory with

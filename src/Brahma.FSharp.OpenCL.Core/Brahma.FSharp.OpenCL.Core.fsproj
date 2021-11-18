@@ -21,6 +21,7 @@
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="ClException.fs" />
     <Compile Include="NDRangeDimensions.fs" />
+    <Compile Include="CustomMarshaler.fs" />
     <Compile Include="IKernel.fs" />
     <Compile Include="Messages.fs" />
     <Compile Include="CommandQueueProvider.fs" />

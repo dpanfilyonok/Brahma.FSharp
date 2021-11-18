@@ -58,11 +58,14 @@ type ClKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
         // TODO extend types for private args (now only int supported)
         match box a with
         | :? IClMem as buf -> buf.Size, buf.Data
+        // NOTE mb generate internal type, cause we cannot marshal bon-blittable types here
         | :? int as i -> IntPtr(Marshal.SizeOf i), box i
         | other -> failwithf "Unexpected argument: %A" other
 
     let setupArgument index arg =
         let (argSize, argVal) = toIMem arg
+        // NOTE SetKernelArg could take intptr
+        // TODO try allocate unmanaged mem by hand
         let error = Cl.SetKernelArg(kernel, uint32 index, argSize, argVal)
         if error <> ErrorCode.Success then
             raise (CLException error)
