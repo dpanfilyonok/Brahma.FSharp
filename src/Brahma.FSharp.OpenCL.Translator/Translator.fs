@@ -20,6 +20,7 @@ open Brahma.FSharp.OpenCL.AST
 open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 open Brahma.FSharp.OpenCL.Translator.TypeReflection
 open System
+open System.Collections.Generic
 
 #nowarn "3390"
 
@@ -40,7 +41,7 @@ type FSQuotationToOpenCLTranslator([<ParamArray>] translatorOptions: TranslatorO
             |> List.map (fun var -> var.Name)
 
         let atomicApplicationsInfo =
-            let atomicPointerArgQualifiers = System.Collections.Generic.Dictionary<Var, AddressSpaceQualifier<Lang>>()
+            let atomicPointerArgQualifiers = Dictionary<Var, AddressSpaceQualifier<Lang>>()
 
             let rec go expr =
                 match expr with
@@ -86,49 +87,49 @@ type FSQuotationToOpenCLTranslator([<ParamArray>] translatorOptions: TranslatorO
 
         methods @ kernelFunc
 
-    let translate qExpr translatorOptions =
-        let qExpr' = preprocessQuotation qExpr
-
-        let structs = collectUserDefinedStructs qExpr'
-        // let unions = collectDiscriminatedUnions qExpr'
-        let tuples = collectTuples qExpr'
+    let translate expr' translatorOptions =
+        let expr = preprocessQuotation expr'
 
         let context = TranslationContext.Create()
 
         let translatedStructs =
-            Type.translateStructDecls structs
+            collectUserDefinedStructs expr
+            |> Type.tt Type.translateStruct
             |> State.eval context
             |> List.map (fun x -> x :> ITopDef<_>)
 
-        // let translatedUnions =
-        //     Type.translateDiscriminatedUnionDecls unions
-        //     |> State.eval context
-        //     |> List.map (fun x -> x :> ITopDef<_>)
+        let translatedTuples =
+            collectTuples expr
+            |> Type.tt Type.translateTuple
+            |> State.eval context
+            |> List.map (fun x -> x :> ITopDef<_>)
 
-        let translatedTyples =
-            Type.translateTuples tuples
+        let translatedUnions =
+            collectDiscriminatedUnions expr'
+            |> Type.tt Type.translateUnion
             |> State.eval context
             |> List.map (fun x -> x :> ITopDef<_>)
 
         let translatedTypes =
-            List.concat [ translatedStructs
-                        //   translatedUnions
-                          translatedTyples ]
+            [
+                translatedStructs
+                translatedTuples
+                translatedUnions
+            ]
+            |> List.concat
 
         // TODO: Extract quotationTransformer to translator
-        let (kernelExpr, functions) = transformQuotation qExpr' translatorOptions
+        let (kernelExpr, functions) = transformQuotation expr translatorOptions
         let (globalVars, localVars, atomicApplicationsInfo) = collectData kernelExpr functions
         let methods = constructMethods kernelExpr functions atomicApplicationsInfo context
 
+        // TODO rewrite this
         let listCLFun = ResizeArray()
         for method in methods do
             listCLFun.AddRange(method.Translate(globalVars, localVars, translatedTypes))
 
         let s =
-            context.TupleDecls.Values
-            |> Seq.map StructDecl
-            |> Seq.cast<_>
-            |> List.ofSeq
+            translatedTypes
             |> ResizeArray
 
         AST <| List.ofSeq (s.AddRange listCLFun; s),

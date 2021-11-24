@@ -11,7 +11,7 @@ typedef struct TranslateMatchTestUnion {int tag ;
                                                                             Case3 ;} data ;} TranslateMatchTestUnion
                                                                                              ;
 __kernel void brahmaKernel ()
-{TranslateMatchTestUnion t = { 0 } ;
+{TranslateMatchTestUnion t = (TranslateMatchTestUnion) { 0 } ;
  int x = 5 ;
  if (((t) . tag == 1))
  {x = 6 ;}

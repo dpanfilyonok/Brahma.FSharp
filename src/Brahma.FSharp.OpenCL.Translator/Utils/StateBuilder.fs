@@ -76,3 +76,7 @@ type StateBuilder<'state>() =
             this.Zero()
         else
             this.Combine(this.Run(body), this.Delay(fun () -> this.While(cond, body)))
+
+[<AutoOpen>]
+module StateUtils =
+    let (>>=) = State.(>>=)

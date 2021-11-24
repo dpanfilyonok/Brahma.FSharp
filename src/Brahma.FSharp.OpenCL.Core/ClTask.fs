@@ -4,32 +4,34 @@ open FSharp.Quotations
 
 type ClTask<'a> = ClTask of (ClContext -> 'a)
 
-type ClTaskBuilder() =
-    let runComputation (ClTask f) env = f env
+[<AutoOpen>]
+module internal ClTaskBuilder =
+    let inline runComputation (ClTask f) env = f env
 
+type ClTaskBuilder() =
     // TODO make it inline
-    member this.Bind(x, f) =
+    member inline this.Bind(x, f) =
         ClTask <| fun env ->
             let x' = runComputation x env
             runComputation (f x') env
 
-    member this.Return(x) =
+    member inline this.Return(x) =
         ClTask <| fun _ ->
             x
 
-    member this.ReturnFrom(x) =
+    member inline this.ReturnFrom(x) =
         x
 
-    member this.Zero() =
+    member inline this.Zero() =
         this.Return(())
 
-    member this.Combine(m1, m2) =
+    member inline this.Combine(m1, m2) =
         this.Bind(m1, (fun () -> m2))
 
-    member this.Delay(rest) =
+    member inline this.Delay(rest) =
         this.Bind(this.Zero(), (fun () -> rest ()))
 
-    member this.Run(m) = m
+    member inline this.Run(m) = m
 
     member this.TryWith(ClTask body, handler) =
         ClTask <| fun env ->

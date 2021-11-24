@@ -93,7 +93,7 @@ type Method(var: Var, expr: Expr, context: TranslationContext<Lang,Statement<Lan
 
             pragmas
             // @ translatedTuples
-            // @ topLevelVarDecls
+            @ topLevelVarDecls
             // @ translatedTypes
             @ [func]
 

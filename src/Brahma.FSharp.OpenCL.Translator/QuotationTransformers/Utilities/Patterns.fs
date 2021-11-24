@@ -123,22 +123,18 @@ module Patterns =
             Some <| uncurryApplication expr
         | _ -> None
 
-    let (|ValidVolatileArg|_|) = function
-        // global
-        | Patterns.PropertyGet (Some (Patterns.Var v), propInfo, args) when
-            v.Type.Name.ToLower().StartsWith ClArray_ &&
-            propInfo.Name.ToLower().StartsWith "item" ||
-            v.Type.Name.ToLower().StartsWith ClCell_ &&
-            propInfo.Name.ToLower().StartsWith "value"  -> Some v
-        // non-global
-        | Patterns.Var var
-        | DerivedPatterns.SpecificCall <@ IntrinsicFunctions.GetArray @> (_, _, [Patterns.Var var; _]) -> Some var
-        | _ -> None
-
     let (|GlobalVar|_|) = function
         | Patterns.PropertyGet (Some (Patterns.Var v), propInfo, args) when
             v.Type.Name.ToLower().StartsWith ClArray_ &&
             propInfo.Name.ToLower().StartsWith "item" ||
             v.Type.Name.ToLower().StartsWith ClCell_ &&
             propInfo.Name.ToLower().StartsWith "value"  -> Some v
+        | _ -> None
+
+    let (|ValidVolatileArg|_|) = function
+        // global
+        | GlobalVar v -> Some v
+        // non-global
+        | Patterns.Var var
+        | DerivedPatterns.SpecificCall <@ IntrinsicFunctions.GetArray @> (_, _, [Patterns.Var var; _]) -> Some var
         | _ -> None

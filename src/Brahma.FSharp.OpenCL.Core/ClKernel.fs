@@ -169,5 +169,6 @@ type ClKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
     member this.Range = (this :> IKernel<_,_>).Range
     member this.Code = (this :> IKernel<_,_>).Code
 
+    // TODO rename ?? ReleaseInternalBuffers
     /// Освобождает только временные промежуточные утилитарные буферы (например, буфер для мьютексов)
     member this.ReleaseBuffers() = (this :> IKernel<_,_>).ReleaseBuffers()

@@ -68,6 +68,7 @@ type clcell<'a when 'a : struct> = ClCell<'a>
 
 module ClArray =
     // or allocate with null ptr and write
+    // TODO if array.Length = 0 ...
     let toDevice (array: 'a[]) = opencl {
         let! context = ClTask.ask
 

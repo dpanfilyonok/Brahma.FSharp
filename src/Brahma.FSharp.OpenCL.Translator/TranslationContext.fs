@@ -23,6 +23,7 @@ open System
 
 exception InvalidKernelException of string
 
+// TODO rename
 type ArrayKind =
     | RefArray
     | ArrayArray of size: int
@@ -37,15 +38,15 @@ type TranslatorOption =
 
 type TranslationContext<'lang, 'vDecl> =
     {
-        // mutable data
-        TupleDecls: Dictionary<string, StructType<'lang>>
-        UserDefinedTypes: ResizeArray<System.Type>
-        UserDefinedStructsDecls: Dictionary<string, StructType<'lang>>
-        UserDefinedUnionsDecls: Dictionary<string, DiscriminatedUnionType<'lang>>
+        TupleDecls: Dictionary<Type, StructType<'lang>>
+        StructDecls: Dictionary<Type, StructType<'lang>>
+        UnionDecls: Dictionary<Type, DiscriminatedUnionType<'lang>>
+        UserDefinedTypes: ResizeArray<Type>
+
+        // is it useful?
         TopLevelVarsDecls: ResizeArray<'vDecl>
         VarDecls: ResizeArray<'vDecl>
 
-        // immutable??
         AKind: ArrayKind
         Namer: Namer
         Flags: Flags
@@ -54,10 +55,11 @@ type TranslationContext<'lang, 'vDecl> =
 
     static member Create([<ParamArray>] translatorOptions: TranslatorOption[]) =
         {
-            TupleDecls = Dictionary<string, StructType<'lang>>()
+            TupleDecls = Dictionary<Type, StructType<'lang>>()
+            StructDecls = Dictionary<Type, StructType<'lang>>()
+            UnionDecls = Dictionary<Type, DiscriminatedUnionType<'lang>>()
             UserDefinedTypes = ResizeArray<System.Type>()
-            UserDefinedStructsDecls = Dictionary<string, StructType<'lang>>()
-            UserDefinedUnionsDecls = Dictionary<string, DiscriminatedUnionType<'lang>>()
+
             TopLevelVarsDecls = ResizeArray<'vDecl>()
             VarDecls = ResizeArray<'vDecl>()
 
@@ -73,10 +75,10 @@ type TranslationContext<'lang, 'vDecl> =
 
         context.UserDefinedTypes.AddRange this.UserDefinedTypes
 
-        for x in this.UserDefinedStructsDecls do
-            context.UserDefinedStructsDecls.Add (x.Key,x.Value)
-        for x in this.UserDefinedUnionsDecls do
-            context.UserDefinedUnionsDecls.Add (x.Key,x.Value)
+        for x in this.StructDecls do
+            context.StructDecls.Add (x.Key,x.Value)
+        for x in this.UnionDecls do
+            context.UnionDecls.Add (x.Key,x.Value)
         for x in this.TupleDecls do
             context.TupleDecls.Add(x.Key,x.Value)
 
@@ -87,8 +89,5 @@ type TranslationContext<'lang, 'vDecl> =
 type TargetContext = TranslationContext<Lang, Statement<Lang>>
 
 [<AutoOpen>]
-module StateBuilder =
+module Translation =
     let translation = StateBuilder<TargetContext>()
-    let state = StateBuilder<Map<Var, Var>>()
-
-    let (>>=) = State.(>>=)

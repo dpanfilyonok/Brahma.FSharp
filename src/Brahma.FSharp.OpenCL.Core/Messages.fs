@@ -1,6 +1,5 @@
 namespace Brahma.FSharp.OpenCL
 
-open Brahma.FSharp.OpenCL.Translator
 open Brahma.FSharp.OpenCL.Shared
 
 type Free<'a when 'a: struct>(src: System.IDisposable) =

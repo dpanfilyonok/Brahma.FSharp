@@ -4,6 +4,10 @@ open Expecto
 open Brahma.FSharp.OpenCL
 open FSharp.Quotations
 open Brahma.FSharp.Tests
+open Expecto.Logging
+open Expecto.Logging.Message
+
+let logger = Log.create "FullcTests"
 
 [<Struct>]
 type TestStruct =
@@ -1264,8 +1268,7 @@ let booleanTests = testList "Boolean Tests" [
         |> Expect.sequenceEqual actual inputArray
 
     testProperty "'lor' on boolean type should work correctly" <| fun (array: bool[]) ->
-        if array.Length = 0 then ()
-        else
+        if array.Length <> 0 then
             let reversed = Seq.rev array |> Seq.toArray
             let inputArrayLength = array.Length
             let command =
@@ -1302,8 +1305,7 @@ let booleanTests = testList "Boolean Tests" [
             |> Expect.sequenceEqual actual expected
 
     testProperty "'land' on boolean type should work correctly" <| fun (array: bool[]) ->
-        if array.Length = 0 then ()
-        else
+        if array.Length <> 0 then
             let reversed = Seq.rev array |> Seq.toArray
             let inputArrayLength = array.Length
             let command =
@@ -1528,6 +1530,40 @@ let simpleDUTests = testList "Simple tests on discriminated unions" [
 
         "Arrays should be equal"
         |> Expect.sequenceEqual actual expected
+]
+
+[<Struct>]
+type StructWithOverridedConstructors =
+    val mutable x: int
+    val mutable y: int
+    new(x, y) = { x = x; y = y }
+    new(x) = { x = x; y = 10 }
+
+let specificTests = testList "" [
+    ptestCase "" <| fun () ->
+        let command =
+            <@
+                fun (range: Range1D) (buffer: ClCell<StructWithOverridedConstructors>) ->
+                    buffer.Value <- StructWithOverridedConstructors(10)
+            @>
+
+        let expected = StructWithOverridedConstructors(10, 10)
+
+        let actual =
+            opencl {
+                let value = 5
+                use! buffer = ClCell.toDevice <| StructWithOverridedConstructors(value, value)
+                do! runCommand command <| fun it ->
+                    it
+                    <| Range1D(1)
+                    <| buffer
+
+                return! ClCell.toHost buffer
+            }
+            |> ClTask.runSync context
+
+        ""
+        |> Expect.equal actual expected
 ]
 
 let tests =

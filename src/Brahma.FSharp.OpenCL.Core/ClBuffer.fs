@@ -75,11 +75,6 @@ type ClBuffer<'a when 'a : struct>
 
     let intPtrSize = IntPtr(Marshal.SizeOf typedefof<IntPtr>)
 
-    // let pinnedMemory =
-    //     match initParam with
-    //     | Data array -> Some <| GCHandle.Alloc(array, GCHandleType.Pinned)
-    //     | _ -> None
-
     let clMemoryFlags =
         let mutable flags = MemFlags.None
 
@@ -125,7 +120,9 @@ type ClBuffer<'a when 'a : struct>
             match initParam with
             | Data array ->
                 let (size, data) = marshaler.WriteToUnmanaged(array)
-                Cl.CreateBuffer(clContext.Context, clMemoryFlags, IntPtr size, data, error)
+                let buffer = Cl.CreateBuffer(clContext.Context, clMemoryFlags, IntPtr size, data, error)
+                Marshal.FreeHGlobal(data)
+                buffer
 
             | Size size ->
                 let size = IntPtr(size * marshaler.ElementTypeSize)
@@ -149,10 +146,6 @@ type ClBuffer<'a when 'a : struct>
         member this.ElementSize = marshaler.ElementTypeSize
 
         member this.Free() =
-            // match pinnedMemory with
-            // | Some x -> x.Free()
-            // | None -> ()
-
             buffer.Dispose()
 
         member this.Item

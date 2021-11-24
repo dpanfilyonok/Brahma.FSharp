@@ -5,6 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="KernelLangExtensions.fs" />
     <Compile Include="IBuffer.fs" />
   </ItemGroup>
 

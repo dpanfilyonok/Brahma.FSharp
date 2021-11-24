@@ -18,7 +18,6 @@
     <Compile Include="Utils\StateBuilder.fs" />
     <Compile Include="Utils\TypeReflection.fs" />
     <Compile Include="Utils\Extensions.fs" />
-    <Compile Include="KernelLangExtentions.fs" />
     <Compile Include="Bindings.fs" />
     <Compile Include="Namer.fs" />
     <Compile Include="TranslationContext.fs" />

@@ -5,6 +5,6 @@ typedef struct TranslateTest {int tag ;
                                                         struct BType {double Item ;} B ;} data ;} TranslateTest
                                                                                                   ;
 __kernel void brahmaKernel ()
-{TranslateTest x = { 2 } ;
+{TranslateTest x = (TranslateTest) { 2 } ;
  int y = 5 ;
  y = 7 ;}

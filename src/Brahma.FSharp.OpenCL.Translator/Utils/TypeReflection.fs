@@ -7,19 +7,16 @@ open Microsoft.FSharp.Quotations
 open System
 
 module TypeReflection =
-    let hasAttribute<'attr> (tp: Type) =
+    let private hasAttribute<'attr> (tp: Type) =
         tp.GetCustomAttributes(false)
         |> Seq.tryFind (fun attr -> attr.GetType() = typeof<'attr>)
         |> Option.isSome
-
-    let isStruct = hasAttribute<StructAttribute>
 
     let collectTypes
         expr
         (typePredicate: Type -> bool)
         (nestedTypes: Type -> Type[])
-        (escapeNames: string[])
-        =
+        (escapeNames: string[])  =
 
         // TODO dict (type => unit) for what?
         let types = Dictionary<Type, _>()
@@ -39,15 +36,13 @@ module TypeReflection =
             match e with
             | ExprShape.ShapeVar _ -> ()
             | ExprShape.ShapeLambda (_, body) -> go body
-            | ExprShape.ShapeCombination (o, l) ->
-                // nestedTypes (o.GetType()) |> Array.iter add
-                // o.GetType() |>  typePredicate |> printfn "%A"
-                List.iter go l
+            | ExprShape.ShapeCombination (o, l) -> List.iter go l
 
         go expr
         types.Keys |> List.ofSeq
 
     let collectUserDefinedStructs expr =
+        let isStruct = hasAttribute<StructAttribute>
         let escapeNames = [||]
 
         let nestedTypes (t: Type) =
@@ -55,17 +50,26 @@ module TypeReflection =
                 t.GetProperties()
                 |> Array.map (fun prop -> prop.PropertyType)
 
-                t.GetFields()
-                |> Array.map (fun field -> field.FieldType)
+                // dont needed i think
+                if not <| FSharpType.IsRecord t then
+                    t.GetFields()
+                    |> Array.map (fun field -> field.FieldType)
             }
             |> Array.concat
 
         collectTypes expr isStruct nestedTypes escapeNames
 
-    // TODO fix it
-    let collectDiscriminatedUnions expr =
+    let collectTuples expr =
+        let isTuple = FSharpType.IsTuple
         let escapeNames = [||]
+
+        let nestedTypes (type': Type) = FSharpType.GetTupleElements type'
+
+        collectTypes expr isTuple nestedTypes escapeNames
+
+    let collectDiscriminatedUnions expr =
         let unionPredicate = FSharpType.IsUnion
+        let escapeNames = [||]
 
         let nestedTypes : Type -> Type[] =
             FSharpType.GetUnionCases
@@ -74,8 +78,3 @@ module TypeReflection =
             >> Array.map (fun (prop: PropertyInfo) -> prop.PropertyType)
 
         collectTypes expr unionPredicate nestedTypes escapeNames
-
-    let collectTuples expr =
-        let escapeNames = [||]
-        let isTuple = FSharpType.IsTuple
-        collectTypes expr isTuple FSharpType.GetTupleElements escapeNames

@@ -12,7 +12,7 @@
     <Compile Include="FullTests.fs" />
     <Compile Include="TranslatorTests.fs" />
     <Compile Include="AtomicTests.fs" />
-    <Compile Include="StructAndTuple.fs" />
+    <Compile Include="StructAndTupleTests.fs" />
     <Compile Include="WorkflowTests.fs" />
     <Compile Include="QuotationsTransformerTests.fs" />
     <Compile Include="UnionTests.fs" />

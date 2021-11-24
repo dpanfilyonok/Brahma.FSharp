@@ -58,7 +58,7 @@ let translateUnionTests =
     let testGen testCase name (types: List<System.Type>) outFile expectedFile =
         testCase name <| fun _ ->
             let context = TranslationContext.Create()
-            let unions = Type.translateDiscriminatedUnionDecls types |> State.eval context
+            let unions = Type.tt Type.translateUnion types |> State.eval context
             let ast = AST <| List.map (fun du -> du :> ITopDef<_>) unions
             let code = AST.print ast
 
@@ -117,7 +117,7 @@ let compileTests =
             @>
 
         testGen
-            testCase
+            ptestCase
             "Test 4: OuterUnion.Outer"
             "Union.Compile.Test4.gen"
             "Union.Compile.Test4.cl"
@@ -128,7 +128,7 @@ let compileTests =
             @>
 
         testGen
-            testCase
+            ptestCase
             "Test 5: OuterUnion.Inner"
             "Union.Compile.Test5.gen"
             "Union.Compile.Test5.cl"

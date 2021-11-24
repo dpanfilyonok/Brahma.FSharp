@@ -10,9 +10,14 @@ open System.Collections.Generic
 
 type Mutex = int
 
+// TODO rename
 type AddressQ =
     | Gl
     | Loc
+
+[<AutoOpen>]
+module AtomicProcessing =
+    let atomicProcessing = StateBuilder<Map<Var, Var>>()
 
 [<AutoOpen>]
 module AtomicProcessor =
@@ -81,7 +86,7 @@ module AtomicProcessor =
 
         | _ -> raise <| InvalidKernelException(sprintf "Invalid kernel expression. Must be lambda, but given\n%O" expr)
 
-    let rec private transformAtomicsAndCollectPointerVars (expr: Expr) nonPrivateVars = state {
+    let rec private transformAtomicsAndCollectPointerVars (expr: Expr) nonPrivateVars = atomicProcessing {
         match expr with
         | DerivedPatterns.Applications
             (
@@ -278,7 +283,7 @@ module AtomicProcessor =
                             )
                         )
 
-                let! (state: Map<Var, Var>) = State.get
+                let! state = State.get
 
                 let mutexVar =
                     match state |> Map.tryFind pointerVar with
@@ -295,7 +300,7 @@ module AtomicProcessor =
                                 typeof<Mutex>
                         )
 
-                do! State.modify (fun (state: Map<Var, Var>) -> state |> Map.add pointerVar mutexVar)
+                do! State.modify (fun state -> state |> Map.add pointerVar mutexVar)
 
                 let atomicFuncBody =
                     let mutex =
@@ -418,8 +423,8 @@ module AtomicProcessor =
             return ExprShape.RebuildShapeCombination(combo, transformedList)
     }
 
-    let private insertMutexVars (expr: Expr) = state {
-        let! (pointerVarToMutexVarMap: Map<Var, Var>) = State.get
+    let private insertMutexVars (expr: Expr) = atomicProcessing {
+        let! pointerVarToMutexVarMap = State.get
         match expr with
         | DerivedPatterns.Lambdas (args, body) ->
             let args = List.collect id args

@@ -118,6 +118,7 @@ type CommandQueueProvider =
                 CommandQueueProvider.Finish queue
 
                 marshaler.ReadFromUnmanaged(hostMem, crate.Destination)
+                Marshal.FreeHGlobal(hostMem)
 
                 match crate.ReplyChannel with
                 | Some ch -> ch.Reply crate.Destination
