@@ -7,12 +7,12 @@ open Brahma.FSharp.OpenCL
 let allTests =
     testList "All tests" [
         Full.tests
-        Translator.tests
-        // Atomic.tests
-        StructAndTuple.tests
         Workflow.tests
+        Translator.tests
         QuotationTransformers.tests
+        CompositeTypesTests.tests
         Union.tests
+        // Atomic.tests
     ]
     |> testSequenced
 

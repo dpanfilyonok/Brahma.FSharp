@@ -111,9 +111,6 @@ type ClBuffer<'a when 'a : struct>
 
         flags
 
-    // NOTE булы на девайсе вообще не поддерживаются в Opencl
-    // NOTE нужно ли поддерживать вектора
-
     let buffer =
         let error = ref Unchecked.defaultof<ErrorCode>
         let buf =

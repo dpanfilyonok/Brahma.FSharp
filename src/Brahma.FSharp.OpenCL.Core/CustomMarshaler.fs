@@ -9,10 +9,28 @@ open System.Runtime.CompilerServices
 type StructurePacking =
     | StructureElement of {| Size: int; Aligment: int |} * StructurePacking list
 
-// TODO check ud structs
+module private Utils =
+    let hasAttribute<'attr> (tp: Type) =
+        tp.GetCustomAttributes(false)
+        |> Seq.tryFind (fun attr -> attr.GetType() = typeof<'attr>)
+        |> Option.isSome
+
 type CustomMarshaler<'a>() =
-    // TODO all cases
-    let (|TupleType|PromitiveType|) (x: int) = if x > 0 then TupleType else PromitiveType
+    let (|TupleType|RecordType|UnionType|UserDefinedStuctureType|PrimitiveType|) (type': Type) =
+        match type' with
+        | _ when FSharpType.IsTuple type' -> TupleType
+        | _ when FSharpType.IsRecord type' -> RecordType
+        | _ when FSharpType.IsUnion type' -> UnionType
+        | _ when Utils.hasAttribute<StructAttribute> type' -> UserDefinedStuctureType
+        | _ -> PrimitiveType
+
+    let (|Tuple|Record|Union|UserDefinedStucture|Primitive|) (structure: obj) =
+        match structure.GetType() with
+        | TupleType -> Tuple
+        | RecordType -> Record
+        | UnionType -> Union
+        | UserDefinedStuctureType -> UserDefinedStucture
+        | _ -> Primitive
 
     let roundUp n x =
         if x % n <> 0 then
@@ -23,7 +41,7 @@ type CustomMarshaler<'a>() =
     let elementPacking =
         let rec go (type': Type) =
             match type' with
-            | _ when FSharpType.IsTuple type' ->
+            | TupleType ->
                 let elems =
                     FSharpType.GetTupleElements type'
                     |> Array.map go
@@ -31,18 +49,18 @@ type CustomMarshaler<'a>() =
 
                 let aligment =
                     elems
-                    |> List.map (fun (StructureElement(value, childs)) -> value.Aligment)
+                    |> List.map (fun (StructureElement(pack, _)) -> pack.Aligment)
                     |> List.max
 
                 let size =
                     elems
-                    |> List.map (fun (StructureElement(value, childs)) -> value)
+                    |> List.map (fun (StructureElement(pack, _)) -> pack)
                     |> List.fold (fun state x -> roundUp x.Aligment state + x.Size) 0
                     |> roundUp aligment
 
                 StructureElement({| Size = size; Aligment = aligment |}, elems)
 
-            | _ when FSharpType.IsRecord type' ->
+            | RecordType ->
                 let elems =
                     FSharpType.GetRecordFields type'
                     |> Array.map (fun pi -> pi.PropertyType)
@@ -51,18 +69,21 @@ type CustomMarshaler<'a>() =
 
                 let aligment =
                     elems
-                    |> List.map (fun (StructureElement(value, childs)) -> value.Aligment)
+                    |> List.map (fun (StructureElement(pack, _)) -> pack.Aligment)
                     |> List.max
 
                 let size =
                     elems
-                    |> List.map (fun (StructureElement(value, childs)) -> value)
+                    |> List.map (fun (StructureElement(pack, _)) -> pack)
                     |> List.fold (fun state x -> roundUp x.Aligment state + x.Size) 0
                     |> roundUp aligment
 
                 StructureElement({| Size = size; Aligment = aligment |}, elems)
 
-            | _ ->
+            | UnionType -> failwithf "Union not supported"
+            | UserDefinedStuctureType -> failwithf "Custom structures not supported"
+
+            | PrimitiveType ->
                 let size = Marshal.SizeOf (if type' = typeof<bool> then typeof<BoolHostAlias> else type')
                 let aligment = size
                 StructureElement({| Size = size; Aligment = aligment |}, [])
@@ -113,14 +134,18 @@ type CustomMarshaler<'a>() =
             let mutable i = 0
             let rec go (structure: obj) =
                 match structure with
-                | :? ITuple as tuple ->
+                | Tuple ->
+                    let tuple = unbox<ITuple> structure
                     let tupleSize = tuple.Length
                     [ 0 .. tupleSize - 1 ] |> List.iter (fun i -> go tuple.[i])
 
-                | record when FSharpType.IsRecord <| record.GetType() ->
-                    FSharpValue.GetRecordFields record |> Array.iter go
+                | Record ->
+                    FSharpValue.GetRecordFields structure |> Array.iter go
 
-                | _ ->
+                | Union -> failwithf "Union not supported"
+                | UserDefinedStucture -> failwithf "Custom structures not supported"
+
+                | Primitive ->
                     let offset = this.ElementTypeOffsets.[i]
                     let structure =
                         if structure.GetType() = typeof<bool> then
@@ -145,18 +170,21 @@ type CustomMarshaler<'a>() =
             let mutable i = 0
             let rec go (type': Type) =
                 match type' with
-                | _ when FSharpType.IsTuple type' ->
+                | TupleType ->
                     FSharpType.GetTupleElements type'
                     |> Array.map go
                     |> fun x -> FSharpValue.MakeTuple(x, type')
 
-                | _ when FSharpType.IsRecord type' ->
+                | RecordType ->
                     FSharpType.GetRecordFields type'
                     |> Array.map (fun pi -> pi.PropertyType)
                     |> Array.map go
                     |> fun x -> FSharpValue.MakeRecord(type', x)
 
-                | _ ->
+                | UnionType -> failwithf "Union not supported"
+                | UserDefinedStuctureType -> failwithf "Custom structures not supported"
+
+                | PrimitiveType ->
                     let offset = this.ElementTypeOffsets.[i]
                     let structure = Marshal.PtrToStructure(IntPtr.Add(start, offset), (if type' = typeof<bool> then typeof<BoolHostAlias> else type'))
                     let structure =

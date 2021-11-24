@@ -94,19 +94,19 @@ type FSQuotationToOpenCLTranslator([<ParamArray>] translatorOptions: TranslatorO
 
         let translatedStructs =
             collectUserDefinedStructs expr
-            |> Type.tt Type.translateStruct
+            |> Type.translateSpecificTypes Type.translateStruct
             |> State.eval context
             |> List.map (fun x -> x :> ITopDef<_>)
 
         let translatedTuples =
             collectTuples expr
-            |> Type.tt Type.translateTuple
+            |> Type.translateSpecificTypes Type.translateTuple
             |> State.eval context
             |> List.map (fun x -> x :> ITopDef<_>)
 
         let translatedUnions =
             collectDiscriminatedUnions expr'
-            |> Type.tt Type.translateUnion
+            |> Type.translateSpecificTypes Type.translateUnion
             |> State.eval context
             |> List.map (fun x -> x :> ITopDef<_>)
 
@@ -123,16 +123,11 @@ type FSQuotationToOpenCLTranslator([<ParamArray>] translatorOptions: TranslatorO
         let (globalVars, localVars, atomicApplicationsInfo) = collectData kernelExpr functions
         let methods = constructMethods kernelExpr functions atomicApplicationsInfo context
 
-        // TODO rewrite this
-        let listCLFun = ResizeArray()
+        let topDefs = ResizeArray(translatedTypes)
         for method in methods do
-            listCLFun.AddRange(method.Translate(globalVars, localVars, translatedTypes))
+            topDefs.AddRange(method.Translate(globalVars, localVars, translatedTypes))
 
-        let s =
-            translatedTypes
-            |> ResizeArray
-
-        AST <| List.ofSeq (s.AddRange listCLFun; s),
+        AST <| List.ofSeq topDefs,
         methods
         |> List.find (fun method -> method :? KernelFunc)
         |> fun kernel -> kernel.FunExpr

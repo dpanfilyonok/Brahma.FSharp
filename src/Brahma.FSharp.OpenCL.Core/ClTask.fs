@@ -9,7 +9,6 @@ module internal ClTaskBuilder =
     let inline runComputation (ClTask f) env = f env
 
 type ClTaskBuilder() =
-    // TODO make it inline
     member inline this.Bind(x, f) =
         ClTask <| fun env ->
             let x' = runComputation x env
@@ -84,7 +83,8 @@ module ClTask =
         context.CommandQueue.PostAndReply <| MsgNotifyMe
         res
 
-    // TODO mb swith to manual threads or smth like this
+    // TODO maybe switсh to manual threads
+    // TODO check if it is really parallel
     let inParallel (tasks: seq<ClTask<'a>>) = opencl {
         let! ctx = ask
 

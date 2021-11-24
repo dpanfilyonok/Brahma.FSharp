@@ -1,9 +1,11 @@
-﻿module StructAndTuple
+﻿module CompositeTypesTests
 
 open Expecto
 open Brahma.FSharp.OpenCL
 open FSharp.Quotations
 open Brahma.FSharp.Tests
+
+#nowarn "667"
 
 [<Struct>]
 type RecordOfIntInt64 =
@@ -43,10 +45,12 @@ let check<'a when 'a : struct and 'a : equality> (data: 'a[]) (command: int -> E
         }
         |> ClTask.runSync context
 
-    ""
+    "Arrays should be equal"
     |> Expect.sequenceEqual actual expected
 
-let tupleTestCases = testList "d" [
+let message typeName = sprintf "Simple test on `%s`" typeName
+
+let tupleTestCases = testList "Tuple tests" [
     let inline command length =
         <@
             fun (gid: int) (buffer: clarray<struct('a * 'b)>) ->
@@ -55,28 +59,28 @@ let tupleTestCases = testList "d" [
                     buffer.[gid] <- struct(a, b)
         @>
 
-    testProperty "1" <| fun (data: struct(int * int)[]) ->
+    testProperty (message "struct(int * int)") <| fun (data: struct(int * int)[]) ->
         if data.Length <> 0 then check data (fun length -> <@ fun (range: Range1D) (buffer: ClArray<_>) -> (%command length) range.GlobalID0 buffer @>)
 
-    testProperty "2" <| fun (data: struct(int * int64)[]) ->
+    testProperty (message "struct(int * int64)") <| fun (data: struct(int * int64)[]) ->
         if data.Length <> 0 then check data (fun length -> <@ fun (range: Range1D) (buffer: ClArray<_>) -> (%command length) range.GlobalID0 buffer @>)
 
-    testProperty "3" <| fun (data: struct(bool * bool)[]) ->
+    testProperty (message "struct(bool * bool") <| fun (data: struct(bool * bool)[]) ->
         if data.Length <> 0 then check data (fun length -> <@ fun (range: Range1D) (buffer: ClArray<_>) -> (%command length) range.GlobalID0 buffer @>)
 
-    testProperty "4" <| fun (data: struct((int * int) * (int * int))[]) ->
+    testProperty (message "struct((int * int) * (int * int))") <| fun (data: struct((int * int) * (int * int))[]) ->
         if data.Length <> 0 then check data (fun length -> <@ fun (range: Range1D) (buffer: ClArray<_>) -> (%command length) range.GlobalID0 buffer @>)
 
-    testProperty "5" <| fun (data: struct((int * int64) * (bool * bool))[]) ->
+    testProperty (message "struct((int * int64) * (bool * bool))") <| fun (data: struct((int * int64) * (bool * bool))[]) ->
         if data.Length <> 0 then check data (fun length -> <@ fun (range: Range1D) (buffer: ClArray<_>) -> (%command length) range.GlobalID0 buffer @>)
 
-    testProperty "6" <| fun (data: struct(RecordOfIntInt64 * RecordOfBoolBool)[]) ->
+    testProperty (message "struct(RecordOfIntInt64 * RecordOfBoolBool)") <| fun (data: struct(RecordOfIntInt64 * RecordOfBoolBool)[]) ->
         if data.Length <> 0 then check data (fun length -> <@ fun (range: Range1D) (buffer: ClArray<_>) -> (%command length) range.GlobalID0 buffer @>)
 
-    testProperty "7" <| fun (data: struct(GenericRecord<int, int64> * GenericRecord<bool, bool>)[]) ->
+    testProperty (message "struct(GenericRecord<int, int64> * GenericRecord<bool, bool>)") <| fun (data: struct(GenericRecord<int, int64> * GenericRecord<bool, bool>)[]) ->
         if data.Length <> 0 then check data (fun length -> <@ fun (range: Range1D) (buffer: ClArray<_>) -> (%command length) range.GlobalID0 buffer @>)
 
-    testProperty "5.1" <| fun (data: struct(int * int64 * bool)[]) ->
+    testProperty (message "struct(int * int64 * bool)") <| fun (data: struct(int * int64 * bool)[]) ->
         if data.Length <> 0 then
             check data <| fun length ->
                 <@ fun (range: Range1D) (buffer: ClArray<_>) ->
@@ -86,7 +90,7 @@ let tupleTestCases = testList "d" [
                         buffer.[gid] <- struct(a1, a2, a3)
                 @>
 
-    testProperty "8" <| fun (data: struct(int * int * int * int * int * int * int * int * int * int)[]) ->
+    testProperty "Simple test on big tuple (of size 10)" <| fun (data: struct(int * int * int * int * int * int * int * int * int * int)[]) ->
         if data.Length <> 0 then
             check data <| fun length ->
                 <@ fun (range: Range1D) (buffer: ClArray<_>) ->
@@ -96,7 +100,7 @@ let tupleTestCases = testList "d" [
                         buffer.[gid] <- struct(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10)
                 @>
 
-    testProperty "9" <| fun (data: struct((int * int) * (int * int))[]) ->
+    testProperty "Test on inner tuples deconstruction" <| fun (data: struct((int * int) * (int * int))[]) ->
         if data.Length <> 0 then
             check data <| fun length ->
                 <@ fun (range: Range1D) (buffer: ClArray<_>) ->
@@ -107,7 +111,7 @@ let tupleTestCases = testList "d" [
                 @>
 ]
 
-let structTestCases = testList "" [
+let recordTestCases = testList "Record tests" [
     let inline command length =
         <@
             fun (gid: int) (buffer: clarray<GenericRecord<'a, 'b>>) ->
@@ -119,16 +123,16 @@ let structTestCases = testList "" [
                     buffer.[gid] <- { X = innerStruct.X; Y = innerStruct.Y }
         @>
 
-    testProperty "2" <| fun (data: GenericRecord<int, bool>[]) ->
+    testProperty (message "GenericRecord<int, bool>") <| fun (data: GenericRecord<int, bool>[]) ->
         if data.Length <> 0 then check data (fun length -> <@ fun (range: Range1D) (buffer: ClArray<_>) -> (%command length) range.GlobalID0 buffer @>)
 
-    testProperty "2" <| fun (data: GenericRecord<(int * float), (bool * bool)>[]) ->
+    ftestProperty (message "GenericRecord<(int * float), (bool * bool)>") <| fun (data: GenericRecord<(int * float), (bool * bool)>[]) ->
         if data.Length <> 0 then check data (fun length -> <@ fun (range: Range1D) (buffer: ClArray<_>) -> (%command length) range.GlobalID0 buffer @>)
 ]
 
 let tests =
-    testList "Tests structs and tuples" [
+    testList "Tests on composite types" [
         tupleTestCases
-        structTestCases
+        recordTestCases
     ]
     |> testSequenced

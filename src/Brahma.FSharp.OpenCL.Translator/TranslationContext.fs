@@ -15,18 +15,15 @@
 
 namespace Brahma.FSharp.OpenCL.Translator
 
-open Microsoft.FSharp.Quotations
 open System.Collections.Generic
 open Brahma.FSharp.OpenCL.AST
-open Microsoft.FSharp.Reflection
 open System
 
 exception InvalidKernelException of string
 
-// TODO rename
 type ArrayKind =
-    | RefArray
-    | ArrayArray of size: int
+    | CPointer
+    | CArrayDecl of size: int
 
 type Flags() =
     member val enableAtomic = false with get, set
@@ -43,11 +40,10 @@ type TranslationContext<'lang, 'vDecl> =
         UnionDecls: Dictionary<Type, DiscriminatedUnionType<'lang>>
         UserDefinedTypes: ResizeArray<Type>
 
-        // is it useful?
         TopLevelVarsDecls: ResizeArray<'vDecl>
         VarDecls: ResizeArray<'vDecl>
 
-        AKind: ArrayKind
+        ArrayKind: ArrayKind
         Namer: Namer
         Flags: Flags
         TranslatorOptions: TranslatorOption list
@@ -63,7 +59,7 @@ type TranslationContext<'lang, 'vDecl> =
             TopLevelVarsDecls = ResizeArray<'vDecl>()
             VarDecls = ResizeArray<'vDecl>()
 
-            AKind = RefArray
+            ArrayKind = CPointer
             Namer = Namer()
             Flags = Flags()
             TranslatorOptions = translatorOptions |> Array.toList

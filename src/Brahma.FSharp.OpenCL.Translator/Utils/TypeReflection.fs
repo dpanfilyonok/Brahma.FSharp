@@ -12,47 +12,41 @@ module TypeReflection =
         |> Seq.tryFind (fun attr -> attr.GetType() = typeof<'attr>)
         |> Option.isSome
 
-    let collectTypes
-        expr
-        (typePredicate: Type -> bool)
-        (nestedTypes: Type -> Type[])
-        (escapeNames: string[])  =
+    let collectTypes expr typePredicate (nestedTypes: Type -> Type[]) (escapeNames: string[]) =
+        let types = HashSet<Type>()
 
-        // TODO dict (type => unit) for what?
-        let types = Dictionary<Type, _>()
-
-        let rec add (t: Type) =
+        let rec add (type': Type) =
             if
-                typePredicate t &&
-                not <| types.ContainsKey t &&
-                not <| Array.exists ((=) t.Name) escapeNames
+                typePredicate type' &&
+                not <| types.Contains type' &&
+                not <| Array.exists ((=) type'.Name) escapeNames
             then
-                nestedTypes t |> Array.iter add
-                types.Add(t, ())
+                nestedTypes type' |> Array.iter add
+                types.Add type' |> ignore
 
-        let rec go (e: Expr) =
-            add e.Type
+        let rec go (expr: Expr) =
+            add expr.Type
 
-            match e with
+            match expr with
             | ExprShape.ShapeVar _ -> ()
             | ExprShape.ShapeLambda (_, body) -> go body
-            | ExprShape.ShapeCombination (o, l) -> List.iter go l
+            | ExprShape.ShapeCombination (_, exprs) -> List.iter go exprs
 
         go expr
-        types.Keys |> List.ofSeq
+        types |> List.ofSeq
 
     let collectUserDefinedStructs expr =
         let isStruct = hasAttribute<StructAttribute>
         let escapeNames = [||]
 
-        let nestedTypes (t: Type) =
+        let nestedTypes (type': Type) =
             seq {
-                t.GetProperties()
+                type'.GetProperties()
                 |> Array.map (fun prop -> prop.PropertyType)
 
                 // dont needed i think
-                if not <| FSharpType.IsRecord t then
-                    t.GetFields()
+                if not <| FSharpType.IsRecord type' then
+                    type'.GetFields()
                     |> Array.map (fun field -> field.FieldType)
             }
             |> Array.concat
@@ -71,10 +65,10 @@ module TypeReflection =
         let unionPredicate = FSharpType.IsUnion
         let escapeNames = [||]
 
-        let nestedTypes : Type -> Type[] =
-            FSharpType.GetUnionCases
-            >> Array.map (fun (case: UnionCaseInfo) -> case.GetFields())
-            >> Array.concat
-            >> Array.map (fun (prop: PropertyInfo) -> prop.PropertyType)
+        let nestedTypes (type': Type) =
+            FSharpType.GetUnionCases type'
+            |> Array.map (fun (case: UnionCaseInfo) -> case.GetFields())
+            |> Array.concat
+            |> Array.map (fun (prop: PropertyInfo) -> prop.PropertyType)
 
         collectTypes expr unionPredicate nestedTypes escapeNames

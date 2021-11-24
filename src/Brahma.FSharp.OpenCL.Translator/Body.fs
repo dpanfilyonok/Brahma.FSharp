@@ -38,7 +38,7 @@ module rec Body =
             | :? Const<_> as c ->
                 return c.Type
             | :? ArrayInitializer<_> as ai ->
-                return! Type.translate var.Type |> State.using (fun ctx -> { ctx with AKind = ArrayArray ai.Length })
+                return! Type.translate var.Type |> State.using (fun ctx -> { ctx with ArrayKind = CArrayDecl ai.Length })
             | _ -> return! Type.translate var.Type
         }
 
@@ -324,7 +324,7 @@ module rec Body =
                     | "single[]" -> value :?> array<float32> |> Array.map string
                     | _ -> failwith "Unsupported array type."
 
-                let! translatedType = Type.translate sType |> State.using (fun ctx -> { ctx with AKind = ArrayArray array.Length })
+                let! translatedType = Type.translate sType |> State.using (fun ctx -> { ctx with ArrayKind = CArrayDecl array.Length })
                 let stringValue =
                     array
                     |> String.concat ", "
@@ -699,7 +699,7 @@ module rec Body =
                     match expr with
                     | :? Const<Lang> as c -> int c.Val
                     | other -> failwithf "Calling localArray with a non-const argument %A" other
-                let! arrayType = Type.translate var.Type |> State.using (fun ctx -> { ctx with AKind = ArrayArray arrayLength })
+                let! arrayType = Type.translate var.Type |> State.using (fun ctx -> { ctx with ArrayKind = CArrayDecl arrayLength })
                 return VarDecl(arrayType, bName, None, spaceModifier = Local)
             | Patterns.DefaultValue _ ->
                 let! vType = Type.translate var.Type

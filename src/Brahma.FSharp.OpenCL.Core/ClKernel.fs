@@ -58,7 +58,6 @@ type ClKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
         // TODO extend types for private args (now only int supported)
         match box a with
         | :? IClMem as buf -> buf.Size, buf.Data
-        // NOTE mb generate internal type, cause we cannot marshal bon-blittable types here
         | :? int as i -> IntPtr(Marshal.SizeOf i), box i
         | other -> failwithf "Unexpected argument: %A" other
 

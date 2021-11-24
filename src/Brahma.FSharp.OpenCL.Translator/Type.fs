@@ -72,21 +72,17 @@ module Type =
 
         | EndsWith "[]" tName ->
             let! baseT = translate <| type'.GetElementType()
-            match! State.gets (fun ctx -> ctx.AKind) with
-            | RefArray -> return RefType(baseT, []) :> Type<Lang>
-            | ArrayArray size -> return ArrayType(baseT, size) :> Type<Lang>
+            match! State.gets (fun ctx -> ctx.ArrayKind) with
+            | CPointer -> return RefType(baseT, []) :> Type<Lang>
+            | CArrayDecl size -> return ArrayType(baseT, size) :> Type<Lang>
 
         | StartsWith ClArray_ tName
         | StartsWith ClCell_ tName
         | StartsWith IBuffer_ tName ->
             let! baseT = translate type'.GenericTypeArguments.[0]
-            match! State.gets (fun ctx -> ctx.AKind) with
-            | RefArray -> return RefType(baseT, []) :> Type<Lang>
-            | ArrayArray size -> return ArrayType(baseT, size) :> Type<Lang>
-
-        // | StartsWith "tuple" tName
-        // | StartsWith "valuetuple" tName -> return ()
-        //     // translateTuples [type']
+            match! State.gets (fun ctx -> ctx.ArrayKind) with
+            | CPointer -> return RefType(baseT, []) :> Type<Lang>
+            | CArrayDecl size -> return ArrayType(baseT, size) :> Type<Lang>
 
         | other ->
             let! context = State.get
@@ -105,17 +101,17 @@ module Type =
                 return failwithf "Unsupported kernel type: %A" other
     }
 
-    let translateStruct (t: System.Type) = translation {
+    let translateStruct (type': System.Type) = translation {
         let! fields =
             [
-                for f in t.GetProperties(BindingFlags.Public ||| BindingFlags.Instance) ->
+                for f in type'.GetProperties(BindingFlags.Public ||| BindingFlags.Instance) ->
                     translate f.PropertyType >>= fun type' ->
                     State.return' { Name = f.Name; Type = type' }
             ]
             @
             [
-                if not <| FSharpType.IsRecord t then
-                    for f in t.GetFields(BindingFlags.Public ||| BindingFlags.Instance) ->
+                if not <| FSharpType.IsRecord type' then
+                    for f in type'.GetFields(BindingFlags.Public ||| BindingFlags.Instance) ->
                         translate f.FieldType >>= fun type' ->
                         State.return' { Name = f.Name; Type = type' }
             ]
@@ -125,7 +121,7 @@ module Type =
 
         let! index = State.gets (fun ctx -> ctx.StructDecls.Count)
         let structType = StructType(sprintf "struct%i" index, fields)
-        do! State.modify (fun context -> context.StructDecls.Add(t, structType); context)
+        do! State.modify (fun context -> context.StructDecls.Add(type', structType); context)
         return structType
     }
 
@@ -154,11 +150,11 @@ module Type =
             return tupleDecl
     }
 
-    let translateUnion (t: System.Type) = translation {
-        let name = t.Name
+    let translateUnion (type': System.Type) = translation {
+        let name = type'.Name
 
         let notEmptyCases =
-            FSharpType.GetUnionCases t
+            FSharpType.GetUnionCases type'
             |> Array.filter (fun case -> case.GetFields().Length <> 0)
 
         let! fields =
@@ -182,20 +178,20 @@ module Type =
             |> State.collect
 
         let duType = DiscriminatedUnionType(name, fields)
-        do! State.modify (fun context -> context.UnionDecls.Add(t, duType); context)
+        do! State.modify (fun context -> context.UnionDecls.Add(type', duType); context)
 
         return duType
     }
 
     // TODO rename
-    let tt (f: System.Type -> State<TargetContext,'a>) (types: System.Type list) = translation {
+    let translateSpecificTypes (translate: System.Type -> State<TargetContext,'a>) (types: System.Type list) = translation {
         do! State.modify (fun context -> context.UserDefinedTypes.AddRange types; context)
         return!
             types
             |> List.map
                 (fun type' ->
                     translation {
-                        let! translatedType = f type'
+                        let! translatedType = translate type'
                         return StructDecl translatedType
                     }
                 )
