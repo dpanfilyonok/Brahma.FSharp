@@ -19,8 +19,6 @@ open System.Collections.Generic
 open Brahma.FSharp.OpenCL.AST
 open System
 
-exception InvalidKernelException of string
-
 type ArrayKind =
     | CPointer
     | CArrayDecl of size: int
