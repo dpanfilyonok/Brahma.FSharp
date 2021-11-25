@@ -1197,9 +1197,11 @@ let structTests =
             let command =
                 <@
                     fun (range: Range1D) (buf:  ClArray<TestStruct>) ->
-                        let mutable y = buf.[0]
-                        y.x <- y.x + 3
-                        buf.[0] <- y
+                        if range.GlobalID0 = 0
+                        then
+                            let mutable y = buf.[0]
+                            y.x <- y.x + 3
+                            buf.[0] <- y
                 @>
 
             checkResult command [|TestStruct(1, 2.0); TestStruct(3, 4.0)|]
