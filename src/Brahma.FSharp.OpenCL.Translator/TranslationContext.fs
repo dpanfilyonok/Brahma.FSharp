@@ -35,52 +35,42 @@ type TranslatorOption =
 
 type TranslationContext<'lang, 'vDecl> =
     {
+        TopLevelVarsDecls: ResizeArray<'vDecl>
+        UserDefinedTypes: HashSet<Type>
+        // NOTE is it necessary  to have 3 dicts?
         TupleDecls: Dictionary<Type, StructType<'lang>>
         StructDecls: Dictionary<Type, StructType<'lang>>
         UnionDecls: Dictionary<Type, DiscriminatedUnionType<'lang>>
-        UserDefinedTypes: ResizeArray<Type>
 
-        TopLevelVarsDecls: ResizeArray<'vDecl>
         VarDecls: ResizeArray<'vDecl>
-
-        ArrayKind: ArrayKind
         Namer: Namer
+        ArrayKind: ArrayKind
+
         Flags: Flags
         TranslatorOptions: TranslatorOption list
     }
 
     static member Create([<ParamArray>] translatorOptions: TranslatorOption[]) =
         {
+            TopLevelVarsDecls = ResizeArray<'vDecl>()
+            UserDefinedTypes = HashSet<Type>()
             TupleDecls = Dictionary<Type, StructType<'lang>>()
             StructDecls = Dictionary<Type, StructType<'lang>>()
             UnionDecls = Dictionary<Type, DiscriminatedUnionType<'lang>>()
-            UserDefinedTypes = ResizeArray<System.Type>()
 
-            TopLevelVarsDecls = ResizeArray<'vDecl>()
             VarDecls = ResizeArray<'vDecl>()
-
-            ArrayKind = CPointer
             Namer = Namer()
+            ArrayKind = CPointer
+
             Flags = Flags()
             TranslatorOptions = translatorOptions |> Array.toList
         }
 
-    // TODO rewrite
-    member this.DeepCopy() =
-        let context = TranslationContext.Create(this.TranslatorOptions |> List.toArray)
-
-        context.UserDefinedTypes.AddRange this.UserDefinedTypes
-
-        for x in this.StructDecls do
-            context.StructDecls.Add (x.Key,x.Value)
-        for x in this.UnionDecls do
-            context.UnionDecls.Add (x.Key,x.Value)
-        for x in this.TupleDecls do
-            context.TupleDecls.Add(x.Key,x.Value)
-
-        context.Flags.enableFP64 <- this.Flags.enableFP64
-        context.Flags.enableAtomic <- this.Flags.enableAtomic
-        context
+    member this.Copy() =
+        { this with
+            VarDecls = ResizeArray()
+            Namer = Namer()
+        }
 
 type TargetContext = TranslationContext<Lang, Statement<Lang>>
 

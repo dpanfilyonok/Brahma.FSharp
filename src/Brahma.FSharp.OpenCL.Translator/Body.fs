@@ -264,14 +264,14 @@ module rec Body =
         match exprOpt with
         | Some expr ->
             let! hostVar = translateAsExpr expr
-            let! newVal = translateAsExpr newVal
+            let! newVal' = translateAsExpr newVal
 
             return! translation {
                 match propInfo.Name.ToLowerInvariant() with
                 | "item" ->
                     let! (idx, hVar) = itemHelper exprs hostVar
                     let item = Item(hVar, idx)
-                    return Assignment(Property(PropertyType.Item item), newVal) :> Statement<_>
+                    return Assignment(Property(PropertyType.Item item), newVal') :> Statement<_>
                 // TODO rewrite to active pattern
                 | "value" when
                     match expr with
@@ -281,9 +281,9 @@ module rec Body =
 
                     let! (idx, hVar) = itemHelper [Expr.Value 0] hostVar
                     let item = Item(hVar, idx)
-                    return Assignment(Property(PropertyType.Item item), newVal) :> Statement<_>
+                    return Assignment(Property(PropertyType.Item item), newVal') :> Statement<_>
                 | _ ->
-                    let! translated = translateFieldSet expr propInfo.Name exprs.[0]
+                    let! translated = translateFieldSet expr propInfo.Name newVal
                     return translated :> Statement<_>
             }
         | None -> return failwithf "Unsupported static property set in kernel: %A" propName
@@ -595,18 +595,13 @@ module rec Body =
                 return failwithf "NewObject is not suported: %O" expr
         | Patterns.NewRecord (sType, exprs) ->
             let! context = State.get
-            if context.UserDefinedTypes.Contains sType then
-                let! structInfo = State.gets (fun context -> context.StructDecls.[sType])
-                let cArgs = exprs |> List.map (fun x -> translation { return! translateAsExpr x })
-                let res = NewStruct<_>(structInfo, cArgs |> List.map (State.eval context))
-                return res :> Node<_>
-            else
-                return failwithf "lol: %O" expr
+            let! structInfo = Type.translateStruct sType
+            let cArgs = exprs |> List.map (fun x -> translation { return! translateAsExpr x })
+            return NewStruct<_>(structInfo, cArgs |> List.map (State.eval context)) :> Node<_>
         | Patterns.NewTuple (exprs) ->
-            let! tupleDecl = State.gets (fun ctx -> ctx.TupleDecls.[expr.Type])
-            let cArgs = exprs |> List.map (fun x -> translateAsExpr x)
-
             let! context = State.get
+            let! tupleDecl = Type.translateTuple expr.Type
+            let cArgs = exprs |> List.map (fun x -> translateAsExpr x)
             return NewStruct<_>(tupleDecl, cArgs |> List.map (State.eval context)) :> Node<_>
         | Patterns.NewUnionCase (unionCaseInfo, exprs) ->
             let! context = State.get

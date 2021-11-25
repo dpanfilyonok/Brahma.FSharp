@@ -21,7 +21,12 @@ open FSharp.Reflection
 open Microsoft.FSharp.Collections
 open System.Collections.Generic
 
-module Type =
+module rec Type =
+    let private hasAttribute<'attr> (tp: System.Type) =
+        tp.GetCustomAttributes(false)
+        |> Seq.tryFind (fun attr -> attr.GetType() = typeof<'attr>)
+        |> Option.isSome
+
     let (|Name|_|) (str: string) (type': System.Type) =
         match type'.Name.ToLowerInvariant() with
         | tName when tName = str -> Some Name
@@ -29,12 +34,12 @@ module Type =
 
     let (|EndsWith|_|) (str: string) (type': System.Type) =
         match type'.Name.ToLowerInvariant() with
-        | tName when tName.EndsWith str -> Some tName
+        | tName when tName.EndsWith str -> Some EndsWith
         | _ -> None
 
     let (|StartsWith|_|) (str: string) (type': System.Type) =
         match type'.Name.ToLowerInvariant() with
-        | tName when tName.StartsWith str -> Some tName
+        | tName when tName.StartsWith str -> Some StartsWith
         | _ -> None
 
     // как указатель транслируем только массивы и refType
@@ -56,6 +61,7 @@ module Type =
         | Name "double" ->
             do! State.modify (fun ctx -> ctx.Flags.enableFP64 <- true; ctx)
             return PrimitiveType<Lang>(Double) :> Type<Lang>
+
         | Name "boolean" ->
             match! State.gets (fun ctx -> ctx.TranslatorOptions |> List.contains UseNativeBooleanType) with
             | true -> return PrimitiveType<Lang>(Bool) :> Type<Lang>
@@ -64,90 +70,98 @@ module Type =
         | Name "read_only image2D" -> return Image2DType(true) :> Type<Lang>
         | Name "write_only image2D" -> return Image2DType(false) :> Type<Lang>
 
-        | StartsWith "fsharpref" tName ->
+        | StartsWith "fsharpref" ->
             let! translatedType = translate type'.GenericTypeArguments.[0]
             return RefType(translatedType, []) :> Type<Lang>
-        | StartsWith "fsharpfunc" tName ->
+        | StartsWith "fsharpfunc" ->
             return! translate type'.GenericTypeArguments.[1]
 
-        | EndsWith "[]" tName ->
+        | EndsWith "[]" ->
             let! baseT = translate <| type'.GetElementType()
             match! State.gets (fun ctx -> ctx.ArrayKind) with
             | CPointer -> return RefType(baseT, []) :> Type<Lang>
             | CArrayDecl size -> return ArrayType(baseT, size) :> Type<Lang>
 
-        | StartsWith ClArray_ tName
-        | StartsWith ClCell_ tName
-        | StartsWith IBuffer_ tName ->
+        | StartsWith ClArray_
+        | StartsWith ClCell_
+        | StartsWith IBuffer_ ->
             let! baseT = translate type'.GenericTypeArguments.[0]
             match! State.gets (fun ctx -> ctx.ArrayKind) with
             | CPointer -> return RefType(baseT, []) :> Type<Lang>
             | CArrayDecl size -> return ArrayType(baseT, size) :> Type<Lang>
 
-        | other ->
-            let! context = State.get
-            if context.UserDefinedTypes.Contains other then
-                let structType =
-                    if context.StructDecls.ContainsKey type' then
-                        context.StructDecls.[type']
-                    elif context.TupleDecls.ContainsKey type' then
-                        context.TupleDecls.[type']
-                    elif context.UnionDecls.ContainsKey type' then
-                        context.UnionDecls.[type'] :> StructType<_>
-                    else
-                        failwithf "Declaration of struct %A doesn't exists" other
-                return structType :> Type<_>
-            else
-                return failwithf "Unsupported kernel type: %A" other
+        | StartsWith "tuple"
+        | StartsWith "valuetuple" ->
+            let! translated = translateTuple type'
+            return translated :> Type<_>
+
+        // TODO only struct, not non-struct records
+        | _ when hasAttribute<StructAttribute> type' ->
+            let! translated = translateStruct type'
+            return translated :> Type<_>
+
+        | other -> return failwithf "Unsupported kernel type: %A" other
     }
 
     let translateStruct (type': System.Type) = translation {
-        let! fields =
-            [
-                for f in type'.GetProperties(BindingFlags.Public ||| BindingFlags.Instance) ->
-                    translate f.PropertyType >>= fun type' ->
-                    State.return' { Name = f.Name; Type = type' }
-            ]
-            @
-            [
-                if not <| FSharpType.IsRecord type' then
-                    for f in type'.GetFields(BindingFlags.Public ||| BindingFlags.Instance) ->
-                        translate f.FieldType >>= fun type' ->
+        let! context = State.get
+
+        if context.StructDecls.ContainsKey type' then
+            return context.StructDecls.[type']
+        else
+            let! fields =
+                [
+                    for f in type'.GetProperties(BindingFlags.Public ||| BindingFlags.Instance) ->
+                        translate f.PropertyType >>= fun type' ->
                         State.return' { Name = f.Name; Type = type' }
-            ]
-            |> State.collect
+                ]
+                @
+                [
+                    if not <| FSharpType.IsRecord type' then
+                        for f in type'.GetFields(BindingFlags.Public ||| BindingFlags.Instance) ->
+                            translate f.FieldType >>= fun type' ->
+                            State.return' { Name = f.Name; Type = type' }
+                ]
+                |> State.collect
 
-        let fields = fields |> List.distinct
+            let fields = fields |> List.distinct
 
-        let! index = State.gets (fun ctx -> ctx.StructDecls.Count)
-        let structType = StructType(sprintf "struct%i" index, fields)
-        do! State.modify (fun context -> context.StructDecls.Add(type', structType); context)
-        return structType
+            let! index = State.gets (fun ctx -> ctx.StructDecls.Count)
+            let structType = StructType(sprintf "struct%i" index, fields)
+            do! State.modify (fun context -> context.StructDecls.Add(type', structType); context)
+            context.UserDefinedTypes.Add type' |> ignore
+            return structType
     }
 
     let translateTuple (type': System.Type) = translation {
-        let genericTypeArguments = FSharpType.GetTupleElements type' |> List.ofArray
+        let! context = State.get
 
-        let! elements =
-            genericTypeArguments
-            |> List.mapi
-                (fun i type' -> translation {
-                    let! translatedType = translate type'
-                    return {
-                        Name = sprintf "_%i" (i + 1)
-                        Type = translatedType
-                    }
-                })
-            |> State.collect
+        if context.StructDecls.ContainsKey type' then
+            return context.StructDecls.[type']
+        else
+            let genericTypeArguments = FSharpType.GetTupleElements type' |> List.ofArray
 
-        match! State.gets (fun ctx -> ctx.TupleDecls.ContainsKey type') with
-        | true ->
-            return! State.gets (fun ctx -> ctx.TupleDecls.[type'])
-        | false ->
-            let! index = State.gets (fun ctx -> ctx.TupleDecls.Count)
-            let tupleDecl = StructType(sprintf "tuple%i" index, elements)
-            do! State.modify (fun ctx -> ctx.TupleDecls.Add(type', tupleDecl); ctx)
-            return tupleDecl
+            let! elements =
+                genericTypeArguments
+                |> List.mapi
+                    (fun i type' -> translation {
+                        let! translatedType = translate type'
+                        return {
+                            Name = sprintf "_%i" (i + 1)
+                            Type = translatedType
+                        }
+                    })
+                |> State.collect
+
+            match! State.gets (fun ctx -> ctx.StructDecls.ContainsKey type') with
+            | true ->
+                return! State.gets (fun ctx -> ctx.StructDecls.[type'])
+            | false ->
+                let! index = State.gets (fun ctx -> ctx.StructDecls.Count)
+                let tupleDecl = StructType(sprintf "tuple%i" index, elements)
+                do! State.modify (fun ctx -> ctx.StructDecls.Add(type', tupleDecl); ctx)
+                context.UserDefinedTypes.Add type' |> ignore
+                return tupleDecl
     }
 
     let translateUnion (type': System.Type) = translation {
@@ -181,19 +195,4 @@ module Type =
         do! State.modify (fun context -> context.UnionDecls.Add(type', duType); context)
 
         return duType
-    }
-
-    // TODO rename
-    let translateSpecificTypes (translate: System.Type -> State<TargetContext,'a>) (types: System.Type list) = translation {
-        do! State.modify (fun context -> context.UserDefinedTypes.AddRange types; context)
-        return!
-            types
-            |> List.map
-                (fun type' ->
-                    translation {
-                        let! translatedType = translate type'
-                        return StructDecl translatedType
-                    }
-                )
-            |> State.collect
     }

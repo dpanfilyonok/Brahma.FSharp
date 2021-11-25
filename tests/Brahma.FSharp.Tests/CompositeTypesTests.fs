@@ -114,7 +114,7 @@ let tupleTestCases = testList "Tuple tests" [
 let recordTestCases = testList "Record tests" [
     let inline command length =
         <@
-            fun (gid: int) (buffer: clarray<GenericRecord<'a, 'b>>) ->
+            fun (gid: int) (buffer: ClArray<GenericRecord<'a, 'b>>) ->
                 if gid < length then
                     let { X = x; Y = y } = buffer.[gid]
                     let mutable innerStruct = { X = x; Y = y }
@@ -126,7 +126,7 @@ let recordTestCases = testList "Record tests" [
     testProperty (message "GenericRecord<int, bool>") <| fun (data: GenericRecord<int, bool>[]) ->
         if data.Length <> 0 then check data (fun length -> <@ fun (range: Range1D) (buffer: ClArray<_>) -> (%command length) range.GlobalID0 buffer @>)
 
-    ftestProperty (message "GenericRecord<(int * float), (bool * bool)>") <| fun (data: GenericRecord<(int * float), (bool * bool)>[]) ->
+    testProperty (message "GenericRecord<(int * int64), (bool * bool)>") <| fun (data: GenericRecord<(int * int64), (bool * bool)>[]) ->
         if data.Length <> 0 then check data (fun length -> <@ fun (range: Range1D) (buffer: ClArray<_>) -> (%command length) range.GlobalID0 buffer @>)
 ]
 

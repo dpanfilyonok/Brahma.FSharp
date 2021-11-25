@@ -92,42 +92,33 @@ type FSQuotationToOpenCLTranslator([<ParamArray>] translatorOptions: TranslatorO
 
         let context = TranslationContext.Create()
 
-        let translatedStructs =
-            collectUserDefinedStructs expr
-            |> Type.translateSpecificTypes Type.translateStruct
-            |> State.eval context
-            |> List.map (fun x -> x :> ITopDef<_>)
-
-        let translatedTuples =
-            collectTuples expr
-            |> Type.translateSpecificTypes Type.translateTuple
-            |> State.eval context
-            |> List.map (fun x -> x :> ITopDef<_>)
-
-        let translatedUnions =
-            collectDiscriminatedUnions expr'
-            |> Type.translateSpecificTypes Type.translateUnion
-            |> State.eval context
-            |> List.map (fun x -> x :> ITopDef<_>)
-
-        let translatedTypes =
-            [
-                translatedStructs
-                translatedTuples
-                translatedUnions
-            ]
-            |> List.concat
-
         // TODO: Extract quotationTransformer to translator
         let (kernelExpr, functions) = transformQuotation expr translatorOptions
         let (globalVars, localVars, atomicApplicationsInfo) = collectData kernelExpr functions
         let methods = constructMethods kernelExpr functions atomicApplicationsInfo context
 
-        let topDefs = ResizeArray(translatedTypes)
+        let clFuncs = ResizeArray()
         for method in methods do
-            topDefs.AddRange(method.Translate(globalVars, localVars, translatedTypes))
+            clFuncs.AddRange(method.Translate(globalVars, localVars))
 
-        AST <| List.ofSeq topDefs,
+        let userDefinedTypes =
+            context.UserDefinedTypes
+            |> Seq.map
+                (fun type' ->
+                    if context.StructDecls.ContainsKey type' then
+                        context.StructDecls.[type']
+                    elif context.TupleDecls.ContainsKey type' then
+                        context.TupleDecls.[type']
+                    elif context.UnionDecls.ContainsKey type' then
+                        context.UnionDecls.[type'] :> StructType<_>
+                    else
+                        failwith "Something went wrong :( This error shouldn't occur"
+                )
+            |> Seq.map StructDecl
+            |> Seq.cast<ITopDef<Lang>>
+            |> List.ofSeq
+
+        AST <| userDefinedTypes @ List.ofSeq clFuncs,
         methods
         |> List.find (fun method -> method :? KernelFunc)
         |> fun kernel -> kernel.FunExpr

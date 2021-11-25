@@ -11,7 +11,7 @@ let allTests =
         Translator.tests
         QuotationTransformers.tests
         CompositeTypesTests.tests
-        Union.tests
+        // Union.tests
         // Atomic.tests
     ]
     |> testSequenced

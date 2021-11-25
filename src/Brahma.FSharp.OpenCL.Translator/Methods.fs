@@ -35,18 +35,18 @@ type Method(var: Var, expr: Expr, context: TranslationContext<Lang,Statement<Lan
 
     abstract TranslateBody : Var list * Expr -> StatementBlock<Lang> * TranslationContext<Lang, Statement<Lang>>
     default this.TranslateBody(args, body) =
-        let (b, context) =
-            let clonedContext = context.DeepCopy()
+        let (newBody, context) =
+            let clonedContext = context.Copy()
 
             clonedContext.Namer.LetIn()
             args |> List.iter (fun v -> clonedContext.Namer.AddVar v.Name)
 
             Body.translate body |> State.run clonedContext
 
-        match b with
+        match newBody with
         | :? StatementBlock<Lang> as sb -> sb
         | :? Statement<Lang> as s -> StatementBlock <| ResizeArray [s]
-        | _ -> failwithf "Incorrect function body: %A" b
+        | _ -> failwithf "Incorrect function body: %A" newBody
         , context
 
     abstract TranslateArgs : Var list * string list * string list * TranslationContext<Lang, Statement<Lang>> -> FunFormalArg<Lang> list
@@ -72,15 +72,8 @@ type Method(var: Var, expr: Expr, context: TranslationContext<Lang,Statement<Lan
         |> Seq.cast<_>
         |> List.ofSeq
 
-    abstract GetTranslatedTuples : TranslationContext<Lang, Statement<Lang>> -> ITopDef<Lang> list
-    default this.GetTranslatedTuples(context) =
-        context.TupleDecls.Values
-        |> Seq.map StructDecl
-        |> Seq.cast<_>
-        |> List.ofSeq
-
-    abstract Translate : string list * string list * ITopDef<Lang> list -> ITopDef<Lang> list
-    default this.Translate(globalVars, localVars, translatedTypes) =
+    abstract Translate : string list * string list -> ITopDef<Lang> list
+    default this.Translate(globalVars, localVars) =
         match expr with
         | DerivedPatterns.Lambdas (args, body) ->
             let args = List.collect id args
@@ -89,12 +82,9 @@ type Method(var: Var, expr: Expr, context: TranslationContext<Lang,Statement<Lan
             let func = this.BuildFunction(translatedArgs, translatedBody, context)
             let pragmas = this.GetPragmas(context)
             let topLevelVarDecls = this.GetTopLevelVarDecls(context)
-            // let translatedTuples = this.GetTranslatedTuples(context)
 
             pragmas
-            // @ translatedTuples
             @ topLevelVarDecls
-            // @ translatedTypes
             @ [func]
 
         | _ -> failwithf "Incorrect OpenCL quotation: %A" expr
