@@ -18,13 +18,12 @@ namespace rec Brahma.FSharp.OpenCL.Translator
 open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.AST
 open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
-open Brahma.FSharp.OpenCL.Translator.TypeReflection
 open System
-
-#nowarn "3390"
+open System.Collections.Generic
 
 type FSQuotationToOpenCLTranslator([<ParamArray>] translatorOptions: TranslatorOption[]) =
     let mainKernelName = "brahmaKernel"
+    let lockObject = obj ()
 
     let collectData (expr: Expr) (functions: (Var * Expr) list) =
         // global var names
@@ -39,7 +38,7 @@ type FSQuotationToOpenCLTranslator([<ParamArray>] translatorOptions: TranslatorO
             |> List.map (fun var -> var.Name)
 
         let atomicApplicationsInfo =
-            let atomicPointerArgQualifiers = System.Collections.Generic.Dictionary<Var, AddressSpaceQualifier<Lang>>()
+            let atomicPointerArgQualifiers = Dictionary<Var, AddressSpaceQualifier<Lang>>()
 
             let rec go expr =
                 match expr with
@@ -85,36 +84,38 @@ type FSQuotationToOpenCLTranslator([<ParamArray>] translatorOptions: TranslatorO
 
         methods @ kernelFunc
 
-    let translate qExpr translatorOptions =
-        let qExpr' = preprocessQuotation qExpr
+    let translate expr' translatorOptions =
+        let expr = preprocessQuotation expr'
 
-        let structs = collectStructs qExpr'
-        let unions = collectDiscriminatedUnions qExpr
-
-        let context = TargetContext()
-
-        let translatedStructs =
-            Type.translateStructDecls structs context
-            |> List.map (fun x -> x :> ITopDef<_>)
-
-        let translatedUnions =
-            Type.translateDiscriminatedUnionDecls unions context
-            |> List.map (fun x -> x :> ITopDef<_>)
-
-        let translatedTypes =
-            List.concat [ translatedStructs
-                          translatedUnions ]
+        let context = TranslationContext.Create()
 
         // TODO: Extract quotationTransformer to translator
-        let (kernelExpr, functions) = transformQuotation qExpr' translatorOptions
+        let (kernelExpr, functions) = transformQuotation expr translatorOptions
         let (globalVars, localVars, atomicApplicationsInfo) = collectData kernelExpr functions
         let methods = constructMethods kernelExpr functions atomicApplicationsInfo context
 
-        let listCLFun = ResizeArray []
+        let clFuncs = ResizeArray()
         for method in methods do
-            listCLFun.AddRange(method.Translate(globalVars, localVars, translatedTypes))
+            clFuncs.AddRange(method.Translate(globalVars, localVars))
 
-        AST <| List.ofSeq listCLFun,
+        let userDefinedTypes =
+            context.UserDefinedTypes
+            |> Seq.map
+                (fun type' ->
+                    if context.StructDecls.ContainsKey type' then
+                        context.StructDecls.[type']
+                    elif context.TupleDecls.ContainsKey type' then
+                        context.TupleDecls.[type']
+                    elif context.UnionDecls.ContainsKey type' then
+                        context.UnionDecls.[type'] :> StructType<_>
+                    else
+                        failwith "Something went wrong :( This error shouldn't occur"
+                )
+            |> Seq.map StructDecl
+            |> Seq.cast<ITopDef<Lang>>
+            |> List.ofSeq
+
+        AST <| userDefinedTypes @ List.ofSeq clFuncs,
         methods
         |> List.find (fun method -> method :? KernelFunc)
         |> fun kernel -> kernel.FunExpr
@@ -122,7 +123,5 @@ type FSQuotationToOpenCLTranslator([<ParamArray>] translatorOptions: TranslatorO
     member this.TranslatorOptions = translatorOptions
 
     member this.Translate(qExpr) =
-        let lockObject = obj ()
-
         lock lockObject <| fun () ->
             translate qExpr (List.ofArray translatorOptions)

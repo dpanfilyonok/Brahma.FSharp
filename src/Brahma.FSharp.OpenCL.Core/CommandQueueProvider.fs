@@ -2,14 +2,10 @@ namespace Brahma.FSharp.OpenCL
 
 open OpenCL.Net
 open System
+open System.Runtime.InteropServices
 
-type ComputeProvider(context: Context, device: Device) as this =
-    let finish queue =
-        let error = Cl.Finish(queue)
-        if error <> ErrorCode.Success then
-            raise <| Cl.Exception error
-
-    let getNewProcessor () =
+type CommandQueueProvider =
+    static member CreateQueue(context: Context, device: Device) =
         let processor = MailboxProcessor.Start <| fun inbox ->
             let commandQueue =
                 let error = ref Unchecked.defaultof<ErrorCode>
@@ -31,42 +27,42 @@ type ComputeProvider(context: Context, device: Device) as this =
                 | MsgToHost a ->
                     // printfn "ToHost %A" <| this.GetHashCode()
                     itIsFirstNonqueueMsg  <- true
-                    this.HandleToHost(commandQueue, a)
+                    CommandQueueProvider.HandleToHost(commandQueue, a)
 
                 | MsgToGPU a ->
                     // printfn "ToGPU %A" <| this.GetHashCode()
                     itIsFirstNonqueueMsg  <- true
-                    this.HandleToGPU(commandQueue, a)
+                    CommandQueueProvider.HandleToGPU(commandQueue, a)
 
                 | MsgRun a ->
                     // printfn "Run %A" <| this.GetHashCode()
                     itIsFirstNonqueueMsg  <- true
-                    this.HandleRun(commandQueue, a)
+                    CommandQueueProvider.HandleRun(commandQueue, a)
 
                 | MsgFree a ->
                     // printfn "Free %A" <| this.GetHashCode()
                     if itIsFirstNonqueueMsg then
-                        finish commandQueue
+                        CommandQueueProvider.Finish commandQueue
                         itIsFirstNonqueueMsg  <- false
-                    this.HandleFree a
+                    CommandQueueProvider.HandleFree a
 
                 | MsgSetArguments a ->
                     // printfn "SetArgs %A" <| this.GetHashCode()
                     if itIsFirstNonqueueMsg then
-                        finish commandQueue
+                        CommandQueueProvider.Finish commandQueue
                         itIsFirstNonqueueMsg  <- false
                     a ()
 
                 | MsgNotifyMe ch ->
                     // printfn "Notify %A" <| this.GetHashCode()
                     itIsFirstNonqueueMsg  <- true
-                    finish commandQueue
+                    CommandQueueProvider.Finish commandQueue
                     ch.Reply ()
 
                 | MsgBarrier o ->
                     // printfn "Barrier %A" <| this.GetHashCode()
                     itIsFirstNonqueueMsg  <- true
-                    finish commandQueue
+                    CommandQueueProvider.Finish commandQueue
                     o.ImReady()
                     while not <| o.CanContinue() do ()
 
@@ -80,15 +76,13 @@ type ComputeProvider(context: Context, device: Device) as this =
 
         processor
 
-    member val CommandQueue = getNewProcessor () with get
-
-    member private this.HandleFree(free: IFreeCrate) =
+    static member private HandleFree(free: IFreeCrate) =
         { new IFreeCrateEvaluator with
             member this.Eval crate = crate.Source.Dispose()
         }
         |> free.Apply
 
-    member private this.HandleToGPU(queue, toGpu: IToGPUCrate) =
+    static member private HandleToGPU(queue, toGpu: IToGPUCrate) =
         { new IToGPUCrateEvaluator with
             member this.Eval crate =
                 let eventID = ref Unchecked.defaultof<Event>
@@ -103,19 +97,28 @@ type ComputeProvider(context: Context, device: Device) as this =
         }
         |> toGpu.Apply
 
-    member private this.HandleToHost(queue, toHost: IToHostCrate) =
+    static member private HandleToHost(queue, toHost: IToHostCrate) =
         { new IToHostCrateEvaluator with
-            member this.Eval crate =
+            member this.Eval (crate: ToHost<'a>) =
                 let eventID = ref Unchecked.defaultof<Event>
-                let mem = crate.Source.Memory
-                let elementSize = crate.Source.ElementSize
-                let error = Cl.EnqueueReadBuffer(queue, mem, Bool.False, IntPtr(0),
-                                                 IntPtr(crate.Source.Length * elementSize), crate.Destination, 0u, null, eventID)
+                let clMem = crate.Source.Memory
+
+                let marshaler = CustomMarshaler<'a>()
+
+                // TODO source or dest length??
+                let size = crate.Destination.Length * marshaler.ElementTypeSize
+                let hostMem = Marshal.AllocHGlobal size
+
+                let error = Cl.EnqueueReadBuffer(queue, clMem, Bool.False, IntPtr(0),
+                                                 IntPtr(crate.Source.Length * marshaler.ElementTypeSize), hostMem, 0u, null, eventID)
 
                 if error <> ErrorCode.Success then
                     raise (Cl.Exception error)
 
-                finish queue
+                CommandQueueProvider.Finish queue
+
+                marshaler.ReadFromUnmanaged(hostMem, crate.Destination)
+                Marshal.FreeHGlobal(hostMem)
 
                 match crate.ReplyChannel with
                 | Some ch -> ch.Reply crate.Destination
@@ -123,7 +126,7 @@ type ComputeProvider(context: Context, device: Device) as this =
         }
         |> toHost.Apply
 
-    member private this.HandleRun(queue, run: IRunCrate) =
+    static member private HandleRun(queue, run: IRunCrate) =
         { new IRunCrateEvaluator with
             member this.Eval crate =
                 let range = crate.Kernel.Range
@@ -136,3 +139,8 @@ type ComputeProvider(context: Context, device: Device) as this =
                     raise (Cl.Exception error)
         }
         |> run.Apply
+
+    static member private Finish queue =
+        let error = Cl.Finish(queue)
+        if error <> ErrorCode.Success then
+            raise <| Cl.Exception error

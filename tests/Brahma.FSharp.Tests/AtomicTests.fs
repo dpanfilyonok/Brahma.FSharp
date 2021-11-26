@@ -2,7 +2,6 @@ module Atomic
 
 open Expecto
 open Brahma.FSharp.OpenCL
-//open Brahma.FSharp.OpenCL.WorkflowBuilder
 open FSharp.Quotations.Evaluator
 open FSharp.Quotations
 open Brahma.FSharp.Tests.Utils

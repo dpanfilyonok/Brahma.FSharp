@@ -3,6 +3,11 @@ namespace Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 open FSharp.Reflection
 open FSharp.Quotations
 open Brahma.FSharp.OpenCL
+open FSharp.Quotations
+open FSharp.Quotations.Patterns
+open FSharp.Reflection
+open FSharp.Core.LanguagePrimitives
+open Brahma.FSharp.OpenCL.Translator
 
 module Utils =
     let rec getFunctionArgTypes (funType: System.Type) =
@@ -120,3 +125,7 @@ module Utils =
         match expr with
         | Patterns.Call (_, mInfo, _) -> mInfo
         | _ -> failwithf "Expression is not call, but %O" expr
+
+    let isGlobal (var: Var) =
+        var.Type.Name.ToLower().StartsWith ClArray_ ||
+        var.Type.Name.ToLower().StartsWith ClCell_

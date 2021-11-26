@@ -2,11 +2,21 @@ namespace Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 
 open FSharp.Quotations
 open Brahma.FSharp.OpenCL.Translator
+open Brahma.FSharp.OpenCL.Shared
 open Brahma.FSharp.OpenCL
 open FSharp.Core.LanguagePrimitives
 open FSharp.Quotations.Evaluator
+open System.Collections.Generic
 
 type Mutex = int
+
+type AddressQual =
+    | GlobalQ
+    | LocalQ
+
+[<AutoOpen>]
+module AtomicProcessing =
+    let atomicProcessing = StateBuilder<Map<Var, Var>>()
 
 [<AutoOpen>]
 module AtomicProcessor =
@@ -49,7 +59,33 @@ module AtomicProcessor =
         | [x] :: _ -> f x
         | _ -> invalidArg "lst" "List should not be empty"
 
-    let rec private transformAtomicsAndCollectPointerVars (expr: Expr) = state {
+    let grabVariableAddresses (expr: Expr) =
+        match expr with
+        | DerivedPatterns.Lambdas (args, body) ->
+            let kernelArgs = List.collect id args
+
+            let vars = Dictionary<Var, AddressQual>()
+
+            kernelArgs
+            |> List.filter Utils.isGlobal
+            |> List.iter (fun v -> vars.Add(v, GlobalQ))
+
+            let rec traverse expr =
+                match expr with
+                | Patterns.Let (var, (DerivedPatterns.SpecificCall <@ local @> _), _)
+                | Patterns.Let (var, (DerivedPatterns.SpecificCall <@ localArray @> _), _) -> vars.Add(var, LocalQ)
+
+                | ExprShape.ShapeVar _ -> ()
+                | ExprShape.ShapeLambda (_, lambda) -> traverse lambda
+                | ExprShape.ShapeCombination (_, exprs) -> List.iter traverse exprs
+
+            traverse body
+
+            vars |> Seq.map (|KeyValue|) |> Map.ofSeq
+
+        | _ -> raise <| InvalidKernelException(sprintf "Invalid kernel expression. Must be lambda, but given\n%O" expr)
+
+    let rec private transformAtomicsAndCollectPointerVars (expr: Expr) nonPrivateVars = atomicProcessing {
         match expr with
         | DerivedPatterns.Applications
             (
@@ -60,7 +96,7 @@ module AtomicProcessor =
                         [DerivedPatterns.Lambdas (lambdaArgs, lambdaBody)]
                     ),
                 ([Patterns.ValidVolatileArg pointerVar as volatileArg] :: _ as applicationArgs)
-            ) ->
+            ) when nonPrivateVars |> Map.containsKey pointerVar -> // private vars not supported
 
             let newApplicationArgs =
                 applicationArgs
@@ -246,31 +282,48 @@ module AtomicProcessor =
                             )
                         )
 
-                let! (state: Map<Var, Var>) = State.get
+                let! state = State.get
 
                 let mutexVar =
                     match state |> Map.tryFind pointerVar with
-                    | Some x -> x
+                    // if mutex var already exists (if 2 or more atomic op on the same data)
+                    | Some mVar -> mVar
                     | None ->
                         Var(
                             pointerVar.Name + "Mutex",
-                            if pointerVar.Type.IsArray then
+                            if nonPrivateVars.[pointerVar] = GlobalQ then
+                                typeof<IBuffer<Mutex>>
+                            elif pointerVar.Type.IsArray then
                                 typeof<Mutex[]>
                             else
                                 typeof<Mutex>
                         )
 
-                do! State.modify (fun (state: Map<Var, Var>) -> state |> Map.add pointerVar mutexVar)
+                do! State.modify (fun state -> state |> Map.add pointerVar mutexVar)
 
                 let atomicFuncBody =
                     let mutex =
                         match volatileArg with
+                        | Patterns.PropertyGet (Some (Patterns.Var v), propInfo, args) when
+                            v.Type.Name.ToLower().StartsWith ClArray_ &&
+                            propInfo.Name.ToLower().StartsWith "item" ->
+
+                            Expr.PropertyGet(Expr.Var mutexVar, typeof<IBuffer<Mutex>>.GetProperty("Item"), args)
+
+                        | Patterns.PropertyGet (Some (Patterns.Var v), propInfo, args) when
+                            v.Type.Name.ToLower().StartsWith ClCell_ &&
+                            propInfo.Name.ToLower().StartsWith "value"  ->
+
+                            Expr.PropertyGet(Expr.Var mutexVar, typeof<IBuffer<Mutex>>.GetProperty("Item"), [Expr.Value 0])
+
                         | Patterns.Var _ -> Expr.Var mutexVar
+
                         | DerivedPatterns.SpecificCall <@ IntrinsicFunctions.GetArray @> (_, _, [Patterns.Var _; idx]) ->
                             Expr.Call(
                                 Utils.getMethodInfoOfLambda <@ IntrinsicFunctions.GetArray<Mutex> @>,
                                 [Expr.Var mutexVar; idx]
                             )
+
                         | _ -> failwith "Invalid volatile argument. This exception should never occur :)"
                         |> Utils.createRefCall
 
@@ -328,6 +381,22 @@ module AtomicProcessor =
                         )
                     )
 
+        // if pointer var in private memory
+        | DerivedPatterns.Applications
+            (
+                DerivedPatterns.SpecificCall <@ atomic @>
+                    (
+                        _,
+                        _,
+                        [DerivedPatterns.Lambdas (lambdaArgs, lambdaBody)]
+                    ),
+                ([Patterns.ValidVolatileArg pointerVar] :: _ as applicationArgs)
+            ) when nonPrivateVars |> Map.containsKey pointerVar |> not ->
+            return failwithf
+                "Invalid address space of %O var. \
+                Atomic operaion cannot be executed on variables in private memmory" pointerVar
+
+        // if volatile arg is invalid
         | DerivedPatterns.Applications
             (
                 DerivedPatterns.SpecificCall <@ atomic @>
@@ -344,15 +413,15 @@ module AtomicProcessor =
 
         | ExprShape.ShapeVar var -> return Expr.Var var
         | ExprShape.ShapeLambda (var, lambda) ->
-            let! transformedLambda = transformAtomicsAndCollectPointerVars lambda
+            let! transformedLambda = transformAtomicsAndCollectPointerVars lambda nonPrivateVars
             return Expr.Lambda(var, transformedLambda)
         | ExprShape.ShapeCombination (combo, exprs) ->
-            let! transformedList = exprs |> List.map transformAtomicsAndCollectPointerVars |> State.collect
+            let! transformedList = exprs |> List.map (fun e -> transformAtomicsAndCollectPointerVars e nonPrivateVars) |> State.collect
             return ExprShape.RebuildShapeCombination(combo, transformedList)
     }
 
-    let private insertMutexVars (expr: Expr) = state {
-        let! (pointerVarToMutexVarMap: Map<Var, Var>) = State.get
+    let private insertMutexVars (expr: Expr) = atomicProcessing {
+        let! pointerVarToMutexVarMap = State.get
         match expr with
         | DerivedPatterns.Lambdas (args, body) ->
             let args = List.collect id args
@@ -430,6 +499,7 @@ module AtomicProcessor =
     }
 
     let processAtomic (expr: Expr) =
-        transformAtomicsAndCollectPointerVars expr
+        let nonPrivateVars = grabVariableAddresses expr
+        transformAtomicsAndCollectPointerVars expr nonPrivateVars
         >>= insertMutexVars
         |> State.eval Map.empty

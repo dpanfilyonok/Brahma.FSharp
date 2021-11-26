@@ -1,12 +1,9 @@
 (*** hide ***)
-#I "../../src/Brahma.FSharp.OpenCL.WorkflowBuilder/bin/Debug/net461"
-#r "Brahma.FSharp.OpenCL.Extensions.dll"
-#r "YC.OpenCL.NET.dll"
-#r "YC.Brahma.OpenCL.dll"
-#r "YC.Brahma.dll"
+#I "../../src/Brahma.FSharp.OpenCL.Core/bin/Debug/net5.0"
+#r "Brahma.FSharp.dll"
+#r "Brahma.FSharp.OpenCL.Shared.dll"
 
-open Brahma.OpenCL
-open OpenCL.Net
+open Brahma.FSharp.OpenCL
 
 (**
 # Atomic Usage

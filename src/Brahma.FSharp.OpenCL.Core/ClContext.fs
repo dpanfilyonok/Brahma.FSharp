@@ -2,6 +2,7 @@ namespace Brahma.FSharp.OpenCL
 
 open OpenCL.Net
 open Brahma.FSharp.OpenCL.Translator
+open Brahma.FSharp.OpenCL.Shared
 open FSharp.Quotations
 
 exception EmptyDevicesException of string
@@ -62,7 +63,7 @@ module internal Device =
         | :? System.ArgumentException as ex ->
             raise <| EmptyDevicesException(sprintf "No %A devices on platform %A were found" deviceType platformName)
 
-type ClContext private (context: Context, device: Device, translator: FSQuotationToOpenCLTranslator, provider: ComputeProvider) =
+type ClContext private (context: Context, device: Device, translator: FSQuotationToOpenCLTranslator, queue: MailboxProcessor<Msg>) =
     new (?platform: ClPlatform, ?deviceType: ClDeviceType) =
         let platform = defaultArg platform ClPlatform.Any
         let deviceType = defaultArg deviceType ClDeviceType.Default
@@ -82,23 +83,23 @@ type ClContext private (context: Context, device: Device, translator: FSQuotatio
             ctx
 
         let translator = FSQuotationToOpenCLTranslator()
-        let provider = ComputeProvider(context, device)
+        let queue = CommandQueueProvider.CreateQueue(context, device)
 
-        ClContext(context, device, translator, provider)
+        ClContext(context, device, translator, queue)
 
     interface IContext with
         member this.Context = context
         member this.Device = device
         member this.Translator = translator
-        member this.Provider = provider
+        member this.CommandQueue = queue
 
     member this.Context = (this :> IContext).Context
     member this.Device = (this :> IContext).Device
     member this.Translator = (this :> IContext).Translator
-    member this.Provider = (this :> IContext).Provider
+    member this.CommandQueue = (this :> IContext).CommandQueue
 
-    member this.WithNewComputeProvider() =
-        ClContext(this.Context, this.Device, this.Translator, ComputeProvider(this.Context, this.Device))
+    member this.WithNewCommandQueue() =
+        ClContext(this.Context, this.Device, this.Translator, CommandQueueProvider.CreateQueue(this.Context, this.Device))
 
     member this.CreateClKernel(srcLambda: Expr<'a -> 'b>) =
         ClKernel<_,_>(this, srcLambda)

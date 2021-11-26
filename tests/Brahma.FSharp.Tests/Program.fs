@@ -2,17 +2,17 @@ open Expecto
 
 open Brahma.FSharp.Tests
 open Brahma.FSharp.OpenCL
-open FSharp.Quotations
 
 [<Tests>]
 let allTests =
     testList "All tests" [
         Full.tests
-        Translator.tests
-        // Atomic.tests
         Workflow.tests
+        Translator.tests
         QuotationTransformers.tests
-        Union.tests
+        CompositeTypesTests.tests
+        // Union.tests
+        // Atomic.tests
     ]
     |> testSequenced
 

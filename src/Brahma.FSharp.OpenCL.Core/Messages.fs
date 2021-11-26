@@ -1,5 +1,7 @@
 namespace Brahma.FSharp.OpenCL
 
+open Brahma.FSharp.OpenCL.Shared
+
 type Free<'a when 'a: struct>(src: System.IDisposable) =
     member this.Source = src
 
