@@ -18,11 +18,8 @@ namespace rec Brahma.FSharp.OpenCL.Translator
 open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.AST
 open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
-open Brahma.FSharp.OpenCL.Translator.TypeReflection
 open System
 open System.Collections.Generic
-
-#nowarn "3390"
 
 type FSQuotationToOpenCLTranslator([<ParamArray>] translatorOptions: TranslatorOption[]) =
     let mainKernelName = "brahmaKernel"

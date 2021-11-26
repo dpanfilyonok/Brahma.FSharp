@@ -5,6 +5,7 @@ open Brahma.FSharp.OpenCL
 open FSharp.Quotations
 open Brahma.FSharp.Tests
 
+// Incomplete pattern matching in record deconstruction
 #nowarn "667"
 
 [<Struct>]
