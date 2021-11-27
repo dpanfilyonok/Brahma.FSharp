@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="KernelLangExtensions.fs" />
+    <Compile Include="IBuffer.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\YC.OpenCL.NET\YC.OpenCL.NET.csproj" />
+  </ItemGroup>
+
+</Project>

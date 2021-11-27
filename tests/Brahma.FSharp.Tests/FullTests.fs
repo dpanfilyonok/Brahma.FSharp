@@ -4,6 +4,10 @@ open Expecto
 open Brahma.FSharp.OpenCL
 open FSharp.Quotations
 open Brahma.FSharp.Tests
+open Expecto.Logging
+open Expecto.Logging.Message
+
+let logger = Log.create "FullTests"
 
 [<Struct>]
 type TestStruct =
@@ -30,55 +34,184 @@ let checkResult command (inArr: 'a[]) (expectedArr: 'a[]) =
 
     Expect.sequenceEqual actual expectedArr "Arrays should be equals"
 
-let arrayItemSetTests =
-    testList "Array item set tests."
-        [
-            testCase "Array item set" <| fun _ ->
-                let command =
-                    <@
-                        fun (range: Range1D) (buf: ClArray<int>) ->
-                            buf.[0] <- 1
-                    @>
+let dataStructuresApiTests = testList "Check correctness of data structures api" [
+    testCase "Array item set" <| fun _ ->
+        let command =
+            <@
+                fun (range: Range1D) (buf: ClArray<int>) ->
+                    buf.[0] <- 1
+            @>
 
-                checkResult command intInArr [|1; 1; 2; 3|]
+        checkResult command intInArr [|1; 1; 2; 3|]
 
-            testCase "Array item set. Long" <| fun _ ->
-                let command =
-                    <@
-                        fun (range: Range1D) (buf: ClArray<_>) ->
-                            buf.[0] <- 1L
-                    @>
+    testCase "Array item set. Long" <| fun _ ->
+        let command =
+            <@
+                fun (range: Range1D) (buf: ClArray<_>) ->
+                    buf.[0] <- 1L
+            @>
 
-                checkResult command [|0L; 1L; 2L; 3L|] [|1L; 1L; 2L; 3L|]
+        checkResult command [|0L; 1L; 2L; 3L|] [|1L; 1L; 2L; 3L|]
 
-            testCase "Array item set. ULong" <| fun _ ->
-                let command =
-                    <@
-                        fun (range: Range1D) (buf: ClArray<uint64>) ->
-                            buf.[0] <- 1UL
-                    @>
+    testCase "Array item set. ULong" <| fun _ ->
+        let command =
+            <@
+                fun (range: Range1D) (buf: ClArray<uint64>) ->
+                    buf.[0] <- 1UL
+            @>
 
-                checkResult command [|0UL; 1UL; 2UL; 3UL|] [|1UL; 1UL; 2UL; 3UL|]
+        checkResult command [|0UL; 1UL; 2UL; 3UL|] [|1UL; 1UL; 2UL; 3UL|]
 
-            testCase "Array item set. Sbyte" <| fun _ ->
-                let command =
-                    <@
-                        fun (range: Range1D) (buf: ClArray<sbyte>) ->
-                            buf.[0] <- 1y
-                    @>
+    testCase "Array item set. Sbyte" <| fun _ ->
+        let command =
+            <@
+                fun (range: Range1D) (buf: ClArray<sbyte>) ->
+                    buf.[0] <- 1y
+            @>
 
-                checkResult command [|0y; 1y; 2y; 3y|] [|1y; 1y; 2y; 3y|]
+        checkResult command [|0y; 1y; 2y; 3y|] [|1y; 1y; 2y; 3y|]
 
-            testCase "Array item set. Sequential operations." <| fun _ ->
-                let command =
-                    <@
-                        fun (range: Range1D) (buf: ClArray<int>) ->
-                            buf.[0] <- 2
-                            buf.[1] <- 4
-                    @>
+    testCase "Array item set. Sequential operations." <| fun _ ->
+        let command =
+            <@
+                fun (range: Range1D) (buf: ClArray<int>) ->
+                    buf.[0] <- 2
+                    buf.[1] <- 4
+            @>
 
-                checkResult command intInArr [|2; 4; 2; 3|]
-        ]
+        checkResult command intInArr [|2; 4; 2; 3|]
+
+    testCase "Getting value of 'int clcell' should be correct" <| fun () ->
+        let command =
+            <@
+                fun (range: Range1D) (buffer: int clarray) (cell: int clcell) ->
+                    let gid = range.GlobalID0
+                    buffer.[gid] <- cell.Value
+            @>
+
+        let value = 10
+        let expected = Array.replicate defaultInArrayLength value
+
+        let actual =
+            opencl {
+                use! cell = ClCell.toDevice 10
+                use! buffer = ClArray.alloc<int> defaultInArrayLength
+                do! runCommand command <| fun it ->
+                    it
+                    <| default1D
+                    <| buffer
+                    <| cell
+
+                return! ClArray.toHost buffer
+            }
+            |> ClTask.runSync context
+
+        "Arrays should be equal"
+        |> Expect.sequenceEqual actual expected
+
+    // TODO test on getting Value property of non-clcell type
+    // TODO test on getting Item property on non-clarray type
+
+    testCase "Setting value of 'int clcell' should be correct" <| fun () ->
+        let value = 10
+        let command =
+            <@
+                fun (range: Range1D) (cell: int clcell) ->
+                    cell.Value <- value
+            @>
+
+        let actual =
+            opencl {
+                use! cell = ClCell.toDevice value
+                do! runCommand command <| fun it ->
+                    it
+                    <| default1D
+                    <| cell
+
+                return! ClCell.toHost cell
+            }
+            |> ClTask.runSync context
+
+        "Arrays should be equal"
+        |> Expect.equal actual value
+
+    testCase "Using 'int clcell' from inner function should work correctly" <| fun () ->
+        let value = 10
+        let command =
+            <@
+                fun (range: Range1D) (cell: int clcell) ->
+                    let f () =
+                        let x = cell.Value
+                        cell.Value <- x
+
+                    f ()
+            @>
+
+        let actual =
+            opencl {
+                use! cell = ClCell.toDevice value
+                do! runCommand command <| fun it ->
+                    it
+                    <| default1D
+                    <| cell
+
+                return! ClCell.toHost cell
+            }
+            |> ClTask.runSync context
+
+        "Arrays should be equal"
+        |> Expect.equal actual value
+
+    testCase "Using 'int clcell' with native atomic operation should be correct" <| fun () ->
+        let value = 10
+        let command =
+            <@
+                fun (range: Range1D) (cell: int clcell) ->
+                    atomic (+) cell.Value value |> ignore
+            @>
+
+        let expected = value * default1D.GlobalWorkSize
+
+        let actual =
+            opencl {
+                use! cell = ClCell.toDevice 0
+                do! runCommand command <| fun it ->
+                    it
+                    <| default1D
+                    <| cell
+
+                return! ClCell.toHost cell
+            }
+            |> ClTask.runSync context
+
+        "Arrays should be equal"
+        |> Expect.equal actual expected
+
+    ptestCase "Using 'int clcell' with spinlock atomic operation should be correct" <| fun () ->
+        let value = 10
+        let command =
+            <@
+                fun (range: Range1D) (cell: int clcell) ->
+                    atomic (fun x -> x + value) cell.Value |> ignore
+            @>
+
+        let expected = value * default1D.GlobalWorkSize
+
+        let actual =
+            opencl {
+                use! cell = ClCell.toDevice 0
+                do! runCommand command <| fun it ->
+                    it
+                    <| default1D
+                    <| cell
+
+                return! ClCell.toHost cell
+            }
+            |> ClTask.runSync context
+
+        "Arrays should be equal"
+        |> Expect.equal actual expected
+]
 
 let typeCastingTests =
     testList "Type castings tests"
@@ -499,15 +632,15 @@ let kernelArgumentsTests =
 
                     let inArr = ctx.CreateClArray(intInArr)
 
-                    ctx.Provider.CommandQueue.Post(Msg.MsgSetArguments(fun () -> kernel.SetArguments default1D 0 2 inArr))
-                    ctx.Provider.CommandQueue.Post(Msg.CreateRunMsg<_,_>(kernel))
+                    ctx.CommandQueue.Post(Msg.MsgSetArguments(fun () -> kernel.ArgumentsSetter default1D 0 2 inArr))
+                    ctx.CommandQueue.Post(Msg.CreateRunMsg<_,_>(kernel))
 
-                    ctx.Provider.CommandQueue.Post(Msg.MsgSetArguments(fun () -> kernel.SetArguments default1D 2 2 inArr))
-                    ctx.Provider.CommandQueue.Post(Msg.CreateRunMsg<_,_>(kernel))
+                    ctx.CommandQueue.Post(Msg.MsgSetArguments(fun () -> kernel.ArgumentsSetter default1D 2 2 inArr))
+                    ctx.CommandQueue.Post(Msg.CreateRunMsg<_,_>(kernel))
 
                     let localOut = Array.zeroCreate intInArr.Length
-                    let res = ctx.Provider.CommandQueue.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(inArr, localOut, ch))
-                    ctx.Provider.CommandQueue.Post <| Msg.CreateFreeMsg(inArr)
+                    let res = ctx.CommandQueue.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(inArr, localOut, ch))
+                    ctx.CommandQueue.Post <| Msg.CreateFreeMsg(inArr)
 
                     return res
                 }
@@ -529,7 +662,7 @@ let kernelArgumentsTests =
                  fun (q:MailboxProcessor<_>) ->
                      let buf = context.CreateClArray(l, allocationMode = AllocationMode.AllocHostPtr)
                      let executable = k.GetNewKernel()
-                     q.Post(Msg.MsgSetArguments(fun () -> executable.SetArguments (Range1D(l, l)) buf))
+                     q.Post(Msg.MsgSetArguments(fun () -> executable.ArgumentsSetter (Range1D(l, l)) buf))
                      q.Post(Msg.CreateRunMsg<_,_>(executable))
                      buf
                         
@@ -544,7 +677,7 @@ let kernelArgumentsTests =
 
             let actual = 
                 Array.init n (fun _ ->
-                        let q = context.Provider.CommandQueue
+                        let q = context.CommandQueue
                         q.Error.Add (fun e -> printfn "%A" e)
                         q)
                 |> Array.mapi (fun i q -> async {return allocOnGPU q allocator})
@@ -588,13 +721,20 @@ let localMemTests =
         // TODO: pointers to local data must be local too.
         testCase "Local int. Work item counting" <| fun _ ->
             let command =
-                <@ fun (range:  Range1D) (output: ClArray<int>) ->
-                    let globalID = range.GlobalID0
-                    let mutable x = local ()
+                <@
+                    fun (range:  Range1D) (output: ClArray<int>) ->
+                        let globalID = range.GlobalID0
+                        let mutable x = local ()
 
-                    if globalID = 0 then x <- 0
-                    atomic (+) x 1 |> ignore
-                    if globalID = 0 then output.[0] <- x
+                        if globalID = 0 then x <- 0
+                        barrier ()
+
+                        atomic (+) x 1 |> ignore
+                        // fetch local value before read, dont work withour barrier
+                        barrier ()
+
+                        if globalID = 0 then
+                            output.[0] <- x
                 @>
 
             let expected = [|5|]
@@ -618,11 +758,11 @@ let localMemTests =
             let command =
                 <@
                     fun (range: Range1D) (input: ClArray<int>) (output: ClArray<int>) ->
-                        let local_buf: array<int> = localArray localWorkSize
+                        let localBuf = localArray<int> localWorkSize
 
-                        local_buf.[range.LocalID0] <- range.LocalID0
+                        localBuf.[range.LocalID0] <- range.LocalID0
                         barrier()
-                        output.[range.GlobalID0] <- local_buf.[(range.LocalID0 + 1) % localWorkSize]
+                        output.[range.GlobalID0] <- localBuf.[(range.LocalID0 + 1) % localWorkSize]
                 @>
 
 
@@ -1059,13 +1199,12 @@ let letQuotationTransformerSystemTests =
     ]
 
 let structTests =
-    testList "Struct tests" [
+    ptestList "Struct tests" [
         testCase "Simple seq of struct." <| fun _ ->
             let command =
                 <@
                     fun (range: Range1D) (buf:  ClArray<TestStruct>) ->
-                        if range.GlobalID0 = 0
-                        then
+                        if range.GlobalID0 = 0 then
                             let b = buf.[0]
                             buf.[0] <- buf.[1]
                             buf.[1] <- b
@@ -1086,7 +1225,7 @@ let structTests =
         testCase "Simple seq of struct prop set" <| fun _ ->
             let command =
                 <@
-                    fun (range: Range1D) (buf:  ClArray<TestStruct>) -> 
+                    fun (range: Range1D) (buf:  ClArray<TestStruct>) ->
                         let mutable y = buf.[0]
                         y.x <- 5
                         buf.[0] <- y
@@ -1094,49 +1233,50 @@ let structTests =
 
             checkResult command [|TestStruct(1, 2.0)|] [|TestStruct(5, 2.0)|]
 
-        testCase "Simple seq of struct prop get." <| fun _ ->
+        ptestCase "Simple seq of struct prop get." <| fun _ ->
             let command =
                 <@
                     fun (range: Range1D) (buf:  ClArray<TestStruct>) ->
-                        let mutable y = buf.[0]
-                        y.x <- y.x + 3
-                        buf.[0] <- y
+                        if range.GlobalID0 = 0
+                        then
+                            let mutable y = buf.[0]
+                            y.x <- y.x + 3
+                            buf.[0] <- y
                 @>
 
-            checkResult command [|TestStruct(1, 2.0); TestStruct(3, 4.0)|] 
+            checkResult command [|TestStruct(1, 2.0); TestStruct(3, 4.0)|]
                                 [|TestStruct(4, 2.0); TestStruct(3, 4.0)|]
 
         testCase "Nested structs 1." <| fun _ -> ()
     ]
 
-// TODO fix
-// let commonApiTests = testList "Common Api Tests" [
-//     testCase "Using atomic in lambda should raise exception, v1" <| fun () ->
-//         let command =
-//             <@
-//                 fun (range:  Range1D) (buffer: int[]) ->
-//                 let g = atomic (fun x y -> x + 1) buffer.[0]
-//                 g 5 |> ignore
-//             @>
+let commonApiTests = testList "Common Api Tests" [
+    // TODO is it correct?
+    ptestCase "Using atomic in lambda should not raise exception if first parameter passed" <| fun () ->
+        let command =
+            <@
+                fun (range:  Range1D) (buffer: int[]) ->
+                let g = atomic (fun x y -> x + 1) buffer.[0]
+                g 5 |> ignore
+            @>
 
-//         Expect.throwsT<System.ArgumentException>
-//         <| fun () -> Utils.openclTranslate command |> ignore
-//         <| "Exception should be thrown"
+        Utils.openclTranslate command |> ignore
 
-//     testCase "Using atomic in lambda should raise exception, v2" <| fun () ->
-//         let command =
-//             <@
-//                 fun (range:  Range1D) (buffer: int[]) ->
-//                 let g x y = atomic (+) x y
-//                 g buffer.[0] 6 |> ignore
-//             @>
+    // TODO is it correct?
+    ptestCase "Using atomic in lambda should raise exception if first parameter is argument" <| fun () ->
+        let command =
+            <@
+                fun (range:  Range1D) (buffer: int[]) ->
+                let g x y = atomic (+) x y
+                g buffer.[0] 6 |> ignore
+            @>
 
-//         Expect.throwsT<System.ArgumentException>
-//         <| fun () -> Utils.openclTranslate command |> ignore
-//         <| "Exception should be thrown"
-// ]
+        Expect.throwsT<System.ArgumentException>
+        <| fun () -> Utils.openclTranslate command |> ignore
+        <| "Exception should be thrown"
+]
 
-let specificTestCases = testList "Specific Test Cases" [
+let booleanTests = testList "Boolean Tests" [
     testCase "Executing copy kernel on boolean array should not raise exception" <| fun () ->
         let inputArray = Array.create 100_000 true
         let inputArrayLength = inputArray.Length
@@ -1169,8 +1309,7 @@ let specificTestCases = testList "Specific Test Cases" [
         |> Expect.sequenceEqual actual inputArray
 
     testProperty "'lor' on boolean type should work correctly" <| fun (array: bool[]) ->
-        if array.Length = 0 then ()
-        else
+        if array.Length <> 0 then
             let reversed = Seq.rev array |> Seq.toArray
             let inputArrayLength = array.Length
             let command =
@@ -1207,8 +1346,7 @@ let specificTestCases = testList "Specific Test Cases" [
             |> Expect.sequenceEqual actual expected
 
     testProperty "'land' on boolean type should work correctly" <| fun (array: bool[]) ->
-        if array.Length = 0 then ()
-        else
+        if array.Length <> 0 then
             let reversed = Seq.rev array |> Seq.toArray
             let inputArrayLength = array.Length
             let command =
@@ -1243,8 +1381,10 @@ let specificTestCases = testList "Specific Test Cases" [
 
             "Arrays should be equal"
             |> Expect.sequenceEqual actual expected
+]
 
-    ptestCase "Running tasks in parallel should not raise exception" <| fun () ->
+let parallelExecutionTests = testList "Parallel Execution Tests" [
+    testCase "Running tasks in parallel should not raise exception" <| fun () ->
         let fill = opencl {
             let kernel =
                 <@
@@ -1262,40 +1402,18 @@ let specificTestCases = testList "Specific Test Cases" [
             return! ClArray.toHost array
         }
 
-        opencl {
-            return!
-                List.replicate 3 fill
-                |> ClTask.inParallel
-        }
-        |> ClTask.runSync context
-        |> ignore
+        let expected = Array.replicate 3 (Array.create 256 1)
 
-        // using native api
-        // let f (m: Msg) (ctx: ClContext)  =
-        //     let kernel =
-        //         <@
-        //             fun (r: Range1D) (buffer: int clarray) ->
-        //                 let i = r.GlobalID0
-        //                 buffer.[i] <- 1
-        //         @>
+        let actual =
+            opencl {
+                return!
+                    List.replicate 3 fill
+                    |> ClTask.inParallel
+            }
+            |> ClTask.runSync context
 
-        //     use buf = ctx.CreateBuffer(Size 256, allocationMode = AllocationMode.AllocHostPtr)
-        //     let k = ctx.CreateKernel kernel
-        //     ctx.Provider.CommandQueue.Post(Msg.MsgSetArguments(fun () -> k.SetArguments (Range1D.CreateValid(256, 256))(new ClArray<_>(buf))))
-        //     ctx.Provider.CommandQueue.Post(Msg.CreateRunMsg<_,_>(k))
-        //     let localOut = Array.zeroCreate 256
-        //     let s = ctx.Provider.CommandQueue.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(buf, localOut, ch))
-        //     ctx.Provider.CommandQueue.Post <| m
-        //     s
-
-        // let syncMsgs = Msg.CreateBarrierMessages 3
-
-        // [
-        //     f syncMsgs.[0] <| context.WithComputeProvider()
-        //     f syncMsgs.[0] <| context.WithComputeProvider()
-        //     f syncMsgs.[0] <| context.WithComputeProvider()
-        // ]
-        // |> printfn "%A"
+        "Arrays should be equal"
+        |> Expect.sequenceEqual actual expected
 ]
 
 type T1 = None1 | Some1 of int
@@ -1325,8 +1443,8 @@ let simpleDUTests = testList "Simple tests on discriminated unions" [
                 use! input1 = ClArray.toDevice input1
                 use! input2 = ClArray.toDevice input2
                 use! output = ClArray.alloc<int> 100_000
-                let op = <@ fun x y -> 
-                                match x with 
+                let op = <@ fun x y ->
+                                match x with
                                  Some x -> match y with Some y -> Some (x + y) | None -> Some x
                                 | None -> match y with Some y -> Some y | None -> None  @>
                 do! runCommand (add (op)) <| fun x ->
@@ -1340,10 +1458,10 @@ let simpleDUTests = testList "Simple tests on discriminated unions" [
             }
             |> ClTask.runSync context
 
-        let expected = Array.map2 (fun x y -> if x < 0 
-                                              then if y < 0 
-                                                   then 0 
-                                                   else y 
+        let expected = Array.map2 (fun x y -> if x < 0
+                                              then if y < 0
+                                                   then 0
+                                                   else y
                                               else x + y) input1 input2
 
         "Arrays should be equal"
@@ -1367,8 +1485,8 @@ let simpleDUTests = testList "Simple tests on discriminated unions" [
                         let mutable y = None
                         if input1.[i] >= 0 then x <- Some input1.[i]
                         if input2.[i] >= 0 then y <- Some input2.[i]
-                        match (%op) x y with 
-                        Some x -> output.[i] <- x 
+                        match (%op) x y with
+                        Some x -> output.[i] <- x
                         | None -> output.[i] <- 0
             @>
 
@@ -1377,8 +1495,8 @@ let simpleDUTests = testList "Simple tests on discriminated unions" [
                 use! input1 = ClArray.toDevice input1
                 use! input2 = ClArray.toDevice input2
                 use! output = ClArray.alloc<int> 100_000
-                let op = <@ fun x y -> 
-                                match x with 
+                let op = <@ fun x y ->
+                                match x with
                                  Some x -> match y with Some y -> Some (x + y) | None -> Some x
                                 | None -> match y with Some y -> Some y | None -> None  @>
                 do! runCommand (add (op)) <| fun x ->
@@ -1392,10 +1510,10 @@ let simpleDUTests = testList "Simple tests on discriminated unions" [
             }
             |> ClTask.runSync context
 
-        let expected = Array.map2 (fun x y -> if x < 0 
-                                              then if y < 0 
-                                                   then 0 
-                                                   else y 
+        let expected = Array.map2 (fun x y -> if x < 0
+                                              then if y < 0
+                                                   then 0
+                                                   else y
                                               else x + y) input1 input2
 
         "Arrays should be equal"
@@ -1420,8 +1538,8 @@ let simpleDUTests = testList "Simple tests on discriminated unions" [
                         if input1.[i] >= 0 then x <- Some1 input1.[i]
                         if input2.[i] >= 0 then y <- Some1 input2.[i]
                         let z = (%op) x y
-                        match z with 
-                        Some1 x -> output.[i] <- x 
+                        match z with
+                        Some1 x -> output.[i] <- x
                         | None1 -> output.[i] <- 0
             @>
 
@@ -1430,8 +1548,8 @@ let simpleDUTests = testList "Simple tests on discriminated unions" [
                 use! input1 = ClArray.toDevice input1
                 use! input2 = ClArray.toDevice input2
                 use! output = ClArray.alloc<int> 100_000
-                let op = <@ fun x y -> 
-                                match x with 
+                let op = <@ fun x y ->
+                                match x with
                                  Some1 x -> match y with Some1 y -> Some1 (x + y) | None1 -> Some1 x
                                 | None1 -> match y with Some1 y -> Some1 y | None1 -> None1  @>
                 do! runCommand (add (op)) <| fun x ->
@@ -1445,21 +1563,55 @@ let simpleDUTests = testList "Simple tests on discriminated unions" [
             }
             |> ClTask.runSync context
 
-        let expected = Array.map2 (fun x y -> if x < 0 
-                                              then if y < 0 
-                                                   then 0 
-                                                   else y 
+        let expected = Array.map2 (fun x y -> if x < 0
+                                              then if y < 0
+                                                   then 0
+                                                   else y
                                               else x + y) input1 input2
 
         "Arrays should be equal"
         |> Expect.sequenceEqual actual expected
 ]
 
+[<Struct>]
+type StructWithOverridedConstructors =
+    val mutable x: int
+    val mutable y: int
+    new(x, y) = { x = x; y = y }
+    new(x) = { x = x; y = 10 }
+
+let specificTests = testList "" [
+    ptestCase "" <| fun () ->
+        let command =
+            <@
+                fun (range: Range1D) (buffer: ClCell<StructWithOverridedConstructors>) ->
+                    buffer.Value <- StructWithOverridedConstructors(10)
+            @>
+
+        let expected = StructWithOverridedConstructors(10, 10)
+
+        let actual =
+            opencl {
+                let value = 5
+                use! buffer = ClCell.toDevice <| StructWithOverridedConstructors(value, value)
+                do! runCommand command <| fun it ->
+                    it
+                    <| Range1D(1)
+                    <| buffer
+
+                return! ClCell.toHost buffer
+            }
+            |> ClTask.runSync context
+
+        ""
+        |> Expect.equal actual expected
+]
+
 let tests =
     testList "System tests with running kernels" [
         letTransformationTests
         letQuotationTransformerSystemTests
-        arrayItemSetTests
+        dataStructuresApiTests
         typeCastingTests
         bindingTests
         operatorsAndMathFunctionsTests
@@ -1469,7 +1621,9 @@ let tests =
         quotationInjectionTests
         localMemTests
         structTests
-        specificTestCases
+        booleanTests
+        parallelExecutionTests
         simpleDUTests
+        commonApiTests
     ]
     |> fun x -> Expecto.Sequenced(Synchronous, x)

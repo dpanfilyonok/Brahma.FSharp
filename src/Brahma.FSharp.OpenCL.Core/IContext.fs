@@ -7,5 +7,4 @@ type IContext =
     abstract Context : Context
     abstract Device : Device
     abstract Translator : FSQuotationToOpenCLTranslator with get
-    abstract Provider : ComputeProvider
-
+    abstract CommandQueue : MailboxProcessor<Msg>

@@ -15,10 +15,13 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="KernelLangExtentions.fs" />
+    <Compile Include="Utils\StateBuilder.fs" />
+    <Compile Include="Utils\TypeReflection.fs" />
+    <Compile Include="Utils\Extensions.fs" />
     <Compile Include="Bindings.fs" />
+    <Compile Include="Exceptions.fs" />
     <Compile Include="Namer.fs" />
-    <Compile Include="Common.fs" />
+    <Compile Include="TranslationContext.fs" />
     <Compile Include="QuotationTransformers\Utilities\Utils.fs" />
     <Compile Include="QuotationTransformers\Utilities\Patterns.fs" />
     <Compile Include="QuotationTransformers\AtomicProcessor.fs" />
@@ -32,12 +35,12 @@
     <Compile Include="QuotationTransformers\Transformer.fs" />
     <Compile Include="Type.fs" />
     <Compile Include="Body.fs" />
-    <Compile Include="TypeReflection.fs" />
     <Compile Include="Methods.fs" />
     <Compile Include="Translator.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Brahma.FSharp.OpenCL.AST\Brahma.FSharp.OpenCL.AST.fsproj" />
+    <ProjectReference Include="..\Brahma.FSharp.OpenCL.Shared\Brahma.FSharp.OpenCL.Shared.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

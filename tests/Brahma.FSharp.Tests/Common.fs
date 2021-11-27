@@ -40,17 +40,17 @@ module Utils =
 
         Expect.equal all1 all2 "Files should be equals as strings"
 
-    let platformMessage (provider: ComputeProvider) testName =
-        printfn "Run %s on %A" testName provider
-
     let openclCompile (command: Expr<('a -> 'b)>) =
         let kernel = context.CreateClKernel command
         kernel.Code
 
     let openclTranslate (expr: Expr) =
         let translator = FSQuotationToOpenCLTranslator()
-        let (ast, methods) = translator.Translate(expr)
+        let (ast, _) = translator.Translate(expr)
         print ast
 
     let openclTransformQuotation (expr: Expr) =
         QuotationTransformers.Transformer.transformQuotation expr []
+
+module Generators =
+    ()

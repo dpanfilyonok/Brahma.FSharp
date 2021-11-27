@@ -2,7 +2,7 @@
 namespace System
 open System.Reflection
 
-[<assembly: AssemblyTitleAttribute("Brahma.FSharp.Tests")>]
+[<assembly: AssemblyTitleAttribute("Brahma.FSharp.OpenCL.Shared")>]
 [<assembly: AssemblyProductAttribute("Brahma.FSharp")>]
 [<assembly: AssemblyVersionAttribute("2.0.0")>]
 [<assembly: AssemblyMetadataAttribute("ReleaseDate","2021-11-26T00:00:00.0000000+03:00")>]
@@ -13,7 +13,7 @@ open System.Reflection
 do ()
 
 module internal AssemblyVersionInformation =
-    let [<Literal>] AssemblyTitle = "Brahma.FSharp.Tests"
+    let [<Literal>] AssemblyTitle = "Brahma.FSharp.OpenCL.Shared"
     let [<Literal>] AssemblyProduct = "Brahma.FSharp"
     let [<Literal>] AssemblyVersion = "2.0.0"
     let [<Literal>] AssemblyMetadata_ReleaseDate = "2021-11-26T00:00:00.0000000+03:00"

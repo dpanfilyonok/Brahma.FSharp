@@ -13,39 +13,40 @@
 // By using this software in any fashion, you are agreeing to be bound by the
 // terms of the License.
 
-module Brahma.FSharp.OpenCL.Printer.TypeDecl
+namespace Brahma.FSharp.OpenCL.Printer
 
 open Brahma.FSharp.OpenCL.AST
 open Brahma.FSharp.OpenCL.Printer
 open Microsoft.FSharp.Text.StructuredFormat.LayoutOps
 
-let PrintStructDeclaration (decl: StructDecl<_>) =
-    let header =
-        [
-            wordL "typedef"
-            wordL "struct"
-            wordL decl.StructType.Name
-        ]
-        |> spaceListL
+module TypeDecl =
+    let PrintStructDeclaration (decl: StructDecl<_>) =
+        let header =
+            [
+                wordL "typedef"
+                wordL "struct"
+                wordL decl.StructType.Name
+            ]
+            |> spaceListL
 
-    let flds =
-        [
-            for f in decl.StructType.Fields ->
-                [
-                    Types.print f.Type
-                    wordL f.Name
-                    wordL ";"
-                ]
-                |> spaceListL
-        ]
-        |> aboveListL
-        |> braceL
+        let flds =
+            [
+                for f in decl.StructType.Fields ->
+                    [
+                        Types.print f.Type
+                        wordL f.Name
+                        wordL ";"
+                    ]
+                    |> spaceListL
+            ]
+            |> aboveListL
+            |> braceL
 
-    let footer =
-        [
-            wordL decl.StructType.Name
-            wordL ";"
-        ]
-        |> spaceListL
+        let footer =
+            [
+                wordL decl.StructType.Name
+                wordL ";"
+            ]
+            |> spaceListL
 
-    header ^^ flds ^^ footer
+        header ^^ flds ^^ footer

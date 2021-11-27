@@ -6,6 +6,8 @@ open FSharp.Quotations.Evaluator
 open Brahma.FSharp.OpenCL.Translator
 open System
 open System.Runtime.InteropServices
+open Brahma.FSharp.OpenCL.Shared
+open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 
 type ClProgram<'TRange, 'a when 'TRange :> INDRangeDimension> (
         clContext: IContext,
@@ -29,85 +31,103 @@ type ClProgram<'TRange, 'a when 'TRange :> INDRangeDimension> (
         let error = Cl.BuildProgram(program, 1u, [| clContext.Device |], options, null, IntPtr.Zero)
 
         if error <> ErrorCode.Success then
-            failwithf "Program compilation failed: %A" error
+            let errorCode = ref ErrorCode.Success
+            let buildInfo = Cl.GetProgramBuildInfo(program, clContext.Device, ProgramBuildInfo.Log, errorCode)
+            failwithf "Program compilation failed: %A \n   BUILD LOG:\n %A \n" error (buildInfo)
 
         program
+
+    let mutexBuffers = ResizeArray<IBuffer<Mutex>>()
 
     member this.GetNewKernel (?kernelName) = new ClKernel<'TRange, 'a>(this, ?kernelName=kernelName) 
     member this.Program = program
     member this.Code = clCode
-    member this.SetArguments range setupArgument =
-        let args = ref [||]
-        let getStarterFunction qExpr =
-            match qExpr with
-            | DerivedPatterns.Lambdas (lambdaArgs, _) ->
-                let flattenArgs = List.collect id lambdaArgs
+    member this.ArgumentsSetter range setupArgument =
+            let args = ref [||]
+            let getStarterFunction qExpr =
+                match qExpr with
+                | DerivedPatterns.Lambdas (lambdaArgs, _) ->
+                    let flattenArgs = List.collect id lambdaArgs
 
-                let firstMutexIdx =
-                    flattenArgs
-                    |> List.tryFindIndex (fun v -> v.Name.EndsWith "Mutex")
-                    |> Option.defaultValue flattenArgs.Length
+                    let firstMutexIdx =
+                        flattenArgs
+                        |> List.tryFindIndex (fun v -> v.Name.EndsWith "Mutex")
+                        |> Option.defaultValue flattenArgs.Length
 
-                let argsWithoutMutexes = flattenArgs.[0 .. firstMutexIdx - 1]
+                    let argsWithoutMutexes = flattenArgs.[0 .. firstMutexIdx - 1]
 
-                // TODO fix atomics
-                /// For each atomic variable throws exception if variable's type is not array,
-                /// otherwise returns length of array
-                let mutexLengths =
-                    let atomicVars =
-                        List.init<Var> (flattenArgs.Length - firstMutexIdx) <| fun i ->
-                            let mutexVar = flattenArgs.[firstMutexIdx + i]
-                            argsWithoutMutexes |> List.find (fun v -> mutexVar.Name.Contains v.Name)
+                    let mutexLengths =
+                        let atomicVars =
+                            List.init<Var> (flattenArgs.Length - firstMutexIdx) <| fun i ->
+                                let mutexVar = flattenArgs.[firstMutexIdx + i]
+                                argsWithoutMutexes |> List.find (fun v -> mutexVar.Name.Contains v.Name)
 
-                    Expr.NewArray(
-                        typeof<int>,
+                        Expr.NewArray(
+                            typeof<int>,
 
-                        atomicVars
-                        |> List.map (fun var ->
-                            match var with
-                            | var when var.Type.IsArray ->
-                                Expr.PropertyGet(
-                                    Expr.Var var,
-                                    typeof<int[]>.GetProperty("Length")
-                                )
-                            | _ -> failwith "Non-array variables as global mutex parameters is not supported. Wrap it into array instead."
-                        )
-                    )
+                            atomicVars
+                            |> List.map (fun var ->
+                                match var with
+                                | var when var.Type.Name.ToLower().StartsWith ClArray_ ->
+                                    Expr.PropertyGet(
+                                        Expr.Var var,
+                                        typeof<IBuffer<_>>
+                                            .GetGenericTypeDefinition()
+                                            .MakeGenericType(var.Type.GenericTypeArguments.[0])
+                                            .GetProperty("Length")
+                                    )
 
-                let regularArgs =
-                    Expr.NewArray(
-                        typeof<obj>,
-                        argsWithoutMutexes |> List.map (fun v -> Expr.Coerce(Expr.Var v, typeof<obj>))
-                    )
+                                | var when var.Type.Name.ToLower().StartsWith ClCell_ ->
+                                    Expr.Value 1
 
-                Expr.Lambdas(
-                    argsWithoutMutexes
-                    |> List.map List.singleton,
-
-                    <@@
-                        let mutexArgs =
-                            (%%mutexLengths : int[])
-                            |> List.ofArray
-                            |> List.map (fun n ->
-                                if n = 0 then box 0
-                                else box <| Array.zeroCreate<int> n
+                                | _ ->
+                                    failwithf "Something went wrong with type of atomic global var. \
+                                    Expected var of type '%s' or '%s', but given %s" ClArray_ ClCell_ var.Type.Name
                             )
+                        )
 
-                        let x = %%regularArgs |> List.ofArray
-                        range := unbox<'TRange> x.Head
-                        args := x.Tail @ mutexArgs |> Array.ofList
+                    let regularArgs =
+                        Expr.NewArray(
+                            typeof<obj>,
+                            argsWithoutMutexes |> List.map (fun v -> Expr.Coerce(Expr.Var v, typeof<obj>))
+                        )
 
-                        !args
-                        |> Array.iteri setupArgument
-                    @@>
-                )
+                    Expr.Lambdas(
+                        argsWithoutMutexes
+                        |> List.map List.singleton,
 
-            | _ -> failwithf "Invalid kernel expression. Must be lambda, but given\n%O" qExpr
+                        <@@
+                            let mutexArgs =
+                                (%%mutexLengths : int[])
+                                |> List.ofArray
+                                |> List.map (fun n ->
+                                    let mutexBuffer = new ClBuffer<Mutex>(clContext, Size n)
+                                    mutexBuffers.Add mutexBuffer
+                                    box mutexBuffer
+                                )
 
-            |> fun kernelPrepare ->
-                <@ %%kernelPrepare: 'TRange -> 'a @>.Compile()
+                            let x = %%regularArgs |> List.ofArray
+                            range := unbox<'TRange> x.Head
+                            args := x.Tail @ mutexArgs |> Array.ofList
 
-        getStarterFunction newLambda
+                            !args
+                            |> Array.iteri setupArgument
+                        @@>
+                    )
+
+                | _ -> failwithf "Invalid kernel expression. Must be lambda, but given\n%O" qExpr
+
+                |> fun kernelPrepare ->
+                    <@ %%kernelPrepare: 'TRange -> 'a @>.Compile()
+
+            getStarterFunction newLambda
+
+    member this.ReleaseBuffers() =
+            mutexBuffers
+            |> Seq.iter (Msg.CreateFreeMsg >> clContext.CommandQueue.Post)
+
+            mutexBuffers.Clear()
+
 
 and ClKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
     (
@@ -137,6 +157,8 @@ and ClKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
 
     let setupArgument index arg =
         let (argSize, argVal) = toIMem arg
+        // NOTE SetKernelArg could take intptr
+        // TODO try allocate unmanaged mem by hand
         let error = Cl.SetKernelArg(kernel, uint32 index, argSize, argVal)
         if error <> ErrorCode.Success then
             raise (CLException error)
@@ -144,17 +166,19 @@ and ClKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
     let range = ref Unchecked.defaultof<'TRange>
 
     interface IKernel<'TRange, 'a> with
-        member this.SetArguments =
-            clProgram.SetArguments range setupArgument
-
+        member this.ArgumentsSetter =
+            clProgram.ArgumentsSetter range setupArgument
+            
         member this.Kernel = kernel
-        member this.Range = !range :> INDRangeDimension
-        member this.ReleaseAllBuffers() = () //usedBuffers := [||]
+        member this.Range = range.Value :> INDRangeDimension
         member this.Code = clProgram.Code
+        member this.ReleaseBuffers() = clProgram.ReleaseBuffers()
 
-    member this.SetArguments = (this :> IKernel<_,_>).SetArguments
+    member this.ArgumentsSetter = (this :> IKernel<_,_>).ArgumentsSetter
     member this.Kernel = (this :> IKernel<_,_>).Kernel
     member this.Range = (this :> IKernel<_,_>).Range
     member this.Code = (this :> IKernel<_,_>).Code
-    member this.ReleaseAllBuffers() = (this :> IKernel<_,_>).ReleaseAllBuffers
 
+    // TODO rename ?? ReleaseInternalBuffers
+    /// Освобождает только временные промежуточные утилитарные буферы (например, буфер для мьютексов)
+    member this.ReleaseBuffers() = (this :> IKernel<_,_>).ReleaseBuffers()

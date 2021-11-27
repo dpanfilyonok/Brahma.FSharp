@@ -1,5 +1,7 @@
 namespace Brahma.FSharp.OpenCL
 
+open Brahma.FSharp.OpenCL.Translator
+open Brahma.FSharp.OpenCL.Shared
 open System
 
 type ClArray<'a when 'a : struct> internal (buffer: ClBuffer<'a>) =
@@ -23,6 +25,10 @@ type ClArray<'a when 'a : struct> internal (buffer: ClBuffer<'a>) =
         member this.Length = (buffer :> IBuffer<_>).Length
         member this.ElementSize = (buffer :> IBuffer<_>).ElementSize
         member this.Free() = (buffer :> IBuffer<_>).Free()
+
+        member this.Item
+            with get (idx: int) : 'a = FailIfOutsideKernel()
+            and set (idx: int) (value: 'a) = FailIfOutsideKernel()
 
     member this.Dispose() = (this :> IDisposable).Dispose()
 
@@ -48,6 +54,9 @@ type ClCell<'a when 'a : struct> internal (buffer: ClBuffer<'a>) =
         member this.Length = (buffer :> IBuffer<_>).Length
         member this.ElementSize = (buffer :> IBuffer<_>).ElementSize
         member this.Free() = (buffer :> IBuffer<_>).Free()
+        member this.Item
+            with get (idx: int) : 'a = FailIfOutsideKernel()
+            and set (idx: int) (value: 'a) = FailIfOutsideKernel()
 
     member this.Dispose() = (this :> IDisposable).Dispose()
 
@@ -59,6 +68,7 @@ type clcell<'a when 'a : struct> = ClCell<'a>
 
 module ClArray =
     // or allocate with null ptr and write
+    // TODO if array.Length = 0 ...
     let toDevice (array: 'a[]) = opencl {
         let! context = ClTask.ask
 
@@ -77,7 +87,7 @@ module ClArray =
         let! context = ClTask.ask
 
         let array = Array.zeroCreate<'a> clArray.Length
-        return context.Provider.CommandQueue.PostAndReply(fun ch -> Msg.CreateToHostMsg(clArray.Buffer, array, ch))
+        return context.CommandQueue.PostAndReply(fun ch -> Msg.CreateToHostMsg(clArray.Buffer, array, ch))
     }
 
     // TODO impl it using clEnqueCopy
@@ -92,7 +102,7 @@ module ClArray =
 
     let close (clArray: ClArray<'a>) = opencl {
         let! ctx = ClTask.ask
-        ctx.Provider.CommandQueue.Post <| Msg.CreateFreeMsg(clArray)
+        ctx.CommandQueue.Post <| Msg.CreateFreeMsg(clArray)
     }
 
 module ClCell =
@@ -114,7 +124,7 @@ module ClCell =
         let! context = ClTask.ask
 
         let array = Array.zeroCreate<'a> 1
-        return context.Provider.CommandQueue.PostAndReply(fun ch -> Msg.CreateToHostMsg(clCell.Buffer, array, ch)).[0]
+        return context.CommandQueue.PostAndReply(fun ch -> Msg.CreateToHostMsg(clCell.Buffer, array, ch)).[0]
     }
 
     // TODO impl it

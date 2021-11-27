@@ -13,24 +13,25 @@
 // By using this software in any fashion, you are agreeing to be bound by the
 // terms of the License.
 
-module Brahma.FSharp.OpenCL.Printer.AST
+namespace Brahma.FSharp.OpenCL.Printer
 
 open Brahma.FSharp.OpenCL.AST
 open Microsoft.FSharp.Text
 open Microsoft.FSharp.Text.StructuredFormat.LayoutOps
 open Brahma.FSharp.OpenCL.Printer
 
-let print (ast: AST<'lang>) =
-    ast.TopDefs
-    |> List.map
-        (fun d ->
-            match d with
-            | :? FunDecl<'lang> as fd -> FunDecl.Print fd
-            | :? CLPragma<'lang> as clp -> Pragmas.Print clp
-            | :? StructDecl<'lang> as s -> TypeDecl.PrintStructDeclaration s
-            | :? VarDecl<'lang> as s -> Statements.Print false s
-            | _ -> failwithf "Printer. Unsupported toplevel declaration: %A"  d
-        )
-    |> aboveListL
-    |> StructuredFormat.Display.layout_to_string { StructuredFormat.FormatOptions.Default with PrintWidth = 100 }
+module AST =
+    let print (ast: AST<'lang>) =
+        ast.TopDefs
+        |> List.map
+            (fun d ->
+                match d with
+                | :? FunDecl<'lang> as fd -> FunDecl.print fd
+                | :? CLPragma<'lang> as clp -> Pragmas.print clp
+                | :? StructDecl<'lang> as s -> TypeDecl.PrintStructDeclaration s
+                | :? VarDecl<'lang> as s -> Statements.print false s
+                | _ -> failwithf "Printer. Unsupported toplevel declaration: %A"  d
+            )
+        |> aboveListL
+        |> StructuredFormat.Display.layout_to_string { StructuredFormat.FormatOptions.Default with PrintWidth = 100 }
 
