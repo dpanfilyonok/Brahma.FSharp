@@ -628,7 +628,7 @@ let kernelArgumentsTests =
             let actual =
                 opencl {
                     let! ctx = ClTask.ask
-                    let kernel = ctx.CreateClKernel command
+                    let kernel = (ctx.CreateClKernel command).GetNewKernel()
 
                     let inArr = ctx.CreateClArray(intInArr)
 
@@ -645,6 +645,46 @@ let kernelArgumentsTests =
                     return res
                 }
                 |> ClTask.runSync context
+
+            Expect.sequenceEqual actual expected "Arrays should be equals"
+
+        testProperty "Parallel execution of kernel" <| fun _const -> 
+            let n = 4
+            let l = 256            
+            let getAllocator (context:ClContext)  =
+                 let kernel =
+                     <@
+                         fun (r: Range1D) (buffer: ClArray<int>) ->
+                             let i = r.GlobalID0
+                             buffer.[i] <- _const
+                     @>
+                 let k = context.CreateClKernel kernel
+                 fun (q:MailboxProcessor<_>) ->
+                     let buf = context.CreateClArray(l, allocationMode = AllocationMode.AllocHostPtr)
+                     let executable = k.GetNewKernel()
+                     q.Post(Msg.MsgSetArguments(fun () -> executable.ArgumentsSetter (Range1D(l, l)) buf))
+                     q.Post(Msg.CreateRunMsg<_,_>(executable))
+                     buf
+                        
+            let allocator = getAllocator context
+            let allocOnGPU (q:MailboxProcessor<_>) allocator =
+                let b = allocator q
+                let res = Array.zeroCreate l
+                q.PostAndReply (fun ch -> Msg.CreateToHostMsg(b, res, ch))
+                q.Post (Msg.CreateFreeMsg b)
+                res
+
+
+            let actual = 
+                Array.init n (fun _ ->
+                        let q = context.CommandQueue
+                        q.Error.Add (fun e -> printfn "%A" e)
+                        q)
+                |> Array.mapi (fun i q -> async {return allocOnGPU q allocator})
+                |> Async.Parallel
+                |> Async.RunSynchronously
+
+            let expected = Array.init n (fun _ -> Array.create l _const)
 
             Expect.sequenceEqual actual expected "Arrays should be equals"
     ]

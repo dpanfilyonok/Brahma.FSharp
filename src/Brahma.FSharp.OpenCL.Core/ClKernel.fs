@@ -9,23 +9,19 @@ open System.Runtime.InteropServices
 open Brahma.FSharp.OpenCL.Shared
 open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 
-type ClKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
-    (
+type ClProgram<'TRange, 'a when 'TRange :> INDRangeDimension> (
         clContext: IContext,
-        srcLambda: Expr<'TRange ->'a>,
-        ?kernelName
-    ) =
-
-    let kernelName = defaultArg kernelName "brahmaKernel"
+        srcLambda: Expr<'TRange ->'a>
+    ) = 
 
     let (clCode, newLambda) =
         let (ast, newLambda) = clContext.Translator.Translate(srcLambda)
         let code = Printer.AST.print ast
         code, newLambda
 
-    let compileQuery additionalSources =
+    let program =
         let (program, error) =
-            let sources = additionalSources @ [clCode] |> List.toArray
+            let sources = [|clCode|]
             Cl.CreateProgramWithSource(clContext.Context, uint32 sources.Length, sources, null)
 
         if error <> ErrorCode.Success then
@@ -41,40 +37,12 @@ type ClKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
 
         program
 
-    let createKernel program =
-        let (clKernel, error) = Cl.CreateKernel(program, kernelName)
-        if error <> ErrorCode.Success then
-            failwithf "OpenCL kernel creation problem. Error: %A" error
-        clKernel
-
-    let additionalSources = []
-
-    let kernel =
-        let program = compileQuery additionalSources
-        let clKernel = createKernel program
-        clKernel
-
-    let toIMem a =
-        // TODO extend types for private args (now only int supported)
-        match box a with
-        | :? IClMem as buf -> buf.Size, buf.Data
-        | :? int as i -> IntPtr(Marshal.SizeOf i), box i
-        | other -> failwithf "Unexpected argument: %A" other
-
-    let setupArgument index arg =
-        let (argSize, argVal) = toIMem arg
-        // NOTE SetKernelArg could take intptr
-        // TODO try allocate unmanaged mem by hand
-        let error = Cl.SetKernelArg(kernel, uint32 index, argSize, argVal)
-        if error <> ErrorCode.Success then
-            raise (CLException error)
-
-    let range = ref Unchecked.defaultof<'TRange>
-
     let mutexBuffers = ResizeArray<IBuffer<Mutex>>()
 
-    interface IKernel<'TRange, 'a> with
-        member this.ArgumentsSetter =
+    member this.GetNewKernel (?kernelName) = new ClKernel<'TRange, 'a>(this, ?kernelName=kernelName) 
+    member this.Program = program
+    member this.Code = clCode
+    member this.ArgumentsSetter range setupArgument =
             let args = ref [||]
             let getStarterFunction qExpr =
                 match qExpr with
@@ -154,14 +122,57 @@ type ClKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
 
             getStarterFunction newLambda
 
-        member this.Kernel = kernel
-        member this.Range = !range :> INDRangeDimension
-        member this.Code = clCode
-        member this.ReleaseBuffers() =
+    member this.ReleaseBuffers() =
             mutexBuffers
             |> Seq.iter (Msg.CreateFreeMsg >> clContext.CommandQueue.Post)
 
             mutexBuffers.Clear()
+
+
+and ClKernel<'TRange, 'a when 'TRange :> INDRangeDimension>
+    (
+        clProgram: ClProgram<'TRange, 'a>,
+        //setArgsLambda: 'TRange ->'a,
+        ?kernelName:string
+    ) =
+
+    let kernelName = defaultArg kernelName "brahmaKernel"
+
+    let createKernel program =
+        let (clKernel, error) = Cl.CreateKernel(program, kernelName)
+        if error <> ErrorCode.Success then
+            failwithf "OpenCL kernel creation problem. Error: %A" error
+        clKernel
+
+    let kernel =
+        let clKernel = createKernel clProgram.Program
+        clKernel
+
+    let toIMem a =
+        // TODO extend types for private args (now only int supported)
+        match box a with
+        | :? IClMem as buf -> buf.Size, buf.Data
+        | :? int as i -> IntPtr(Marshal.SizeOf i), box i
+        | other -> failwithf "Unexpected argument: %A" other
+
+    let setupArgument index arg =
+        let (argSize, argVal) = toIMem arg
+        // NOTE SetKernelArg could take intptr
+        // TODO try allocate unmanaged mem by hand
+        let error = Cl.SetKernelArg(kernel, uint32 index, argSize, argVal)
+        if error <> ErrorCode.Success then
+            raise (CLException error)
+
+    let range = ref Unchecked.defaultof<'TRange>
+
+    interface IKernel<'TRange, 'a> with
+        member this.ArgumentsSetter =
+            clProgram.ArgumentsSetter range setupArgument
+            
+        member this.Kernel = kernel
+        member this.Range = range.Value :> INDRangeDimension
+        member this.Code = clProgram.Code
+        member this.ReleaseBuffers() = clProgram.ReleaseBuffers()
 
     member this.ArgumentsSetter = (this :> IKernel<_,_>).ArgumentsSetter
     member this.Kernel = (this :> IKernel<_,_>).Kernel
