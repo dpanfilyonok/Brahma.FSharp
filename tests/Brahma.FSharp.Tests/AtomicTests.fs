@@ -77,7 +77,8 @@ let stressTest<'a when 'a : equality and 'a : struct> (f: Expr<'a -> 'a>) size r
                 let gid = range.GlobalID0
                 if gid < size then
                     atomic %f result.[0] |> ignore
-                barrier ()
+
+                barrierLocal ()
         @>
 
     let expected =
@@ -127,7 +128,7 @@ let foldTest<'a when 'a : equality and 'a : struct> f (isEqual: 'a -> 'a -> bool
                     if gid < arrayLength then
                         atomic %f localResult.[0] array.[gid] |> ignore
 
-                    barrier ()
+                    barrierLocal ()
 
                     if lid = 0 then
                         atomic %f result.[0] localResult.[0] |> ignore
@@ -282,7 +283,7 @@ let perfomanceTest = ptestCase "Perfomance test on 'inc'" <| fun () ->
                     localAcc.[0] <- 0
 
                 atomic inc localAcc.[0] |> ignore
-                barrier ()
+                barrierLocal ()
 
                 if range.LocalID0 = 0 then
                     result.[0] <- localAcc.[0]
@@ -298,7 +299,7 @@ let perfomanceTest = ptestCase "Perfomance test on 'inc'" <| fun () ->
                     localAcc.[0] <- 0
 
                 atomic %inc localAcc.[0] |> ignore
-                barrier ()
+                barrierLocal ()
 
                 if range.LocalID0 = 0 then
                     result.[0] <- localAcc.[0]

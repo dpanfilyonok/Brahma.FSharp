@@ -16,7 +16,6 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Utils\StateBuilder.fs" />
-    <Compile Include="Utils\TypeReflection.fs" />
     <Compile Include="Utils\Extensions.fs" />
     <Compile Include="Bindings.fs" />
     <Compile Include="Exceptions.fs" />

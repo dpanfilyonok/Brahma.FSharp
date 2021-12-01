@@ -179,9 +179,11 @@ module rec Body =
         | "getarray" -> return Item(args.[0], args.[1]) :> Statement<_>
         | "not" -> return Unop(UOp.Not, args.[0]) :> Statement<_>
         | "_byte" -> return args.[0] :> Statement<_>
-        | "barrier" -> return Barrier() :> Statement<_>
+        | "barrierlocal" -> return Barrier(MemFence.Local) :> Statement<_>
+        | "barrierglobal" -> return Barrier(MemFence.Global) :> Statement<_>
+        | "barrierfull" -> return Barrier(MemFence.Both) :> Statement<_>
         | "local" -> return raise <| InvalidKernelException("Calling the local function is allowed only at the top level of the let binding")
-        | "arrayLocal" -> return raise <| InvalidKernelException("Calling the localArray function is allowed only at the top level of the let binding")
+        | "arraylocal" -> return raise <| InvalidKernelException("Calling the localArray function is allowed only at the top level of the let binding")
         | "zerocreate" ->
             let length =
                 match args.[0] with
@@ -532,7 +534,7 @@ module rec Body =
                 let! r = translateApplicationFun expr1 expr2
                 return r :> Node<_>
 
-        | DerivedPatterns.SpecificCall <@@ PrintfReplacer.print @@> (_, _, args) ->
+        | DerivedPatterns.SpecificCall <@@ print @@> (_, _, args) ->
             match args with
             | [ Patterns.ValueWithName (argTypes, _, _);
                 Patterns.ValueWithName (formatStr, _, _);

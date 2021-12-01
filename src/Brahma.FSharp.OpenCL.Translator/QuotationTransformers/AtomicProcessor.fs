@@ -361,7 +361,7 @@ module AtomicProcessor =
                                         flag <- false
                                     // HACK needed for nvidia, but broken for intel cpu
                                     //barrier ()
-                                barrier ()
+                                barrierLocal ()
                             @@>,
                             Expr.Var oldValueVar
                         )
@@ -479,7 +479,7 @@ module AtomicProcessor =
                                                     )
                                                 )
                                             )
-                                        barrier ()
+                                        barrierLocal ()
                                     @@>,
                                     inExpr
                                 )

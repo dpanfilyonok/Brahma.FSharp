@@ -670,7 +670,7 @@ let kernelArgumentsTests =
             let allocOnGPU (q:MailboxProcessor<_>) allocator =
                 let b = allocator q
                 let res = Array.zeroCreate l
-                q.PostAndReply (fun ch -> Msg.CreateToHostMsg(b, res, ch))
+                q.PostAndReply (fun ch -> Msg.CreateToHostMsg(b, res, ch)) |> ignore
                 q.Post (Msg.CreateFreeMsg b)
                 res
 
@@ -726,11 +726,11 @@ let localMemTests =
                         let mutable x = local ()
 
                         if globalID = 0 then x <- 0
-                        barrier ()
+                        barrierLocal ()
 
                         atomic (+) x 1 |> ignore
-                        // fetch local value before read, dont work withour barrier
-                        barrier ()
+                        // fetch local value before read, dont work without barrier
+                        barrierLocal ()
 
                         if globalID = 0 then
                             output.[0] <- x
@@ -760,7 +760,7 @@ let localMemTests =
                         let localBuf = localArray<int> localWorkSize
 
                         localBuf.[range.LocalID0] <- range.LocalID0
-                        barrier()
+                        barrierLocal ()
                         output.[range.GlobalID0] <- localBuf.[(range.LocalID0 + 1) % localWorkSize]
                 @>
 
