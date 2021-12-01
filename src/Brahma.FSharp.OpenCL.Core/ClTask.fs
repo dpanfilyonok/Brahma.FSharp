@@ -115,16 +115,16 @@ module ClTaskOpened =
         opencl {
             let! ctx = ClTask.ask
 
-            let kernel = (ctx.CreateClKernel command).GetNewKernel()
+            let kernel = ctx.CreateClProgram(command).NewKernel()
 
-            ctx.CommandQueue.Post <| MsgSetArguments(fun () -> binder kernel.ArgumentsSetter)
+            ctx.CommandQueue.Post <| MsgSetArguments(fun () -> binder kernel.KernelFunc)
             ctx.CommandQueue.Post <| Msg.CreateRunMsg<_, _>(kernel)
-            kernel.ReleaseBuffers()
+            kernel.ReleaseInternalBuffers()
         }
 
-    let runKernel (kernel: ClKernel<'range, 'a>) (processor: MailboxProcessor<Msg>) (binder: ('range -> 'a) -> unit) : ClTask<unit> =
+    let runKernel (kernel: IKernel<'range, 'a>) (processor: MailboxProcessor<Msg>) (binder: ('range -> 'a) -> unit) : ClTask<unit> =
         opencl {
-            processor.Post <| MsgSetArguments(fun () -> binder kernel.ArgumentsSetter)
+            processor.Post <| MsgSetArguments(fun () -> binder kernel.KernelFunc)
             processor.Post <| Msg.CreateRunMsg<_, _>(kernel)
-            kernel.ReleaseBuffers()
+            kernel.ReleaseInternalBuffers()
         }

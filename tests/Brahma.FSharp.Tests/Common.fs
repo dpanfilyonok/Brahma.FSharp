@@ -41,7 +41,7 @@ module Utils =
         Expect.equal all1 all2 "Files should be equals as strings"
 
     let openclCompile (command: Expr<('a -> 'b)>) =
-        let kernel = context.CreateClKernel command
+        let kernel = context.CreateClProgram command
         kernel.Code
 
     let openclTranslate (expr: Expr) =

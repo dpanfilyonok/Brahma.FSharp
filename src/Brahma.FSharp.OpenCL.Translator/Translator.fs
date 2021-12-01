@@ -71,15 +71,15 @@ type FSQuotationToOpenCLTranslator([<ParamArray>] translatorOptions: TranslatorO
 
         kernelArgumentsNames, localVarsNames, atomicApplicationsInfo
 
-    let constructMethods (expr: Expr) (functions: (Var * Expr) list) (atomicApplicationsInfo: Map<Var, AddressSpaceQualifier<Lang>>) context =
-        let kernelFunc = KernelFunc(Var(mainKernelName, expr.Type), expr, context) :> Method |> List.singleton
+    let constructMethods (expr: Expr) (functions: (Var * Expr) list) (atomicApplicationsInfo: Map<Var, AddressSpaceQualifier<Lang>>) =
+        let kernelFunc = KernelFunc(Var(mainKernelName, expr.Type), expr) :> Method |> List.singleton
 
         let methods =
             functions
             |> List.map (fun (var, expr) ->
                 match atomicApplicationsInfo |> Map.tryFind var with
-                | Some qual -> AtomicFunc(var, expr, qual, context) :> Method
-                | None -> Function(var, expr, context) :> Method
+                | Some qual -> AtomicFunc(var, expr, qual) :> Method
+                | None -> Function(var, expr) :> Method
             )
 
         methods @ kernelFunc
@@ -92,11 +92,11 @@ type FSQuotationToOpenCLTranslator([<ParamArray>] translatorOptions: TranslatorO
         // TODO: Extract quotationTransformer to translator
         let (kernelExpr, functions) = transformQuotation expr translatorOptions
         let (globalVars, localVars, atomicApplicationsInfo) = collectData kernelExpr functions
-        let methods = constructMethods kernelExpr functions atomicApplicationsInfo context
+        let methods = constructMethods kernelExpr functions atomicApplicationsInfo
 
         let clFuncs = ResizeArray()
         for method in methods do
-            clFuncs.AddRange(method.Translate(globalVars, localVars))
+            clFuncs.AddRange(method.Translate(globalVars, localVars) |> State.eval context)
 
         let userDefinedTypes =
             context.UserDefinedTypes

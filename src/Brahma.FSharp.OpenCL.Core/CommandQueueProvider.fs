@@ -129,7 +129,7 @@ type CommandQueueProvider =
     static member private HandleRun(queue, run: IRunCrate) =
         { new IRunCrateEvaluator with
             member this.Eval crate =
-                let range = crate.Kernel.Range
+                let range = crate.Kernel.NDRange
                 let workDim = uint32 range.Dimensions
                 let eventID = ref Unchecked.defaultof<Event>
                 let error = Cl.EnqueueNDRangeKernel(queue, crate.Kernel.Kernel, workDim, null,

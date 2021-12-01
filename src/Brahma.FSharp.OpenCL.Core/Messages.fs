@@ -14,7 +14,7 @@ type ToGPU<'a when 'a: struct>(src: 'a[], dst: IBuffer<'a>) =
     member this.Destination = dst
     member this.Source = src
 
-type Run<'TRange, 'a when 'TRange :> INDRangeDimension>(kernel: IKernel<'TRange, 'a>) =
+type Run<'TRange, 'a when 'TRange :> INDRange>(kernel: IKernel<'TRange, 'a>) =
     member this.Kernel = kernel
 
 type IRunCrate =
@@ -76,7 +76,7 @@ type Msg =
         }
         |> MsgFree
 
-    static member CreateRunMsg<'TRange, 'a when 'TRange :> INDRangeDimension>(kernel) =
+    static member CreateRunMsg<'TRange, 'a when 'TRange :> INDRange>(kernel) =
         { new IRunCrate with
             member this.Apply evaluator = evaluator.Eval <| Run<'TRange, 'a>(kernel)
         }

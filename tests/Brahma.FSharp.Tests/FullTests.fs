@@ -628,14 +628,14 @@ let kernelArgumentsTests =
             let actual =
                 opencl {
                     let! ctx = ClTask.ask
-                    let kernel = (ctx.CreateClKernel command).GetNewKernel()
+                    let kernel = ctx.CreateClProgram(command).NewKernel()
 
                     let inArr = ctx.CreateClArray(intInArr)
 
-                    ctx.CommandQueue.Post(Msg.MsgSetArguments(fun () -> kernel.ArgumentsSetter default1D 0 2 inArr))
+                    ctx.CommandQueue.Post(Msg.MsgSetArguments(fun () -> kernel.KernelFunc default1D 0 2 inArr))
                     ctx.CommandQueue.Post(Msg.CreateRunMsg<_,_>(kernel))
 
-                    ctx.CommandQueue.Post(Msg.MsgSetArguments(fun () -> kernel.ArgumentsSetter default1D 2 2 inArr))
+                    ctx.CommandQueue.Post(Msg.MsgSetArguments(fun () -> kernel.KernelFunc default1D 2 2 inArr))
                     ctx.CommandQueue.Post(Msg.CreateRunMsg<_,_>(kernel))
 
                     let localOut = Array.zeroCreate intInArr.Length
@@ -648,24 +648,24 @@ let kernelArgumentsTests =
 
             Expect.sequenceEqual actual expected "Arrays should be equals"
 
-        testProperty "Parallel execution of kernel" <| fun _const -> 
+        testProperty "Parallel execution of kernel" <| fun _const ->
             let n = 4
-            let l = 256            
-            let getAllocator (context:ClContext)  =
-                 let kernel =
-                     <@
-                         fun (r: Range1D) (buffer: ClArray<int>) ->
-                             let i = r.GlobalID0
-                             buffer.[i] <- _const
-                     @>
-                 let k = context.CreateClKernel kernel
-                 fun (q:MailboxProcessor<_>) ->
-                     let buf = context.CreateClArray(l, allocationMode = AllocationMode.AllocHostPtr)
-                     let executable = k.GetNewKernel()
-                     q.Post(Msg.MsgSetArguments(fun () -> executable.ArgumentsSetter (Range1D(l, l)) buf))
-                     q.Post(Msg.CreateRunMsg<_,_>(executable))
-                     buf
-                        
+            let l = 256
+            let getAllocator (context: ClContext) =
+                let kernel =
+                    <@
+                        fun (r: Range1D) (buffer: ClArray<int>) ->
+                            let i = r.GlobalID0
+                            buffer.[i] <- _const
+                    @>
+                let k = context.CreateClProgram kernel
+                fun (q:MailboxProcessor<_>) ->
+                    let buf = context.CreateClArray(l, allocationMode = AllocationMode.AllocHostPtr)
+                    let executable = k.NewKernel()
+                    q.Post(Msg.MsgSetArguments(fun () -> executable.KernelFunc (Range1D(l, l)) buf))
+                    q.Post(Msg.CreateRunMsg<_,_>(executable))
+                    buf
+
             let allocator = getAllocator context
             let allocOnGPU (q:MailboxProcessor<_>) allocator =
                 let b = allocator q
@@ -674,8 +674,7 @@ let kernelArgumentsTests =
                 q.Post (Msg.CreateFreeMsg b)
                 res
 
-
-            let actual = 
+            let actual =
                 Array.init n (fun _ ->
                         let q = context.CommandQueue
                         q.Error.Add (fun e -> printfn "%A" e)

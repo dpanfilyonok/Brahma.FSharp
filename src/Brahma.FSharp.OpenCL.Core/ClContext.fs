@@ -101,7 +101,7 @@ type ClContext private (context: Context, device: Device, translator: FSQuotatio
     member this.WithNewCommandQueue() =
         ClContext(this.Context, this.Device, this.Translator, CommandQueueProvider.CreateQueue(this.Context, this.Device))
 
-    member this.CreateClKernel(srcLambda: Expr<'a -> 'b>) =
+    member this.CreateClProgram(srcLambda: Expr<'a -> 'b>) =
         ClProgram<_,_>(this, srcLambda)
 
     member this.CreateClBuffer

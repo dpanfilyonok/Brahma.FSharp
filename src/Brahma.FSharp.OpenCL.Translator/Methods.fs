@@ -4,7 +4,7 @@ open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.AST
 
 [<AbstractClass>]
-type Method(var: Var, expr: Expr, context: TranslationContext<Lang,Statement<Lang>>) =
+type Method(var: Var, expr: Expr) =
     member this.FunVar = var
     member this.FunExpr = expr
 
@@ -33,28 +33,31 @@ type Method(var: Var, expr: Expr, context: TranslationContext<Lang,Statement<Lan
 
         adding subAST
 
-    abstract TranslateBody : Var list * Expr -> StatementBlock<Lang> * TranslationContext<Lang, Statement<Lang>>
-    default this.TranslateBody(args, body) =
-        let (newBody, context) =
-            let clonedContext = context.Copy()
+    abstract TranslateBody : Var list * Expr -> State<TargetContext, StatementBlock<Lang>>
+    default this.TranslateBody(args, body) = translation {
+        let! context = State.get
 
-            clonedContext.Namer.LetIn()
-            args |> List.iter (fun v -> clonedContext.Namer.AddVar v.Name)
+        context.Namer.LetIn()
+        args |> List.iter (fun v -> context.Namer.AddVar v.Name)
 
-            Body.translate body |> State.run clonedContext
+        let! newBody = Body.translate body
 
-        match newBody with
-        | :? StatementBlock<Lang> as sb -> sb
-        | :? Statement<Lang> as s -> StatementBlock <| ResizeArray [s]
-        | _ -> failwithf "Incorrect function body: %A" newBody
-        , context
+        return
+            match newBody with
+            | :? StatementBlock<Lang> as sb -> sb
+            | :? Statement<Lang> as s -> StatementBlock <| ResizeArray [s]
+            | _ -> failwithf "Incorrect function body: %A" newBody
+    }
 
-    abstract TranslateArgs : Var list * string list * string list * TranslationContext<Lang, Statement<Lang>> -> FunFormalArg<Lang> list
 
-    abstract BuildFunction : FunFormalArg<Lang> list * StatementBlock<Lang> * TranslationContext<Lang, Statement<Lang>> -> ITopDef<Lang>
+    abstract TranslateArgs : Var list * string list * string list -> State<TargetContext, FunFormalArg<Lang> list>
 
-    abstract GetPragmas : TranslationContext<Lang, Statement<Lang>> -> ITopDef<Lang> list
-    default this.GetPragmas(context) =
+    abstract BuildFunction : FunFormalArg<Lang> list * StatementBlock<Lang> -> State<TargetContext, ITopDef<Lang>>
+
+    abstract GetPragmas : unit -> State<TargetContext, ITopDef<Lang> list>
+    default this.GetPragmas() = translation {
+        let! context = State.get
+
         let pragmas = ResizeArray()
 
         if context.Flags.enableAtomic then
@@ -64,117 +67,94 @@ type Method(var: Var, expr: Expr, context: TranslationContext<Lang,Statement<Lan
         if context.Flags.enableFP64 then
             pragmas.Add(CLPragma CLFP64)
 
-        List.ofSeq pragmas
+        return List.ofSeq pragmas
+    }
 
-    abstract GetTopLevelVarDecls : TranslationContext<Lang, Statement<Lang>> -> ITopDef<Lang> list
-    default this.GetTopLevelVarDecls(context) =
-        context.TopLevelVarsDecls
-        |> Seq.cast<_>
-        |> List.ofSeq
+    abstract GetTopLevelVarDecls : unit -> State<TargetContext, ITopDef<Lang> list>
+    default this.GetTopLevelVarDecls() = translation {
+        let! context = State.get
 
-    abstract Translate : string list * string list -> ITopDef<Lang> list
-    default this.Translate(globalVars, localVars) =
+        return
+            context.TopLevelVarsDecls
+            |> Seq.cast<_>
+            |> List.ofSeq
+    }
+
+    abstract Translate : string list * string list -> State<TargetContext, ITopDef<Lang> list>
+    default this.Translate(globalVars, localVars) = translation {
+        do! State.modify (fun context -> context.Copy())
+
         match expr with
         | DerivedPatterns.Lambdas (args, body) ->
             let args = List.collect id args
-            let (translatedBody, context) = this.TranslateBody(args, body)
-            let translatedArgs = this.TranslateArgs(args, globalVars, localVars, context)
-            let func = this.BuildFunction(translatedArgs, translatedBody, context)
-            let pragmas = this.GetPragmas(context)
-            let topLevelVarDecls = this.GetTopLevelVarDecls(context)
+            let! translatedBody = this.TranslateBody(args, body)
+            let! translatedArgs = this.TranslateArgs(args, globalVars, localVars)
+            let! func = this.BuildFunction(translatedArgs, translatedBody)
+            let! pragmas = this.GetPragmas()
+            let! topLevelVarDecls = this.GetTopLevelVarDecls()
 
-            pragmas
-            @ topLevelVarDecls
-            @ [func]
+            return
+                pragmas
+                @ topLevelVarDecls
+                @ [func]
 
-        | _ -> failwithf "Incorrect OpenCL quotation: %A" expr
+        | _ -> return failwithf "Incorrect OpenCL quotation: %A" expr
+    }
+
 
     override this.ToString() =
         sprintf "%A\n%A" var expr
 
-type KernelFunc(var: Var, expr: Expr, context: TranslationContext<Lang,Statement<Lang>>) =
-    inherit Method(var, expr, context)
+type KernelFunc(var: Var, expr: Expr) =
+    inherit Method(var, expr)
 
-    override this.TranslateArgs(args, _, _, context) =
+    override this.TranslateArgs(args, _, _) = translation {
+        let! context = State.get
+
         let brahmaDimensionsTypes = [
             Range1D_
             Range2D_
             Range3D_
         ]
 
-        args
-        |> List.filter
-            (fun (variable: Var) ->
-                brahmaDimensionsTypes
-                |> (not << List.contains (variable.Type.Name.ToLowerInvariant()))
-            )
-        |> List.map
-            (fun variable ->
-                let vType = Type.translate variable.Type |> State.eval context
-                let declSpecs = DeclSpecifierPack(typeSpecifier = vType)
+        return
+            args
+            |> List.filter
+                (fun (variable: Var) ->
+                    brahmaDimensionsTypes
+                    |> (not << List.contains (variable.Type.Name.ToLowerInvariant()))
+                )
+            |> List.map
+                (fun variable ->
+                    let vType = Type.translate variable.Type |> State.eval context
+                    let declSpecs = DeclSpecifierPack(typeSpecifier = vType)
 
-                if vType :? RefType<_> then
-                    declSpecs.AddressSpaceQualifier <- Global
+                    if vType :? RefType<_> then
+                        declSpecs.AddressSpaceQualifier <- Global
 
-                FunFormalArg(declSpecs, variable.Name)
-            )
+                    FunFormalArg(declSpecs, variable.Name)
+                )
+    }
 
-    override this.BuildFunction(args, body, _) =
+    override this.BuildFunction(args, body) = translation {
         let retFunType = PrimitiveType Void :> Type<_>
         let declSpecs = DeclSpecifierPack(typeSpecifier = retFunType, funQualifier = Kernel)
-        FunDecl(declSpecs, var.Name, args, body) :> ITopDef<_>
+        return FunDecl(declSpecs, var.Name, args, body) :> ITopDef<_>
+    }
 
-type Function(var: Var, expr: Expr, context: TranslationContext<Lang,Statement<Lang>>) =
-    inherit Method(var, expr, context)
+type Function(var: Var, expr: Expr) =
+    inherit Method(var, expr)
 
-    override this.TranslateArgs(args, globalVars, localVars, context) =
-        args
-        |> List.map (fun variable ->
-            let vType = Type.translate variable.Type |> State.eval context
-            let declSpecs = DeclSpecifierPack(typeSpecifier = vType)
+    override this.TranslateArgs(args, globalVars, localVars) = translation {
+        let! context = State.get
 
-            if
-                vType :? RefType<_> &&
-                globalVars |> List.contains variable.Name
-            then
-                declSpecs.AddressSpaceQualifier <- Global
-            elif
-                vType :? RefType<_> &&
-                localVars |> List.contains variable.Name
-            then
-                declSpecs.AddressSpaceQualifier <- Local
-
-            FunFormalArg(declSpecs, variable.Name)
-        )
-
-    override this.BuildFunction(args, body, context) =
-        let retFunType = Type.translate var.Type |> State.eval context
-        let declSpecs = DeclSpecifierPack(typeSpecifier = retFunType)
-        let partAST =
-            match retFunType with
-            | :? PrimitiveType<Lang> as t when t.Type = Void -> body :> Statement<_>
-            | _ -> this.AddReturn(body)
-
-        FunDecl(declSpecs, var.Name, args, partAST) :> ITopDef<_>
-
-type AtomicFunc(var: Var, expr: Expr, qual: AddressSpaceQualifier<Lang>, context: TranslationContext<Lang,Statement<Lang>>) =
-    inherit Method(var, expr, context)
-
-    override this.TranslateArgs(args, globalVars, localVars, context) =
-        let firstNonMutexIdx =
+        return
             args
-            |> List.tryFindIndex (fun v -> not <| v.Name.EndsWith "Mutex")
-            |> Option.defaultValue 0
-
-        args
-        |> List.mapi
-            (fun i variable ->
+            |> List.map (fun variable ->
                 let vType = Type.translate variable.Type |> State.eval context
                 let declSpecs = DeclSpecifierPack(typeSpecifier = vType)
 
-                if i = firstNonMutexIdx then
-                    declSpecs.AddressSpaceQualifier <- qual
-                elif
+                if
                     vType :? RefType<_> &&
                     globalVars |> List.contains variable.Name
                 then
@@ -187,10 +167,62 @@ type AtomicFunc(var: Var, expr: Expr, qual: AddressSpaceQualifier<Lang>, context
 
                 FunFormalArg(declSpecs, variable.Name)
             )
+    }
 
-    override this.BuildFunction(args, body, context) =
+    override this.BuildFunction(args, body) = translation {
+        let! context = State.get
+
+        let retFunType = Type.translate var.Type |> State.eval context
+        let declSpecs = DeclSpecifierPack(typeSpecifier = retFunType)
+        let partAST =
+            match retFunType with
+            | :? PrimitiveType<Lang> as t when t.Type = Void -> body :> Statement<_>
+            | _ -> this.AddReturn(body)
+
+        return FunDecl(declSpecs, var.Name, args, partAST) :> ITopDef<_>
+    }
+
+type AtomicFunc(var: Var, expr: Expr, qual: AddressSpaceQualifier<Lang>) =
+    inherit Method(var, expr)
+
+    override this.TranslateArgs(args, globalVars, localVars) = translation {
+        let! context = State.get
+
+        let firstNonMutexIdx =
+            args
+            |> List.tryFindIndex (fun v -> not <| v.Name.EndsWith "Mutex")
+            |> Option.defaultValue 0
+
+        return
+            args
+            |> List.mapi
+                (fun i variable ->
+                    let vType = Type.translate variable.Type |> State.eval context
+                    let declSpecs = DeclSpecifierPack(typeSpecifier = vType)
+
+                    if i = firstNonMutexIdx then
+                        declSpecs.AddressSpaceQualifier <- qual
+                    elif
+                        vType :? RefType<_> &&
+                        globalVars |> List.contains variable.Name
+                    then
+                        declSpecs.AddressSpaceQualifier <- Global
+                    elif
+                        vType :? RefType<_> &&
+                        localVars |> List.contains variable.Name
+                    then
+                        declSpecs.AddressSpaceQualifier <- Local
+
+                    FunFormalArg(declSpecs, variable.Name)
+                )
+    }
+
+    override this.BuildFunction(args, body) = translation {
+        let! context = State.get
+
         let retFunType = Type.translate var.Type |> State.eval context
         let declSpecs = DeclSpecifierPack(typeSpecifier = retFunType)
         let partAST = this.AddReturn body
 
-        FunDecl(declSpecs, var.Name, args, partAST) :> ITopDef<_>
+        return FunDecl(declSpecs, var.Name, args, partAST) :> ITopDef<_>
+    }
