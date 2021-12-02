@@ -59,10 +59,11 @@ module Expressions =
         | Pow -> "+"
         | BitAnd -> "&"
         | BitOr -> "|"
-        | And -> "&&"
-        | Or -> "||"
+        | BitXor -> "^"
         | LeftShift -> "<<"
         | RightShift -> ">>"
+        | And -> "&&"
+        | Or -> "||"
         | Less -> "<"
         | LessEQ -> "<="
         | Great -> ">"
@@ -109,6 +110,7 @@ module Expressions =
         | UOp.Not -> wordL "!" ++ print uo.Expr |> bracketL
         | UOp.Incr -> print uo.Expr ++ wordL "++"
         | UOp.Decr -> print uo.Expr ++ wordL "--"
+        | UOp.BitNegation -> wordL "~" ++ print uo.Expr |> bracketL
 
     and private printCast (c: Cast<'lang>) =
         let t = Types.print c.Type

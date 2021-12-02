@@ -49,7 +49,6 @@ type Method(var: Var, expr: Expr) =
             | _ -> failwithf "Incorrect function body: %A" newBody
     }
 
-
     abstract TranslateArgs : Var list * string list * string list -> State<TargetContext, FunFormalArg<Lang> list>
 
     abstract BuildFunction : FunFormalArg<Lang> list * StatementBlock<Lang> -> State<TargetContext, ITopDef<Lang>>
@@ -100,7 +99,6 @@ type Method(var: Var, expr: Expr) =
 
         | _ -> return failwithf "Incorrect OpenCL quotation: %A" expr
     }
-
 
     override this.ToString() =
         sprintf "%A\n%A" var expr

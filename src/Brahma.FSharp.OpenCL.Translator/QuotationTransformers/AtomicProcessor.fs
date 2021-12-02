@@ -192,8 +192,8 @@ module AtomicProcessor =
 
                 let baseFuncBody =
                     match lambdaBody with
-                    | DerivedPatterns.SpecificCall <@ inc @> (_, onType :: _, _) ->
-                        failwithf "Atomic inc for %O is not suppotred" onType
+                    // | DerivedPatterns.SpecificCall <@ inc @> (_, onType :: _, _) ->
+                    //     failwithf "Atomic inc for %O is not suppotred" onType
 
                     | DerivedPatterns.SpecificCall <@ dec @> (_, onType :: _, _) ->
                         failwithf "Atomic inc for %O is not suppotred" onType

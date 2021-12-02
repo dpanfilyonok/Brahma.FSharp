@@ -31,6 +31,23 @@ module rec Body =
     let private clearContext (targetContext: TranslationContext<'a, 'b>) =
         { targetContext with VarDecls = ResizeArray() }
 
+    let toStb (s: Node<_>) = translation {
+        match s with
+        | :? StatementBlock<_> as s ->
+            return s
+        | x -> return StatementBlock <| ResizeArray [x :?> Statement<_>]
+    }
+
+    let private itemHelper exprs hostVar = translation {
+        let! idx = translation {
+            match exprs with
+            | hd :: _ -> return! translateAsExpr hd
+            | [] -> return raise <| InvalidKernelException("Array index missed!")
+        }
+
+        return idx, hostVar
+    }
+
     let private translateBinding (var: Var) newName (expr: Expr) = translation {
         let! body = translateCond (*TranslateAsExpr*) expr
         let! varType = translation {
@@ -75,6 +92,8 @@ module rec Body =
         | "op_modulus" -> return Binop(Remainder, args.[0], args.[1]) :> Statement<_>
         | "op_bitwiseand" -> return Binop(BitAnd, args.[0], args.[1]) :> Statement<_>
         | "op_bitwiseor" -> return Binop(BitOr, args.[0], args.[1]) :> Statement<_>
+        | "op_exclusiveor" -> return Binop(BitXor, args.[0], args.[1]) :> Statement<_>
+        | "op_logicalnot" -> return Unop(UOp.BitNegation, args.[0]) :> Statement<_>
         | "op_leftshift" -> return Binop(LeftShift, args.[0], args.[1]) :> Statement<_>
         | "op_rightshift" -> return Binop(RightShift, args.[0], args.[1]) :> Statement<_>
         | "op_booleanand" ->
@@ -89,6 +108,7 @@ module rec Body =
                 return Binop(Or, args.[0], args.[1]) :> Statement<_>
             else
                 return Binop(BitOr, args.[0], args.[1]) :> Statement<_>
+        | "not" -> return Unop(UOp.Not, args.[0]) :> Statement<_>
         | "atomicadd" ->
             do! State.modify (fun context -> context.Flags.enableAtomic <- true; context)
             return FunCall("atom_add", [args.[0]; args.[1]]) :> Statement<_>
@@ -177,8 +197,6 @@ module rec Body =
         | "setarray" ->
             return Assignment(Property(PropertyType.Item(Item(args.[0], args.[1]))), args.[2]) :> Statement<_>
         | "getarray" -> return Item(args.[0], args.[1]) :> Statement<_>
-        | "not" -> return Unop(UOp.Not, args.[0]) :> Statement<_>
-        | "_byte" -> return args.[0] :> Statement<_>
         | "barrierlocal" -> return Barrier(MemFence.Local) :> Statement<_>
         | "barrierglobal" -> return Barrier(MemFence.Global) :> Statement<_>
         | "barrierfull" -> return Barrier(MemFence.Both) :> Statement<_>
@@ -192,20 +210,7 @@ module rec Body =
             return ZeroArray length :> Statement<_>
         | "fst" -> return FieldGet(args.[0], "_1") :> Statement<_>
         | "snd" -> return FieldGet(args.[0], "_2") :> Statement<_>
-        | "first" -> return FieldGet(args.[0], "_1") :> Statement<_>
-        | "second" -> return FieldGet(args.[0], "_2") :> Statement<_>
-        | "third" -> return FieldGet(args.[0], "_3") :> Statement<_>
         | other -> return raise <| InvalidKernelException(sprintf "Unsupported call: %s" other)
-    }
-
-    let private itemHelper exprs hostVar = translation {
-        let! idx = translation {
-            match exprs with
-            | hd :: _ -> return! translateAsExpr hd
-            | [] -> return raise <| InvalidKernelException("Array index missed!")
-        }
-
-        return idx, hostVar
     }
 
     let private translateSpecificPropGet expr propName exprs = translation {
@@ -297,14 +302,9 @@ module rec Body =
         return translated :?> Expression<_>
     }
 
-    let getVar (clVarName: string) =  translation {
-        return Variable clVarName
-    }
-
     let translateVar (var: Var) = translation {
-        //getVar var.Name targetContext
         match! State.gets (fun context -> context.Namer.GetCLVarName var.Name) with
-        | Some varName -> return! getVar varName
+        | Some varName -> return Variable varName
         | None ->
             return raise <| InvalidKernelException(
                 sprintf
@@ -371,13 +371,6 @@ module rec Body =
         | _ -> return! translateAsExpr cond
     }
 
-    let toStb (s: Node<_>) = translation {
-        match s with
-        | :? StatementBlock<_> as s ->
-            return s
-        | x -> return StatementBlock <| ResizeArray [x :?> Statement<_>]
-    }
-
     let translateIf (cond: Expr) (thenBranch: Expr) (elseBranch: Expr) = translation {
         let! if' = translateCond cond
         let! then' = translate thenBranch >>= toStb |> State.using clearContext
@@ -397,7 +390,7 @@ module rec Body =
     // TODO refac
     let translateForIntegerRangeLoop (i: Var) (from': Expr) (to': Expr) (loopBody: Expr) = translation {
         let! iName = State.gets (fun context -> context.Namer.LetStart i.Name)
-        let! v = getVar iName
+        let v = Variable iName
         let! var = translateBinding i iName from'
         let! condExpr = translateAsExpr to'
         do! State.modify (fun context -> context.Namer.LetIn i.Name; context)
@@ -521,6 +514,66 @@ module rec Body =
             )
     }
 
+    let private translateLet (var: Var) expr inExpr = translation {
+        let! bName = State.gets (fun context -> context.Namer.LetStart var.Name)
+
+        let! vDecl = translation {
+            match expr with
+            | DerivedPatterns.SpecificCall <@@ local @@> (_, _, _) ->
+                let! vType = Type.translate var.Type
+                return VarDecl(vType, bName, None, spaceModifier = Local)
+            | DerivedPatterns.SpecificCall <@@ localArray @@> (_, _, [arg]) ->
+                let! expr = translateCond arg
+                let arrayLength =
+                    match expr with
+                    | :? Const<Lang> as c -> int c.Val
+                    | other -> raise <| InvalidKernelException(sprintf "Calling localArray with a non-const argument %A" other)
+                let! arrayType = Type.translate var.Type |> State.using (fun ctx -> { ctx with ArrayKind = CArrayDecl arrayLength })
+                return VarDecl(arrayType, bName, None, spaceModifier = Local)
+            | Patterns.DefaultValue _ ->
+                let! vType = Type.translate var.Type
+                return VarDecl(vType, bName, None)
+            | _ -> return! translateBinding var bName expr
+        }
+
+        do! State.modify (fun context -> context.VarDecls.Add vDecl; context)
+        do! State.modify (fun context -> context.Namer.LetIn var.Name; context)
+
+        let! sb = State.gets (fun context -> context.VarDecls)
+        let! res = translate inExpr |> State.using clearContext
+
+        match res with
+        | :? StatementBlock<Lang> as s -> sb.AddRange s.Statements
+        | _ -> sb.Add(res :?> Statement<_>)
+
+        do! State.modify (fun context -> context.Namer.LetOut(); context)
+
+        return StatementBlock sb :> Node<_>
+    }
+
+    let private translateProvidedCall expr = translation {
+        let rec traverse expr args = translation {
+            match expr with
+            | Patterns.Value (calledName, sType) ->
+                match sType.Name.ToLowerInvariant() with
+                | "string" -> return (calledName :?> string), args
+                | _ -> return raise <| TranslationFailedException(sprintf "Failed to parse provided call, expected string call name: %O" expr)
+            | Patterns.Sequential (expr1, expr2) ->
+                let! updatedArgs = translation {
+                    match expr2 with
+                    | Patterns.Value (null, _) -> return args // the last item in the sequence is null
+                    | _ ->
+                        let! a = translateAsExpr expr2
+                        return a :: args
+                }
+                return! traverse expr1 updatedArgs
+            | _ -> return raise <| TranslationFailedException(sprintf "Failed to parse provided call: %O" expr)
+        }
+
+        let! m = traverse expr []
+        return FunCall m :> Node<_>
+    }
+
     let translate expr = translation {
         match expr with
         | Patterns.AddressOf expr -> return raise <| InvalidKernelException(sprintf "AdressOf is not suported: %O" expr)
@@ -553,6 +606,15 @@ module rec Body =
             ) ->
             return! translate expr
 
+        // | DerivedPatterns.SpecificCall <@ unbox @>
+        //     (
+        //         _,
+        //         _,
+        //         [Patterns.Value (boxed, type')]
+        //     ) ->
+        //     let! r = translateValue (Expr.Value <| unbox boxed) type'
+        //     return r :> Node<_>
+
         | Patterns.Call (exprOpt, mInfo, args) ->
             let! r = translateCall exprOpt mInfo args
             return r :> Node<_>
@@ -574,11 +636,11 @@ module rec Body =
             let! r = translateForIntegerRangeLoop i from _to _do
             return r :> Node<_>
         | Patterns.IfThenElse (cond, thenExpr, elseExpr) ->
-            let! r = translateIf cond thenExpr elseExpr
-            return r :> Node<_>
-        | Patterns.Lambda (var, _expr) ->
-            // translateLambda var expr targetContext
-            return raise <| InvalidKernelException(sprintf "Lambda is not suported: %A" expr)
+            return!
+                translateIf cond thenExpr elseExpr
+                |> State.map (fun x -> x :> Node<_>)
+
+        | Patterns.Lambda (var, _expr) ->  return raise <| InvalidKernelException(sprintf "Lambda is not suported: %A" expr)
         | Patterns.Let (var, expr, inExpr) ->
             match var.Name with
             | "___providedCallInfo" -> return! translateProvidedCall expr
@@ -656,12 +718,12 @@ module rec Body =
             let tagExpr = Const(unionDecl.Tag.Type, string unionCaseInfo.Tag) :> Expression<_>
 
             return Binop(BOp.EQ, unionGetTagExpr, tagExpr) :> Node<_>
-        | Patterns.ValueWithName (_obj, sType, name) ->
+        | Patterns.ValueWithName (obj', sType, name) ->
             let! context = State.get
             // Here is the only use of TranslationContext.InLocal
             if sType.ToString().EndsWith "[]" (*&& not context.InLocal*) then
                 context.Namer.AddVar name
-                let! res = translateValue _obj sType
+                let! res = translateValue obj' sType
                 context.TopLevelVarsDecls.Add(
                     VarDecl(res.Type, name, Some(res :> Expression<_>), AddressSpaceQualifier.Constant)
                 )
@@ -669,10 +731,13 @@ module rec Body =
                 let! res = translateVar var
                 return res :> Node<_>
             else
-                let! res = translateValue _obj sType
+                let! res = translateValue obj' sType
                 return res :> Node<_>
-        | Patterns.Value (_obj, sType) ->
-            let! res = translateValue _obj sType
+        | Patterns.Value (obj', sType) ->
+            // если оборачиваем бокс значение в валью, то тип будет obj
+            //  вот если у нас <@ unbox<int> (box 6) @> то тип такого выражения int, хотя box 6 все еще 6, так что хзкак это делать
+            //printfn "%A" sType
+            let! res = translateValue obj' sType
             return res :> Node<_>
         | Patterns.Var var ->
             let! res = translateVar var
@@ -684,64 +749,4 @@ module rec Body =
             let! r = translateWhileLoop condExpr bodyExpr
             return r :> Node<_>
         | _ -> return raise <| InvalidKernelException(sprintf "Folowing expression inside kernel is not supported:\n%O" expr)
-    }
-
-    let private translateLet var expr inExpr = translation {
-        let! bName = State.gets (fun context -> context.Namer.LetStart var.Name)
-
-        let! vDecl = translation {
-            match expr with
-            | DerivedPatterns.SpecificCall <@@ local @@> (_, _, _) ->
-                let! vType = Type.translate var.Type
-                return VarDecl(vType, bName, None, spaceModifier = Local)
-            | DerivedPatterns.SpecificCall <@@ localArray @@> (_, _, [arg]) ->
-                let! expr = translateCond arg
-                let arrayLength =
-                    match expr with
-                    | :? Const<Lang> as c -> int c.Val
-                    | other -> raise <| InvalidKernelException(sprintf "Calling localArray with a non-const argument %A" other)
-                let! arrayType = Type.translate var.Type |> State.using (fun ctx -> { ctx with ArrayKind = CArrayDecl arrayLength })
-                return VarDecl(arrayType, bName, None, spaceModifier = Local)
-            | Patterns.DefaultValue _ ->
-                let! vType = Type.translate var.Type
-                return VarDecl(vType, bName, None)
-            | _ -> return! translateBinding var bName expr
-        }
-
-        do! State.modify (fun context -> context.VarDecls.Add vDecl; context)
-        do! State.modify (fun context -> context.Namer.LetIn var.Name; context)
-
-        let! sb = State.gets (fun context -> context.VarDecls)
-        let! res = translate inExpr |> State.using clearContext
-
-        match res with
-        | :? StatementBlock<Lang> as s -> sb.AddRange s.Statements
-        | _ -> sb.Add(res :?> Statement<_>)
-
-        do! State.modify (fun context -> context.Namer.LetOut(); context)
-
-        return StatementBlock sb :> Node<_>
-    }
-
-    let private translateProvidedCall expr = translation {
-        let rec traverse expr args = translation {
-            match expr with
-            | Patterns.Value (calledName, sType) ->
-                match sType.Name.ToLowerInvariant() with
-                | "string" -> return (calledName :?> string), args
-                | _ -> return raise <| TranslationFailedException(sprintf "Failed to parse provided call, expected string call name: %O" expr)
-            | Patterns.Sequential (expr1, expr2) ->
-                let! updatedArgs = translation {
-                    match expr2 with
-                    | Patterns.Value (null, _) -> return args // the last item in the sequence is null
-                    | _ ->
-                        let! a = translateAsExpr expr2
-                        return a :: args
-                }
-                return! traverse expr1 updatedArgs
-            | _ -> return raise <| TranslationFailedException(sprintf "Failed to parse provided call: %O" expr)
-        }
-
-        let! m = traverse expr []
-        return FunCall m :> Node<_>
     }

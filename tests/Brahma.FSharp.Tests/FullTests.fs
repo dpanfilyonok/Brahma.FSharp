@@ -9,31 +9,7 @@ open Expecto.Logging.Message
 
 let logger = Log.create "FullTests"
 
-[<Struct>]
-type TestStruct =
-    val mutable x: int
-    val mutable y: float
-    new(x, y) = { x = x; y = y }
-
-let defaultInArrayLength = 4
-let intInArr = [| 0 .. defaultInArrayLength - 1 |]
-let float32Arr = Array.init defaultInArrayLength float32
-let default1D = Range1D(defaultInArrayLength, 1)
-let default2D = Range2D(defaultInArrayLength, 1)
-
-let checkResult command (inArr: 'a[]) (expectedArr: 'a[]) =
-    let actual =
-        opencl {
-            use! inBuf = ClArray.toDevice inArr
-            do! runCommand command <| fun x ->
-                x default1D inBuf
-
-            return! ClArray.toHost inBuf
-        }
-        |> ClTask.runSync context
-
-    Expect.sequenceEqual actual expectedArr "Arrays should be equals"
-
+// test of clCell clArray
 let dataStructuresApiTests = testList "Check correctness of data structures api" [
     testCase "Array item set" <| fun _ ->
         let command =
@@ -335,7 +311,6 @@ let typeCastingTests =
                 checkResult command [|0uy; 255uy; 254uy|] [|1uy; 0uy; 255uy|]
         ]
 
-
 let bindingTests =
     testList "Bindings tests"
         [
@@ -399,13 +374,13 @@ let bindingTests =
         ]
 
 let operatorsAndMathFunctionsTests =
-    let testOpGen testCase
-        (name: string)
+    let binaryOpTestGen testCase name
         (binop: Expr<'a -> 'a -> 'a>)
         (xs: array<'a>)
         (ys: array<'a>)
         (expected: array<'a>) =
-        testCase name <| fun _ ->
+
+        testCase name <| fun () ->
             let command =
                 <@
                     fun (range:  Range1D) (xs: ClArray<'a>) (ys: ClArray<'a>) (zs: ClArray<'a>) ->
@@ -431,71 +406,89 @@ let operatorsAndMathFunctionsTests =
 
             Expect.sequenceEqual actual expected ":("
 
-    testList "Operators and math functions tests"
-        [
-            testOpGen testCase "Boolean or 1." <@ (||) @>
-                [|true; false; false; false|]
-                [|false; true; true; true|]
-                [|true; true; true; true|]
+    let unaryOpTestGen testCase name
+        (unop: Expr<'a -> 'a>)
+        (xs: array<'a>)
+        (expected: array<'a>) =
 
-            testOpGen testCase "Boolean or 2." <@ (||) @>
-                [|true; false|]
-                [|false; true|]
-                [|true; true|]
-
-            testOpGen testCase "Boolean and 1." <@ (&&) @>
-                [|true; false; false; false|]
-                [|true; false; true; true|]
-                [|true; false; false; false|]
-
-            testOpGen testCase "Binop plus 1." <@ (+) @>
-                [|1; 2; 3; 4|]
-                [|5; 6; 7; 8|]
-                [|6; 8; 10; 12|]
-
-            // Failed: due to precision
-            ptestCase "Math sin." <| fun _ ->
-                let command =
-                    <@
-                        fun (range: Range1D) (buf: ClArray<float>) ->
-                            let i = range.GlobalID0
-                            buf.[i] <- System.Math.Sin (float buf.[i])
-                    @>
-
-                let inA = [|0.0; 1.0; 2.0; 3.0|]
-                checkResult command inA (inA |> Array.map System.Math.Sin)  //[|0.0; 0.841471; 0.9092974; 0.14112|]
-        ]
-
-let pipeTests =
-    testList "Pipe tests" [
-        // Lambda is not supported.
-        ptestCase "Forward pipe." <| fun _ ->
+        testCase name <| fun () ->
             let command =
                 <@
-                    fun (range: Range1D) (buf: ClArray<int>) ->
-                        buf.[0] <- (1.25f |> int)
+                    fun (range:  Range1D) (xs: ClArray<'a>) (zs: ClArray<'a>) ->
+                        let i = range.GlobalID0
+                        zs.[i] <- (%unop) xs.[i]
                 @>
-            checkResult command intInArr [|1; 1; 2; 3|]
 
-        // Lambda is not supported.
-        ptestCase "Backward pipe." <| fun _ ->
+            let range = Range1D <| Array.length expected
+            let zs = Array.zeroCreate <| Array.length expected
+
+            let actual =
+                opencl {
+                    use! inBufXs = ClArray.toDevice xs
+                    use! outBuf = ClArray.toDevice zs
+
+                    do! runCommand command <| fun x ->
+                        x range inBufXs outBuf
+
+                    return! ClArray.toHost outBuf
+                }
+                |> ClTask.runSync context
+
+            Expect.sequenceEqual actual expected ":("
+
+    testList "Operators and math functions tests" [
+        binaryOpTestGen testCase "Boolean OR" <@ (||) @>
+            [|true; false; false; true|]
+            [|false; true; false; true|]
+            [|true; true; false; true|]
+
+        binaryOpTestGen testCase "Boolean AND" <@ (&&) @>
+            [|true; false; false; true|]
+            [|false; true; false; true|]
+            [|false; false; false; true|]
+
+        binaryOpTestGen testCase "Bitwise OR on int" <@ (|||) @>
+            [|1; 0; 0; 1|]
+            [|0; 1; 0; 1|]
+            [|1; 1; 0; 1|]
+
+        binaryOpTestGen testCase "Bitwise AND on int" <@ (&&&) @>
+            [|1; 0; 0; 1|]
+            [|0; 1; 0; 1|]
+            [|0; 0; 0; 1|]
+
+        binaryOpTestGen testCase "Bitwise XOR on int" <@ (^^^) @>
+            [|1; 0; 0; 1|]
+            [|0; 1; 0; 1|]
+            [|1; 1; 0; 0|]
+
+        binaryOpTestGen testCase "Arithmetic PLUS on int" <@ (+) @>
+            [|1; 2; 3; 4|]
+            [|5; 6; 7; 8|]
+            [|6; 8; 10; 12|]
+
+        unaryOpTestGen testCase "Bitwise NEGATION on int" <@ (~~~) @>
+            <|| (
+                [|1; 10; 99; 0|]
+                |> (fun array -> array, array |> Array.map (fun x -> - x - 1))
+            )
+
+        // Failed: due to precision
+        ptestCase "Math sin." <| fun _ ->
             let command =
                 <@
-                    fun (range: Range1D) (buf: ClArray<int>) ->
-                        buf.[0] <- int <| 1.25f + 2.34f
+                    fun (range: Range1D) (buf: ClArray<float>) ->
+                        let i = range.GlobalID0
+                        buf.[i] <- System.Math.Sin (float buf.[i])
                 @>
-            checkResult command intInArr [|3; 1; 2; 3|]
 
-        ptestCase "Check simple '|> ignore'" <| fun () ->
-        let command =
-            <@
-                fun (range:  Range1D) (buffer: ClArray<int>) ->
-                    let gid = range.GlobalID0
-                    atomic inc buffer.[gid] |> ignore
-            @>
+            let inA = [|0.0; 1.0; 2.0; 3.0|]
+            checkResult command inA (inA |> Array.map System.Math.Sin)  //[|0.0; 0.841471; 0.9092974; 0.14112|]
+    ]
 
-        checkResult command intInArr (intInArr |> Array.map ((+) 1))
-]
+// let pipeTests =
+
+// ]
 
 let controlFlowTests =
     testList "Control flow tests" [
@@ -675,11 +668,8 @@ let kernelArgumentsTests =
                 res
 
             let actual =
-                Array.init n (fun _ ->
-                        let q = context.CommandQueue
-                        q.Error.Add (fun e -> printfn "%A" e)
-                        q)
-                |> Array.mapi (fun i q -> async {return allocOnGPU q allocator})
+                Array.init n (fun _ -> context.WithNewCommandQueue().CommandQueue)
+                |> Array.map (fun q -> async { return allocOnGPU q allocator })
                 |> Async.Parallel
                 |> Async.RunSynchronously
 
@@ -1197,58 +1187,6 @@ let letQuotationTransformerSystemTests =
             checkResult command intInArr [|34; 34; 34; 34|]
     ]
 
-let structTests =
-    ptestList "Struct tests" [
-        testCase "Simple seq of struct." <| fun _ ->
-            let command =
-                <@
-                    fun (range: Range1D) (buf:  ClArray<TestStruct>) ->
-                        if range.GlobalID0 = 0 then
-                            let b = buf.[0]
-                            buf.[0] <- buf.[1]
-                            buf.[1] <- b
-                @>
-
-            checkResult command [|TestStruct(1, 2.0); TestStruct(3, 4.0)|] [|TestStruct(3, 4.0); TestStruct(1, 2.0)|]
-
-        ptestCase "Simple seq of struct changes." <| fun _ ->
-            let command =
-                <@
-                    fun (range: Range1D) (buf:  ClArray<TestStruct>) ->
-                        buf.[0] <- TestStruct(5, 6.0)
-                @>
-
-            checkResult command [|TestStruct(1, 2.0); TestStruct(3, 4.0)|]
-                                [|TestStruct(5, 6.0); TestStruct(3, 4.0)|]
-
-        testCase "Simple seq of struct prop set" <| fun _ ->
-            let command =
-                <@
-                    fun (range: Range1D) (buf:  ClArray<TestStruct>) ->
-                        let mutable y = buf.[0]
-                        y.x <- 5
-                        buf.[0] <- y
-                @>
-
-            checkResult command [|TestStruct(1, 2.0)|] [|TestStruct(5, 2.0)|]
-
-        ptestCase "Simple seq of struct prop get." <| fun _ ->
-            let command =
-                <@
-                    fun (range: Range1D) (buf:  ClArray<TestStruct>) ->
-                        if range.GlobalID0 = 0
-                        then
-                            let mutable y = buf.[0]
-                            y.x <- y.x + 3
-                            buf.[0] <- y
-                @>
-
-            checkResult command [|TestStruct(1, 2.0); TestStruct(3, 4.0)|]
-                                [|TestStruct(4, 2.0); TestStruct(3, 4.0)|]
-
-        testCase "Nested structs 1." <| fun _ -> ()
-    ]
-
 let commonApiTests = testList "Common Api Tests" [
     // TODO is it correct?
     ptestCase "Using atomic in lambda should not raise exception if first parameter passed" <| fun () ->
@@ -1273,6 +1211,34 @@ let commonApiTests = testList "Common Api Tests" [
         Expect.throwsT<System.ArgumentException>
         <| fun () -> Utils.openclTranslate command |> ignore
         <| "Exception should be thrown"
+
+    testCase "Check simple '|> ignore'" <| fun () ->
+        let command =
+            <@
+                fun (range:  Range1D) (buffer: ClArray<int>) ->
+                    let gid = range.GlobalID0
+                    atomic inc buffer.[gid] |> ignore
+            @>
+
+        checkResult command intInArr (intInArr |> Array.map ((+) 1))
+
+    // Lambda is not supported.
+    ptestCase "Forward pipe." <| fun _ ->
+        let command =
+            <@
+                fun (range: Range1D) (buf: ClArray<int>) ->
+                    buf.[0] <- (1.25f |> int)
+            @>
+        checkResult command intInArr [|1; 1; 2; 3|]
+
+    // Lambda is not supported.
+    ptestCase "Backward pipe." <| fun _ ->
+        let command =
+            <@
+                fun (range: Range1D) (buf: ClArray<int>) ->
+                    buf.[0] <- int <| 1.25f + 2.34f
+            @>
+        checkResult command intInArr [|3; 1; 2; 3|]
 ]
 
 let booleanTests = testList "Boolean Tests" [
@@ -1614,12 +1580,10 @@ let tests =
         typeCastingTests
         bindingTests
         operatorsAndMathFunctionsTests
-        pipeTests
         controlFlowTests
         kernelArgumentsTests
         quotationInjectionTests
         localMemTests
-        structTests
         booleanTests
         parallelExecutionTests
         simpleDUTests

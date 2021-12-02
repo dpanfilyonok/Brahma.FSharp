@@ -14,6 +14,25 @@ module Common =
         let platformName = ClPlatform.Any
         ClContext(platformName, deviceType)
 
+    let defaultInArrayLength = 4
+    let intInArr = [| 0 .. defaultInArrayLength - 1 |]
+    let float32Arr = Array.init defaultInArrayLength float32
+    let default1D = Range1D(defaultInArrayLength, 1)
+    let default2D = Range2D(defaultInArrayLength, 1)
+
+    let checkResult command (inArr: 'a[]) (expectedArr: 'a[]) =
+        let actual =
+            opencl {
+                use! inBuf = ClArray.toDevice inArr
+                do! runCommand command <| fun x ->
+                    x default1D inBuf
+
+                return! ClArray.toHost inBuf
+            }
+            |> ClTask.runSync context
+
+        Expect.sequenceEqual actual expectedArr "Arrays should be equals"
+
 module CustomDatatypes =
     [<Struct>]
     type WrappedInt =

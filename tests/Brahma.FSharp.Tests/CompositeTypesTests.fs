@@ -131,6 +131,63 @@ let recordTestCases = testList "Record tests" [
         if data.Length <> 0 then check data (fun length -> <@ fun (range: Range1D) (buffer: ClArray<_>) -> (%command length) range.GlobalID0 buffer @>)
 ]
 
+[<Struct>]
+type TestStruct =
+    val mutable x: int
+    val mutable y: float
+    new(x, y) = { x = x; y = y }
+
+let structTests = ptestList "Struct tests" [
+    testCase "Simple seq of struct." <| fun _ ->
+        let command =
+            <@
+                fun (range: Range1D) (buf:  ClArray<TestStruct>) ->
+                    if range.GlobalID0 = 0 then
+                        let b = buf.[0]
+                        buf.[0] <- buf.[1]
+                        buf.[1] <- b
+            @>
+
+        checkResult command [|TestStruct(1, 2.0); TestStruct(3, 4.0)|] [|TestStruct(3, 4.0); TestStruct(1, 2.0)|]
+
+    ptestCase "Simple seq of struct changes." <| fun _ ->
+        let command =
+            <@
+                fun (range: Range1D) (buf:  ClArray<TestStruct>) ->
+                    buf.[0] <- TestStruct(5, 6.0)
+            @>
+
+        checkResult command [|TestStruct(1, 2.0); TestStruct(3, 4.0)|]
+                            [|TestStruct(5, 6.0); TestStruct(3, 4.0)|]
+
+    testCase "Simple seq of struct prop set" <| fun _ ->
+        let command =
+            <@
+                fun (range: Range1D) (buf:  ClArray<TestStruct>) ->
+                    let mutable y = buf.[0]
+                    y.x <- 5
+                    buf.[0] <- y
+            @>
+
+        checkResult command [|TestStruct(1, 2.0)|] [|TestStruct(5, 2.0)|]
+
+    ptestCase "Simple seq of struct prop get." <| fun _ ->
+        let command =
+            <@
+                fun (range: Range1D) (buf:  ClArray<TestStruct>) ->
+                    if range.GlobalID0 = 0
+                    then
+                        let mutable y = buf.[0]
+                        y.x <- y.x + 3
+                        buf.[0] <- y
+            @>
+
+        checkResult command [|TestStruct(1, 2.0); TestStruct(3, 4.0)|]
+                            [|TestStruct(4, 2.0); TestStruct(3, 4.0)|]
+
+    testCase "Nested structs 1." <| fun _ -> ()
+]
+
 let tests =
     testList "Tests on composite types" [
         tupleTestCases
