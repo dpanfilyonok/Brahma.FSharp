@@ -77,7 +77,7 @@ type ForIntegerLoop<'lang>
     (
         var: VarDecl<'lang>,
         cond: Expression<'lang>,
-        countModifier: Expression<'lang>,
+        countModifier: Statement<'lang>,
         body: StatementBlock<'lang>
     ) =
 

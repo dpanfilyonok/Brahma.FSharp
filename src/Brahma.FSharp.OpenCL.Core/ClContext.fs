@@ -35,6 +35,7 @@ type ClDeviceType =
         | GPU -> DeviceType.Gpu
         | Default -> DeviceType.Default
 
+// TODO redesign
 module internal Device =
     open System.Text.RegularExpressions
 

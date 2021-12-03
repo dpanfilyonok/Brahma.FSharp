@@ -81,7 +81,7 @@ type Method(var: Var, expr: Expr) =
 
     abstract Translate : string list * string list -> State<TargetContext, ITopDef<Lang> list>
     default this.Translate(globalVars, localVars) = translation {
-        do! State.modify (fun context -> context.Copy())
+        do! State.modify (fun context -> context.WithNewLocalContext())
 
         match expr with
         | DerivedPatterns.Lambdas (args, body) ->

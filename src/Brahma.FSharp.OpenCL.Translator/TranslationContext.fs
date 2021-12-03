@@ -64,10 +64,11 @@ type TranslationContext<'lang, 'vDecl> =
             TranslatorOptions = translatorOptions |> Array.toList
         }
 
-    member this.Copy() =
+    member this.WithNewLocalContext() =
         { this with
             VarDecls = ResizeArray()
             Namer = Namer()
+            ArrayKind = CPointer
         }
 
 type TargetContext = TranslationContext<Lang, Statement<Lang>>

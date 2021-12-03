@@ -83,7 +83,14 @@ module ClTask =
         context.CommandQueue.PostAndReply <| MsgNotifyMe
         res
 
-    // TODO maybe switсh to manual threads
+    // TODO implement
+    // let startSync (ClTask f) =
+    //     let context = Device.getFirstAppropriateDevice
+    //     let res = f context
+    //     context.CommandQueue.PostAndReply <| MsgNotifyMe
+    //     res
+
+    // NOTE maybe switсh to manual threads
     // TODO check if it is really parallel
     let inParallel (tasks: seq<ClTask<'a>>) = opencl {
         let! ctx = ask

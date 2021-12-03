@@ -4,6 +4,7 @@ open OpenCL.Net
 open Microsoft.FSharp.Quotations
 open FSharp.Quotations.Evaluator
 open Brahma.FSharp.OpenCL.Translator
+open Brahma.FSharp.OpenCL.Printer
 open System
 open System.Runtime.InteropServices
 open Brahma.FSharp.OpenCL.Shared
@@ -17,7 +18,7 @@ type ClProgram<'TRange, 'a when 'TRange :> INDRange>
 
     let (clCode, newLambda) =
         let (ast, newLambda) = clContext.Translator.Translate(srcLambda)
-        let code = Printer.AST.print ast
+        let code = AST.print ast
         code, newLambda
 
     let program =
@@ -145,7 +146,7 @@ type ClProgram<'TRange, 'a when 'TRange :> INDRange>
             | _ -> failwithf "Invalid kernel expression. Must be lambda, but given\n%O" newLambda
 
             |> fun kernelPrepare ->
-                <@ %%kernelPrepare: 'TRange -> 'a @>.Compile()
+                <@ %%kernelPrepare : 'TRange -> 'a @>.Compile()
 
         { new IKernel<'TRange, 'a> with
             member _.Kernel = kernel

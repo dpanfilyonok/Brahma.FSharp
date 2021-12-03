@@ -27,6 +27,6 @@ let main argv =
     // Utils.openclTranslate command
     // |> printfn "%A"
     // 0
+
     allTests
     |> runTestsWithCLIArgs [] argv
-

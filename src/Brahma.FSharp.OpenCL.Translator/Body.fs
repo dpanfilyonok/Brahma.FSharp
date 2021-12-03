@@ -22,11 +22,17 @@ open Microsoft.FSharp.Collections
 open FSharpx.Collections
 open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 open Brahma.FSharp.OpenCL
+open FSharp.Quotations.Evaluator
 
 // Translations restricts the generic parameter of the AST nodes to the type Lang
 #nowarn "64"
 
 module rec Body =
+    let (|Name|_|) (str: string) (var': Var) =
+        match var'.Name with
+        | tName when tName = str -> Some Name
+        | _ -> None
+
     // new var scope
     let private clearContext (targetContext: TranslationContext<'a, 'b>) =
         { targetContext with VarDecls = ResizeArray() }
@@ -387,18 +393,37 @@ module rec Body =
         return IfThenElse(if', then', else')
     }
 
-    // TODO refac
-    let translateForIntegerRangeLoop (i: Var) (from': Expr) (to': Expr) (loopBody: Expr) = translation {
-        let! iName = State.gets (fun context -> context.Namer.LetStart i.Name)
-        let v = Variable iName
-        let! var = translateBinding i iName from'
+    // NOTE reversed loops not supported
+    let translateForIntegerRangeLoop (loopVar: Var) (from': Expr) (to': Expr) (step: Expr option) (body: Expr) = translation {
+        let! loopVarName = State.gets (fun context -> context.Namer.LetStart loopVar.Name)
+        let loopVarType = loopVar.Type
+
+        let! loopVarBinding = translateBinding loopVar loopVarName from'
+
         let! condExpr = translateAsExpr to'
-        do! State.modify (fun context -> context.Namer.LetIn i.Name; context)
-        let! body = translate loopBody >>= toStb |> State.using clearContext
-        let cond = Binop(LessEQ, v, condExpr)
-        let condModifier = Unop(UOp.Incr, v)
+        let loopCond = Binop(LessEQ, Variable loopVarName, condExpr)
+
+        do! State.modify (fun context -> context.Namer.LetIn loopVar.Name; context)
+
+        let! loopVarModifier =
+            match step with
+            | Some step  ->
+                Expr.VarSet(
+                    loopVar,
+                    Expr.Call(
+                        Utils.makeGenericMethodCall [loopVarType; loopVarType; loopVarType] <@ (+) @>,
+                        [Expr.Var loopVar; step]
+                    )
+                )
+                |> translate
+                |> State.map (fun node -> node :?> Statement<_>)
+            | None -> translation { return Unop(UOp.Incr, Variable loopVarName) :> Statement<_> }
+
+        let! loopBody = translate body >>= toStb |> State.using clearContext
+
         do! State.modify (fun context -> context.Namer.LetOut(); context)
-        return ForIntegerLoop(var, cond, condModifier, body)
+
+        return ForIntegerLoop(loopVarBinding, loopCond, loopVarModifier, loopBody)
     }
 
     let translateWhileLoop condExpr bodyExpr = translation {
@@ -575,17 +600,21 @@ module rec Body =
     }
 
     let translate expr = translation {
+        let toNode (x: #Node<Lang>) = translation {
+            return x :> Node<_>
+        }
+
         match expr with
         | Patterns.AddressOf expr -> return raise <| InvalidKernelException(sprintf "AdressOf is not suported: %O" expr)
         | Patterns.AddressSet expr -> return raise <| InvalidKernelException(sprintf "AdressSet is not suported: %O" expr)
 
         | Patterns.Application (expr1, expr2) ->
-            let! (e, appling) = translateApplication expr1 expr2
-            if appling then
+            let! (e, applying) = translateApplication expr1 expr2
+            if applying then
                 return! translate e
             else
-                let! r = translateApplicationFun expr1 expr2
-                return r :> Node<_>
+                return! translateApplicationFun expr1 expr2 >>= toNode
+
 
         | DerivedPatterns.SpecificCall <@@ print @@> (_, _, args) ->
             match args with
@@ -606,6 +635,64 @@ module rec Body =
             ) ->
             return! translate expr
 
+        // TODO convert to active pattern?
+        // for loop with step
+        | Patterns.Let
+            (
+                Name "inputSequence",
+                DerivedPatterns.SpecificCall <@ (.. ..) @> (
+                    _,
+                    _,
+                    [start; step; finish]
+                ),
+                Patterns.Let (
+                    Name "enumerator",
+                    _,
+                    Patterns.TryFinally (
+                        Patterns.WhileLoop (
+                            _,
+                            Patterns.Let (
+                                loopVar,
+                                _,
+                                loopBody
+                            )
+                        ),
+                        _
+                    )
+                )
+            ) ->
+
+            let! r = translateForIntegerRangeLoop loopVar start finish (Some step) loopBody
+            return r :> Node<_>
+
+        | Patterns.Let
+            (
+                Name "inputSequence",
+                DerivedPatterns.SpecificCall <@ (..) @> (
+                    _,
+                    _,
+                    [start; finish]
+                ),
+                Patterns.Let (
+                    Name "enumerator",
+                    _,
+                    Patterns.TryFinally (
+                        Patterns.WhileLoop (
+                            _,
+                            Patterns.Let (
+                                loopVar,
+                                _,
+                                loopBody
+                            )
+                        ),
+                        _
+                    )
+                )
+            ) ->
+
+            let! r = translateForIntegerRangeLoop loopVar start finish (None) loopBody
+            return r :> Node<_>
+
         // | DerivedPatterns.SpecificCall <@ unbox @>
         //     (
         //         _,
@@ -622,9 +709,7 @@ module rec Body =
         | Patterns.DefaultValue sType -> return raise <| InvalidKernelException(sprintf "DefaulValue is not suported: %O" expr)
         | Patterns.FieldGet (exprOpt, fldInfo) ->
             match exprOpt with
-            | Some expr ->
-                let! r = translateStructFieldGet expr fldInfo.Name
-                return r :> Node<_>
+            | Some expr -> return! translateStructFieldGet expr fldInfo.Name >>= toNode
             | None -> return raise <| InvalidKernelException(sprintf "FieldGet for empty host is not suported. Field: %A" fldInfo.Name)
         | Patterns.FieldSet (exprOpt, fldInfo, expr) ->
             match exprOpt with
@@ -632,8 +717,8 @@ module rec Body =
                 let! r = translateFieldSet e fldInfo.Name expr
                 return r :> Node<_>
             | None -> return raise <| InvalidKernelException(sprintf "Fileld set with empty host is not supported. Field: %A" fldInfo)
-        | Patterns.ForIntegerRangeLoop (i, from, _to, _do) ->
-            let! r = translateForIntegerRangeLoop i from _to _do
+        | Patterns.ForIntegerRangeLoop (i, from', to', body) ->
+            let! r = translateForIntegerRangeLoop i from' to' None body
             return r :> Node<_>
         | Patterns.IfThenElse (cond, thenExpr, elseExpr) ->
             return!
@@ -656,8 +741,8 @@ module rec Body =
             // а если перегруженный конструктор? (отсальное нули)
             if context.UserDefinedTypes.Contains(constrInfo.DeclaringType) then
                 let! structInfo = State.gets (fun context -> context.StructDecls.[constrInfo.DeclaringType])
-                let cArgs = exprs |> List.map (fun x -> translation { return! translateAsExpr x })
-                let res = NewStruct<_>(structInfo, cArgs |> List.map (State.eval context))
+                let cArgs = exprs |> List.map (fun x -> translation { return! translateAsExpr x } |> State.eval context)
+                let res = NewStruct<_>(structInfo, cArgs)
                 return res :> Node<_>
             else
                 return raise <| InvalidKernelException(sprintf "NewObject is not suported: %O" expr)
