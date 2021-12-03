@@ -18,15 +18,5 @@ let allTests =
 
 [<EntryPoint>]
 let main argv =
-    // let command =
-    //     <@
-    //         fun (range: Range1D) (buf: float clarray) ->
-    //             atomic inc buf.[0] |> ignore
-    //     @>
-
-    // Utils.openclTranslate command
-    // |> printfn "%A"
-    // 0
-
     allTests
     |> runTestsWithCLIArgs [] argv
