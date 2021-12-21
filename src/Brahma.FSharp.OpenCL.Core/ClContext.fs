@@ -83,7 +83,7 @@ type ClContext private (context: Context, device: Device, translator: FSQuotatio
 
             ctx
 
-        let translator = FSQuotationToOpenCLTranslator()
+        let translator = FSQuotationToOpenCLTranslator(TranslatorOptions())
         let queue = CommandQueueProvider.CreateQueue(context, device)
 
         ClContext(context, device, translator, queue)
@@ -148,3 +148,57 @@ type ClContext private (context: Context, device: Device, translator: FSQuotatio
                 AllocationMode = allocationMode
             }
         )
+
+// type RuntimeContext =
+//     {
+//         ClContext: ClContext
+//         CommandQueue: MailboxProcessor<Msg>
+//         PreferedWGSize: int
+//     }
+
+//     member this.WithNewCommandQueue() =
+//         { this with CommandQueue = CommandQueueProvider.CreateQueue(this.ClContext) }
+
+//     member this.CreateClBuffer
+//         (
+//             data: 'a[],
+//             ?hostAccessMode: HostAccessMode,
+//             ?deviceAccessMode: DeviceAccessMode,
+//             ?allocationMode: AllocationMode
+//         ) =
+
+//         let hostAccessMode = defaultArg hostAccessMode ClMemFlags.DefaultIfData.HostAccessMode
+//         let deviceAccessMode = defaultArg deviceAccessMode ClMemFlags.DefaultIfData.DeviceAccessMode
+//         let allocationMode = defaultArg allocationMode ClMemFlags.DefaultIfData.AllocationMode
+
+//         new ClBuffer<'a>(
+//             this.ClContext,
+//             Data data,
+//             {
+//                 HostAccessMode = hostAccessMode
+//                 DeviceAccessMode = deviceAccessMode
+//                 AllocationMode = allocationMode
+//             }
+//         )
+
+//     member this.CreateClBuffer
+//         (
+//             size: int,
+//             ?hostAccessMode: HostAccessMode,
+//             ?deviceAccessMode: DeviceAccessMode,
+//             ?allocationMode: AllocationMode
+//         ) =
+
+//         let hostAccessMode = defaultArg hostAccessMode ClMemFlags.DefaultIfNoData.HostAccessMode
+//         let deviceAccessMode = defaultArg deviceAccessMode ClMemFlags.DefaultIfNoData.DeviceAccessMode
+//         let allocationMode = defaultArg allocationMode ClMemFlags.DefaultIfNoData.AllocationMode
+
+//         new ClBuffer<'a>(
+//             this.ClContext,
+//             Size size,
+//             {
+//                 HostAccessMode = hostAccessMode
+//                 DeviceAccessMode = deviceAccessMode
+//                 AllocationMode = allocationMode
+//             }
+//         )

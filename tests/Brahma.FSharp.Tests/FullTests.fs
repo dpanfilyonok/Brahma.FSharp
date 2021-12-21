@@ -9,8 +9,7 @@ open Expecto.Logging.Message
 
 let logger = Log.create "FullTests"
 
-// test of clCell clArray
-let dataStructuresApiTests = testList "Check correctness of data structures api" [
+let smokeTestsOnPrimitiveTypes = testList "Simple tests on primitive types" [
     testCase "Array item set" <| fun _ ->
         let command =
             <@
@@ -57,185 +56,43 @@ let dataStructuresApiTests = testList "Check correctness of data structures api"
 
         checkResult command intInArr [|2; 4; 2; 3|]
 
-    testCase "Getting value of 'int clcell' should be correct" <| fun () ->
-        let command =
-            <@
-                fun (range: Range1D) (buffer: int clarray) (cell: int clcell) ->
-                    let gid = range.GlobalID0
-                    buffer.[gid] <- cell.Value
-            @>
-
-        let value = 10
-        let expected = Array.replicate defaultInArrayLength value
-
-        let actual =
-            opencl {
-                use! cell = ClCell.toDevice 10
-                use! buffer = ClArray.alloc<int> defaultInArrayLength
-                do! runCommand command <| fun it ->
-                    it
-                    <| default1D
-                    <| buffer
-                    <| cell
-
-                return! ClArray.toHost buffer
-            }
-            |> ClTask.runSync context
-
-        "Arrays should be equal"
-        |> Expect.sequenceEqual actual expected
-
-    // TODO test on getting Value property of non-clcell type
-    // TODO test on getting Item property on non-clarray type
-
-    testCase "Setting value of 'int clcell' should be correct" <| fun () ->
-        let value = 10
-        let command =
-            <@
-                fun (range: Range1D) (cell: int clcell) ->
-                    cell.Value <- value
-            @>
-
-        let actual =
-            opencl {
-                use! cell = ClCell.toDevice value
-                do! runCommand command <| fun it ->
-                    it
-                    <| default1D
-                    <| cell
-
-                return! ClCell.toHost cell
-            }
-            |> ClTask.runSync context
-
-        "Arrays should be equal"
-        |> Expect.equal actual value
-
-    testCase "Using 'int clcell' from inner function should work correctly" <| fun () ->
-        let value = 10
-        let command =
-            <@
-                fun (range: Range1D) (cell: int clcell) ->
-                    let f () =
-                        let x = cell.Value
-                        cell.Value <- x
-
-                    f ()
-            @>
-
-        let actual =
-            opencl {
-                use! cell = ClCell.toDevice value
-                do! runCommand command <| fun it ->
-                    it
-                    <| default1D
-                    <| cell
-
-                return! ClCell.toHost cell
-            }
-            |> ClTask.runSync context
-
-        "Arrays should be equal"
-        |> Expect.equal actual value
-
-    testCase "Using 'int clcell' with native atomic operation should be correct" <| fun () ->
-        let value = 10
-        let command =
-            <@
-                fun (range: Range1D) (cell: int clcell) ->
-                    atomic (+) cell.Value value |> ignore
-            @>
-
-        let expected = value * default1D.GlobalWorkSize
-
-        let actual =
-            opencl {
-                use! cell = ClCell.toDevice 0
-                do! runCommand command <| fun it ->
-                    it
-                    <| default1D
-                    <| cell
-
-                return! ClCell.toHost cell
-            }
-            |> ClTask.runSync context
-
-        "Arrays should be equal"
-        |> Expect.equal actual expected
-
-    ptestCase "Using 'int clcell' with spinlock atomic operation should be correct" <| fun () ->
-        let value = 10
-        let command =
-            <@
-                fun (range: Range1D) (cell: int clcell) ->
-                    atomic (fun x -> x + value) cell.Value |> ignore
-            @>
-
-        let expected = value * default1D.GlobalWorkSize
-
-        let actual =
-            opencl {
-                use! cell = ClCell.toDevice 0
-                do! runCommand command <| fun it ->
-                    it
-                    <| default1D
-                    <| cell
-
-                return! ClCell.toHost cell
-            }
-            |> ClTask.runSync context
-
-        "Arrays should be equal"
-        |> Expect.equal actual expected
-]
-
-let typeCastingTests = testList "Type castings tests" [
-    testCase "Type casting. Long" <| fun _ ->
-        let command =
-            <@
-                fun (range: Range1D) (buf: ClArray<int64>) ->
-                    buf.[0] <- (int64)1UL
-            @>
-
-        checkResult command [|0L; 1L|] [|1L; 1L|]
-
-    testCase "Type casting. Ulong" <| fun _ ->
-        let command =
-            <@
-                fun (range: Range1D) (buf: ClArray<uint64>) ->
-                    buf.[0] <- 1UL
-            @>
-
-        checkResult command [|0UL; 1UL; 2UL; 3UL|] [|1UL; 1UL; 2UL; 3UL|]
-
-    testCase "Type casting. ULong" <| fun _ ->
-        let command =
-            <@
-                fun (range: Range1D) (buf: ClArray<uint64>) ->
-                    buf.[0] <- (uint64)1L
-            @>
-
-        checkResult command [|0UL; 1UL|] [|1UL; 1UL|]
-
-    testCase "Byte type support" <| fun _ ->
+    testCase "Byte type support with overflow" <| fun _ ->
         let command =
             <@
                 fun (range: Range1D) (buf: ClArray<byte>) ->
-                    if range.GlobalID0 = 0
-                    then
+                    if range.GlobalID0 = 0 then
                         buf.[0] <- buf.[0] + 1uy
                         buf.[1] <- buf.[1] + 1uy
                         buf.[2] <- buf.[2] + 1uy
             @>
 
         checkResult command [|0uy; 255uy; 254uy|] [|1uy; 0uy; 255uy|]
+]
 
-    testCase "Byte and float32" <| fun _ ->
+let typeCastingTests = testList "Type castings tests" [
+    testCase "uint64 -> int64" <| fun _ ->
+        let command =
+            <@
+                fun (range: Range1D) (buf: ClArray<int64>) ->
+                    buf.[0] <- int64 1UL
+            @>
+
+        checkResult command [|0L; 1L|] [|1L; 1L|]
+
+    testCase "int64 -> uint64" <| fun _ ->
+        let command =
+            <@
+                fun (range: Range1D) (buf: ClArray<uint64>) ->
+                    buf.[0] <- uint64 1L
+            @>
+
+        checkResult command [|0UL; 1UL|] [|1UL; 1UL|]
+
+    testCase "byte -> float -> byte" <| fun _ ->
         let command =
             <@
                 fun (range: Range1D) (buf: ClArray<byte>) ->
-                    if range.GlobalID0 = 0
-                    then
+                    if range.GlobalID0 = 0 then
                         buf.[0] <- byte (float buf.[0])
                         buf.[1] <- byte (float buf.[1])
                         buf.[2] <- byte (float buf.[2])
@@ -249,8 +106,7 @@ let typeCastingTests = testList "Type castings tests" [
         let command =
             <@
                 fun (range: Range1D) (buf: ClArray<byte>) ->
-                    if range.GlobalID0 = 0
-                    then
+                    if range.GlobalID0 = 0 then
                         buf.[0] <- byte ((float buf.[0]) + 1.0)
                         buf.[1] <- byte ((float buf.[1]) + 1.0)
                         buf.[2] <- byte ((float buf.[2]) + 1.0)
@@ -264,8 +120,7 @@ let typeCastingTests = testList "Type castings tests" [
         let command =
             <@
                 fun (range: Range1D) (buf: ClArray<byte>) ->
-                    if range.GlobalID0 = 0
-                    then
+                    if range.GlobalID0 = 0 then
                         let x = if true then buf.[0] + 1uy else buf.[0] + 1uy
                         buf.[0] <- x
                         let y = if true then buf.[1] + 1uy else buf.[1] + 1uy
@@ -335,8 +190,7 @@ let bindingTests = testList "Bindings tests" [
         let command =
             <@
                 fun (range: Range1D) (buf: ClArray<int>) ->
-                    if 2 = 0
-                    then
+                    if 2 = 0 then
                         let x = 1
                         buf.[0] <- x
                     else
@@ -466,8 +320,18 @@ let operatorsAndMathFunctionsTests =
         unaryOpTestGen testCase "Bitwise NEGATION on int" <@ (~~~) @>
             <|| (
                 [|1; 10; 99; 0|]
-                |> (fun array -> array, array |> Array.map (fun x -> - x - 1))
+                |> fun array -> array, array |> Array.map (fun x -> - x - 1)
             )
+
+        binaryOpTestGen testCase "MAX on float32" <@ max @>
+            [|1.f; 2.f; 3.f; 4.f|]
+            [|5.f; 6.f; 7.f; 8.f|]
+            [|5.f; 6.f; 7.f; 8.f|]
+
+        binaryOpTestGen testCase "MIN on float32" <@ min @>
+            [|1.f; 2.f; 3.f; 4.f|]
+            [|5.f; 6.f; 7.f; 8.f|]
+            [|1.f; 2.f; 3.f; 4.f|]
 
         // Failed: due to precision
         ptestCase "Math sin" <| fun _ ->
@@ -1248,6 +1112,137 @@ let commonApiTests = testList "Common Api Tests" [
                     buf.[0] <- int <| 1.25f + 2.34f
             @>
         checkResult command intInArr [|3; 1; 2; 3|]
+
+    testCase "Getting value of 'int clcell' should be correct" <| fun () ->
+        let command =
+            <@
+                fun (range: Range1D) (buffer: int clarray) (cell: int clcell) ->
+                    let gid = range.GlobalID0
+                    buffer.[gid] <- cell.Value
+            @>
+
+        let value = 10
+        let expected = Array.replicate defaultInArrayLength value
+
+        let actual =
+            opencl {
+                use! cell = ClCell.toDevice 10
+                use! buffer = ClArray.alloc<int> defaultInArrayLength
+                do! runCommand command <| fun it ->
+                    it
+                    <| default1D
+                    <| buffer
+                    <| cell
+
+                return! ClArray.toHost buffer
+            }
+            |> ClTask.runSync context
+
+        "Arrays should be equal"
+        |> Expect.sequenceEqual actual expected
+
+    // TODO test on getting Value property of non-clcell type
+    // TODO test on getting Item property on non-clarray type
+
+    testCase "Setting value of 'int clcell' should be correct" <| fun () ->
+        let value = 10
+        let command =
+            <@
+                fun (range: Range1D) (cell: int clcell) ->
+                    cell.Value <- value
+            @>
+
+        let actual =
+            opencl {
+                use! cell = ClCell.toDevice value
+                do! runCommand command <| fun it ->
+                    it
+                    <| default1D
+                    <| cell
+
+                return! ClCell.toHost cell
+            }
+            |> ClTask.runSync context
+
+        "Arrays should be equal"
+        |> Expect.equal actual value
+
+    testCase "Using 'int clcell' from inner function should work correctly" <| fun () ->
+        let value = 10
+        let command =
+            <@
+                fun (range: Range1D) (cell: int clcell) ->
+                    let f () =
+                        let x = cell.Value
+                        cell.Value <- x
+
+                    f ()
+            @>
+
+        let actual =
+            opencl {
+                use! cell = ClCell.toDevice value
+                do! runCommand command <| fun it ->
+                    it
+                    <| default1D
+                    <| cell
+
+                return! ClCell.toHost cell
+            }
+            |> ClTask.runSync context
+
+        "Arrays should be equal"
+        |> Expect.equal actual value
+
+    testCase "Using 'int clcell' with native atomic operation should be correct" <| fun () ->
+        let value = 10
+        let command =
+            <@
+                fun (range: Range1D) (cell: int clcell) ->
+                    atomic (+) cell.Value value |> ignore
+            @>
+
+        let expected = value * default1D.GlobalWorkSize
+
+        let actual =
+            opencl {
+                use! cell = ClCell.toDevice 0
+                do! runCommand command <| fun it ->
+                    it
+                    <| default1D
+                    <| cell
+
+                return! ClCell.toHost cell
+            }
+            |> ClTask.runSync context
+
+        "Arrays should be equal"
+        |> Expect.equal actual expected
+
+    ptestCase "Using 'int clcell' with spinlock atomic operation should be correct" <| fun () ->
+        let value = 10
+        let command =
+            <@
+                fun (range: Range1D) (cell: int clcell) ->
+                    atomic (fun x -> x + value) cell.Value |> ignore
+            @>
+
+        let expected = value * default1D.GlobalWorkSize
+
+        let actual =
+            opencl {
+                use! cell = ClCell.toDevice 0
+                do! runCommand command <| fun it ->
+                    it
+                    <| default1D
+                    <| cell
+
+                return! ClCell.toHost cell
+            }
+            |> ClTask.runSync context
+
+        "Arrays should be equal"
+        |> Expect.equal actual expected
 ]
 
 let booleanTests = testList "Boolean Tests" [
@@ -1585,7 +1580,7 @@ let tests =
     testList "System tests with running kernels" [
         letTransformationTests
         letQuotationTransformerSystemTests
-        dataStructuresApiTests
+        smokeTestsOnPrimitiveTypes
         typeCastingTests
         bindingTests
         operatorsAndMathFunctionsTests

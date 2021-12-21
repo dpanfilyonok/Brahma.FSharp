@@ -103,50 +103,50 @@ module rec Body =
         | "op_leftshift" -> return Binop(LeftShift, args.[0], args.[1]) :> Statement<_>
         | "op_rightshift" -> return Binop(RightShift, args.[0], args.[1]) :> Statement<_>
         | "op_booleanand" ->
-            let! flag = State.gets (fun context -> context.TranslatorOptions |> List.contains UseNativeBooleanType)
+            let! flag = State.gets (fun context -> context.TranslatorOptions.UseNativeBooleanType)
             if flag then
                 return Binop(And, args.[0], args.[1]) :> Statement<_>
             else
                 return Binop(BitAnd, args.[0], args.[1]) :> Statement<_>
         | "op_booleanor" ->
-            let! flag = State.gets (fun context -> context.TranslatorOptions |> List.contains UseNativeBooleanType)
+            let! flag = State.gets (fun context -> context.TranslatorOptions.UseNativeBooleanType)
             if flag then
                 return Binop(Or, args.[0], args.[1]) :> Statement<_>
             else
                 return Binop(BitOr, args.[0], args.[1]) :> Statement<_>
         | "not" -> return Unop(UOp.Not, args.[0]) :> Statement<_>
         | "atomicadd" ->
-            do! State.modify (fun context -> context.Flags.enableAtomic <- true; context)
+            do! State.modify (fun context -> context.Flags.Add EnableAtomic |> ignore; context)
             return FunCall("atom_add", [args.[0]; args.[1]]) :> Statement<_>
         | "atomicsub" ->
-            do! State.modify (fun context -> context.Flags.enableAtomic <- true; context)
+            do! State.modify (fun context -> context.Flags.Add EnableAtomic |> ignore; context)
             return FunCall("atom_sub", [args.[0]; args.[1]]) :> Statement<_>
         | "atomicxchg" ->
-            do! State.modify (fun context -> context.Flags.enableAtomic <- true; context)
+            do! State.modify (fun context -> context.Flags.Add EnableAtomic |> ignore; context)
             return FunCall("atom_xchg", [args.[0]; args.[1]]) :> Statement<_>
         | "atomicmax" ->
-            do! State.modify (fun context -> context.Flags.enableAtomic <- true; context)
+            do! State.modify (fun context -> context.Flags.Add EnableAtomic |> ignore; context)
             return FunCall("atom_max", [args.[0]; args.[1]]) :> Statement<_>
         | "atomicmin" ->
-            do! State.modify (fun context -> context.Flags.enableAtomic <- true; context)
+            do! State.modify (fun context -> context.Flags.Add EnableAtomic |> ignore; context)
             return FunCall("atom_min", [args.[0]; args.[1]]) :> Statement<_>
         | "atomicinc" ->
-            do! State.modify (fun context -> context.Flags.enableAtomic <- true; context)
+            do! State.modify (fun context -> context.Flags.Add EnableAtomic |> ignore; context)
             return FunCall("atom_inc", [args.[0]]) :> Statement<_>
         | "atomicdec" ->
-            do! State.modify (fun context -> context.Flags.enableAtomic <- true; context)
+            do! State.modify (fun context -> context.Flags.Add EnableAtomic |> ignore; context)
             return FunCall("atom_dec", [args.[0]]) :> Statement<_>
         | "atomiccmpxchg" ->
-            do! State.modify (fun context -> context.Flags.enableAtomic <- true; context)
+            do! State.modify (fun context -> context.Flags.Add EnableAtomic |> ignore; context)
             return FunCall("atom_cmpxchg", [args.[0]; args.[1]; args.[2]]) :> Statement<_>
         | "atomicand" ->
-            do! State.modify (fun context -> context.Flags.enableAtomic <- true; context)
+            do! State.modify (fun context -> context.Flags.Add EnableAtomic |> ignore; context)
             return FunCall("atom_and", [args.[0]; args.[1]]) :> Statement<_>
         | "atomicor" ->
-            do! State.modify (fun context -> context.Flags.enableAtomic <- true; context)
+            do! State.modify (fun context -> context.Flags.Add EnableAtomic |> ignore; context)
             return FunCall("atom_or", [args.[0]; args.[1]]) :> Statement<_>
         | "atomicxor" ->
-            do! State.modify (fun context -> context.Flags.enableAtomic <- true; context)
+            do! State.modify (fun context -> context.Flags.Add EnableAtomic |> ignore; context)
             return FunCall("atom_xor", [args.[0]; args.[1]]) :> Statement<_>
         | "todouble" -> return Cast(args.[0], PrimitiveType Float) :> Statement<_>
         | "toint" -> return Cast(args.[0], PrimitiveType Int) :> Statement<_>
@@ -363,7 +363,7 @@ module rec Body =
             let! l = translateCond if'
             let! r = translateCond then'
             let! e = translateCond else'
-            let! isBoolAsBit = State.gets (fun context -> context.TranslatorOptions |> List.contains BoolAsBit)
+            let! isBoolAsBit = State.gets (fun context -> context.TranslatorOptions.BoolAsBit)
             let o1 =
                 match r with
                 | :? Const<Lang> as c when c.Val = "1" -> l
@@ -448,7 +448,9 @@ module rec Body =
         do! State.modify (fun context -> context.VarDecls.Clear(); context)
 
         for expr in linearized do
-            do! State.modify (fun context -> context.VarDecls.Clear(); context)
+            // NOTE с тим не работает, хотя до этого работало
+            // непонятно зачем это вообще нужно
+            // do! State.modify (fun context -> context.VarDecls.Clear(); context)
             match! translate expr with
             | :? StatementBlock<Lang> as s1 ->
                 decls.AddRange(s1.Statements)
@@ -600,7 +602,7 @@ module rec Body =
     }
 
     let translate expr = translation {
-        let toNode (x: #Node<Lang>) = translation {
+        let toNode (x: #Node<_>) = translation {
             return x :> Node<_>
         }
 

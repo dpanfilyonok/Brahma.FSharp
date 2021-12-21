@@ -59,11 +59,11 @@ module rec Type =
         | Name "unit" -> return PrimitiveType<Lang>(Void) :> Type<Lang>
         | Name "float"
         | Name "double" ->
-            do! State.modify (fun ctx -> ctx.Flags.enableFP64 <- true; ctx)
+            do! State.modify (fun ctx -> ctx.Flags.Add EnableFP64 |> ignore; ctx)
             return PrimitiveType<Lang>(Double) :> Type<Lang>
 
         | Name "boolean" ->
-            match! State.gets (fun ctx -> ctx.TranslatorOptions |> List.contains UseNativeBooleanType) with
+            match! State.gets (fun ctx -> ctx.TranslatorOptions.UseNativeBooleanType) with
             | true -> return PrimitiveType<Lang>(Bool) :> Type<Lang>
             | false -> return PrimitiveType<Lang>(BoolClAlias) :> Type<Lang>
 

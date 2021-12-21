@@ -24,6 +24,7 @@
     <Compile Include="TranslationContext.fs" />
     <Compile Include="QuotationTransformers\Utilities\Utils.fs" />
     <Compile Include="QuotationTransformers\Utilities\Patterns.fs" />
+    <Compile Include="QuotationTransformers\TransformMinMax.fs" />
     <Compile Include="QuotationTransformers\AtomicProcessor.fs" />
     <Compile Include="QuotationTransformers\PrintfReplacer.fs" />
     <Compile Include="QuotationTransformers\VarDefsToLambdaTransformer.fs" />

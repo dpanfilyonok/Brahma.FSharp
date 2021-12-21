@@ -21,7 +21,7 @@ open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 open System
 open System.Collections.Generic
 
-type FSQuotationToOpenCLTranslator([<ParamArray>] translatorOptions: TranslatorOption[]) =
+type FSQuotationToOpenCLTranslator(translatorOptions: TranslatorOptions) =
     let mainKernelName = "brahmaKernel"
     let lockObject = obj ()
 
@@ -45,7 +45,7 @@ type FSQuotationToOpenCLTranslator([<ParamArray>] translatorOptions: TranslatorO
                 | DerivedPatterns.Applications
                     (
                         Patterns.Var funcVar,
-                        [mutex] :: [DerivedPatterns.SpecificCall <@ ref @> (_, _, [Patterns.ValidVolatileArg var])] :: _
+                        [mutex] :: _ :: [[DerivedPatterns.SpecificCall <@ ref @> (_, _, [Patterns.ValidVolatileArg var])]]
                     )
                     when funcVar.Name.StartsWith "atomic" ->
 
@@ -84,19 +84,34 @@ type FSQuotationToOpenCLTranslator([<ParamArray>] translatorOptions: TranslatorO
 
         methods @ kernelFunc
 
-    let translate expr' translatorOptions =
+    let translate expr' =
         let expr = preprocessQuotation expr'
 
         let context = TranslationContext.Create()
 
         // TODO: Extract quotationTransformer to translator
-        let (kernelExpr, functions) = transformQuotation expr translatorOptions
+        let (kernelExpr, functions) = transformQuotation expr
         let (globalVars, localVars, atomicApplicationsInfo) = collectData kernelExpr functions
         let methods = constructMethods kernelExpr functions atomicApplicationsInfo
 
         let clFuncs = ResizeArray()
         for method in methods do
             clFuncs.AddRange(method.Translate(globalVars, localVars) |> State.eval context)
+
+        let pragmas =
+            let pragmas = ResizeArray()
+
+            context.Flags
+            |> Seq.iter (fun (flag: Flag) ->
+                match flag with
+                | EnableAtomic ->
+                    pragmas.Add(CLPragma CLGlobalInt32BaseAtomics :> ITopDef<_>)
+                    pragmas.Add(CLPragma CLLocalInt32BaseAtomics :> ITopDef<_>)
+                | EnableFP64 ->
+                    pragmas.Add(CLPragma CLFP64)
+            )
+
+            List.ofSeq pragmas
 
         let userDefinedTypes =
             context.UserDefinedTypes
@@ -115,7 +130,7 @@ type FSQuotationToOpenCLTranslator([<ParamArray>] translatorOptions: TranslatorO
             |> Seq.cast<ITopDef<Lang>>
             |> List.ofSeq
 
-        AST <| userDefinedTypes @ List.ofSeq clFuncs,
+        AST <| pragmas @ userDefinedTypes @ List.ofSeq clFuncs,
         methods
         |> List.find (fun method -> method :? KernelFunc)
         |> fun kernel -> kernel.FunExpr
@@ -124,4 +139,4 @@ type FSQuotationToOpenCLTranslator([<ParamArray>] translatorOptions: TranslatorO
 
     member this.Translate(qExpr) =
         lock lockObject <| fun () ->
-            translate qExpr (List.ofArray translatorOptions)
+            translate qExpr

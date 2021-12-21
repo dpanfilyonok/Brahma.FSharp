@@ -64,12 +64,9 @@ module Utils =
         kernel.Code
 
     let openclTranslate (expr: Expr) =
-        let translator = FSQuotationToOpenCLTranslator()
+        let translator = FSQuotationToOpenCLTranslator(TranslatorOptions())
         let (ast, _) = translator.Translate(expr)
         print ast
 
     let openclTransformQuotation (expr: Expr) =
-        QuotationTransformers.Transformer.transformQuotation expr []
-
-module Generators =
-    ()
+        QuotationTransformers.Transformer.transformQuotation expr

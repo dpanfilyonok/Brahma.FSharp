@@ -53,22 +53,6 @@ type Method(var: Var, expr: Expr) =
 
     abstract BuildFunction : FunFormalArg<Lang> list * StatementBlock<Lang> -> State<TargetContext, ITopDef<Lang>>
 
-    abstract GetPragmas : unit -> State<TargetContext, ITopDef<Lang> list>
-    default this.GetPragmas() = translation {
-        let! context = State.get
-
-        let pragmas = ResizeArray()
-
-        if context.Flags.enableAtomic then
-            pragmas.Add(CLPragma CLGlobalInt32BaseAtomics :> ITopDef<_>)
-            pragmas.Add(CLPragma CLLocalInt32BaseAtomics :> ITopDef<_>)
-
-        if context.Flags.enableFP64 then
-            pragmas.Add(CLPragma CLFP64)
-
-        return List.ofSeq pragmas
-    }
-
     abstract GetTopLevelVarDecls : unit -> State<TargetContext, ITopDef<Lang> list>
     default this.GetTopLevelVarDecls() = translation {
         let! context = State.get
@@ -89,13 +73,9 @@ type Method(var: Var, expr: Expr) =
             let! translatedBody = this.TranslateBody(args, body)
             let! translatedArgs = this.TranslateArgs(args, globalVars, localVars)
             let! func = this.BuildFunction(translatedArgs, translatedBody)
-            let! pragmas = this.GetPragmas()
             let! topLevelVarDecls = this.GetTopLevelVarDecls()
 
-            return
-                pragmas
-                @ topLevelVarDecls
-                @ [func]
+            return topLevelVarDecls @ [func]
 
         | _ -> return failwithf "Incorrect OpenCL quotation: %A" expr
     }

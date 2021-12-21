@@ -54,7 +54,6 @@ type ClProgram<'TRange, 'a when 'TRange :> INDRange>
         let kernel = createKernel program kernelName
 
         let toIMem arg =
-            // TODO extend types for private args (now only int supported)
             match box arg with
             | :? IClMem as buf -> buf.Size, buf.Data
             | :? int as i -> IntPtr(Marshal.SizeOf i), box i
@@ -62,8 +61,6 @@ type ClProgram<'TRange, 'a when 'TRange :> INDRange>
 
         let setupArgument index (arg: obj) =
             let (argSize, argVal) = toIMem arg
-            // NOTE SetKernelArg could take intptr
-            // TODO try allocate unmanaged mem by hand
             let error = Cl.SetKernelArg(kernel, uint32 index, argSize, argVal)
             if error <> ErrorCode.Success then
                 raise (CLException error)

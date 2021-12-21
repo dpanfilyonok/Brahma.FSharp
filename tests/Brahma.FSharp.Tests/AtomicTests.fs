@@ -248,9 +248,11 @@ let foldTestCases = testList "Fold tests" [
 
     testCase "Reduce test atomic 'min' on int" <| fun () -> foldTest<int> <@ min @> (=)
     ptestCase "Reduce test atomic 'min' on int64" <| fun () -> foldTest<int64> <@ min @> (=)
+    testCase "Reduce test atomic 'min' on int16" <| fun () -> foldTest<int16> <@ min @> (=)
 
     testCase "Reduce test atomic 'max' on int" <| fun () -> foldTest<int> <@ max @> (=)
     ptestCase "Reduce test atomic 'max' on int64" <| fun () -> foldTest<int64> <@ max @> (=)
+    testCase "Reduce test atomic 'max' on int16" <| fun () -> foldTest<int16> <@ max @> (=)
 
     testCase "Reduce test atomic '&&&' on int" <| fun () -> foldTest<int> <@ (&&&) @> (=)
     ptestCase "Reduce test atomic '&&&' on int64" <| fun () -> foldTest<int64> <@ (&&&) @> (=)
