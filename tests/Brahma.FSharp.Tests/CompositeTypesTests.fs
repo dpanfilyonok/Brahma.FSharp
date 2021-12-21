@@ -29,6 +29,18 @@ type GenericRecord<'a, 'b> =
         mutable Y: 'b
     }
 
+[<Struct>]
+type StructOfIntInt64 =
+    val mutable X: int
+    val mutable Y: int64
+    new(x, y) = { X = x; Y = y }
+
+[<Struct>]
+type GenericStruct<'a, 'b> =
+    val mutable X: 'a
+    val mutable Y: 'b
+    new(x, y) = { X = x; Y = y }
+
 let check<'a when 'a : struct and 'a : equality> (data: 'a[]) (command: int -> Expr<Range1D -> ClArray<'a> -> unit>) =
     let length = data.Length
 
@@ -131,66 +143,63 @@ let recordTestCases = testList "Record tests" [
         if data.Length <> 0 then check data (fun length -> <@ fun (range: Range1D) (buffer: ClArray<_>) -> (%command length) range.GlobalID0 buffer @>)
 ]
 
-[<Struct>]
-type TestStruct =
-    val mutable x: int
-    val mutable y: float
-    new(x, y) = { x = x; y = y }
-
-let structTests = ptestList "Struct tests" [
-    testCase "Simple seq of struct." <| fun _ ->
+let structTests = testList "Struct tests" [
+    testCase "Smoke test" <| fun _ ->
         let command =
             <@
-                fun (range: Range1D) (buf:  ClArray<TestStruct>) ->
+                fun (range: Range1D) (buf:  ClArray<StructOfIntInt64>) ->
                     if range.GlobalID0 = 0 then
                         let b = buf.[0]
                         buf.[0] <- buf.[1]
                         buf.[1] <- b
             @>
 
-        checkResult command [|TestStruct(1, 2.0); TestStruct(3, 4.0)|] [|TestStruct(3, 4.0); TestStruct(1, 2.0)|]
+        checkResult command [|StructOfIntInt64(1, 2L); StructOfIntInt64(3, 4L)|]
+                            [|StructOfIntInt64(3, 4L); StructOfIntInt64(1, 2L)|]
 
-    ptestCase "Simple seq of struct changes." <| fun _ ->
+    testCase "Struct constructor test" <| fun _ ->
         let command =
             <@
-                fun (range: Range1D) (buf:  ClArray<TestStruct>) ->
-                    buf.[0] <- TestStruct(5, 6.0)
+                fun (range: Range1D) (buf:  ClArray<StructOfIntInt64>) ->
+                    buf.[0] <- StructOfIntInt64(5, 6L)
             @>
 
-        checkResult command [|TestStruct(1, 2.0); TestStruct(3, 4.0)|]
-                            [|TestStruct(5, 6.0); TestStruct(3, 4.0)|]
+        checkResult command [|StructOfIntInt64(1, 2L); StructOfIntInt64(3, 4L)|]
+                            [|StructOfIntInt64(5, 6L); StructOfIntInt64(3, 4L)|]
 
-    testCase "Simple seq of struct prop set" <| fun _ ->
+    testCase "Struct prop set" <| fun _ ->
         let command =
             <@
-                fun (range: Range1D) (buf:  ClArray<TestStruct>) ->
+                fun (range: Range1D) (buf:  ClArray<StructOfIntInt64>) ->
                     let mutable y = buf.[0]
-                    y.x <- 5
+                    y.X <- 5
                     buf.[0] <- y
             @>
 
-        checkResult command [|TestStruct(1, 2.0)|] [|TestStruct(5, 2.0)|]
+        checkResult command [|StructOfIntInt64(1, 2L)|] [|StructOfIntInt64(5, 2L)|]
 
-    ptestCase "Simple seq of struct prop get." <| fun _ ->
+    testCase "Struct prop get" <| fun _ ->
         let command =
             <@
-                fun (range: Range1D) (buf:  ClArray<TestStruct>) ->
-                    if range.GlobalID0 = 0
-                    then
+                fun (range: Range1D) (buf:  ClArray<StructOfIntInt64>) ->
+                    if range.GlobalID0 = 0 then
                         let mutable y = buf.[0]
-                        y.x <- y.x + 3
+                        y.X <- y.X + 3
                         buf.[0] <- y
             @>
 
-        checkResult command [|TestStruct(1, 2.0); TestStruct(3, 4.0)|]
-                            [|TestStruct(4, 2.0); TestStruct(3, 4.0)|]
-
-    testCase "Nested structs 1." <| fun _ -> ()
+        checkResult command [|StructOfIntInt64(1, 2L); StructOfIntInt64(3, 4L)|]
+                            [|StructOfIntInt64(4, 2L); StructOfIntInt64(3, 4L)|]
 ]
+
+// let nestedTypesTests = testList "" [
+
+// ]
 
 let tests =
     testList "Tests on composite types" [
-        tupleTestCases
-        recordTestCases
+        // tupleTestCases
+        // recordTestCases
+        structTests
     ]
     |> testSequenced

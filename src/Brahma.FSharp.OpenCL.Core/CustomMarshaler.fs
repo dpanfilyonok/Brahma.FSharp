@@ -81,7 +81,26 @@ type CustomMarshaler<'a>() =
                 StructureElement({| Size = size; Aligment = aligment |}, elems)
 
             | UnionType -> failwithf "Union not supported"
-            | UserDefinedStuctureType -> failwithf "Custom structures not supported"
+
+            | UserDefinedStuctureType ->
+                let elems =
+                    type'.GetFields()
+                    |> Array.map (fun fi -> fi.FieldType)
+                    |> Array.map go
+                    |> Array.toList
+
+                let aligment =
+                    elems
+                    |> List.map (fun (StructureElement(pack, _)) -> pack.Aligment)
+                    |> List.max
+
+                let size =
+                    elems
+                    |> List.map (fun (StructureElement(pack, _)) -> pack)
+                    |> List.fold (fun state x -> roundUp x.Aligment state + x.Size) 0
+                    |> roundUp aligment
+
+                StructureElement({| Size = size; Aligment = aligment |}, elems)
 
             | PrimitiveType ->
                 let size = Marshal.SizeOf (if type' = typeof<bool> then typeof<BoolHostAlias> else type')
@@ -143,7 +162,11 @@ type CustomMarshaler<'a>() =
                     FSharpValue.GetRecordFields structure |> Array.iter go
 
                 | Union -> failwithf "Union not supported"
-                | UserDefinedStucture -> failwithf "Custom structures not supported"
+
+                | UserDefinedStucture ->
+                    structure.GetType().GetFields()
+                    |> Array.map (fun fi -> fi.GetValue(structure))
+                    |> Array.iter go
 
                 | Primitive ->
                     let offset = this.ElementTypeOffsets.[i]
@@ -182,7 +205,14 @@ type CustomMarshaler<'a>() =
                     |> fun x -> FSharpValue.MakeRecord(type', x)
 
                 | UnionType -> failwithf "Union not supported"
-                | UserDefinedStuctureType -> failwithf "Custom structures not supported"
+
+                | UserDefinedStuctureType ->
+                    let inst = Activator.CreateInstance(type')
+                    type'.GetFields()
+                    |> Array.map (fun fi -> fi, go fi.FieldType)
+                    |> Array.iter (fun (fi, value) -> fi.SetValue(inst, value))
+
+                    inst
 
                 | PrimitiveType ->
                     let offset = this.ElementTypeOffsets.[i]

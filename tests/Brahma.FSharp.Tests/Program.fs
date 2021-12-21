@@ -6,10 +6,10 @@ open Brahma.FSharp.OpenCL
 [<Tests>]
 let allTests =
     testList "All tests" [
-        Full.tests
-        Workflow.tests
-        Translator.tests
-        QuotationTransformers.tests
+        // Full.tests
+        // Workflow.tests
+        // Translator.tests
+        // QuotationTransformers.tests
         CompositeTypesTests.tests
         // Union.tests
         // Atomic.tests
@@ -84,8 +84,8 @@ let main argv =
     // |> ClTask.runSync context
     // Utils.openclTransformQuotation kernel
     // |> printfn "%A"
-    Utils.openclTranslate kernel
-    |> printfn "%A"
-    0
-    // allTests
-    // |> runTestsWithCLIArgs [] argv
+    // Utils.openclTranslate kernel
+    // |> printfn "%A"
+    // 0
+    allTests
+    |> runTestsWithCLIArgs [] argv

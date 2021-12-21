@@ -738,16 +738,11 @@ module rec Body =
         | Patterns.NewDelegate (sType, vars, expr) -> return raise <| InvalidKernelException(sprintf "NewDelegate is not suported: %O" expr)
         | Patterns.NewObject (constrInfo, exprs) ->
             let! context = State.get
-            let p = constrInfo.GetParameters()
-            let p2 = constrInfo.GetMethodBody()
-            // а если перегруженный конструктор? (отсальное нули)
-            if context.UserDefinedTypes.Contains(constrInfo.DeclaringType) then
-                let! structInfo = State.gets (fun context -> context.StructDecls.[constrInfo.DeclaringType])
-                let cArgs = exprs |> List.map (fun x -> translation { return! translateAsExpr x } |> State.eval context)
-                let res = NewStruct<_>(structInfo, cArgs)
-                return res :> Node<_>
-            else
-                return raise <| InvalidKernelException(sprintf "NewObject is not suported: %O" expr)
+            // let p = constrInfo. GetParameters()
+            // let p2 = constrInfo.GetMethodBody()
+            let! structInfo = Type.translateStruct constrInfo.DeclaringType
+            let cArgs = exprs |> List.map (fun x -> translation { return! translateAsExpr x })
+            return NewStruct<_>(structInfo, cArgs |> List.map (State.eval context)) :> Node<_>
         | Patterns.NewRecord (sType, exprs) ->
             let! context = State.get
             let! structInfo = Type.translateStruct sType
