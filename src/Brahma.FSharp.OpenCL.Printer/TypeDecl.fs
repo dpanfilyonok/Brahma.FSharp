@@ -20,7 +20,7 @@ open Brahma.FSharp.OpenCL.Printer
 open Microsoft.FSharp.Text.StructuredFormat.LayoutOps
 
 module TypeDecl =
-    let PrintStructDeclaration (decl: StructDecl<_>) =
+    let printStructDeclaration (decl: StructDecl<_>) =
         let header =
             [
                 wordL "typedef"

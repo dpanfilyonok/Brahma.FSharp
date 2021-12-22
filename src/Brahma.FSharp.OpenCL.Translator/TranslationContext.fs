@@ -34,11 +34,7 @@ type TranslatorOptions() =
 type TranslationContext<'lang, 'vDecl> =
     {
         TopLevelVarsDecls: ResizeArray<'vDecl>
-        UserDefinedTypes: HashSet<Type>
-        // NOTE is it necessary  to have 3 dicts?
-        TupleDecls: Dictionary<Type, StructType<'lang>>
-        StructDecls: Dictionary<Type, StructType<'lang>>
-        UnionDecls: Dictionary<Type, DiscriminatedUnionType<'lang>>
+        CStructDecls: Dictionary<Type, StructType<'lang>>
 
         VarDecls: ResizeArray<'vDecl>
         Namer: Namer
@@ -51,10 +47,7 @@ type TranslationContext<'lang, 'vDecl> =
     static member Create() =
         {
             TopLevelVarsDecls = ResizeArray<'vDecl>()
-            UserDefinedTypes = HashSet<Type>()
-            TupleDecls = Dictionary<Type, StructType<'lang>>()
-            StructDecls = Dictionary<Type, StructType<'lang>>()
-            UnionDecls = Dictionary<Type, DiscriminatedUnionType<'lang>>()
+            CStructDecls = Dictionary<Type, StructType<'lang>>()
 
             VarDecls = ResizeArray<'vDecl>()
             Namer = Namer()

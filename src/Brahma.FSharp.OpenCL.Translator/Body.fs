@@ -258,9 +258,9 @@ module rec Body =
 
         match exprOpt with
         | Some expr ->
-            match! State.gets (fun context -> context.UserDefinedTypes.Contains expr.Type) with
+            match! State.gets (fun context -> context.CStructDecls.Keys |> Seq.contains expr.Type) with
             | true ->
-                match! State.gets (fun context -> context.StructDecls.ContainsKey expr.Type) with
+                match! State.gets (fun context -> not <| context.CStructDecls.[expr.Type] :? DiscriminatedUnionType<_>) with
                 | true -> return! translateStructFieldGet expr propInfo.Name
                 | false -> return! translateUnionFieldGet expr propInfo
             | false -> return! translateSpecificPropGet expr propName exprs
@@ -517,12 +517,18 @@ module rec Body =
     }
 
     let translateUnionFieldGet expr (propInfo: PropertyInfo) = translation {
-        let! unionType = State.gets (fun context -> context.UnionDecls.[expr.Type])
+        let! unionType = State.gets (fun context -> context.CStructDecls.[expr.Type])
+        let unionType = unionType :?> DiscriminatedUnionType<Lang>
 
         let! unionValueExpr = translateAsExpr expr
 
+        // NOTE для опшна классы наследники не создаются, поэтому не работает
         let caseName = propInfo.DeclaringType.Name
-        let unionCaseField = unionType.GetCaseByName caseName
+        let unionCaseField =
+            if caseName <> "FSharpOption`1" then
+                unionType.GetCaseByName caseName
+            else
+                unionType.GetCaseByName "Some"
 
         match unionCaseField with
         | Some unionCaseField ->
@@ -736,30 +742,31 @@ module rec Body =
         | Patterns.LetRecursive (bindings, expr) -> return raise <| InvalidKernelException(sprintf "LetRecursive is not suported: %O" expr)
         | Patterns.NewArray (sType, exprs) -> return raise <| InvalidKernelException(sprintf "NewArray is not suported: %O" expr)
         | Patterns.NewDelegate (sType, vars, expr) -> return raise <| InvalidKernelException(sprintf "NewDelegate is not suported: %O" expr)
+
         | Patterns.NewObject (constrInfo, exprs) ->
             let! context = State.get
             // let p = constrInfo. GetParameters()
             // let p2 = constrInfo.GetMethodBody()
-            let! structInfo = Type.translateStruct constrInfo.DeclaringType
+            let! structInfo = Type.translate constrInfo.DeclaringType
             let cArgs = exprs |> List.map (fun x -> translation { return! translateAsExpr x })
-            return NewStruct<_>(structInfo, cArgs |> List.map (State.eval context)) :> Node<_>
+            return NewStruct<_>(structInfo :?> StructType<Lang>, cArgs |> List.map (State.eval context)) :> Node<_>
+
         | Patterns.NewRecord (sType, exprs) ->
             let! context = State.get
-            let! structInfo = Type.translateStruct sType
+            let! structInfo = Type.translate sType
             let cArgs = exprs |> List.map (fun x -> translation { return! translateAsExpr x })
-            return NewStruct<_>(structInfo, cArgs |> List.map (State.eval context)) :> Node<_>
+            return NewStruct<_>(structInfo :?> StructType<Lang>, cArgs |> List.map (State.eval context)) :> Node<_>
+
         | Patterns.NewTuple (exprs) ->
             let! context = State.get
-            let! tupleDecl = Type.translateTuple expr.Type
+            let! tupleDecl = Type.translate expr.Type
             let cArgs = exprs |> List.map (fun x -> translateAsExpr x)
-            return NewStruct<_>(tupleDecl, cArgs |> List.map (State.eval context)) :> Node<_>
+            return NewStruct<_>(tupleDecl :?> StructType<Lang>, cArgs |> List.map (State.eval context)) :> Node<_>
+
         | Patterns.NewUnionCase (unionCaseInfo, exprs) ->
             let! context = State.get
-            let unionType = unionCaseInfo.DeclaringType
-            if not <| context.UserDefinedTypes.Contains(unionType) then
-                raise <| InvalidKernelException(sprintf "Union type %s is not registered" unionType.Name)
-
-            let unionInfo = context.UnionDecls.[unionType]
+            let! unionInfo = Type.translate unionCaseInfo.DeclaringType
+            let unionInfo = unionInfo :?> DiscriminatedUnionType<Lang>
 
             let tag = Const(unionInfo.Tag.Type, string unionCaseInfo.Tag) :> Expression<_>
             let args =
@@ -767,15 +774,15 @@ module rec Body =
                 | None -> []
                 | Some field ->
                     let structArgs = exprs |> List.map (fun x -> translateAsExpr x) |> List.map (State.eval context)
-                    let data =
-                        NewUnion(
-                            unionInfo.Data.Type :?> UnionClInplaceType<_>,
-                            field.Name,
-                            NewStruct(field.Type :?> StructType<_>, structArgs)
-                        )
-                    [ data :> Expression<_> ]
+                    NewUnion(
+                        unionInfo.Data.Type :?> UnionClInplaceType<_>,
+                        field.Name,
+                        NewStruct(field.Type :?> StructType<_>, structArgs)
+                    ) :> Expression<_>
+                    |> List.singleton
 
             return NewStruct(unionInfo, tag :: args) :> Node<_>
+
         | Patterns.PropertyGet (exprOpt, propInfo, exprs) ->
             let! res = translatePropGet exprOpt propInfo exprs
             return res :> Node<_>
@@ -791,15 +798,18 @@ module rec Body =
             let! r = translateStructFieldGet expr ("_" + (string (i + 1)))
             return r :> Node<_>
         | Patterns.TypeTest (expr, sType) -> return raise <| InvalidKernelException(sprintf "TypeTest is not suported: %O" expr)
+
         | Patterns.UnionCaseTest (expr, unionCaseInfo) ->
-            let! context = State.get
-            let unionDecl = context.UnionDecls.[expr.Type]
+            let! unionInfo = Type.translate unionCaseInfo.DeclaringType
+            let unionInfo = unionInfo :?> DiscriminatedUnionType<Lang>
 
             let! unionVarExpr = translateAsExpr expr
-            let unionGetTagExpr = FieldGet(unionVarExpr, unionDecl.Tag.Name) :> Expression<_>
-            let tagExpr = Const(unionDecl.Tag.Type, string unionCaseInfo.Tag) :> Expression<_>
+            let unionGetTagExpr = FieldGet(unionVarExpr, unionInfo.Tag.Name) :> Expression<_>
+            // NOTE Const pog for genericOne
+            let tagExpr = Const(unionInfo.Tag.Type, string unionCaseInfo.Tag) :> Expression<_>
 
-            return Binop(BOp.EQ, unionGetTagExpr, tagExpr) :> Node<_>
+            return Binop(EQ, unionGetTagExpr, tagExpr) :> Node<_>
+
         | Patterns.ValueWithName (obj', sType, name) ->
             let! context = State.get
             // Here is the only use of TranslationContext.InLocal

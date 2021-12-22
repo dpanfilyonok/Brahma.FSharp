@@ -15,6 +15,7 @@ module private Utils =
         |> Seq.tryFind (fun attr -> attr.GetType() = typeof<'attr>)
         |> Option.isSome
 
+// TODO make read write parallel
 type CustomMarshaler<'a>() =
     let (|TupleType|RecordType|UnionType|UserDefinedStuctureType|PrimitiveType|) (type': Type) =
         match type' with

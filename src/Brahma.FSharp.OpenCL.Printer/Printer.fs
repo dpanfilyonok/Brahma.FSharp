@@ -16,8 +16,7 @@
 namespace Brahma.FSharp.OpenCL.Printer
 
 open Brahma.FSharp.OpenCL.AST
-open Microsoft.FSharp.Text
-open Microsoft.FSharp.Text.StructuredFormat.LayoutOps
+open Microsoft.FSharp.Text.StructuredFormat
 open Brahma.FSharp.OpenCL.Printer
 
 module AST =
@@ -28,10 +27,10 @@ module AST =
                 match d with
                 | :? FunDecl<'lang> as fd -> FunDecl.print fd
                 | :? CLPragma<'lang> as clp -> Pragmas.print clp
-                | :? StructDecl<'lang> as s -> TypeDecl.PrintStructDeclaration s
+                | :? StructDecl<'lang> as s -> TypeDecl.printStructDeclaration s
                 | :? VarDecl<'lang> as s -> Statements.print false s
                 | _ -> failwithf "Printer. Unsupported toplevel declaration: %A"  d
             )
-        |> aboveListL
-        |> StructuredFormat.Display.layout_to_string { StructuredFormat.FormatOptions.Default with PrintWidth = 100 }
+        |> LayoutOps.sepListL (LayoutOps.wordL "\r\n")
+        |> Display.layout_to_string FormatOptions.Default
 

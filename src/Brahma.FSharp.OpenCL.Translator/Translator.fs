@@ -114,23 +114,12 @@ type FSQuotationToOpenCLTranslator(translatorOptions: TranslatorOptions) =
             List.ofSeq pragmas
 
         let userDefinedTypes =
-            context.UserDefinedTypes
-            |> Seq.map
-                (fun type' ->
-                    if context.StructDecls.ContainsKey type' then
-                        context.StructDecls.[type']
-                    elif context.TupleDecls.ContainsKey type' then
-                        context.TupleDecls.[type']
-                    elif context.UnionDecls.ContainsKey type' then
-                        context.UnionDecls.[type'] :> StructType<_>
-                    else
-                        failwith "Something went wrong :( This error shouldn't occur"
-                )
+            context.CStructDecls.Values
             |> Seq.map StructDecl
             |> Seq.cast<ITopDef<Lang>>
             |> List.ofSeq
 
-        AST <| pragmas @ userDefinedTypes @ List.ofSeq clFuncs,
+        AST(pragmas @ userDefinedTypes @ List.ofSeq clFuncs),
         methods
         |> List.find (fun method -> method :? KernelFunc)
         |> fun kernel -> kernel.FunExpr
