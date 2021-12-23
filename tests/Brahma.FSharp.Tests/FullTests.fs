@@ -1388,7 +1388,7 @@ let parallelExecutionTests = testList "Parallel Execution Tests" [
 type T1 = None1 | Some1 of int
 
 let simpleDUTests = testList "Simple tests on discriminated unions" [
-    ftestCase "Option<int> with F#-native syntax" <| fun () ->
+    testCase "Option<int> with F#-native syntax" <| fun () ->
         let rnd = System.Random()
         let input1 = Array.init 100_000 (fun i -> rnd.Next())
         let input2 = Array.init 100_000 (fun i -> rnd.Next())
@@ -1436,7 +1436,7 @@ let simpleDUTests = testList "Simple tests on discriminated unions" [
         "Arrays should be equal"
         |> Expect.sequenceEqual actual expected
 
-    ftestCase "Option<int> with simplified syntax" <| fun () ->
+    testCase "Option<int> with simplified syntax" <| fun () ->
         let rnd = System.Random()
         let input1 = Array.init 100_000 (fun i -> rnd.Next())
         let input2 = Array.init 100_000 (fun i -> rnd.Next())
@@ -1488,7 +1488,7 @@ let simpleDUTests = testList "Simple tests on discriminated unions" [
         "Arrays should be equal"
         |> Expect.sequenceEqual actual expected
 
-    ftestCase "Simple custom non-generic DU" <| fun () ->
+    testCase "Simple custom non-generic DU" <| fun () ->
         let rnd = System.Random()
         let input1 = Array.init 100_000 (fun i -> rnd.Next())
         let input2 = Array.init 100_000 (fun i -> rnd.Next())

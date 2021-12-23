@@ -5,6 +5,7 @@ open System.Runtime.InteropServices
 open Brahma.FSharp.OpenCL.Translator
 open FSharp.Reflection
 open System.Runtime.CompilerServices
+open System.Threading.Tasks
 
 type StructurePacking =
     | StructureElement of {| Size: int; Aligment: int |} * StructurePacking list
@@ -149,7 +150,7 @@ type CustomMarshaler<'a>() =
         size, mem
 
     member this.WriteToUnmanaged(array: 'a[], ptr: IntPtr) =
-        for j = 0 to array.Length - 1 do
+        Parallel.For(0, array.Length, fun j ->
             let start = IntPtr.Add(ptr, j * this.ElementTypeSize)
             let mutable i = 0
             let rec go (structure: obj) =
@@ -180,6 +181,8 @@ type CustomMarshaler<'a>() =
                     i <- i + 1
 
             go array.[j]
+        )
+        |> ignore
 
         array.Length * this.ElementTypeSize
 
@@ -189,7 +192,7 @@ type CustomMarshaler<'a>() =
         array
 
     member this.ReadFromUnmanaged(ptr: IntPtr, array: 'a[]) =
-        for j = 0 to array.Length - 1 do
+        Parallel.For(0, array.Length, fun j ->
             let start = IntPtr.Add(ptr, j * this.ElementTypeSize)
             let mutable i = 0
             let rec go (type': Type) =
@@ -227,6 +230,8 @@ type CustomMarshaler<'a>() =
                     structure
 
             array.[j] <- unbox<'a> <| go typeof<'a>
+        )
+        |> ignore
 
     override this.ToString() =
         sprintf "%O\n%A" elementPacking offsets

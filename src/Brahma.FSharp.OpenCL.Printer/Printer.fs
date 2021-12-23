@@ -31,6 +31,8 @@ module AST =
                 | :? VarDecl<'lang> as s -> Statements.print false s
                 | _ -> failwithf "Printer. Unsupported toplevel declaration: %A"  d
             )
-        |> LayoutOps.sepListL (LayoutOps.wordL "\r\n")
-        |> Display.layout_to_string FormatOptions.Default
+        // |> LayoutOps.sepListL (LayoutOps.wordL "\r\n")
+        // |> Display.layout_to_string FormatOptions.Default
+        |> LayoutOps.aboveListL
+        |> Display.layout_to_string { FormatOptions.Default with PrintWidth = 100 }
 
