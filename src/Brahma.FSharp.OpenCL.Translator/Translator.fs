@@ -40,18 +40,24 @@ type FSQuotationToOpenCLTranslator(translatorOptions: TranslatorOptions) =
         let atomicApplicationsInfo =
             let atomicPointerArgQualifiers = Dictionary<Var, AddressSpaceQualifier<Lang>>()
 
+            let (|AtomicApplArgs|_|) (args: Expr list list) =
+                match args with
+                | [mutex] :: _ :: [[DerivedPatterns.SpecificCall <@ ref @> (_, _, [Patterns.ValidVolatileArg var])]]
+                | [mutex] :: [[DerivedPatterns.SpecificCall <@ ref @> (_, _, [Patterns.ValidVolatileArg var])]] -> Some (mutex, var)
+                | _ -> None
+
             let rec go expr =
                 match expr with
                 | DerivedPatterns.Applications
                     (
                         Patterns.Var funcVar,
-                        [mutex] :: _ :: [[DerivedPatterns.SpecificCall <@ ref @> (_, _, [Patterns.ValidVolatileArg var])]]
+                        AtomicApplArgs (mutex, volatileVar)
                     )
                     when funcVar.Name.StartsWith "atomic" ->
 
-                    if kernelArgumentsNames |> List.contains var.Name then
+                    if kernelArgumentsNames |> List.contains volatileVar.Name then
                         atomicPointerArgQualifiers.Add(funcVar, Global)
-                    elif localVarsNames |> List.contains var.Name then
+                    elif localVarsNames |> List.contains volatileVar    .Name then
                         atomicPointerArgQualifiers.Add(funcVar, Local)
                     else
                         failwith "Atomic pointer argument should be from local or global memory only"

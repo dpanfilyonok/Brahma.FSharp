@@ -192,55 +192,29 @@ module AtomicProcessor =
 
                 let baseFuncBody =
                     match lambdaBody with
-                    // | DerivedPatterns.SpecificCall <@ inc @> (_, onType :: _, _) ->
-                    //     failwithf "Atomic inc for %O is not suppotred" onType
-
-                    | DerivedPatterns.SpecificCall <@ dec @> (_, onType :: _, _) ->
-                        failwithf "Atomic inc for %O is not suppotred" onType
-
                     | DerivedPatterns.SpecificCall <@ inc @> (_, onType :: _, [Patterns.Var p]) ->
                         Expr.Call(
                             Utils.makeGenericMethodCall [onType; onType; onType] <@ (+) @>,
                             [
                                 Expr.Var p;
                                 Expr.Call(
-                                    Utils.makeGenericMethodCall [onType] <@ unbox<int> @>,
-                                    Expr.Value(
-                                        Expr.Call(
-                                            Utils.makeGenericMethodCall [onType] <@ GenericOne<int> @>,
-                                            List.empty
-                                        ).EvaluateUntyped()
-                                    )
-                                    |> List.singleton
+                                    Utils.makeGenericMethodCall [onType] <@ GenericOne<int> @>,
+                                    List.empty
                                 )
                             ]
                         )
 
-                    // | DerivedPatterns.SpecificCall <@ dec @> (_, onType :: _, [Patterns.Var p]) ->
-                    //     Expr.Call(
-                    //         (Utils.getMethodInfoOfCall <@ (-) @>)
-                    //             .GetGenericMethodDefinition()
-                    //             .MakeGenericMethod(onType, onType, onType),
-
-                    //         [
-                    //             Expr.Var p;
-                    //             Expr.Call(
-                    //                 (Utils.getMethodInfoOfCall <@ unbox<int> @>)
-                    //                     .GetGenericMethodDefinition()
-                    //                     .MakeGenericMethod(onType),
-
-                    //                 Expr.Value(
-                    //                     Expr.Call(
-                    //                         (Utils.getMethodInfoOfCall <@ GenericOne<int> @>)
-                    //                             .GetGenericMethodDefinition()
-                    //                             .MakeGenericMethod(onType),
-                    //                         List.empty
-                    //                     ).EvaluateUntyped()
-                    //                 )
-                    //                 |> List.singleton
-                    //             )
-                    //         ]
-                    //     )
+                    | DerivedPatterns.SpecificCall <@ dec @> (_, onType :: _, [Patterns.Var p]) ->
+                        Expr.Call(
+                            Utils.makeGenericMethodCall [onType; onType; onType] <@ (-) @>,
+                            [
+                                Expr.Var p;
+                                Expr.Call(
+                                    Utils.makeGenericMethodCall [onType] <@ GenericOne<int> @>,
+                                    List.empty
+                                )
+                            ]
+                        )
 
                     | DerivedPatterns.SpecificCall <@ xchg @> (_, _, [Patterns.Var p; Patterns.Var value]) ->
                         Expr.Var value

@@ -87,8 +87,16 @@ let main argv =
     // |> ClTask.runSync context
     // Utils.openclTransformQuotation kernel
     // |> printfn "%A"
-    // Utils.openclTranslate kernel
-    // |> printfn "%A"
+
+    let kernel =
+        <@
+            fun (range: Range1D) (buf: int16 clarray) ->
+                atomic inc buf.[0] |> ignore
+        @>
+
+    Utils.openclTranslate kernel
+    |> printfn "%A"
+    0
     // let rnd = System.Random()
     // let input1 = Array.init 100_000 (fun i -> rnd.Next())
     // let input2 = Array.init 100_000 (fun i -> rnd.Next())
@@ -133,5 +141,5 @@ let main argv =
     // Utils.openclCompile (add op)
     // |> printfn "%A"
     // 0
-    allTests
-    |> runTestsWithCLIArgs [] argv
+    // allTests
+    // |> runTestsWithCLIArgs [] argv

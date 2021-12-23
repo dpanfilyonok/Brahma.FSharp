@@ -623,7 +623,6 @@ module rec Body =
             else
                 return! translateApplicationFun expr1 expr2 >>= toNode
 
-
         | DerivedPatterns.SpecificCall <@@ print @@> (_, _, args) ->
             match args with
             | [ Patterns.ValueWithName (argTypes, _, _);
@@ -642,6 +641,16 @@ module rec Body =
                 [expr; Patterns.Lambda(_, DerivedPatterns.SpecificCall <@ ignore @> (_, _, _))]
             ) ->
             return! translate expr
+
+        | DerivedPatterns.SpecificCall <@ LanguagePrimitives.GenericOne<int> @> (_, [onType], _) ->
+            let! type' = Type.translate onType
+            let value =
+                Expr.Call(
+                    Utils.makeGenericMethodCall [onType] <@ LanguagePrimitives.GenericOne<int> @>,
+                    List.empty
+                ).EvaluateUntyped().ToString()
+
+            return Const(type', value) :> Node<_>
 
         // TODO convert to active pattern?
         // for loop with step
