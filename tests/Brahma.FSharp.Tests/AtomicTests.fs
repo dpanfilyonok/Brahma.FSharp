@@ -12,6 +12,8 @@ open ExpectoFsCheck
 open FsCheck
 open Brahma.FSharp.Tests
 
+// TODO add tests in inc dec on supported types (generate spinlock)
+
 let logger = Log.create "AtomicTests"
 
 type NormalizedFloatArray =

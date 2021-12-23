@@ -122,7 +122,7 @@ module ClTaskOpened =
         opencl {
             let! ctx = ClTask.ask
 
-            let kernel = ctx.CreateClProgram(command).NewKernel()
+            let kernel = ctx.CreateClProgram(command).GetKernel()
 
             ctx.CommandQueue.Post <| MsgSetArguments(fun () -> binder kernel.KernelFunc)
             ctx.CommandQueue.Post <| Msg.CreateRunMsg<_, _>(kernel)

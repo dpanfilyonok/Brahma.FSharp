@@ -11,4 +11,9 @@ type InvalidKernelException =
     new(message: string, inner: Exception) = { inherit Exception(message, inner) }  //
 
 /// The exception that is thrown when the unexpected error occured during the translation.
-exception TranslationFailedException of string
+type TranslationFailedException =
+    inherit Exception
+
+    new() = { inherit Exception() }  //
+    new(message: string) = { inherit Exception(message) }
+    new(message: string, inner: Exception) = { inherit Exception(message, inner) }

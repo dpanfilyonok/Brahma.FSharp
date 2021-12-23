@@ -49,7 +49,7 @@ type ClProgram<'TRange, 'a when 'TRange :> INDRange>
 
     member this.Code = clCode
 
-    member this.NewKernel(?kernelName) =
+    member this.GetKernel(?kernelName) =
         let kernelName = defaultArg kernelName "brahmaKernel"
         let kernel = createKernel program kernelName
 

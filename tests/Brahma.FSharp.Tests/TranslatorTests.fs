@@ -706,6 +706,20 @@ let printfTests = testList "Translation of printf" [
         checkCode command "Printf test 6.gen" "Printf test 6.cl"
 ]
 
+let barrierTests = testList "Barrier translation tests" [
+    testCase "Local barrier translation tests" <| fun () ->
+        let command = <@ fun (range: Range1D) -> barrierLocal () @>
+        checkCode command "Barrier.Local.gen" "Barrier.Local.cl"
+
+    testCase "Global barrier translation tests" <| fun () ->
+        let command = <@ fun (range: Range1D) -> barrierGlobal () @>
+        checkCode command "Barrier.Global.gen" "Barrier.Global.cl"
+
+    testCase "Full barrier translation tests" <| fun () ->
+        let command = <@ fun (range: Range1D) -> barrierFull () @>
+        checkCode command "Barrier.Full.gen" "Barrier.Full.cl"
+]
+
 let tests =
     testList "Tests for translator" [
         basicLocalIdTests
@@ -719,5 +733,6 @@ let tests =
         localMemoryTests
         localMemoryAllocationTests
         printfTests
+        barrierTests
     ]
     |> testSequenced

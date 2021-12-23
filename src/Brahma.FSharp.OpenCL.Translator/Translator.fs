@@ -51,13 +51,13 @@ type FSQuotationToOpenCLTranslator(translatorOptions: TranslatorOptions) =
                 | DerivedPatterns.Applications
                     (
                         Patterns.Var funcVar,
-                        AtomicApplArgs (mutex, volatileVar)
+                        AtomicApplArgs (_, volatileVar)
                     )
                     when funcVar.Name.StartsWith "atomic" ->
 
                     if kernelArgumentsNames |> List.contains volatileVar.Name then
                         atomicPointerArgQualifiers.Add(funcVar, Global)
-                    elif localVarsNames |> List.contains volatileVar    .Name then
+                    elif localVarsNames |> List.contains volatileVar.Name then
                         atomicPointerArgQualifiers.Add(funcVar, Local)
                     else
                         failwith "Atomic pointer argument should be from local or global memory only"

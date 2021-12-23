@@ -5,6 +5,6 @@ open OpenCL.Net
 type IKernel<'TRange, 'a when 'TRange :> INDRange> =
     abstract Kernel : Kernel
     abstract NDRange : INDRange
-    // dont sure about naming
+    // not sure about naming
     abstract KernelFunc : ('TRange -> 'a)
     abstract ReleaseInternalBuffers : unit -> unit

@@ -498,7 +498,7 @@ let kernelArgumentsTests = testList "Kernel arguments tests" [
         let actual =
             opencl {
                 let! ctx = ClTask.ask
-                let kernel = ctx.CreateClProgram(command).NewKernel()
+                let kernel = ctx.CreateClProgram(command).GetKernel()
 
                 let inArr = ctx.CreateClArray(intInArr)
 
@@ -531,7 +531,7 @@ let kernelArgumentsTests = testList "Kernel arguments tests" [
             let k = context.CreateClProgram kernel
             fun (q:MailboxProcessor<_>) ->
                 let buf = context.CreateClArray(l, allocationMode = AllocationMode.AllocHostPtr)
-                let executable = k.NewKernel()
+                let executable = k.GetKernel()
                 q.Post(Msg.MsgSetArguments(fun () -> executable.KernelFunc (Range1D(l, l)) buf))
                 q.Post(Msg.CreateRunMsg<_,_>(executable))
                 buf
@@ -1385,7 +1385,9 @@ let parallelExecutionTests = testList "Parallel Execution Tests" [
         |> Expect.sequenceEqual actual expected
 ]
 
-type T1 = None1 | Some1 of int
+type Option1 =
+    | None1
+    | Some1 of int
 
 let simpleDUTests = testList "Simple tests on discriminated unions" [
     testCase "Option<int> with F#-native syntax" <| fun () ->
@@ -1412,11 +1414,14 @@ let simpleDUTests = testList "Simple tests on discriminated unions" [
                 use! input1 = ClArray.toDevice input1
                 use! input2 = ClArray.toDevice input2
                 use! output = ClArray.alloc<int> 100_000
-                let op = <@ fun x y ->
-                                match x with
-                                 Some x -> match y with Some y -> Some (x + y) | None -> Some x
-                                | None -> match y with Some y -> Some y | None -> None  @>
-                do! runCommand (add (op)) <| fun x ->
+                let op =
+                    <@ fun x y ->
+                        match x with
+                        | Some x -> match y with Some y -> Some (x + y) | None -> Some x
+                        | None -> match y with Some y -> Some y | None -> None
+                    @>
+
+                do! runCommand (add op) <| fun x ->
                     x
                     <| Range1D.CreateValid(input1.Length, 256)
                     <| input1
@@ -1427,11 +1432,15 @@ let simpleDUTests = testList "Simple tests on discriminated unions" [
             }
             |> ClTask.runSync context
 
-        let expected = Array.map2 (fun x y -> if x < 0
-                                              then if y < 0
-                                                   then 0
-                                                   else y
-                                              else x + y) input1 input2
+        let expected =
+            (input1, input2)
+            ||> Array.map2
+                (fun x y ->
+                    if x < 0 then
+                        if y < 0 then 0 else y
+                    else
+                        x + y
+                )
 
         "Arrays should be equal"
         |> Expect.sequenceEqual actual expected
@@ -1455,7 +1464,7 @@ let simpleDUTests = testList "Simple tests on discriminated unions" [
                         if input1.[i] >= 0 then x <- Some input1.[i]
                         if input2.[i] >= 0 then y <- Some input2.[i]
                         match (%op) x y with
-                        Some x -> output.[i] <- x
+                        | Some x -> output.[i] <- x
                         | None -> output.[i] <- 0
             @>
 
@@ -1464,11 +1473,16 @@ let simpleDUTests = testList "Simple tests on discriminated unions" [
                 use! input1 = ClArray.toDevice input1
                 use! input2 = ClArray.toDevice input2
                 use! output = ClArray.alloc<int> 100_000
-                let op = <@ fun x y ->
-                                match x with
-                                 Some x -> match y with Some y -> Some (x + y) | None -> Some x
-                                | None -> match y with Some y -> Some y | None -> None  @>
-                do! runCommand (add (op)) <| fun x ->
+                let op =
+                    <@ fun x y ->
+                        match x, y with
+                        | Some x, Some y -> Some (x + y)
+                        | Some x, None -> Some x
+                        | None, Some y -> Some y
+                        | None, None -> None
+                    @>
+
+                do! runCommand (add op) <| fun x ->
                     x
                     <| Range1D.CreateValid(input1.Length, 256)
                     <| input1
@@ -1479,11 +1493,15 @@ let simpleDUTests = testList "Simple tests on discriminated unions" [
             }
             |> ClTask.runSync context
 
-        let expected = Array.map2 (fun x y -> if x < 0
-                                              then if y < 0
-                                                   then 0
-                                                   else y
-                                              else x + y) input1 input2
+        let expected =
+            (input1, input2)
+            ||> Array.map2
+                (fun x y ->
+                    if x < 0 then
+                        if y < 0 then 0 else y
+                    else
+                        x + y
+                )
 
         "Arrays should be equal"
         |> Expect.sequenceEqual actual expected
@@ -1493,7 +1511,7 @@ let simpleDUTests = testList "Simple tests on discriminated unions" [
         let input1 = Array.init 100_000 (fun i -> rnd.Next())
         let input2 = Array.init 100_000 (fun i -> rnd.Next())
         let inputArrayLength = input1.Length
-        let add (op:Expr<T1 -> T1 -> T1>) =
+        let add (op:Expr<Option1 -> Option1 -> Option1>) =
             <@
                 fun (ndRange: Range1D)
                     (input1: int clarray)
@@ -1508,7 +1526,7 @@ let simpleDUTests = testList "Simple tests on discriminated unions" [
                         if input2.[i] >= 0 then y <- Some1 input2.[i]
                         let z = (%op) x y
                         match z with
-                        Some1 x -> output.[i] <- x
+                        | Some1 x -> output.[i] <- x
                         | None1 -> output.[i] <- 0
             @>
 
@@ -1517,11 +1535,14 @@ let simpleDUTests = testList "Simple tests on discriminated unions" [
                 use! input1 = ClArray.toDevice input1
                 use! input2 = ClArray.toDevice input2
                 use! output = ClArray.alloc<int> 100_000
-                let op = <@ fun x y ->
-                                match x with
-                                 Some1 x -> match y with Some1 y -> Some1 (x + y) | None1 -> Some1 x
-                                | None1 -> match y with Some1 y -> Some1 y | None1 -> None1  @>
-                do! runCommand (add (op)) <| fun x ->
+                let op =
+                    <@ fun x y ->
+                        match x with
+                        | Some1 x -> match y with Some1 y -> Some1 (x + y) | None1 -> Some1 x
+                        | None1 -> match y with Some1 y -> Some1 y | None1 -> None1
+                    @>
+
+                do! runCommand (add op) <| fun x ->
                     x
                     <| Range1D.CreateValid(input1.Length, 256)
                     <| input1
@@ -1532,11 +1553,15 @@ let simpleDUTests = testList "Simple tests on discriminated unions" [
             }
             |> ClTask.runSync context
 
-        let expected = Array.map2 (fun x y -> if x < 0
-                                              then if y < 0
-                                                   then 0
-                                                   else y
-                                              else x + y) input1 input2
+        let expected =
+            (input1, input2)
+            ||> Array.map2
+                (fun x y ->
+                    if x < 0 then
+                        if y < 0 then 0 else y
+                    else
+                        x + y
+                )
 
         "Arrays should be equal"
         |> Expect.sequenceEqual actual expected

@@ -14,11 +14,11 @@ module KernelLangExtensions =
         failIfOutsideKernel ()
         ignore null
 
-    let barrierGlobal =
+    let barrierGlobal () =
         failIfOutsideKernel ()
         ignore null
 
-    let barrierFull =
+    let barrierFull () =
         failIfOutsideKernel ()
         ignore null
 

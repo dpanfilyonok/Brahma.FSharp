@@ -448,8 +448,7 @@ module rec Body =
         do! State.modify (fun context -> context.VarDecls.Clear(); context)
 
         for expr in linearized do
-            // NOTE с тим не работает, хотя до этого работало
-            // непонятно зачем это вообще нужно
+            // NOTE тут что то сломалось :(
             // do! State.modify (fun context -> context.VarDecls.Clear(); context)
             match! translate expr with
             | :? StatementBlock<Lang> as s1 ->
@@ -522,9 +521,9 @@ module rec Body =
 
         let! unionValueExpr = translateAsExpr expr
 
-        // NOTE для опшна классы наследники не создаются, поэтому не работает
         let caseName = propInfo.DeclaringType.Name
         let unionCaseField =
+            // для option классы наследники не создаются, поэтому нужно обрабатывать отдельно
             if caseName <> "FSharpOption`1" then
                 unionType.GetCaseByName caseName
             else
@@ -678,9 +677,7 @@ module rec Body =
                     )
                 )
             ) ->
-
-            let! r = translateForIntegerRangeLoop loopVar start finish (Some step) loopBody
-            return r :> Node<_>
+            return! translateForIntegerRangeLoop loopVar start finish (Some step) loopBody >>= toNode
 
         | Patterns.Let
             (
@@ -706,41 +703,24 @@ module rec Body =
                     )
                 )
             ) ->
+            return! translateForIntegerRangeLoop loopVar start finish None loopBody >>= toNode
 
-            let! r = translateForIntegerRangeLoop loopVar start finish (None) loopBody
-            return r :> Node<_>
-
-        // | DerivedPatterns.SpecificCall <@ unbox @>
-        //     (
-        //         _,
-        //         _,
-        //         [Patterns.Value (boxed, type')]
-        //     ) ->
-        //     let! r = translateValue (Expr.Value <| unbox boxed) type'
-        //     return r :> Node<_>
-
-        | Patterns.Call (exprOpt, mInfo, args) ->
-            let! r = translateCall exprOpt mInfo args
-            return r :> Node<_>
+        | Patterns.Call (exprOpt, mInfo, args) -> return! translateCall exprOpt mInfo args >>= toNode
         | Patterns.Coerce (expr, sType) -> return raise <| InvalidKernelException(sprintf "Coerce is not suported: %O" expr)
         | Patterns.DefaultValue sType -> return raise <| InvalidKernelException(sprintf "DefaulValue is not suported: %O" expr)
+
         | Patterns.FieldGet (exprOpt, fldInfo) ->
             match exprOpt with
             | Some expr -> return! translateStructFieldGet expr fldInfo.Name >>= toNode
             | None -> return raise <| InvalidKernelException(sprintf "FieldGet for empty host is not suported. Field: %A" fldInfo.Name)
+
         | Patterns.FieldSet (exprOpt, fldInfo, expr) ->
             match exprOpt with
-            | Some e ->
-                let! r = translateFieldSet e fldInfo.Name expr
-                return r :> Node<_>
+            | Some e -> return! translateFieldSet e fldInfo.Name expr >>= toNode
             | None -> return raise <| InvalidKernelException(sprintf "Fileld set with empty host is not supported. Field: %A" fldInfo)
-        | Patterns.ForIntegerRangeLoop (i, from', to', body) ->
-            let! r = translateForIntegerRangeLoop i from' to' None body
-            return r :> Node<_>
-        | Patterns.IfThenElse (cond, thenExpr, elseExpr) ->
-            return!
-                translateIf cond thenExpr elseExpr
-                |> State.map (fun x -> x :> Node<_>)
+
+        | Patterns.ForIntegerRangeLoop (i, from', to', body) -> return! translateForIntegerRangeLoop i from' to' None body >>= toNode
+        | Patterns.IfThenElse (cond, thenExpr, elseExpr) -> return! translateIf cond thenExpr elseExpr >>= toNode
 
         | Patterns.Lambda (var, _expr) ->  return raise <| InvalidKernelException(sprintf "Lambda is not suported: %A" expr)
         | Patterns.Let (var, expr, inExpr) ->
@@ -792,20 +772,12 @@ module rec Body =
 
             return NewStruct(unionInfo, tag :: args) :> Node<_>
 
-        | Patterns.PropertyGet (exprOpt, propInfo, exprs) ->
-            let! res = translatePropGet exprOpt propInfo exprs
-            return res :> Node<_>
-        | Patterns.PropertySet (exprOpt, propInfo, exprs, expr) ->
-            let! res = translatePropSet exprOpt propInfo exprs expr
-            return res :> Node<_>
-        | Patterns.Sequential (expr1, expr2) ->
-            let! res = translateSeq expr1 expr2
-            return res :> Node<_>
+        | Patterns.PropertyGet (exprOpt, propInfo, exprs) -> return! translatePropGet exprOpt propInfo exprs >>= toNode
+        | Patterns.PropertySet (exprOpt, propInfo, exprs, expr) -> return! translatePropSet exprOpt propInfo exprs expr >>= toNode
+        | Patterns.Sequential (expr1, expr2) -> return! translateSeq expr1 expr2 >>= toNode
         | Patterns.TryFinally (tryExpr, finallyExpr) -> return raise <| InvalidKernelException(sprintf "TryFinally is not suported: %O" expr)
         | Patterns.TryWith (expr1, var1, expr2, var2, expr3) -> return raise <| InvalidKernelException(sprintf "TryWith is not suported: %O" expr)
-        | Patterns.TupleGet (expr, i) ->
-            let! r = translateStructFieldGet expr ("_" + (string (i + 1)))
-            return r :> Node<_>
+        | Patterns.TupleGet (expr, i) -> return! translateStructFieldGet expr ("_" + (string (i + 1))) >>= toNode
         | Patterns.TypeTest (expr, sType) -> return raise <| InvalidKernelException(sprintf "TypeTest is not suported: %O" expr)
 
         | Patterns.UnionCaseTest (expr, unionCaseInfo) ->
@@ -829,25 +801,13 @@ module rec Body =
                     VarDecl(res.Type, name, Some(res :> Expression<_>), AddressSpaceQualifier.Constant)
                 )
                 let var = Var(name, sType)
-                let! res = translateVar var
-                return res :> Node<_>
+                return! translateVar var >>= toNode
             else
-                let! res = translateValue obj' sType
-                return res :> Node<_>
-        | Patterns.Value (obj', sType) ->
-            // если оборачиваем бокс значение в валью, то тип будет obj
-            //  вот если у нас <@ unbox<int> (box 6) @> то тип такого выражения int, хотя box 6 все еще 6, так что хзкак это делать
-            //printfn "%A" sType
-            let! res = translateValue obj' sType
-            return res :> Node<_>
-        | Patterns.Var var ->
-            let! res = translateVar var
-            return res :> Node<_>
-        | Patterns.VarSet (var, expr) ->
-            let! res = translateVarSet var expr
-            return res :> Node<_>
-        | Patterns.WhileLoop (condExpr, bodyExpr) ->
-            let! r = translateWhileLoop condExpr bodyExpr
-            return r :> Node<_>
+                return! translateValue obj' sType >>= toNode
+
+        | Patterns.Value (obj', sType) -> return! translateValue obj' sType >>= toNode
+        | Patterns.Var var -> return! translateVar var >>= toNode
+        | Patterns.VarSet (var, expr) -> return! translateVarSet var expr >>= toNode
+        | Patterns.WhileLoop (condExpr, bodyExpr) -> return! translateWhileLoop condExpr bodyExpr >>= toNode
         | _ -> return raise <| InvalidKernelException(sprintf "Folowing expression inside kernel is not supported:\n%O" expr)
     }
