@@ -150,7 +150,7 @@ type CustomMarshaler<'a>() =
         size, mem
 
     member this.WriteToUnmanaged(array: 'a[], ptr: IntPtr) =
-        Parallel.For(0, array.Length, fun j ->
+        Array.Parallel.iteri (fun j item ->
             let start = IntPtr.Add(ptr, j * this.ElementTypeSize)
             let mutable i = 0
             let rec go (structure: obj) =
@@ -161,7 +161,8 @@ type CustomMarshaler<'a>() =
                     [ 0 .. tupleSize - 1 ] |> List.iter (fun i -> go tuple.[i])
 
                 | Record ->
-                    FSharpValue.GetRecordFields structure |> Array.iter go
+                    FSharpValue.GetRecordFields structure
+                    |> Array.iter go
 
                 | Union -> failwithf "Union not supported"
 
@@ -180,9 +181,8 @@ type CustomMarshaler<'a>() =
                     Marshal.StructureToPtr(structure, IntPtr.Add(start, offset), false)
                     i <- i + 1
 
-            go array.[j]
-        )
-        |> ignore
+            go item
+        ) array
 
         array.Length * this.ElementTypeSize
 
@@ -192,7 +192,7 @@ type CustomMarshaler<'a>() =
         array
 
     member this.ReadFromUnmanaged(ptr: IntPtr, array: 'a[]) =
-        Parallel.For(0, array.Length, fun j ->
+        Array.Parallel.iteri (fun j _ ->
             let start = IntPtr.Add(ptr, j * this.ElementTypeSize)
             let mutable i = 0
             let rec go (type': Type) =
@@ -230,8 +230,7 @@ type CustomMarshaler<'a>() =
                     structure
 
             array.[j] <- unbox<'a> <| go typeof<'a>
-        )
-        |> ignore
+        ) array
 
     override this.ToString() =
         sprintf "%O\n%A" elementPacking offsets

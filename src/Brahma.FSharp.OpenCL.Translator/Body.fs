@@ -27,12 +27,68 @@ open FSharp.Quotations.Evaluator
 // Translations restricts the generic parameter of the AST nodes to the type Lang
 #nowarn "64"
 
-module rec Body =
-    let (|Name|_|) (str: string) (var': Var) =
+[<AutoOpen>]
+module private BodyPatterns =
+    let (|VarName|_|) (str: string) (var': Var) =
         match var'.Name with
-        | tName when tName = str -> Some Name
+        | tName when tName = str -> Some VarName
         | _ -> None
 
+    let (|ForLoopWithStep|_|) = function
+        | Patterns.Let
+            (
+                VarName "inputSequence",
+                DerivedPatterns.SpecificCall <@ (.. ..) @> (
+                    _,
+                    _,
+                    [start; step; finish]
+                ),
+                Patterns.Let (
+                    VarName "enumerator",
+                    _,
+                    Patterns.TryFinally (
+                        Patterns.WhileLoop (
+                            _,
+                            Patterns.Let (
+                                loopVar,
+                                _,
+                                loopBody
+                            )
+                        ),
+                        _
+                    )
+                )
+            ) -> Some (loopVar, (start, step, finish), loopBody)
+        | _ -> None
+
+    let (|ForLoop|_|) = function
+        | Patterns.Let
+            (
+                VarName "inputSequence",
+                DerivedPatterns.SpecificCall <@ (..) @> (
+                    _,
+                    _,
+                    [start; finish]
+                ),
+                Patterns.Let (
+                    VarName "enumerator",
+                    _,
+                    Patterns.TryFinally (
+                        Patterns.WhileLoop (
+                            _,
+                            Patterns.Let (
+                                loopVar,
+                                _,
+                                loopBody
+                            )
+                        ),
+                        _
+                    )
+                )
+            ) -> Some (loopVar, (start, finish), loopBody)
+        | _ -> None
+
+module rec Body =
     // new var scope
     let private clearContext (targetContext: TranslationContext<'a, 'b>) =
         { targetContext with VarDecls = ResizeArray() }
@@ -157,6 +213,8 @@ module rec Body =
         | "touint16" -> return Cast(args.[0], PrimitiveType UShort) :> Statement<_>
         | "toint64" -> return Cast(args.[0], PrimitiveType Long) :> Statement<_>
         | "touint64" -> return Cast(args.[0], PrimitiveType ULong) :> Statement<_>
+        | "min"
+        | "max"
         | "acos"
         | "asin"
         | "atan"
@@ -181,7 +239,6 @@ module rec Body =
                 return raise <| InvalidKernelException(
                     sprintf "Seems, that you use math function with name %s not from System.Math or Microsoft.FSharp.Core.Operators" fName
                 )
-
         | "abs" as fName ->
             if mInfo.DeclaringType.AssemblyQualifiedName.StartsWith("Microsoft.FSharp.Core.Operators") then
                 return FunCall("fabs", args) :> Statement<_>
@@ -394,7 +451,7 @@ module rec Body =
     }
 
     // NOTE reversed loops not supported
-    let translateForIntegerRangeLoop (loopVar: Var) (from': Expr) (to': Expr) (step: Expr option) (body: Expr) = translation {
+    let translateForLoop (loopVar: Var) (from': Expr) (to': Expr) (step: Expr option) (body: Expr) = translation {
         let! loopVarName = State.gets (fun context -> context.Namer.LetStart loopVar.Name)
         let loopVarType = loopVar.Type
 
@@ -651,60 +708,6 @@ module rec Body =
 
             return Const(type', value) :> Node<_>
 
-        // TODO convert to active pattern?
-        // for loop with step
-        | Patterns.Let
-            (
-                Name "inputSequence",
-                DerivedPatterns.SpecificCall <@ (.. ..) @> (
-                    _,
-                    _,
-                    [start; step; finish]
-                ),
-                Patterns.Let (
-                    Name "enumerator",
-                    _,
-                    Patterns.TryFinally (
-                        Patterns.WhileLoop (
-                            _,
-                            Patterns.Let (
-                                loopVar,
-                                _,
-                                loopBody
-                            )
-                        ),
-                        _
-                    )
-                )
-            ) ->
-            return! translateForIntegerRangeLoop loopVar start finish (Some step) loopBody >>= toNode
-
-        | Patterns.Let
-            (
-                Name "inputSequence",
-                DerivedPatterns.SpecificCall <@ (..) @> (
-                    _,
-                    _,
-                    [start; finish]
-                ),
-                Patterns.Let (
-                    Name "enumerator",
-                    _,
-                    Patterns.TryFinally (
-                        Patterns.WhileLoop (
-                            _,
-                            Patterns.Let (
-                                loopVar,
-                                _,
-                                loopBody
-                            )
-                        ),
-                        _
-                    )
-                )
-            ) ->
-            return! translateForIntegerRangeLoop loopVar start finish None loopBody >>= toNode
-
         | Patterns.Call (exprOpt, mInfo, args) -> return! translateCall exprOpt mInfo args >>= toNode
         | Patterns.Coerce (expr, sType) -> return raise <| InvalidKernelException(sprintf "Coerce is not suported: %O" expr)
         | Patterns.DefaultValue sType -> return raise <| InvalidKernelException(sprintf "DefaulValue is not suported: %O" expr)
@@ -719,7 +722,9 @@ module rec Body =
             | Some e -> return! translateFieldSet e fldInfo.Name expr >>= toNode
             | None -> return raise <| InvalidKernelException(sprintf "Fileld set with empty host is not supported. Field: %A" fldInfo)
 
-        | Patterns.ForIntegerRangeLoop (i, from', to', body) -> return! translateForIntegerRangeLoop i from' to' None body >>= toNode
+        | ForLoopWithStep (loopVar, (start, step, finish), loopBody) -> return! translateForLoop loopVar start finish (Some step) loopBody >>= toNode
+        | ForLoop (loopVar, (start, finish), loopBody) -> return! translateForLoop loopVar start finish None loopBody >>= toNode
+        | Patterns.ForIntegerRangeLoop (loopVar, start, finish, loopBody) ->  return! translateForLoop loopVar start finish None loopBody >>= toNode
         | Patterns.IfThenElse (cond, thenExpr, elseExpr) -> return! translateIf cond thenExpr elseExpr >>= toNode
 
         | Patterns.Lambda (var, _expr) ->  return raise <| InvalidKernelException(sprintf "Lambda is not suported: %A" expr)

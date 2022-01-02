@@ -333,6 +333,17 @@ let operatorsAndMathFunctionsTests =
             [|5.f; 6.f; 7.f; 8.f|]
             [|1.f; 2.f; 3.f; 4.f|]
 
+        ptestCase "MAX on int16 with const" <| fun () ->
+            let command =
+                <@
+                    fun (range: Range1D) (buf: int16 clarray) ->
+                        let gid = range.GlobalID0
+                        buf.[gid] <- max buf.[gid] 1s
+                @>
+
+            let inA = [|0s; 1s; 2s; 3s|]
+            checkResult command inA (Array.map (max 1s) inA)
+
         // Failed: due to precision
         ptestCase "Math sin" <| fun _ ->
             let command =

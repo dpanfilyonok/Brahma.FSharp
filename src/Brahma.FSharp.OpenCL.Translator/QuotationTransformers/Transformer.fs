@@ -26,7 +26,7 @@ module Transformer =
     /// Returns kernel and other methods
     let transformQuotation (expr: Expr) =
         expr
-        |> transformMinMax
+        // |> transformMinMax
         |> processAtomic
         |> replacePrintf
         |> makeVarNameUnique
