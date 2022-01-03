@@ -82,7 +82,7 @@ module Statements =
     and private printForInteger (for': ForIntegerLoop<_>) =
         let cond = Expressions.print for'.Condition
         let i = print true for'.Var
-        let cModif = Expressions.print for'.CountModifier
+        let cModif = print true for'.CountModifier
         let body = print true for'.Body
         let header = [ i; cond; cModif ] |> sepListL (wordL ";") |> bracketL
 
@@ -111,7 +111,11 @@ module Statements =
 
         wordL fc.Name ++ args
 
-    and printBarrier (b: Barrier<_>) = wordL "barrier(CLK_LOCAL_MEM_FENCE)"
+    and printBarrier (b: Barrier<_>) =
+        match b.MemFence with
+        | MemFence.Local -> wordL "barrier(CLK_LOCAL_MEM_FENCE)"
+        | MemFence.Global -> wordL "barrier(CLK_GLOBAL_MEM_FENCE)"
+        | Both -> wordL "barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE)"
 
     and printReturn (r: Return<_>) = wordL "return" ++ Expressions.print r.Expression
 
@@ -143,6 +147,7 @@ module Statements =
             | :? FieldSet<'lang> as fs -> printFieldSet fs
             | :? Return<'lang> as r -> printReturn r
             //| :? Variable<'lang> as v -> printVar v
+            | :? Expression<'lang> as e -> Expressions.print e
             | _ -> failwithf "Printer. Unsupported statement: %O" stmt
 
         if isToplevel then

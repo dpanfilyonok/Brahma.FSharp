@@ -66,6 +66,7 @@ type BOp<'lang> =
     | Pow
     | BitAnd
     | BitOr
+    | BitXor
     | LeftShift
     | RightShift
     | And
@@ -91,6 +92,7 @@ type UOp<'lang> =
     | Not
     | Incr
     | Decr
+    | BitNegation
 
 type Unop<'lang>(op: UOp<'lang>, expr: Expression<'lang>) =
     inherit Expression<'lang>()

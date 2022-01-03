@@ -32,17 +32,17 @@ module AtomicProcessor =
     let inline private atomicOr p v = (|||) !p v
     let inline private atomicXor p v = (^^^) !p v
 
-    let private atomicAddInfo = (Utils.getMethodInfoOfLambda <@ atomicAdd @>).GetGenericMethodDefinition()
-    let private atomicSubInfo = (Utils.getMethodInfoOfLambda <@ atomicSub @>).GetGenericMethodDefinition()
-    let private atomicIncInfo = (Utils.getMethodInfoOfLambda <@ atomicInc @>).GetGenericMethodDefinition()
-    let private atomicDecInfo = (Utils.getMethodInfoOfLambda <@ atomicDec @>).GetGenericMethodDefinition()
-    let private atomicXchgInfo = (Utils.getMethodInfoOfLambda <@ atomicXchg @>).GetGenericMethodDefinition()
-    let private atomicCmpxchgInfo = (Utils.getMethodInfoOfLambda <@ atomicCmpxchg @>).GetGenericMethodDefinition()
-    let private atomicMinInfo = (Utils.getMethodInfoOfLambda <@ atomicMin @>).GetGenericMethodDefinition()
-    let private atomicMaxInfo = (Utils.getMethodInfoOfLambda <@ atomicMax @>).GetGenericMethodDefinition()
-    let private atomicAndInfo = (Utils.getMethodInfoOfLambda <@ atomicAnd @>).GetGenericMethodDefinition()
-    let private atomicOrInfo = (Utils.getMethodInfoOfLambda <@ atomicOr @>).GetGenericMethodDefinition()
-    let private atomicXorInfo = (Utils.getMethodInfoOfLambda <@ atomicXor @>).GetGenericMethodDefinition()
+    let private atomicAddInfo = (Utils.getMethodInfoOfCall <@ atomicAdd @>).GetGenericMethodDefinition()
+    let private atomicSubInfo = (Utils.getMethodInfoOfCall <@ atomicSub @>).GetGenericMethodDefinition()
+    let private atomicIncInfo = (Utils.getMethodInfoOfCall <@ atomicInc @>).GetGenericMethodDefinition()
+    let private atomicDecInfo = (Utils.getMethodInfoOfCall <@ atomicDec @>).GetGenericMethodDefinition()
+    let private atomicXchgInfo = (Utils.getMethodInfoOfCall <@ atomicXchg @>).GetGenericMethodDefinition()
+    let private atomicCmpxchgInfo = (Utils.getMethodInfoOfCall <@ atomicCmpxchg @>).GetGenericMethodDefinition()
+    let private atomicMinInfo = (Utils.getMethodInfoOfCall <@ atomicMin @>).GetGenericMethodDefinition()
+    let private atomicMaxInfo = (Utils.getMethodInfoOfCall <@ atomicMax @>).GetGenericMethodDefinition()
+    let private atomicAndInfo = (Utils.getMethodInfoOfCall <@ atomicAnd @>).GetGenericMethodDefinition()
+    let private atomicOrInfo = (Utils.getMethodInfoOfCall <@ atomicOr @>).GetGenericMethodDefinition()
+    let private atomicXorInfo = (Utils.getMethodInfoOfCall <@ atomicXor @>).GetGenericMethodDefinition()
 
     let private modifyFirstOfList f lst =
         match lst with
@@ -192,70 +192,36 @@ module AtomicProcessor =
 
                 let baseFuncBody =
                     match lambdaBody with
-                    | DerivedPatterns.SpecificCall <@ inc @> (_, onType :: _, _) ->
-                        failwithf "Atomic inc for %O is not suppotred" onType
+                    | DerivedPatterns.SpecificCall <@ inc @> (_, onType :: _, [Patterns.Var p]) ->
+                        Expr.Call(
+                            Utils.makeGenericMethodCall [onType; onType; onType] <@ (+) @>,
+                            [
+                                Expr.Var p;
+                                Expr.Call(
+                                    Utils.makeGenericMethodCall [onType] <@ GenericOne<int> @>,
+                                    List.empty
+                                )
+                            ]
+                        )
 
-                    | DerivedPatterns.SpecificCall <@ dec @> (_, onType :: _, _) ->
-                        failwithf "Atomic inc for %O is not suppotred" onType
-
-                    // | DerivedPatterns.SpecificCall <@ inc @> (_, onType :: _, [Patterns.Var p]) ->
-                    //     Expr.Call(
-                    //         (Utils.getMethodInfoOfLambda <@ (+) @>)
-                    //             .GetGenericMethodDefinition()
-                    //             .MakeGenericMethod(onType, onType, onType),
-
-                    //         [
-                    //             Expr.Var p;
-                    //             Expr.Call(
-                    //                 (Utils.getMethodInfoOfLambda <@ unbox<int> @>)
-                    //                     .GetGenericMethodDefinition()
-                    //                     .MakeGenericMethod(onType),
-
-                    //                 Expr.Value(
-                    //                     Expr.Call(
-                    //                         (Utils.getMethodInfoOfCall <@ GenericOne<int> @>)
-                    //                             .GetGenericMethodDefinition()
-                    //                             .MakeGenericMethod(onType),
-                    //                         List.empty
-                    //                     ).EvaluateUntyped()
-                    //                 )
-                    //                 |> List.singleton
-                    //             )
-                    //         ]
-                    //     )
-
-                    // | DerivedPatterns.SpecificCall <@ dec @> (_, onType :: _, [Patterns.Var p]) ->
-                    //     Expr.Call(
-                    //         (Utils.getMethodInfoOfCall <@ (-) @>)
-                    //             .GetGenericMethodDefinition()
-                    //             .MakeGenericMethod(onType, onType, onType),
-
-                    //         [
-                    //             Expr.Var p;
-                    //             Expr.Call(
-                    //                 (Utils.getMethodInfoOfCall <@ unbox<int> @>)
-                    //                     .GetGenericMethodDefinition()
-                    //                     .MakeGenericMethod(onType),
-
-                    //                 Expr.Value(
-                    //                     Expr.Call(
-                    //                         (Utils.getMethodInfoOfCall <@ GenericOne<int> @>)
-                    //                             .GetGenericMethodDefinition()
-                    //                             .MakeGenericMethod(onType),
-                    //                         List.empty
-                    //                     ).EvaluateUntyped()
-                    //                 )
-                    //                 |> List.singleton
-                    //             )
-                    //         ]
-                    //     )
+                    | DerivedPatterns.SpecificCall <@ dec @> (_, onType :: _, [Patterns.Var p]) ->
+                        Expr.Call(
+                            Utils.makeGenericMethodCall [onType; onType; onType] <@ (-) @>,
+                            [
+                                Expr.Var p;
+                                Expr.Call(
+                                    Utils.makeGenericMethodCall [onType] <@ GenericOne<int> @>,
+                                    List.empty
+                                )
+                            ]
+                        )
 
                     | DerivedPatterns.SpecificCall <@ xchg @> (_, _, [Patterns.Var p; Patterns.Var value]) ->
                         Expr.Var value
 
                     | DerivedPatterns.SpecificCall <@ cmpxchg @> (_, onType :: _, [Patterns.Var p; Patterns.Var cmp; Patterns.Var value]) ->
                         Expr.IfThenElse(
-                            Expr.Call((Utils.getMethodInfoOfLambda <@ (=) @>).GetGenericMethodDefinition().MakeGenericMethod(onType), [Expr.Var p; Expr.Var cmp]),
+                            Expr.Call(Utils.makeGenericMethodCall [onType] <@ (=) @>, [Expr.Var p; Expr.Var cmp]),
                             Expr.Var value,
                             Expr.Var p
                         )
@@ -320,7 +286,7 @@ module AtomicProcessor =
 
                         | DerivedPatterns.SpecificCall <@ IntrinsicFunctions.GetArray @> (_, _, [Patterns.Var _; idx]) ->
                             Expr.Call(
-                                Utils.getMethodInfoOfLambda <@ IntrinsicFunctions.GetArray<Mutex> @>,
+                                Utils.getMethodInfoOfCall <@ IntrinsicFunctions.GetArray<Mutex> @>,
                                 [Expr.Var mutexVar; idx]
                             )
 
@@ -361,7 +327,7 @@ module AtomicProcessor =
                                         flag <- false
                                     // HACK needed for nvidia, but broken for intel cpu
                                     //barrier ()
-                                barrier ()
+                                barrierLocal ()
                             @@>,
                             Expr.Var oldValueVar
                         )
@@ -459,7 +425,7 @@ module AtomicProcessor =
                         | Some mutexVar ->
                             Expr.Let(
                                 mutexVar,
-                                Expr.Call(Utils.getMethodInfoOfLambda <@ localArray<int> @>, args),
+                                Expr.Call(Utils.getMethodInfoOfCall <@ localArray<int> @>, args),
                                 Expr.Sequential(
                                     <@@
                                         if Anchors._localID0 = 0 then
@@ -470,7 +436,7 @@ module AtomicProcessor =
                                                     Expr.Value 0,
                                                     <@@ (%%args.[0] : int) - 1 @@>,
                                                     Expr.Call(
-                                                        Utils.getMethodInfoOfLambda <@ IntrinsicFunctions.SetArray<Mutex> @>,
+                                                        Utils.getMethodInfoOfCall <@ IntrinsicFunctions.SetArray<Mutex> @>,
                                                         [
                                                             Expr.Var mutexVar
                                                             Expr.Var i
@@ -479,7 +445,7 @@ module AtomicProcessor =
                                                     )
                                                 )
                                             )
-                                        barrier ()
+                                        barrierLocal ()
                                     @@>,
                                     inExpr
                                 )

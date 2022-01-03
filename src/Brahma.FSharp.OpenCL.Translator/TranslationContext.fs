@@ -23,51 +23,45 @@ type ArrayKind =
     | CPointer
     | CArrayDecl of size: int
 
-type Flags() =
-    member val enableAtomic = false with get, set
-    member val enableFP64 = false with get, set
+type Flag =
+    | EnableAtomic
+    | EnableFP64
 
-type TranslatorOption =
-    | UseNativeBooleanType
-    | BoolAsBit
+type TranslatorOptions() =
+    member val UseNativeBooleanType = false with get, set
+    member val BoolAsBit = false with get, set
 
 type TranslationContext<'lang, 'vDecl> =
     {
         TopLevelVarsDecls: ResizeArray<'vDecl>
-        UserDefinedTypes: HashSet<Type>
-        // NOTE is it necessary  to have 3 dicts?
-        TupleDecls: Dictionary<Type, StructType<'lang>>
-        StructDecls: Dictionary<Type, StructType<'lang>>
-        UnionDecls: Dictionary<Type, DiscriminatedUnionType<'lang>>
+        CStructDecls: Dictionary<Type, StructType<'lang>>
 
         VarDecls: ResizeArray<'vDecl>
         Namer: Namer
         ArrayKind: ArrayKind
 
-        Flags: Flags
-        TranslatorOptions: TranslatorOption list
+        Flags: HashSet<Flag>
+        TranslatorOptions: TranslatorOptions
     }
 
-    static member Create([<ParamArray>] translatorOptions: TranslatorOption[]) =
+    static member Create() =
         {
             TopLevelVarsDecls = ResizeArray<'vDecl>()
-            UserDefinedTypes = HashSet<Type>()
-            TupleDecls = Dictionary<Type, StructType<'lang>>()
-            StructDecls = Dictionary<Type, StructType<'lang>>()
-            UnionDecls = Dictionary<Type, DiscriminatedUnionType<'lang>>()
+            CStructDecls = Dictionary<Type, StructType<'lang>>()
 
             VarDecls = ResizeArray<'vDecl>()
             Namer = Namer()
             ArrayKind = CPointer
 
-            Flags = Flags()
-            TranslatorOptions = translatorOptions |> Array.toList
+            Flags = HashSet()
+            TranslatorOptions = TranslatorOptions()
         }
 
-    member this.Copy() =
+    member this.WithNewLocalContext() =
         { this with
             VarDecls = ResizeArray()
             Namer = Namer()
+            ArrayKind = CPointer
         }
 
 type TargetContext = TranslationContext<Lang, Statement<Lang>>

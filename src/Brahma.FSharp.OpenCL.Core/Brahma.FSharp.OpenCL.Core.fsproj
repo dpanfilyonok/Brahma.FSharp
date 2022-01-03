@@ -20,14 +20,14 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="ClException.fs" />
-    <Compile Include="NDRangeDimensions.fs" />
+    <Compile Include="NDRange.fs" />
     <Compile Include="CustomMarshaler.fs" />
     <Compile Include="IKernel.fs" />
     <Compile Include="Messages.fs" />
     <Compile Include="CommandQueueProvider.fs" />
     <Compile Include="IContext.fs" />
     <Compile Include="ClBuffer.fs" />
-    <Compile Include="ClKernel.fs" />
+    <Compile Include="ClProgram.fs" />
     <Compile Include="ClContext.fs" />
     <Compile Include="ClTask.fs" />
     <Compile Include="DataStructures.fs" />

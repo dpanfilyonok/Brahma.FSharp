@@ -22,14 +22,93 @@ open Microsoft.FSharp.Collections
 open FSharpx.Collections
 open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 open Brahma.FSharp.OpenCL
+open FSharp.Quotations.Evaluator
 
 // Translations restricts the generic parameter of the AST nodes to the type Lang
 #nowarn "64"
+
+[<AutoOpen>]
+module private BodyPatterns =
+    let (|VarName|_|) (str: string) (var': Var) =
+        match var'.Name with
+        | tName when tName = str -> Some VarName
+        | _ -> None
+
+    let (|ForLoopWithStep|_|) = function
+        | Patterns.Let
+            (
+                VarName "inputSequence",
+                DerivedPatterns.SpecificCall <@ (.. ..) @> (
+                    _,
+                    _,
+                    [start; step; finish]
+                ),
+                Patterns.Let (
+                    VarName "enumerator",
+                    _,
+                    Patterns.TryFinally (
+                        Patterns.WhileLoop (
+                            _,
+                            Patterns.Let (
+                                loopVar,
+                                _,
+                                loopBody
+                            )
+                        ),
+                        _
+                    )
+                )
+            ) -> Some (loopVar, (start, step, finish), loopBody)
+        | _ -> None
+
+    let (|ForLoop|_|) = function
+        | Patterns.Let
+            (
+                VarName "inputSequence",
+                DerivedPatterns.SpecificCall <@ (..) @> (
+                    _,
+                    _,
+                    [start; finish]
+                ),
+                Patterns.Let (
+                    VarName "enumerator",
+                    _,
+                    Patterns.TryFinally (
+                        Patterns.WhileLoop (
+                            _,
+                            Patterns.Let (
+                                loopVar,
+                                _,
+                                loopBody
+                            )
+                        ),
+                        _
+                    )
+                )
+            ) -> Some (loopVar, (start, finish), loopBody)
+        | _ -> None
 
 module rec Body =
     // new var scope
     let private clearContext (targetContext: TranslationContext<'a, 'b>) =
         { targetContext with VarDecls = ResizeArray() }
+
+    let toStb (s: Node<_>) = translation {
+        match s with
+        | :? StatementBlock<_> as s ->
+            return s
+        | x -> return StatementBlock <| ResizeArray [x :?> Statement<_>]
+    }
+
+    let private itemHelper exprs hostVar = translation {
+        let! idx = translation {
+            match exprs with
+            | hd :: _ -> return! translateAsExpr hd
+            | [] -> return raise <| InvalidKernelException("Array index missed!")
+        }
+
+        return idx, hostVar
+    }
 
     let private translateBinding (var: Var) newName (expr: Expr) = translation {
         let! body = translateCond (*TranslateAsExpr*) expr
@@ -75,52 +154,55 @@ module rec Body =
         | "op_modulus" -> return Binop(Remainder, args.[0], args.[1]) :> Statement<_>
         | "op_bitwiseand" -> return Binop(BitAnd, args.[0], args.[1]) :> Statement<_>
         | "op_bitwiseor" -> return Binop(BitOr, args.[0], args.[1]) :> Statement<_>
+        | "op_exclusiveor" -> return Binop(BitXor, args.[0], args.[1]) :> Statement<_>
+        | "op_logicalnot" -> return Unop(UOp.BitNegation, args.[0]) :> Statement<_>
         | "op_leftshift" -> return Binop(LeftShift, args.[0], args.[1]) :> Statement<_>
         | "op_rightshift" -> return Binop(RightShift, args.[0], args.[1]) :> Statement<_>
         | "op_booleanand" ->
-            let! flag = State.gets (fun context -> context.TranslatorOptions |> List.contains UseNativeBooleanType)
+            let! flag = State.gets (fun context -> context.TranslatorOptions.UseNativeBooleanType)
             if flag then
                 return Binop(And, args.[0], args.[1]) :> Statement<_>
             else
                 return Binop(BitAnd, args.[0], args.[1]) :> Statement<_>
         | "op_booleanor" ->
-            let! flag = State.gets (fun context -> context.TranslatorOptions |> List.contains UseNativeBooleanType)
+            let! flag = State.gets (fun context -> context.TranslatorOptions.UseNativeBooleanType)
             if flag then
                 return Binop(Or, args.[0], args.[1]) :> Statement<_>
             else
                 return Binop(BitOr, args.[0], args.[1]) :> Statement<_>
+        | "not" -> return Unop(UOp.Not, args.[0]) :> Statement<_>
         | "atomicadd" ->
-            do! State.modify (fun context -> context.Flags.enableAtomic <- true; context)
+            do! State.modify (fun context -> context.Flags.Add EnableAtomic |> ignore; context)
             return FunCall("atom_add", [args.[0]; args.[1]]) :> Statement<_>
         | "atomicsub" ->
-            do! State.modify (fun context -> context.Flags.enableAtomic <- true; context)
+            do! State.modify (fun context -> context.Flags.Add EnableAtomic |> ignore; context)
             return FunCall("atom_sub", [args.[0]; args.[1]]) :> Statement<_>
         | "atomicxchg" ->
-            do! State.modify (fun context -> context.Flags.enableAtomic <- true; context)
+            do! State.modify (fun context -> context.Flags.Add EnableAtomic |> ignore; context)
             return FunCall("atom_xchg", [args.[0]; args.[1]]) :> Statement<_>
         | "atomicmax" ->
-            do! State.modify (fun context -> context.Flags.enableAtomic <- true; context)
+            do! State.modify (fun context -> context.Flags.Add EnableAtomic |> ignore; context)
             return FunCall("atom_max", [args.[0]; args.[1]]) :> Statement<_>
         | "atomicmin" ->
-            do! State.modify (fun context -> context.Flags.enableAtomic <- true; context)
+            do! State.modify (fun context -> context.Flags.Add EnableAtomic |> ignore; context)
             return FunCall("atom_min", [args.[0]; args.[1]]) :> Statement<_>
         | "atomicinc" ->
-            do! State.modify (fun context -> context.Flags.enableAtomic <- true; context)
+            do! State.modify (fun context -> context.Flags.Add EnableAtomic |> ignore; context)
             return FunCall("atom_inc", [args.[0]]) :> Statement<_>
         | "atomicdec" ->
-            do! State.modify (fun context -> context.Flags.enableAtomic <- true; context)
+            do! State.modify (fun context -> context.Flags.Add EnableAtomic |> ignore; context)
             return FunCall("atom_dec", [args.[0]]) :> Statement<_>
         | "atomiccmpxchg" ->
-            do! State.modify (fun context -> context.Flags.enableAtomic <- true; context)
+            do! State.modify (fun context -> context.Flags.Add EnableAtomic |> ignore; context)
             return FunCall("atom_cmpxchg", [args.[0]; args.[1]; args.[2]]) :> Statement<_>
         | "atomicand" ->
-            do! State.modify (fun context -> context.Flags.enableAtomic <- true; context)
+            do! State.modify (fun context -> context.Flags.Add EnableAtomic |> ignore; context)
             return FunCall("atom_and", [args.[0]; args.[1]]) :> Statement<_>
         | "atomicor" ->
-            do! State.modify (fun context -> context.Flags.enableAtomic <- true; context)
+            do! State.modify (fun context -> context.Flags.Add EnableAtomic |> ignore; context)
             return FunCall("atom_or", [args.[0]; args.[1]]) :> Statement<_>
         | "atomicxor" ->
-            do! State.modify (fun context -> context.Flags.enableAtomic <- true; context)
+            do! State.modify (fun context -> context.Flags.Add EnableAtomic |> ignore; context)
             return FunCall("atom_xor", [args.[0]; args.[1]]) :> Statement<_>
         | "todouble" -> return Cast(args.[0], PrimitiveType Float) :> Statement<_>
         | "toint" -> return Cast(args.[0], PrimitiveType Int) :> Statement<_>
@@ -131,6 +213,8 @@ module rec Body =
         | "touint16" -> return Cast(args.[0], PrimitiveType UShort) :> Statement<_>
         | "toint64" -> return Cast(args.[0], PrimitiveType Long) :> Statement<_>
         | "touint64" -> return Cast(args.[0], PrimitiveType ULong) :> Statement<_>
+        | "min"
+        | "max"
         | "acos"
         | "asin"
         | "atan"
@@ -155,7 +239,6 @@ module rec Body =
                 return raise <| InvalidKernelException(
                     sprintf "Seems, that you use math function with name %s not from System.Math or Microsoft.FSharp.Core.Operators" fName
                 )
-
         | "abs" as fName ->
             if mInfo.DeclaringType.AssemblyQualifiedName.StartsWith("Microsoft.FSharp.Core.Operators") then
                 return FunCall("fabs", args) :> Statement<_>
@@ -177,11 +260,11 @@ module rec Body =
         | "setarray" ->
             return Assignment(Property(PropertyType.Item(Item(args.[0], args.[1]))), args.[2]) :> Statement<_>
         | "getarray" -> return Item(args.[0], args.[1]) :> Statement<_>
-        | "not" -> return Unop(UOp.Not, args.[0]) :> Statement<_>
-        | "_byte" -> return args.[0] :> Statement<_>
-        | "barrier" -> return Barrier() :> Statement<_>
+        | "barrierlocal" -> return Barrier(MemFence.Local) :> Statement<_>
+        | "barrierglobal" -> return Barrier(MemFence.Global) :> Statement<_>
+        | "barrierfull" -> return Barrier(MemFence.Both) :> Statement<_>
         | "local" -> return raise <| InvalidKernelException("Calling the local function is allowed only at the top level of the let binding")
-        | "arrayLocal" -> return raise <| InvalidKernelException("Calling the localArray function is allowed only at the top level of the let binding")
+        | "arraylocal" -> return raise <| InvalidKernelException("Calling the localArray function is allowed only at the top level of the let binding")
         | "zerocreate" ->
             let length =
                 match args.[0] with
@@ -190,20 +273,7 @@ module rec Body =
             return ZeroArray length :> Statement<_>
         | "fst" -> return FieldGet(args.[0], "_1") :> Statement<_>
         | "snd" -> return FieldGet(args.[0], "_2") :> Statement<_>
-        | "first" -> return FieldGet(args.[0], "_1") :> Statement<_>
-        | "second" -> return FieldGet(args.[0], "_2") :> Statement<_>
-        | "third" -> return FieldGet(args.[0], "_3") :> Statement<_>
         | other -> return raise <| InvalidKernelException(sprintf "Unsupported call: %s" other)
-    }
-
-    let private itemHelper exprs hostVar = translation {
-        let! idx = translation {
-            match exprs with
-            | hd :: _ -> return! translateAsExpr hd
-            | [] -> return raise <| InvalidKernelException("Array index missed!")
-        }
-
-        return idx, hostVar
     }
 
     let private translateSpecificPropGet expr propName exprs = translation {
@@ -245,9 +315,9 @@ module rec Body =
 
         match exprOpt with
         | Some expr ->
-            match! State.gets (fun context -> context.UserDefinedTypes.Contains expr.Type) with
+            match! State.gets (fun context -> context.CStructDecls.Keys |> Seq.contains expr.Type) with
             | true ->
-                match! State.gets (fun context -> context.StructDecls.ContainsKey expr.Type) with
+                match! State.gets (fun context -> not <| context.CStructDecls.[expr.Type] :? DiscriminatedUnionType<_>) with
                 | true -> return! translateStructFieldGet expr propInfo.Name
                 | false -> return! translateUnionFieldGet expr propInfo
             | false -> return! translateSpecificPropGet expr propName exprs
@@ -295,14 +365,9 @@ module rec Body =
         return translated :?> Expression<_>
     }
 
-    let getVar (clVarName: string) =  translation {
-        return Variable clVarName
-    }
-
     let translateVar (var: Var) = translation {
-        //getVar var.Name targetContext
         match! State.gets (fun context -> context.Namer.GetCLVarName var.Name) with
-        | Some varName -> return! getVar varName
+        | Some varName -> return Variable varName
         | None ->
             return raise <| InvalidKernelException(
                 sprintf
@@ -355,7 +420,7 @@ module rec Body =
             let! l = translateCond if'
             let! r = translateCond then'
             let! e = translateCond else'
-            let! isBoolAsBit = State.gets (fun context -> context.TranslatorOptions |> List.contains BoolAsBit)
+            let! isBoolAsBit = State.gets (fun context -> context.TranslatorOptions.BoolAsBit)
             let o1 =
                 match r with
                 | :? Const<Lang> as c when c.Val = "1" -> l
@@ -367,13 +432,6 @@ module rec Body =
             | _ -> return Binop((if isBoolAsBit then BitOr else Or), o1, e) :> Expression<_>
 
         | _ -> return! translateAsExpr cond
-    }
-
-    let toStb (s: Node<_>) = translation {
-        match s with
-        | :? StatementBlock<_> as s ->
-            return s
-        | x -> return StatementBlock <| ResizeArray [x :?> Statement<_>]
     }
 
     let translateIf (cond: Expr) (thenBranch: Expr) (elseBranch: Expr) = translation {
@@ -392,18 +450,37 @@ module rec Body =
         return IfThenElse(if', then', else')
     }
 
-    // TODO refac
-    let translateForIntegerRangeLoop (i: Var) (from': Expr) (to': Expr) (loopBody: Expr) = translation {
-        let! iName = State.gets (fun context -> context.Namer.LetStart i.Name)
-        let! v = getVar iName
-        let! var = translateBinding i iName from'
+    // NOTE reversed loops not supported
+    let translateForLoop (loopVar: Var) (from': Expr) (to': Expr) (step: Expr option) (body: Expr) = translation {
+        let! loopVarName = State.gets (fun context -> context.Namer.LetStart loopVar.Name)
+        let loopVarType = loopVar.Type
+
+        let! loopVarBinding = translateBinding loopVar loopVarName from'
+
         let! condExpr = translateAsExpr to'
-        do! State.modify (fun context -> context.Namer.LetIn i.Name; context)
-        let! body = translate loopBody >>= toStb |> State.using clearContext
-        let cond = Binop(LessEQ, v, condExpr)
-        let condModifier = Unop(UOp.Incr, v)
+        let loopCond = Binop(LessEQ, Variable loopVarName, condExpr)
+
+        do! State.modify (fun context -> context.Namer.LetIn loopVar.Name; context)
+
+        let! loopVarModifier =
+            match step with
+            | Some step  ->
+                Expr.VarSet(
+                    loopVar,
+                    Expr.Call(
+                        Utils.makeGenericMethodCall [loopVarType; loopVarType; loopVarType] <@ (+) @>,
+                        [Expr.Var loopVar; step]
+                    )
+                )
+                |> translate
+                |> State.map (fun node -> node :?> Statement<_>)
+            | None -> translation { return Unop(UOp.Incr, Variable loopVarName) :> Statement<_> }
+
+        let! loopBody = translate body >>= toStb |> State.using clearContext
+
         do! State.modify (fun context -> context.Namer.LetOut(); context)
-        return ForIntegerLoop(var, cond, condModifier, body)
+
+        return ForIntegerLoop(loopVarBinding, loopCond, loopVarModifier, loopBody)
     }
 
     let translateWhileLoop condExpr bodyExpr = translation {
@@ -428,7 +505,8 @@ module rec Body =
         do! State.modify (fun context -> context.VarDecls.Clear(); context)
 
         for expr in linearized do
-            do! State.modify (fun context -> context.VarDecls.Clear(); context)
+            // NOTE тут что то сломалось :(
+            // do! State.modify (fun context -> context.VarDecls.Clear(); context)
             match! translate expr with
             | :? StatementBlock<Lang> as s1 ->
                 decls.AddRange(s1.Statements)
@@ -495,12 +573,18 @@ module rec Body =
     }
 
     let translateUnionFieldGet expr (propInfo: PropertyInfo) = translation {
-        let! unionType = State.gets (fun context -> context.UnionDecls.[expr.Type])
+        let! unionType = State.gets (fun context -> context.CStructDecls.[expr.Type])
+        let unionType = unionType :?> DiscriminatedUnionType<Lang>
 
         let! unionValueExpr = translateAsExpr expr
 
         let caseName = propInfo.DeclaringType.Name
-        let unionCaseField = unionType.GetCaseByName caseName
+        let unionCaseField =
+            // для option классы наследники не создаются, поэтому нужно обрабатывать отдельно
+            if caseName <> "FSharpOption`1" then
+                unionType.GetCaseByName caseName
+            else
+                unionType.GetCaseByName "Some"
 
         match unionCaseField with
         | Some unionCaseField ->
@@ -519,172 +603,7 @@ module rec Body =
             )
     }
 
-    let translate expr = translation {
-        match expr with
-        | Patterns.AddressOf expr -> return raise <| InvalidKernelException(sprintf "AdressOf is not suported: %O" expr)
-        | Patterns.AddressSet expr -> return raise <| InvalidKernelException(sprintf "AdressSet is not suported: %O" expr)
-
-        | Patterns.Application (expr1, expr2) ->
-            let! (e, appling) = translateApplication expr1 expr2
-            if appling then
-                return! translate e
-            else
-                let! r = translateApplicationFun expr1 expr2
-                return r :> Node<_>
-
-        | DerivedPatterns.SpecificCall <@@ PrintfReplacer.print @@> (_, _, args) ->
-            match args with
-            | [ Patterns.ValueWithName (argTypes, _, _);
-                Patterns.ValueWithName (formatStr, _, _);
-                Patterns.ValueWithName (argValues, _, _) ] ->
-
-                let formatStrArg = Const(PrimitiveType ConstStringLiteral, formatStr :?> string) :> Expression<_>
-                let! args' = translateListOfArgs (argValues :?> list<Expr>)
-                return FunCall("printf", formatStrArg :: args') :> Node<_>
-            | _ -> return raise <| TranslationFailedException("printf: something going wrong.")
-
-        | DerivedPatterns.SpecificCall <@ (|>) @>
-            (
-                _,
-                _,
-                [expr; Patterns.Lambda(_, DerivedPatterns.SpecificCall <@ ignore @> (_, _, _))]
-            ) ->
-            return! translate expr
-
-        | Patterns.Call (exprOpt, mInfo, args) ->
-            let! r = translateCall exprOpt mInfo args
-            return r :> Node<_>
-        | Patterns.Coerce (expr, sType) -> return raise <| InvalidKernelException(sprintf "Coerce is not suported: %O" expr)
-        | Patterns.DefaultValue sType -> return raise <| InvalidKernelException(sprintf "DefaulValue is not suported: %O" expr)
-        | Patterns.FieldGet (exprOpt, fldInfo) ->
-            match exprOpt with
-            | Some expr ->
-                let! r = translateStructFieldGet expr fldInfo.Name
-                return r :> Node<_>
-            | None -> return raise <| InvalidKernelException(sprintf "FieldGet for empty host is not suported. Field: %A" fldInfo.Name)
-        | Patterns.FieldSet (exprOpt, fldInfo, expr) ->
-            match exprOpt with
-            | Some e ->
-                let! r = translateFieldSet e fldInfo.Name expr
-                return r :> Node<_>
-            | None -> return raise <| InvalidKernelException(sprintf "Fileld set with empty host is not supported. Field: %A" fldInfo)
-        | Patterns.ForIntegerRangeLoop (i, from, _to, _do) ->
-            let! r = translateForIntegerRangeLoop i from _to _do
-            return r :> Node<_>
-        | Patterns.IfThenElse (cond, thenExpr, elseExpr) ->
-            let! r = translateIf cond thenExpr elseExpr
-            return r :> Node<_>
-        | Patterns.Lambda (var, _expr) ->
-            // translateLambda var expr targetContext
-            return raise <| InvalidKernelException(sprintf "Lambda is not suported: %A" expr)
-        | Patterns.Let (var, expr, inExpr) ->
-            match var.Name with
-            | "___providedCallInfo" -> return! translateProvidedCall expr
-            | _ -> return! translateLet var expr inExpr
-
-        | Patterns.LetRecursive (bindings, expr) -> return raise <| InvalidKernelException(sprintf "LetRecursive is not suported: %O" expr)
-        | Patterns.NewArray (sType, exprs) -> return raise <| InvalidKernelException(sprintf "NewArray is not suported: %O" expr)
-        | Patterns.NewDelegate (sType, vars, expr) -> return raise <| InvalidKernelException(sprintf "NewDelegate is not suported: %O" expr)
-        | Patterns.NewObject (constrInfo, exprs) ->
-            let! context = State.get
-            let p = constrInfo.GetParameters()
-            let p2 = constrInfo.GetMethodBody()
-            // а если перегруженный конструктор? (отсальное нули)
-            if context.UserDefinedTypes.Contains(constrInfo.DeclaringType) then
-                let! structInfo = State.gets (fun context -> context.StructDecls.[constrInfo.DeclaringType])
-                let cArgs = exprs |> List.map (fun x -> translation { return! translateAsExpr x })
-                let res = NewStruct<_>(structInfo, cArgs |> List.map (State.eval context))
-                return res :> Node<_>
-            else
-                return raise <| InvalidKernelException(sprintf "NewObject is not suported: %O" expr)
-        | Patterns.NewRecord (sType, exprs) ->
-            let! context = State.get
-            let! structInfo = Type.translateStruct sType
-            let cArgs = exprs |> List.map (fun x -> translation { return! translateAsExpr x })
-            return NewStruct<_>(structInfo, cArgs |> List.map (State.eval context)) :> Node<_>
-        | Patterns.NewTuple (exprs) ->
-            let! context = State.get
-            let! tupleDecl = Type.translateTuple expr.Type
-            let cArgs = exprs |> List.map (fun x -> translateAsExpr x)
-            return NewStruct<_>(tupleDecl, cArgs |> List.map (State.eval context)) :> Node<_>
-        | Patterns.NewUnionCase (unionCaseInfo, exprs) ->
-            let! context = State.get
-            let unionType = unionCaseInfo.DeclaringType
-            if not <| context.UserDefinedTypes.Contains(unionType) then
-                raise <| InvalidKernelException(sprintf "Union type %s is not registered" unionType.Name)
-
-            let unionInfo = context.UnionDecls.[unionType]
-
-            let tag = Const(unionInfo.Tag.Type, string unionCaseInfo.Tag) :> Expression<_>
-            let args =
-                match unionInfo.GetCaseByTag unionCaseInfo.Tag with
-                | None -> []
-                | Some field ->
-                    let structArgs = exprs |> List.map (fun x -> translateAsExpr x) |> List.map (State.eval context)
-                    let data =
-                        NewUnion(
-                            unionInfo.Data.Type :?> UnionClInplaceType<_>,
-                            field.Name,
-                            NewStruct(field.Type :?> StructType<_>, structArgs)
-                        )
-                    [ data :> Expression<_> ]
-
-            return NewStruct(unionInfo, tag :: args) :> Node<_>
-        | Patterns.PropertyGet (exprOpt, propInfo, exprs) ->
-            let! res = translatePropGet exprOpt propInfo exprs
-            return res :> Node<_>
-        | Patterns.PropertySet (exprOpt, propInfo, exprs, expr) ->
-            let! res = translatePropSet exprOpt propInfo exprs expr
-            return res :> Node<_>
-        | Patterns.Sequential (expr1, expr2) ->
-            let! res = translateSeq expr1 expr2
-            return res :> Node<_>
-        | Patterns.TryFinally (tryExpr, finallyExpr) -> return raise <| InvalidKernelException(sprintf "TryFinally is not suported: %O" expr)
-        | Patterns.TryWith (expr1, var1, expr2, var2, expr3) -> return raise <| InvalidKernelException(sprintf "TryWith is not suported: %O" expr)
-        | Patterns.TupleGet (expr, i) ->
-            let! r = translateStructFieldGet expr ("_" + (string (i + 1)))
-            return r :> Node<_>
-        | Patterns.TypeTest (expr, sType) -> return raise <| InvalidKernelException(sprintf "TypeTest is not suported: %O" expr)
-        | Patterns.UnionCaseTest (expr, unionCaseInfo) ->
-            let! context = State.get
-            let unionDecl = context.UnionDecls.[expr.Type]
-
-            let! unionVarExpr = translateAsExpr expr
-            let unionGetTagExpr = FieldGet(unionVarExpr, unionDecl.Tag.Name) :> Expression<_>
-            let tagExpr = Const(unionDecl.Tag.Type, string unionCaseInfo.Tag) :> Expression<_>
-
-            return Binop(BOp.EQ, unionGetTagExpr, tagExpr) :> Node<_>
-        | Patterns.ValueWithName (_obj, sType, name) ->
-            let! context = State.get
-            // Here is the only use of TranslationContext.InLocal
-            if sType.ToString().EndsWith "[]" (*&& not context.InLocal*) then
-                context.Namer.AddVar name
-                let! res = translateValue _obj sType
-                context.TopLevelVarsDecls.Add(
-                    VarDecl(res.Type, name, Some(res :> Expression<_>), AddressSpaceQualifier.Constant)
-                )
-                let var = Var(name, sType)
-                let! res = translateVar var
-                return res :> Node<_>
-            else
-                let! res = translateValue _obj sType
-                return res :> Node<_>
-        | Patterns.Value (_obj, sType) ->
-            let! res = translateValue _obj sType
-            return res :> Node<_>
-        | Patterns.Var var ->
-            let! res = translateVar var
-            return res :> Node<_>
-        | Patterns.VarSet (var, expr) ->
-            let! res = translateVarSet var expr
-            return res :> Node<_>
-        | Patterns.WhileLoop (condExpr, bodyExpr) ->
-            let! r = translateWhileLoop condExpr bodyExpr
-            return r :> Node<_>
-        | _ -> return raise <| InvalidKernelException(sprintf "Folowing expression inside kernel is not supported:\n%O" expr)
-    }
-
-    let private translateLet var expr inExpr = translation {
+    let private translateLet (var: Var) expr inExpr = translation {
         let! bName = State.gets (fun context -> context.Namer.LetStart var.Name)
 
         let! vDecl = translation {
@@ -742,4 +661,158 @@ module rec Body =
 
         let! m = traverse expr []
         return FunCall m :> Node<_>
+    }
+
+    let translate expr = translation {
+        let toNode (x: #Node<_>) = translation {
+            return x :> Node<_>
+        }
+
+        match expr with
+        | Patterns.AddressOf expr -> return raise <| InvalidKernelException(sprintf "AdressOf is not suported: %O" expr)
+        | Patterns.AddressSet expr -> return raise <| InvalidKernelException(sprintf "AdressSet is not suported: %O" expr)
+
+        | Patterns.Application (expr1, expr2) ->
+            let! (e, applying) = translateApplication expr1 expr2
+            if applying then
+                return! translate e
+            else
+                return! translateApplicationFun expr1 expr2 >>= toNode
+
+        | DerivedPatterns.SpecificCall <@@ print @@> (_, _, args) ->
+            match args with
+            | [ Patterns.ValueWithName (argTypes, _, _);
+                Patterns.ValueWithName (formatStr, _, _);
+                Patterns.ValueWithName (argValues, _, _) ] ->
+
+                let formatStrArg = Const(PrimitiveType ConstStringLiteral, formatStr :?> string) :> Expression<_>
+                let! args' = translateListOfArgs (argValues :?> list<Expr>)
+                return FunCall("printf", formatStrArg :: args') :> Node<_>
+            | _ -> return raise <| TranslationFailedException("printf: something going wrong.")
+
+        | DerivedPatterns.SpecificCall <@ (|>) @>
+            (
+                _,
+                _,
+                [expr; Patterns.Lambda(_, DerivedPatterns.SpecificCall <@ ignore @> (_, _, _))]
+            ) ->
+            return! translate expr
+
+        | DerivedPatterns.SpecificCall <@ LanguagePrimitives.GenericOne<int> @> (_, [onType], _) ->
+            let! type' = Type.translate onType
+            let value =
+                Expr.Call(
+                    Utils.makeGenericMethodCall [onType] <@ LanguagePrimitives.GenericOne<int> @>,
+                    List.empty
+                ).EvaluateUntyped().ToString()
+
+            return Const(type', value) :> Node<_>
+
+        | Patterns.Call (exprOpt, mInfo, args) -> return! translateCall exprOpt mInfo args >>= toNode
+        | Patterns.Coerce (expr, sType) -> return raise <| InvalidKernelException(sprintf "Coerce is not suported: %O" expr)
+        | Patterns.DefaultValue sType -> return raise <| InvalidKernelException(sprintf "DefaulValue is not suported: %O" expr)
+
+        | Patterns.FieldGet (exprOpt, fldInfo) ->
+            match exprOpt with
+            | Some expr -> return! translateStructFieldGet expr fldInfo.Name >>= toNode
+            | None -> return raise <| InvalidKernelException(sprintf "FieldGet for empty host is not suported. Field: %A" fldInfo.Name)
+
+        | Patterns.FieldSet (exprOpt, fldInfo, expr) ->
+            match exprOpt with
+            | Some e -> return! translateFieldSet e fldInfo.Name expr >>= toNode
+            | None -> return raise <| InvalidKernelException(sprintf "Fileld set with empty host is not supported. Field: %A" fldInfo)
+
+        | ForLoopWithStep (loopVar, (start, step, finish), loopBody) -> return! translateForLoop loopVar start finish (Some step) loopBody >>= toNode
+        | ForLoop (loopVar, (start, finish), loopBody) -> return! translateForLoop loopVar start finish None loopBody >>= toNode
+        | Patterns.ForIntegerRangeLoop (loopVar, start, finish, loopBody) ->  return! translateForLoop loopVar start finish None loopBody >>= toNode
+        | Patterns.IfThenElse (cond, thenExpr, elseExpr) -> return! translateIf cond thenExpr elseExpr >>= toNode
+
+        | Patterns.Lambda (var, _expr) ->  return raise <| InvalidKernelException(sprintf "Lambda is not suported: %A" expr)
+        | Patterns.Let (var, expr, inExpr) ->
+            match var.Name with
+            | "___providedCallInfo" -> return! translateProvidedCall expr
+            | _ -> return! translateLet var expr inExpr
+
+        | Patterns.LetRecursive (bindings, expr) -> return raise <| InvalidKernelException(sprintf "LetRecursive is not suported: %O" expr)
+        | Patterns.NewArray (sType, exprs) -> return raise <| InvalidKernelException(sprintf "NewArray is not suported: %O" expr)
+        | Patterns.NewDelegate (sType, vars, expr) -> return raise <| InvalidKernelException(sprintf "NewDelegate is not suported: %O" expr)
+
+        | Patterns.NewObject (constrInfo, exprs) ->
+            let! context = State.get
+            // let p = constrInfo. GetParameters()
+            // let p2 = constrInfo.GetMethodBody()
+            let! structInfo = Type.translate constrInfo.DeclaringType
+            let cArgs = exprs |> List.map (fun x -> translation { return! translateAsExpr x })
+            return NewStruct<_>(structInfo :?> StructType<Lang>, cArgs |> List.map (State.eval context)) :> Node<_>
+
+        | Patterns.NewRecord (sType, exprs) ->
+            let! context = State.get
+            let! structInfo = Type.translate sType
+            let cArgs = exprs |> List.map (fun x -> translation { return! translateAsExpr x })
+            return NewStruct<_>(structInfo :?> StructType<Lang>, cArgs |> List.map (State.eval context)) :> Node<_>
+
+        | Patterns.NewTuple (exprs) ->
+            let! context = State.get
+            let! tupleDecl = Type.translate expr.Type
+            let cArgs = exprs |> List.map (fun x -> translateAsExpr x)
+            return NewStruct<_>(tupleDecl :?> StructType<Lang>, cArgs |> List.map (State.eval context)) :> Node<_>
+
+        | Patterns.NewUnionCase (unionCaseInfo, exprs) ->
+            let! context = State.get
+            let! unionInfo = Type.translate unionCaseInfo.DeclaringType
+            let unionInfo = unionInfo :?> DiscriminatedUnionType<Lang>
+
+            let tag = Const(unionInfo.Tag.Type, string unionCaseInfo.Tag) :> Expression<_>
+            let args =
+                match unionInfo.GetCaseByTag unionCaseInfo.Tag with
+                | None -> []
+                | Some field ->
+                    let structArgs = exprs |> List.map (fun x -> translateAsExpr x) |> List.map (State.eval context)
+                    NewUnion(
+                        unionInfo.Data.Type :?> UnionClInplaceType<_>,
+                        field.Name,
+                        NewStruct(field.Type :?> StructType<_>, structArgs)
+                    ) :> Expression<_>
+                    |> List.singleton
+
+            return NewStruct(unionInfo, tag :: args) :> Node<_>
+
+        | Patterns.PropertyGet (exprOpt, propInfo, exprs) -> return! translatePropGet exprOpt propInfo exprs >>= toNode
+        | Patterns.PropertySet (exprOpt, propInfo, exprs, expr) -> return! translatePropSet exprOpt propInfo exprs expr >>= toNode
+        | Patterns.Sequential (expr1, expr2) -> return! translateSeq expr1 expr2 >>= toNode
+        | Patterns.TryFinally (tryExpr, finallyExpr) -> return raise <| InvalidKernelException(sprintf "TryFinally is not suported: %O" expr)
+        | Patterns.TryWith (expr1, var1, expr2, var2, expr3) -> return raise <| InvalidKernelException(sprintf "TryWith is not suported: %O" expr)
+        | Patterns.TupleGet (expr, i) -> return! translateStructFieldGet expr ("_" + (string (i + 1))) >>= toNode
+        | Patterns.TypeTest (expr, sType) -> return raise <| InvalidKernelException(sprintf "TypeTest is not suported: %O" expr)
+
+        | Patterns.UnionCaseTest (expr, unionCaseInfo) ->
+            let! unionInfo = Type.translate unionCaseInfo.DeclaringType
+            let unionInfo = unionInfo :?> DiscriminatedUnionType<Lang>
+
+            let! unionVarExpr = translateAsExpr expr
+            let unionGetTagExpr = FieldGet(unionVarExpr, unionInfo.Tag.Name) :> Expression<_>
+            // NOTE Const pog for genericOne
+            let tagExpr = Const(unionInfo.Tag.Type, string unionCaseInfo.Tag) :> Expression<_>
+
+            return Binop(EQ, unionGetTagExpr, tagExpr) :> Node<_>
+
+        | Patterns.ValueWithName (obj', sType, name) ->
+            let! context = State.get
+            // Here is the only use of TranslationContext.InLocal
+            if sType.ToString().EndsWith "[]" (*&& not context.InLocal*) then
+                context.Namer.AddVar name
+                let! res = translateValue obj' sType
+                context.TopLevelVarsDecls.Add(
+                    VarDecl(res.Type, name, Some(res :> Expression<_>), AddressSpaceQualifier.Constant)
+                )
+                let var = Var(name, sType)
+                return! translateVar var >>= toNode
+            else
+                return! translateValue obj' sType >>= toNode
+
+        | Patterns.Value (obj', sType) -> return! translateValue obj' sType >>= toNode
+        | Patterns.Var var -> return! translateVar var >>= toNode
+        | Patterns.VarSet (var, expr) -> return! translateVarSet var expr >>= toNode
+        | Patterns.WhileLoop (condExpr, bodyExpr) -> return! translateWhileLoop condExpr bodyExpr >>= toNode
+        | _ -> return raise <| InvalidKernelException(sprintf "Folowing expression inside kernel is not supported:\n%O" expr)
     }

@@ -92,7 +92,7 @@ module Patterns =
     let rec private uncurryLambda (expr: Expr) =
         match expr with
         | ExprShape.ShapeLambda (var, body) ->
-            let args, innerBody = uncurryLambda body
+            let (args, innerBody) = uncurryLambda body
             var :: args, innerBody
         | _ -> [], expr
 

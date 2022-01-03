@@ -77,7 +77,7 @@ type ForIntegerLoop<'lang>
     (
         var: VarDecl<'lang>,
         cond: Expression<'lang>,
-        countModifier: Expression<'lang>,
+        countModifier: Statement<'lang>,
         body: StatementBlock<'lang>
     ) =
 
@@ -94,9 +94,15 @@ type WhileLoop<'lang>(cond: Expression<'lang>, whileBlock: StatementBlock<'lang>
     member this.Condition = cond
     member this.WhileBlock = whileBlock
 
-type Barrier<'lang>() =
+type MemFence =
+    | Local
+    | Global
+    | Both
+
+type Barrier<'lang>(memFence: MemFence) =
     inherit Statement<'lang>()
     override this.Children = []
+    member this.MemFence = memFence
 
 type FieldSet<'lang>(host: Expression<'lang>, field: string, _val: Expression<'lang>) =
     inherit Statement<'lang>()

@@ -59,11 +59,11 @@ module rec Type =
         | Name "unit" -> return PrimitiveType<Lang>(Void) :> Type<Lang>
         | Name "float"
         | Name "double" ->
-            do! State.modify (fun ctx -> ctx.Flags.enableFP64 <- true; ctx)
+            do! State.modify (fun ctx -> ctx.Flags.Add EnableFP64 |> ignore; ctx)
             return PrimitiveType<Lang>(Double) :> Type<Lang>
 
         | Name "boolean" ->
-            match! State.gets (fun ctx -> ctx.TranslatorOptions |> List.contains UseNativeBooleanType) with
+            match! State.gets (fun ctx -> ctx.TranslatorOptions.UseNativeBooleanType) with
             | true -> return PrimitiveType<Lang>(Bool) :> Type<Lang>
             | false -> return PrimitiveType<Lang>(BoolClAlias) :> Type<Lang>
 
@@ -100,14 +100,18 @@ module rec Type =
             let! translated = translateStruct type'
             return translated :> Type<_>
 
+        | _ when FSharpType.IsUnion type' ->
+            let! translated = translateUnion type'
+            return translated :> Type<_>
+
         | other -> return failwithf "Unsupported kernel type: %A" other
     }
 
     let translateStruct (type': System.Type) = translation {
         let! context = State.get
 
-        if context.StructDecls.ContainsKey type' then
-            return context.StructDecls.[type']
+        if context.CStructDecls.ContainsKey type' then
+            return context.CStructDecls.[type']
         else
             let! fields =
                 [
@@ -126,18 +130,17 @@ module rec Type =
 
             let fields = fields |> List.distinct
 
-            let! index = State.gets (fun ctx -> ctx.StructDecls.Count)
+            let! index = State.gets (fun ctx -> ctx.CStructDecls.Count)
             let structType = StructType(sprintf "struct%i" index, fields)
-            do! State.modify (fun context -> context.StructDecls.Add(type', structType); context)
-            context.UserDefinedTypes.Add type' |> ignore
+            do! State.modify (fun context -> context.CStructDecls.Add(type', structType); context)
             return structType
     }
 
     let translateTuple (type': System.Type) = translation {
         let! context = State.get
 
-        if context.StructDecls.ContainsKey type' then
-            return context.StructDecls.[type']
+        if context.CStructDecls.ContainsKey type' then
+            return context.CStructDecls.[type']
         else
             let genericTypeArguments = FSharpType.GetTupleElements type' |> List.ofArray
 
@@ -153,46 +156,43 @@ module rec Type =
                     })
                 |> State.collect
 
-            match! State.gets (fun ctx -> ctx.StructDecls.ContainsKey type') with
-            | true ->
-                return! State.gets (fun ctx -> ctx.StructDecls.[type'])
-            | false ->
-                let! index = State.gets (fun ctx -> ctx.StructDecls.Count)
-                let tupleDecl = StructType(sprintf "tuple%i" index, elements)
-                do! State.modify (fun ctx -> ctx.StructDecls.Add(type', tupleDecl); ctx)
-                context.UserDefinedTypes.Add type' |> ignore
-                return tupleDecl
+            let! index = State.gets (fun ctx -> ctx.CStructDecls.Count)
+            let tupleDecl = StructType(sprintf "tuple%i" index, elements)
+            do! State.modify (fun ctx -> ctx.CStructDecls.Add(type', tupleDecl); ctx)
+            return tupleDecl
     }
 
     let translateUnion (type': System.Type) = translation {
-        let name = type'.Name
+        let! context = State.get
 
-        let notEmptyCases =
-            FSharpType.GetUnionCases type'
-            |> Array.filter (fun case -> case.GetFields().Length <> 0)
+        if context.CStructDecls.ContainsKey type' then
+            return context.CStructDecls.[type']
+        else
+            let notEmptyCases =
+                FSharpType.GetUnionCases type'
+                |> Array.filter (fun case -> case.GetFields().Length <> 0)
 
-        let! fields =
-            [
-                for case in notEmptyCases ->
-                    translation {
-                        let structName = case.Name
-                        let tag = case.Tag
-                        let! fields =
-                            [
-                                for field in case.GetFields() ->
-                                    translate field.PropertyType >>= fun type' ->
-                                    State.return' { Name = field.Name; Type = type' }
-                            ]
-                            |> State.collect
+            let! fields =
+                [
+                    for case in notEmptyCases ->
+                        translation {
+                            let structName = case.Name
+                            let tag = case.Tag
+                            let! fields =
+                                [
+                                    for field in case.GetFields() ->
+                                        translate field.PropertyType >>= fun type' ->
+                                        State.return' { Name = field.Name; Type = type' }
+                                ]
+                                |> State.collect
 
-                        return tag, { Name = structName; Type = StructInplaceType(structName + "Type", fields) }
-                    }
+                            return tag, { Name = structName; Type = StructInplaceType(structName + "Type", fields) }
+                        }
+                ]
+                |> State.collect
 
-            ]
-            |> State.collect
-
-        let duType = DiscriminatedUnionType(name, fields)
-        do! State.modify (fun context -> context.UnionDecls.Add(type', duType); context)
-
-        return duType
+            let! index = State.gets (fun ctx -> ctx.CStructDecls.Count)
+            let duType = DiscriminatedUnionType(sprintf "du%i" index, fields)
+            do! State.modify (fun context -> context.CStructDecls.Add(type', duType); context)
+            return duType :> StructType<_>
     }

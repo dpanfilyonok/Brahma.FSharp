@@ -2,7 +2,7 @@ namespace Brahma.FSharp.OpenCL
 
 open System
 
-type INDRangeDimension =
+type INDRange =
     abstract member GlobalWorkSize: IntPtr[] with get
     abstract member LocalWorkSize: IntPtr[] with get
     abstract member Dimensions: int
@@ -16,7 +16,7 @@ type Range1D(globalWorkSize: int, localWorkSize: int) =
     member this.GlobalWorkSize = globalWorkSize
     member this.LocalWorkSize = localWorkSize
 
-    interface INDRangeDimension with
+    interface INDRange with
         member this.GlobalWorkSize with get () = [| IntPtr globalWorkSize |]
         member this.LocalWorkSize with get () = [| IntPtr localWorkSize |]
         member this.Dimensions = 1
@@ -36,7 +36,7 @@ type Range2D(globalWorkSizeX: int, globalWorkSizeY: int, localWorkSizeX: int, lo
     member this.GlobalWorkSize = (globalWorkSizeX, globalWorkSizeY)
     member this.LocalWorkSize = (localWorkSizeX, localWorkSizeY)
 
-    interface INDRangeDimension with
+    interface INDRange with
         member this.GlobalWorkSize with get () = [| IntPtr globalWorkSizeX; IntPtr globalWorkSizeY |]
         member this.LocalWorkSize with get () = [| IntPtr localWorkSizeX; IntPtr localWorkSizeY |]
         member this.Dimensions = 2
@@ -54,7 +54,7 @@ type Range3D(globalWorkSizeX: int, globalWorkSizeY: int, globalWorkSizeZ: int, l
     member this.GlobalWorkSize = (globalWorkSizeX, globalWorkSizeY, globalWorkSizeZ)
     member this.LocalWorkSize = (localWorkSizeX, localWorkSizeY, localWorkSizeZ)
 
-    interface INDRangeDimension with
+    interface INDRange with
         member this.GlobalWorkSize with get () = [| IntPtr globalWorkSizeX; IntPtr globalWorkSizeY; IntPtr globalWorkSizeZ |]
         member this.LocalWorkSize with get () = [| IntPtr localWorkSizeX; IntPtr localWorkSizeY; IntPtr globalWorkSizeZ |]
         member this.Dimensions = 3

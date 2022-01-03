@@ -24,8 +24,9 @@ module Transformer =
     let preprocessQuotation expr = replacePrintf expr
 
     /// Returns kernel and other methods
-    let transformQuotation (expr: Expr) (translatorOptions: TranslatorOption list) =
+    let transformQuotation (expr: Expr) =
         expr
+        // |> transformMinMax
         |> processAtomic
         |> replacePrintf
         |> makeVarNameUnique

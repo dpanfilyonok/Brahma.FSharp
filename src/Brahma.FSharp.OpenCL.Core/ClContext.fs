@@ -35,6 +35,7 @@ type ClDeviceType =
         | GPU -> DeviceType.Gpu
         | Default -> DeviceType.Default
 
+// TODO redesign
 module internal Device =
     open System.Text.RegularExpressions
 
@@ -82,7 +83,7 @@ type ClContext private (context: Context, device: Device, translator: FSQuotatio
 
             ctx
 
-        let translator = FSQuotationToOpenCLTranslator()
+        let translator = FSQuotationToOpenCLTranslator(TranslatorOptions())
         let queue = CommandQueueProvider.CreateQueue(context, device)
 
         ClContext(context, device, translator, queue)
@@ -101,7 +102,7 @@ type ClContext private (context: Context, device: Device, translator: FSQuotatio
     member this.WithNewCommandQueue() =
         ClContext(this.Context, this.Device, this.Translator, CommandQueueProvider.CreateQueue(this.Context, this.Device))
 
-    member this.CreateClKernel(srcLambda: Expr<'a -> 'b>) =
+    member this.CreateClProgram(srcLambda: Expr<'a -> 'b>) =
         ClProgram<_,_>(this, srcLambda)
 
     member this.CreateClBuffer

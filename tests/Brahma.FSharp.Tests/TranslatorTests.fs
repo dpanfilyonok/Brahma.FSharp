@@ -60,7 +60,6 @@ let basicBinOpsTests = testList "Basic operations translation tests" [
 
         checkCode command "Binop.Plus.gen" "Binop.Plus.cl"
 
-
     testCase "Binary operations. Math." <| fun _ ->
         let command =
             <@ fun (range: Range1D) (buf: int clarray) ->
@@ -74,6 +73,16 @@ let basicBinOpsTests = testList "Basic operations translation tests" [
 
         checkCode command "Binary.Operations.Math.gen" "Binary.Operations.Math.cl"
 
+    testCase "TempVar from MAX transformation should not affect other variables" <| fun () ->
+        let command =
+            <@
+                fun (range: Range1D) (buf: float clarray) ->
+                    let tempVarY = 1.
+                    buf.[0] <- max buf.[0] tempVarY
+                    buf.[0] <- max buf.[0] tempVarY
+            @>
+
+        checkCode command "MAX.Transformation.gen" "MAX.Transformation.cl"
 ]
 
 let controlFlowTests = testList "Control flow translation tests" [
@@ -697,6 +706,20 @@ let printfTests = testList "Translation of printf" [
         checkCode command "Printf test 6.gen" "Printf test 6.cl"
 ]
 
+let barrierTests = testList "Barrier translation tests" [
+    testCase "Local barrier translation tests" <| fun () ->
+        let command = <@ fun (range: Range1D) -> barrierLocal () @>
+        checkCode command "Barrier.Local.gen" "Barrier.Local.cl"
+
+    testCase "Global barrier translation tests" <| fun () ->
+        let command = <@ fun (range: Range1D) -> barrierGlobal () @>
+        checkCode command "Barrier.Global.gen" "Barrier.Global.cl"
+
+    testCase "Full barrier translation tests" <| fun () ->
+        let command = <@ fun (range: Range1D) -> barrierFull () @>
+        checkCode command "Barrier.Full.gen" "Barrier.Full.cl"
+]
+
 let tests =
     testList "Tests for translator" [
         basicLocalIdTests
@@ -710,5 +733,6 @@ let tests =
         localMemoryTests
         localMemoryAllocationTests
         printfTests
+        barrierTests
     ]
     |> testSequenced

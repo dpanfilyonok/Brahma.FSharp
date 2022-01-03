@@ -4,6 +4,7 @@ open Expecto
 open Brahma.FSharp.OpenCL
 open FSharp.Quotations
 open Brahma.FSharp.Tests
+open FsCheck
 
 // Incomplete pattern matching in record deconstruction
 #nowarn "667"
@@ -28,6 +29,18 @@ type GenericRecord<'a, 'b> =
         mutable X: 'a
         mutable Y: 'b
     }
+
+[<Struct>]
+type StructOfIntInt64 =
+    val mutable X: int
+    val mutable Y: int64
+    new(x, y) = { X = x; Y = y }
+
+[<Struct>]
+type GenericStruct<'a, 'b> =
+    val mutable X: 'a
+    val mutable Y: 'b
+    new(x, y) = { X = x; Y = y }
 
 let check<'a when 'a : struct and 'a : equality> (data: 'a[]) (command: int -> Expr<Range1D -> ClArray<'a> -> unit>) =
     let length = data.Length
@@ -131,9 +144,94 @@ let recordTestCases = testList "Record tests" [
         if data.Length <> 0 then check data (fun length -> <@ fun (range: Range1D) (buffer: ClArray<_>) -> (%command length) range.GlobalID0 buffer @>)
 ]
 
+let genGenericStruct<'a, 'b> =
+    gen {
+        let! x = Arb.generate<'a>
+        let! y = Arb.generate<'b>
+
+        return GenericStruct(x, y)
+    }
+
+type GenericStructGenerator =
+    static member GenericStruct() = Arb.fromGen genGenericStruct
+
+let structTests = testList "Struct tests" [
+    testCase "Smoke test" <| fun _ ->
+        let command =
+            <@
+                fun (range: Range1D) (buf:  ClArray<StructOfIntInt64>) ->
+                    if range.GlobalID0 = 0 then
+                        let b = buf.[0]
+                        buf.[0] <- buf.[1]
+                        buf.[1] <- b
+            @>
+
+        checkResult command [|StructOfIntInt64(1, 2L); StructOfIntInt64(3, 4L)|]
+                            [|StructOfIntInt64(3, 4L); StructOfIntInt64(1, 2L)|]
+
+    testCase "Struct constructor test" <| fun _ ->
+        let command =
+            <@
+                fun (range: Range1D) (buf:  ClArray<StructOfIntInt64>) ->
+                    buf.[0] <- StructOfIntInt64(5, 6L)
+            @>
+
+        checkResult command [|StructOfIntInt64(1, 2L); StructOfIntInt64(3, 4L)|]
+                            [|StructOfIntInt64(5, 6L); StructOfIntInt64(3, 4L)|]
+
+    testCase "Struct prop set" <| fun _ ->
+        let command =
+            <@
+                fun (range: Range1D) (buf:  ClArray<StructOfIntInt64>) ->
+                    let mutable y = buf.[0]
+                    y.X <- 5
+                    buf.[0] <- y
+            @>
+
+        checkResult command [|StructOfIntInt64(1, 2L)|] [|StructOfIntInt64(5, 2L)|]
+
+    testCase "Struct prop get" <| fun _ ->
+        let command =
+            <@
+                fun (range: Range1D) (buf:  ClArray<StructOfIntInt64>) ->
+                    if range.GlobalID0 = 0 then
+                        let mutable y = buf.[0]
+                        y.X <- y.X + 3
+                        buf.[0] <- y
+            @>
+
+        checkResult command [|StructOfIntInt64(1, 2L); StructOfIntInt64(3, 4L)|]
+                            [|StructOfIntInt64(4, 2L); StructOfIntInt64(3, 4L)|]
+
+    let inline command length =
+        <@
+            fun (gid: int) (buffer: ClArray<GenericStruct<'a, 'b>>) ->
+                if gid < length then
+                    let tmp = buffer.[gid]
+                    let x = tmp.X
+                    let y = tmp.Y
+                    let mutable innerStruct = GenericStruct(x, y)
+                    innerStruct.X <- x
+                    innerStruct.Y <- y
+                    buffer.[gid] <- GenericStruct(innerStruct.X, innerStruct.Y)
+        @>
+
+    let config = { FsCheckConfig.defaultConfig with arbitrary = [typeof<GenericStructGenerator>] }
+
+    testPropertyWithConfig config (message "GenericStruct<int, bool>") <| fun (data: GenericStruct<int, bool>[]) ->
+        if data.Length <> 0 then check data (fun length -> <@ fun (range: Range1D) (buffer: ClArray<_>) -> (%command length) range.GlobalID0 buffer @>)
+
+    testPropertyWithConfig config (message "GenericStruct<(int * int64), (bool * bool)>") <| fun (data: GenericStruct<(int * int64), (bool * bool)>[]) ->
+        if data.Length <> 0 then check data (fun length -> <@ fun (range: Range1D) (buffer: ClArray<_>) -> (%command length) range.GlobalID0 buffer @>)
+
+    testPropertyWithConfig config (message "GenericStruct<RecordOfIntInt64, RecordOfBoolBool>") <| fun (data: GenericStruct<RecordOfIntInt64, RecordOfBoolBool>[]) ->
+        if data.Length <> 0 then check data (fun length -> <@ fun (range: Range1D) (buffer: ClArray<_>) -> (%command length) range.GlobalID0 buffer @>)
+]
+
 let tests =
     testList "Tests on composite types" [
         tupleTestCases
         recordTestCases
+        structTests
     ]
     |> testSequenced

@@ -59,10 +59,11 @@ module Expressions =
         | Pow -> "+"
         | BitAnd -> "&"
         | BitOr -> "|"
-        | And -> "&&"
-        | Or -> "||"
+        | BitXor -> "^"
         | LeftShift -> "<<"
         | RightShift -> ">>"
+        | And -> "&&"
+        | Or -> "||"
         | Less -> "<"
         | LessEQ -> "<="
         | Great -> ">"
@@ -109,6 +110,7 @@ module Expressions =
         | UOp.Not -> wordL "!" ++ print uo.Expr |> bracketL
         | UOp.Incr -> print uo.Expr ++ wordL "++"
         | UOp.Decr -> print uo.Expr ++ wordL "--"
+        | UOp.BitNegation -> wordL "~" ++ print uo.Expr |> bracketL
 
     and private printCast (c: Cast<'lang>) =
         let t = Types.print c.Type
@@ -135,8 +137,11 @@ module Expressions =
 
     and printNewStruct (newStruct: NewStruct<_>) =
         let args = List.map print newStruct.ConstructorArgs |> commaListL
-        let t = Types.print newStruct.Struct
-        [ t |> bracketL; wordL "{"; args; wordL "}" ] |> spaceListL
+        match newStruct.Struct with
+        | :? StructInplaceType<_> -> [ wordL "{"; args; wordL "}" ] |> spaceListL
+        | _ ->
+            let t = Types.print newStruct.Struct
+            [ t |> bracketL; wordL "{"; args; wordL "}" ] |> spaceListL
 
     and printNewUnion (newUnion: NewUnion<_>) =
         let arg = print newUnion.ConstructorArg

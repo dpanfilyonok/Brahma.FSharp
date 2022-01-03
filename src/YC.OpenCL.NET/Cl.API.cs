@@ -29,7 +29,7 @@ namespace OpenCL.Net
 
     public static partial class Cl
     {
-        public const string Library = "opencl.dll";
+        public const string Library = "opencl";
         
         static Cl()
         {
@@ -39,17 +39,38 @@ namespace OpenCL.Net
         private static IntPtr ImportResolver(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
         {
             IntPtr libHandle = IntPtr.Zero;
+            
+            var envOclPath = System.Environment.GetEnvironmentVariable("BRAHMA_OCL_PATH");
+
             if (libraryName == Library)
             {
-                if (OperatingSystem.IsLinux())
+                if (NativeLibrary.TryLoad(Library, assembly, searchPath, out libHandle))
                 {
-                    libHandle = NativeLibrary.Load("/usr/lib/x86_64-linux-gnu/libOpenCL.so.1.0.0", assembly, searchPath);
+                    return libHandle;
                 }
-                else if (OperatingSystem.IsMacOS())
+                else if (NativeLibrary.TryLoad(envOclPath, assembly, searchPath, out libHandle)) 
                 {
-                    libHandle = NativeLibrary.Load("/System/Library/Frameworks/OpenCL.framework/OpenCL", assembly, searchPath);
+                    return libHandle;
+                }
+            
+                try
+                {
+                    if (OperatingSystem.IsLinux())
+                    {
+                        libHandle = NativeLibrary.Load("/usr/lib/x86_64-linux-gnu/libOpenCL.so.1.0.0", assembly, searchPath);
+                    }
+                    else if (OperatingSystem.IsMacOS())
+                    {
+                        libHandle = NativeLibrary.Load("/System/Library/Frameworks/OpenCL.framework/OpenCL", assembly, searchPath);
+                    }
+                }
+                catch (DllNotFoundException e)
+                {
+                    Console.WriteLine(e);
+                    Console.WriteLine("Set BRAHMA_OCL_PATH environment variable to OpenCL library path");
                 }
             }
+               
             return libHandle;
         }
 

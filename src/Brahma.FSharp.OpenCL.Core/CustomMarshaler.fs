@@ -5,6 +5,7 @@ open System.Runtime.InteropServices
 open Brahma.FSharp.OpenCL.Translator
 open FSharp.Reflection
 open System.Runtime.CompilerServices
+open System.Threading.Tasks
 
 type StructurePacking =
     | StructureElement of {| Size: int; Aligment: int |} * StructurePacking list
@@ -15,6 +16,7 @@ module private Utils =
         |> Seq.tryFind (fun attr -> attr.GetType() = typeof<'attr>)
         |> Option.isSome
 
+// TODO make read write parallel
 type CustomMarshaler<'a>() =
     let (|TupleType|RecordType|UnionType|UserDefinedStuctureType|PrimitiveType|) (type': Type) =
         match type' with
@@ -81,7 +83,26 @@ type CustomMarshaler<'a>() =
                 StructureElement({| Size = size; Aligment = aligment |}, elems)
 
             | UnionType -> failwithf "Union not supported"
-            | UserDefinedStuctureType -> failwithf "Custom structures not supported"
+
+            | UserDefinedStuctureType ->
+                let elems =
+                    type'.GetFields()
+                    |> Array.map (fun fi -> fi.FieldType)
+                    |> Array.map go
+                    |> Array.toList
+
+                let aligment =
+                    elems
+                    |> List.map (fun (StructureElement(pack, _)) -> pack.Aligment)
+                    |> List.max
+
+                let size =
+                    elems
+                    |> List.map (fun (StructureElement(pack, _)) -> pack)
+                    |> List.fold (fun state x -> roundUp x.Aligment state + x.Size) 0
+                    |> roundUp aligment
+
+                StructureElement({| Size = size; Aligment = aligment |}, elems)
 
             | PrimitiveType ->
                 let size = Marshal.SizeOf (if type' = typeof<bool> then typeof<BoolHostAlias> else type')
@@ -129,7 +150,7 @@ type CustomMarshaler<'a>() =
         size, mem
 
     member this.WriteToUnmanaged(array: 'a[], ptr: IntPtr) =
-        for j = 0 to array.Length - 1 do
+        Array.Parallel.iteri (fun j item ->
             let start = IntPtr.Add(ptr, j * this.ElementTypeSize)
             let mutable i = 0
             let rec go (structure: obj) =
@@ -140,10 +161,15 @@ type CustomMarshaler<'a>() =
                     [ 0 .. tupleSize - 1 ] |> List.iter (fun i -> go tuple.[i])
 
                 | Record ->
-                    FSharpValue.GetRecordFields structure |> Array.iter go
+                    FSharpValue.GetRecordFields structure
+                    |> Array.iter go
 
                 | Union -> failwithf "Union not supported"
-                | UserDefinedStucture -> failwithf "Custom structures not supported"
+
+                | UserDefinedStucture ->
+                    structure.GetType().GetFields()
+                    |> Array.map (fun fi -> fi.GetValue(structure))
+                    |> Array.iter go
 
                 | Primitive ->
                     let offset = this.ElementTypeOffsets.[i]
@@ -155,7 +181,8 @@ type CustomMarshaler<'a>() =
                     Marshal.StructureToPtr(structure, IntPtr.Add(start, offset), false)
                     i <- i + 1
 
-            go array.[j]
+            go item
+        ) array
 
         array.Length * this.ElementTypeSize
 
@@ -165,7 +192,7 @@ type CustomMarshaler<'a>() =
         array
 
     member this.ReadFromUnmanaged(ptr: IntPtr, array: 'a[]) =
-        for j = 0 to array.Length - 1 do
+        Array.Parallel.iteri (fun j _ ->
             let start = IntPtr.Add(ptr, j * this.ElementTypeSize)
             let mutable i = 0
             let rec go (type': Type) =
@@ -182,7 +209,14 @@ type CustomMarshaler<'a>() =
                     |> fun x -> FSharpValue.MakeRecord(type', x)
 
                 | UnionType -> failwithf "Union not supported"
-                | UserDefinedStuctureType -> failwithf "Custom structures not supported"
+
+                | UserDefinedStuctureType ->
+                    let inst = Activator.CreateInstance(type')
+                    type'.GetFields()
+                    |> Array.map (fun fi -> fi, go fi.FieldType)
+                    |> Array.iter (fun (fi, value) -> fi.SetValue(inst, value))
+
+                    inst
 
                 | PrimitiveType ->
                     let offset = this.ElementTypeOffsets.[i]
@@ -196,6 +230,7 @@ type CustomMarshaler<'a>() =
                     structure
 
             array.[j] <- unbox<'a> <| go typeof<'a>
+        ) array
 
     override this.ToString() =
         sprintf "%O\n%A" elementPacking offsets

@@ -83,7 +83,14 @@ module ClTask =
         context.CommandQueue.PostAndReply <| MsgNotifyMe
         res
 
-    // TODO maybe switсh to manual threads
+    // TODO implement
+    // let startSync (ClTask f) =
+    //     let context = Device.getFirstAppropriateDevice
+    //     let res = f context
+    //     context.CommandQueue.PostAndReply <| MsgNotifyMe
+    //     res
+
+    // NOTE maybe switсh to manual threads
     // TODO check if it is really parallel
     let inParallel (tasks: seq<ClTask<'a>>) = opencl {
         let! ctx = ask
@@ -115,16 +122,16 @@ module ClTaskOpened =
         opencl {
             let! ctx = ClTask.ask
 
-            let kernel = (ctx.CreateClKernel command).GetNewKernel()
+            let kernel = ctx.CreateClProgram(command).GetKernel()
 
-            ctx.CommandQueue.Post <| MsgSetArguments(fun () -> binder kernel.ArgumentsSetter)
+            ctx.CommandQueue.Post <| MsgSetArguments(fun () -> binder kernel.KernelFunc)
             ctx.CommandQueue.Post <| Msg.CreateRunMsg<_, _>(kernel)
-            kernel.ReleaseBuffers()
+            kernel.ReleaseInternalBuffers()
         }
 
-    let runKernel (kernel: ClKernel<'range, 'a>) (processor: MailboxProcessor<Msg>) (binder: ('range -> 'a) -> unit) : ClTask<unit> =
+    let runKernel (kernel: IKernel<'range, 'a>) (processor: MailboxProcessor<Msg>) (binder: ('range -> 'a) -> unit) : ClTask<unit> =
         opencl {
-            processor.Post <| MsgSetArguments(fun () -> binder kernel.ArgumentsSetter)
+            processor.Post <| MsgSetArguments(fun () -> binder kernel.KernelFunc)
             processor.Post <| Msg.CreateRunMsg<_, _>(kernel)
-            kernel.ReleaseBuffers()
+            kernel.ReleaseInternalBuffers()
         }
