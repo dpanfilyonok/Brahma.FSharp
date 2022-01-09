@@ -65,8 +65,9 @@ module Utils =
 
     let openclTranslate (expr: Expr) =
         let translator = FSQuotationToOpenCLTranslator(TranslatorOptions())
-        let (ast, _) = translator.Translate(expr)
+        let (ast, _) = translator.Translate expr
         print ast
 
     let openclTransformQuotation (expr: Expr) =
-        QuotationTransformers.Transformer.transformQuotation expr
+        let translator = FSQuotationToOpenCLTranslator(TranslatorOptions())
+        translator.TransformQuotation expr

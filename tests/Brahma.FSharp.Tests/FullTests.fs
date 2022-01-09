@@ -1394,6 +1394,8 @@ let parallelExecutionTests = testList "Parallel Execution Tests" [
 
         "Arrays should be equal"
         |> Expect.sequenceEqual actual expected
+
+    // TODO check if it really faster
 ]
 
 type Option1 =

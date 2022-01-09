@@ -5,6 +5,7 @@ open Expecto
 open FSharp.Quotations
 open Brahma.FSharp.OpenCL.Translator
 open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
+open Brahma.FSharp.Tests
 
 let eqMsg = "Values should be equal"
 
@@ -238,7 +239,7 @@ let quotationTransformerTest =
         let expectedKernelExpr, expectedMethods = makeMethods expected
 
         testCase name <| fun _ ->
-            let (actualKernelExpr, actualKernelMethods) = transformQuotation expr
+            let (actualKernelExpr, actualKernelMethods) = Utils.openclTransformQuotation expr
 
             assertMethodListsEqual actualKernelMethods expectedMethods
             assertExprEqual actualKernelExpr expectedKernelExpr "kernels not equals"

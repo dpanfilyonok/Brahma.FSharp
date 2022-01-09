@@ -90,9 +90,19 @@ type FSQuotationToOpenCLTranslator(translatorOptions: TranslatorOptions) =
 
         methods @ kernelFunc
 
-    let translate expr' =
-        let expr = preprocessQuotation expr'
+    let transformQuotation expr =
+        expr
+        |> replacePrintf
+        |> GettingWorkSizeTransformer.__
+        |> processAtomic
+        // |> replacePrintf
+        |> makeVarNameUnique
+        |> transformVarDefsToLambda
+        |> transformMutableVarsToRef
+        |> makeVarNameUnique
+        |> lambdaLifting
 
+    let translate expr =
         let context = TranslationContext.Create()
 
         // TODO: Extract quotationTransformer to translator
@@ -135,3 +145,6 @@ type FSQuotationToOpenCLTranslator(translatorOptions: TranslatorOptions) =
     member this.Translate(qExpr) =
         lock lockObject <| fun () ->
             translate qExpr
+
+    member this.TransformQuotation(expr: Expr) =
+        transformQuotation expr

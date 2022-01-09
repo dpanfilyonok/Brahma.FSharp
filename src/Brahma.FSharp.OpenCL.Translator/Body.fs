@@ -34,6 +34,11 @@ module private BodyPatterns =
         | tName when tName = str -> Some VarName
         | _ -> None
 
+    let (|Lower|_|) (expected: string) (str: string) =
+        match str with
+        | _ when expected.ToLowerInvariant() = str.ToLowerInvariant() -> Some Lower
+        | _ -> None
+
     let (|ForLoopWithStep|_|) = function
         | Patterns.Let
             (
@@ -276,28 +281,23 @@ module rec Body =
         | other -> return raise <| InvalidKernelException(sprintf "Unsupported call: %s" other)
     }
 
+    // TODO: Refactoring: Safe pattern matching by expr type.
     let private translateSpecificPropGet expr propName exprs = translation {
-        // TODO: Refactoring: Safe pattern matching by expr type.
         let! hostVar = translateAsExpr expr
+
         match propName with
-        | "globalid0i"
-        | "globalid0" ->
-            return FunCall("get_global_id", [Const(PrimitiveType Int, "0")]) :> Expression<_>
-        | "globalid1i"
-        | "globalid1" ->
-            return FunCall("get_global_id", [Const(PrimitiveType Int, "1")]) :> Expression<_>
-        | "globalid2i"
-        | "globalid2" ->
-            return FunCall("get_global_id", [Const(PrimitiveType Int, "2")]) :> Expression<_>
-        | "localid0" ->
-            return FunCall("get_local_id", [Const(PrimitiveType Int, "0")]) :> Expression<_>
-        | "localid1" ->
-            return FunCall("get_local_id", [Const(PrimitiveType Int, "1")]) :> Expression<_>
-        | "localid2" ->
-            return FunCall("get_local_id", [Const(PrimitiveType Int, "2")]) :> Expression<_>
+        | "globalid0i" | "globalid0" -> return FunCall("get_global_id", [Const(PrimitiveType Int, "0")]) :> Expression<_>
+        | "globalid1i" | "globalid1" -> return FunCall("get_global_id", [Const(PrimitiveType Int, "1")]) :> Expression<_>
+        | "globalid2i" | "globalid2" -> return FunCall("get_global_id", [Const(PrimitiveType Int, "2")]) :> Expression<_>
+
+        | "localid0" -> return FunCall("get_local_id", [Const(PrimitiveType Int, "0")]) :> Expression<_>
+        | "localid1" -> return FunCall("get_local_id", [Const(PrimitiveType Int, "1")]) :> Expression<_>
+        | "localid2" -> return FunCall("get_local_id", [Const(PrimitiveType Int, "2")]) :> Expression<_>
+
         | "item" ->
             let! (idx, hVar) = itemHelper exprs hostVar
             return Item(hVar, idx) :> Expression<_>
+
         // TODO rewrite to active pattern
         | "value" when
             match expr with
@@ -307,6 +307,7 @@ module rec Body =
 
             let! (idx, hVar) = itemHelper [Expr.Value 0] hostVar
             return Item(hVar, idx) :> Expression<_>
+
         | _ -> return raise <| InvalidKernelException(sprintf "Unsupported property in kernel: %A" propName)
     }
 
@@ -321,10 +322,19 @@ module rec Body =
                 | true -> return! translateStructFieldGet expr propInfo.Name
                 | false -> return! translateUnionFieldGet expr propInfo
             | false -> return! translateSpecificPropGet expr propName exprs
+
         | None ->
             match propName with
-            | "_localid0" ->
-                return FunCall("get_local_id", [Const(PrimitiveType Int, "0")]) :> Expression<_>
+            | Lower (nameof Anchors._localID0) -> return FunCall("get_local_id", [Const(PrimitiveType Int, "0")]) :> Expression<_>
+
+            | Lower (nameof Anchors._globalSize0) -> return FunCall("get_global_size", [Const(PrimitiveType Int, "0")]) :> Expression<_>
+            | Lower (nameof Anchors._globalSize1) -> return FunCall("get_global_size", [Const(PrimitiveType Int, "1")]) :> Expression<_>
+            | Lower (nameof Anchors._globalSize2) -> return FunCall("get_global_size", [Const(PrimitiveType Int, "2")]) :> Expression<_>
+
+            | Lower (nameof Anchors._localSize0) -> return FunCall("get_local_size", [Const(PrimitiveType Int, "0")]) :> Expression<_>
+            | Lower (nameof Anchors._localSize1) -> return FunCall("get_local_size", [Const(PrimitiveType Int, "1")]) :> Expression<_>
+            | Lower (nameof Anchors._localSize2) -> return FunCall("get_local_size", [Const(PrimitiveType Int, "2")]) :> Expression<_>
+
             | _ -> return raise <| InvalidKernelException(sprintf "Unsupported static property get in kernel: %A" propName)
     }
 

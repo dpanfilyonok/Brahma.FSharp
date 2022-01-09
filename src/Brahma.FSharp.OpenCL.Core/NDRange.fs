@@ -7,6 +7,11 @@ type INDRange =
     abstract member LocalWorkSize: IntPtr[] with get
     abstract member Dimensions: int
 
+(*
+    + get_num_groups (uint dimindx)
+    + get_group_id (uint dimindx)
+*)
+
 type Range1D(globalWorkSize: int, localWorkSize: int) =
     new(globalWorkSize) = Range1D(globalWorkSize, 1)
 

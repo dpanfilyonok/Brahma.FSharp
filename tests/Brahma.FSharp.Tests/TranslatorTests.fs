@@ -20,25 +20,60 @@ let checkCode command outFile expected =
     Utils.filesAreEqual targetPath expectedPath
 
 let basicLocalIdTests = testList "Basic tests on LocalID translation" [
-        testCase "LocalID of 1D" <| fun _ ->
-            let command =
-                <@ fun (range: Range1D) (buf: int clarray) ->
-                    let id = range.LocalID0
-                    buf.[id] <- 0
-                @>
+    testCase "LocalID of 1D" <| fun _ ->
+        let command =
+            <@ fun (range: Range1D) (buf: int clarray) ->
+                let id = range.LocalID0
+                buf.[id] <- 0
+            @>
 
-            checkCode command "LocalID1D.gen" "LocalID1D.cl"
+        checkCode command "LocalID1D.gen" "LocalID1D.cl"
 
-        testCase "LocalID of 2D" <| fun _ ->
-            let command =
-                <@ fun (range: Range2D) (buf: int clarray) ->
-                    let v = range.LocalID0
-                    let id = range.LocalID1
-                    buf.[id] <- v
-                @>
+    testCase "LocalID of 2D" <| fun _ ->
+        let command =
+            <@ fun (range: Range2D) (buf: int clarray) ->
+                let v = range.LocalID0
+                let id = range.LocalID1
+                buf.[id] <- v
+            @>
 
-            checkCode command "LocalID2D.gen" "LocalID2D.cl"
-    ]
+        checkCode command "LocalID2D.gen" "LocalID2D.cl"
+]
+
+let basicWorkSizeTests = testList "Basic tests on getting WorkSize translation" [
+    testCase "WorkSize of 1D" <| fun _ ->
+        let command =
+            <@
+                fun (range: Range1D) (buf: int clarray) ->
+                    let gSize = range.GlobalWorkSize
+                    let lSize = range.LocalWorkSize
+                    ()
+            @>
+
+        checkCode command "WorkSize1D.gen" "WorkSize1D.cl"
+
+    testCase "WorkSize of 2D" <| fun _ ->
+        let command =
+            <@
+                fun (range: Range2D) (buf: int clarray) ->
+                    let (gSizeX, gSizeY) = range.GlobalWorkSize
+                    let (lSizeX, lSizeY) = range.LocalWorkSize
+                    ()
+            @>
+
+        checkCode command "WorkSize2D.gen" "WorkSize2D.cl"
+
+    testCase "WorkSize of 3D" <| fun _ ->
+        let command =
+           <@
+                fun (range: Range3D) (buf: int clarray) ->
+                    let (gSizeX, gSizeY, gSizeZ) = range.GlobalWorkSize
+                    let (lSizeX, lSizeY, lSizeZ) = range.LocalWorkSize
+                    ()
+            @>
+
+        checkCode command "WorkSize3D.gen" "WorkSize3D.cl"
+]
 
 let basicBinOpsTests = testList "Basic operations translation tests" [
     testCase "Array item set" <| fun _ ->
@@ -723,6 +758,7 @@ let barrierTests = testList "Barrier translation tests" [
 let tests =
     testList "Tests for translator" [
         basicLocalIdTests
+        basicWorkSizeTests
         basicBinOpsTests
         controlFlowTests
         namesResolvingTests
