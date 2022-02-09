@@ -1,13 +1,15 @@
 namespace Brahma.FSharp.OpenCL
 
+open Brahma.FSharp.OpenCL
 open FSharp.Quotations
 
-type ClTask<'a> = ClTask of (ClContext -> 'a)
+type ClTask<'a> = ClTask of (IRuntimeContext -> 'a)
 
 [<AutoOpen>]
 module internal ClTaskBuilder =
     let inline runComputation (ClTask f) env = f env
 
+// TODO inlineiflambda
 type ClTaskBuilder() =
     member inline this.Bind(x, f) =
         ClTask <| fun env ->
@@ -78,7 +80,7 @@ module ClTask =
 
     let ask = ClTask id
 
-    let runSync (context: ClContext) (ClTask f) =
+    let runSync (context: RuntimeContext) (ClTask f) =
         let res = f context
         context.CommandQueue.PostAndReply <| MsgNotifyMe
         res
@@ -90,7 +92,7 @@ module ClTask =
     //     context.CommandQueue.PostAndReply <| MsgNotifyMe
     //     res
 
-    // NOTE maybe switсh to manual threads
+    // NOTE maybe switch to manual threads
     // TODO check if it is really parallel
     let inParallel (tasks: seq<ClTask<'a>>) = opencl {
         let! ctx = ask
@@ -118,20 +120,22 @@ module ClTask =
 
 [<AutoOpen>]
 module ClTaskOpened =
-    let runCommand (command: Expr<'range -> 'a>) (binder: ('range -> 'a) -> unit) : ClTask<unit> =
+    let runKernel (program: ClProgram<'range, 'a>) (binder: ('range -> 'a) -> unit) : ClTask<unit> =
         opencl {
             let! ctx = ClTask.ask
 
-            let kernel = ctx.CreateClProgram(command).GetKernel()
+            let kernel = ClKernel(program.Program, program.Lambda, ctx)
 
             ctx.CommandQueue.Post <| MsgSetArguments(fun () -> binder kernel.KernelFunc)
             ctx.CommandQueue.Post <| Msg.CreateRunMsg<_, _>(kernel)
             kernel.ReleaseInternalBuffers()
         }
 
-    let runKernel (kernel: IKernel<'range, 'a>) (processor: MailboxProcessor<Msg>) (binder: ('range -> 'a) -> unit) : ClTask<unit> =
+    let runCommand (command: Expr<'range -> 'a>) (binder: ('range -> 'a) -> unit) : ClTask<unit> =
         opencl {
-            processor.Post <| MsgSetArguments(fun () -> binder kernel.KernelFunc)
-            processor.Post <| Msg.CreateRunMsg<_, _>(kernel)
-            kernel.ReleaseInternalBuffers()
+            let! ctx = ClTask.ask
+
+            let program = ctx.GetCompilationContext().Compile(command)
+
+            do! runKernel program binder
         }

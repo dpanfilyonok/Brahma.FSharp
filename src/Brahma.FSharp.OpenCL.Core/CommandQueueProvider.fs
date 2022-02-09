@@ -12,8 +12,8 @@ type CommandQueueProvider =
                 let props = CommandQueueProperties.None
                 let queue = Cl.CreateCommandQueue(context, device, props, error)
 
-                if !error <> ErrorCode.Success then
-                    raise <| Cl.Exception !error
+                if error.Value <> ErrorCode.Success then
+                    raise <| Cl.Exception error.Value
 
                 queue
 

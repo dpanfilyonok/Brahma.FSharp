@@ -97,9 +97,9 @@ type ClBuffer<'a when 'a : struct>
 
         match initParam with
         | Size _  when ifDataFlags |> List.contains memFlags.AllocationMode ->
-            raise <| InvalidMemFlagsException(sprintf "One of following flags should be setted %O" ifDataFlags)
+            raise <| InvalidMemFlagsException $"One of following flags should be setted {ifDataFlags}"
         | Data _ when ifDataFlags |> List.contains memFlags.AllocationMode |> not ->
-            raise <| InvalidMemFlagsException(sprintf "Neither of following flags should be setted %O" ifDataFlags)
+            raise <| InvalidMemFlagsException $"Neither of following flags should be setted {ifDataFlags}"
         | _ -> ()
 
         match memFlags.AllocationMode with
@@ -125,8 +125,8 @@ type ClBuffer<'a when 'a : struct>
                 let size = IntPtr(size * marshaler.ElementTypeSize)
                 Cl.CreateBuffer(clContext.Context, clMemoryFlags, size, null, error)
 
-        if !error <> ErrorCode.Success then
-            raise <| Cl.Exception !error
+        if error.Value <> ErrorCode.Success then
+            raise <| Cl.Exception error.Value
 
         buf
 

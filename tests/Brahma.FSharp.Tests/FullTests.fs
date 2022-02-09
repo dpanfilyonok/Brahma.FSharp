@@ -497,73 +497,73 @@ let kernelArgumentsTests = testList "Kernel arguments tests" [
 
         Expect.sequenceEqual actual expected "Arrays should be equals"
 
-    testCase "Kernel arguments. Sequential commands over single buffer" <| fun _ ->
-        let command =
-            <@
-                fun (range: Range1D) i x (buf: ClArray<int>) ->
-                    buf.[i] <- x + x
-            @>
+//    testCase "Kernel arguments. Sequential commands over single buffer" <| fun _ ->
+//        let command =
+//            <@
+//                fun (range: Range1D) i x (buf: ClArray<int>) ->
+//                    buf.[i] <- x + x
+//            @>
+//
+//        let expected = [|4; 1; 4; 3|]
+//
+//        let actual =
+//            opencl {
+//                let! ctx = ClTask.ask
+//                let kernel = ctx.CreateClProgram(command).GetKernel()
+//
+//                let inArr = ctx.CreateClArray(intInArr)
+//
+//                ctx.CommandQueue.Post(Msg.MsgSetArguments(fun () -> kernel.KernelFunc default1D 0 2 inArr))
+//                ctx.CommandQueue.Post(Msg.CreateRunMsg<_,_>(kernel))
+//
+//                ctx.CommandQueue.Post(Msg.MsgSetArguments(fun () -> kernel.KernelFunc default1D 2 2 inArr))
+//                ctx.CommandQueue.Post(Msg.CreateRunMsg<_,_>(kernel))
+//
+//                let localOut = Array.zeroCreate intInArr.Length
+//                let res = ctx.CommandQueue.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(inArr, localOut, ch))
+//                ctx.CommandQueue.Post <| Msg.CreateFreeMsg(inArr)
+//
+//                return res
+//            }
+//            |> ClTask.runSync context
+//
+//        Expect.sequenceEqual actual expected "Arrays should be equals"
 
-        let expected = [|4; 1; 4; 3|]
-
-        let actual =
-            opencl {
-                let! ctx = ClTask.ask
-                let kernel = ctx.CreateClProgram(command).GetKernel()
-
-                let inArr = ctx.CreateClArray(intInArr)
-
-                ctx.CommandQueue.Post(Msg.MsgSetArguments(fun () -> kernel.KernelFunc default1D 0 2 inArr))
-                ctx.CommandQueue.Post(Msg.CreateRunMsg<_,_>(kernel))
-
-                ctx.CommandQueue.Post(Msg.MsgSetArguments(fun () -> kernel.KernelFunc default1D 2 2 inArr))
-                ctx.CommandQueue.Post(Msg.CreateRunMsg<_,_>(kernel))
-
-                let localOut = Array.zeroCreate intInArr.Length
-                let res = ctx.CommandQueue.PostAndReply(fun ch -> Msg.CreateToHostMsg<_>(inArr, localOut, ch))
-                ctx.CommandQueue.Post <| Msg.CreateFreeMsg(inArr)
-
-                return res
-            }
-            |> ClTask.runSync context
-
-        Expect.sequenceEqual actual expected "Arrays should be equals"
-
-    testProperty "Parallel execution of kernel" <| fun _const ->
-        let n = 4
-        let l = 256
-        let getAllocator (context: ClContext) =
-            let kernel =
-                <@
-                    fun (r: Range1D) (buffer: ClArray<int>) ->
-                        let i = r.GlobalID0
-                        buffer.[i] <- _const
-                @>
-            let k = context.CreateClProgram kernel
-            fun (q:MailboxProcessor<_>) ->
-                let buf = context.CreateClArray(l, allocationMode = AllocationMode.AllocHostPtr)
-                let executable = k.GetKernel()
-                q.Post(Msg.MsgSetArguments(fun () -> executable.KernelFunc (Range1D(l, l)) buf))
-                q.Post(Msg.CreateRunMsg<_,_>(executable))
-                buf
-
-        let allocator = getAllocator context
-        let allocOnGPU (q:MailboxProcessor<_>) allocator =
-            let b = allocator q
-            let res = Array.zeroCreate l
-            q.PostAndReply (fun ch -> Msg.CreateToHostMsg(b, res, ch)) |> ignore
-            q.Post (Msg.CreateFreeMsg b)
-            res
-
-        let actual =
-            Array.init n (fun _ -> context.WithNewCommandQueue().CommandQueue)
-            |> Array.map (fun q -> async { return allocOnGPU q allocator })
-            |> Async.Parallel
-            |> Async.RunSynchronously
-
-        let expected = Array.init n (fun _ -> Array.create l _const)
-
-        Expect.sequenceEqual actual expected "Arrays should be equals"
+//    testProperty "Parallel execution of kernel" <| fun _const ->
+//        let n = 4
+//        let l = 256
+//        let getAllocator (context: ClContext) =
+//            let kernel =
+//                <@
+//                    fun (r: Range1D) (buffer: ClArray<int>) ->
+//                        let i = r.GlobalID0
+//                        buffer.[i] <- _const
+//                @>
+//            let k = context.CreateClProgram kernel
+//            fun (q:MailboxProcessor<_>) ->
+//                let buf = context.CreateClArray(l, allocationMode = AllocationMode.AllocHostPtr)
+//                let executable = k.GetKernel()
+//                q.Post(Msg.MsgSetArguments(fun () -> executable.KernelFunc (Range1D(l, l)) buf))
+//                q.Post(Msg.CreateRunMsg<_,_>(executable))
+//                buf
+//
+//        let allocator = getAllocator context
+//        let allocOnGPU (q:MailboxProcessor<_>) allocator =
+//            let b = allocator q
+//            let res = Array.zeroCreate l
+//            q.PostAndReply (fun ch -> Msg.CreateToHostMsg(b, res, ch)) |> ignore
+//            q.Post (Msg.CreateFreeMsg b)
+//            res
+//
+//        let actual =
+//            Array.init n (fun _ -> context.WithNewCommandQueue().CommandQueue)
+//            |> Array.map (fun q -> async { return allocOnGPU q allocator })
+//            |> Async.Parallel
+//            |> Async.RunSynchronously
+//
+//        let expected = Array.init n (fun _ -> Array.create l _const)
+//
+//        Expect.sequenceEqual actual expected "Arrays should be equals"
 ]
 
 let quotationInjectionTests = testList "Quotation injection tests" [
@@ -1363,40 +1363,39 @@ let booleanTests = testList "Boolean Tests" [
             |> Expect.sequenceEqual actual expected
 ]
 
-let parallelExecutionTests = testList "Parallel Execution Tests" [
-    testCase "Running tasks in parallel should not raise exception" <| fun () ->
-        let fill = opencl {
-            let kernel =
-                <@
-                    fun (range: Range1D) (buffer: int clarray) ->
-                        let i = range.GlobalID0
-                        buffer.[i] <- 1
-                @>
-
-            use! array = ClArray.alloc<int> 256
-            do! runCommand kernel <| fun x ->
-                x
-                <| Range1D.CreateValid(256, 256)
-                <| array
-
-            return! ClArray.toHost array
-        }
-
-        let expected = Array.replicate 3 (Array.create 256 1)
-
-        let actual =
-            opencl {
-                return!
-                    List.replicate 3 fill
-                    |> ClTask.inParallel
-            }
-            |> ClTask.runSync context
-
-        "Arrays should be equal"
-        |> Expect.sequenceEqual actual expected
-
-    // TODO check if it really faster
-]
+let parallelExecutionTests = testList "Parallel Execution Tests" []
+//    testCase "Running tasks in parallel should not raise exception" <| fun () ->
+//        let fill = opencl {
+//            let kernel =
+//                <@
+//                    fun (range: Range1D) (buffer: int clarray) ->
+//                        let i = range.GlobalID0
+//                        buffer.[i] <- 1
+//                @>
+//
+//            use! array = ClArray.alloc<int> 256
+//            do! runCommand kernel <| fun x ->
+//                x
+//                <| Range1D.CreateValid(256, 256)
+//                <| array
+//
+//            return! ClArray.toHost array
+//        }
+//
+//        let expected = Array.replicate 3 (Array.create 256 1)
+//
+//        let actual =
+//            opencl {
+//                return!
+//                    List.replicate 3 fill
+//                    |> ClTask.inParallel
+//            }
+//            |> ClTask.runSync context
+//
+//        "Arrays should be equal"
+//        |> Expect.sequenceEqual actual expected
+//
+//    // TODO check if it really faster
 
 type Option1 =
     | None1

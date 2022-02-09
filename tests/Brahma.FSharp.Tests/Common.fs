@@ -12,7 +12,7 @@ module Common =
     let context =
         let deviceType = ClDeviceType.Default
         let platformName = ClPlatform.Any
-        ClContext(platformName, deviceType)
+        RuntimeContext(platform = platformName, deviceType = deviceType)
 
     let defaultInArrayLength = 4
     let intInArr = [| 0 .. defaultInArrayLength - 1 |]
@@ -60,7 +60,7 @@ module Utils =
         Expect.equal all1 all2 "Files should be equals as strings"
 
     let openclCompile (command: Expr<('a -> 'b)>) =
-        let kernel = context.CreateClProgram command
+        let kernel = context.GetCompilationContext().Compile(command)
         kernel.Code
 
     let openclTranslate (expr: Expr) =

@@ -21,7 +21,8 @@ open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 open System
 open System.Collections.Generic
 
-type FSQuotationToOpenCLTranslator(translatorOptions: TranslatorOptions) =
+type FSQuotationToOpenCLTranslator(?translatorOptions: TranslatorOptions (*, deviceInfo: DeviceInfo*)) =
+    let translatorOptions = defaultArg translatorOptions (TranslatorOptions())
     let mainKernelName = "brahmaKernel"
     let lockObject = obj ()
 

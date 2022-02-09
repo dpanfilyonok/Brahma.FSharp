@@ -33,7 +33,7 @@ type ClArray<'a when 'a : struct> internal (buffer: ClBuffer<'a>) =
     member this.Dispose() = (this :> IDisposable).Dispose()
 
     override this.ToString() =
-        sprintf "%O, %A" (buffer :> IClMem).Data (buffer :> IClMem).Size
+        $"{(buffer :> IClMem).Data}, %A{(buffer :> IClMem).Size}"
 
 type ClCell<'a when 'a : struct> internal (buffer: ClBuffer<'a>) =
     member internal this.Buffer = buffer
@@ -66,20 +66,35 @@ type clarray<'a when 'a : struct> = ClArray<'a>
 // fsharplint:disable-next-line
 type clcell<'a when 'a : struct> = ClCell<'a>
 
+// TODO set flags
 module ClArray =
     // or allocate with null ptr and write
     // TODO if array.Length = 0 ...
     let toDevice (array: 'a[]) = opencl {
         let! context = ClTask.ask
 
-        let buffer = context.CreateClBuffer(array)
+        let memFlags =
+            {
+                HostAccessMode = context.RuntimeOptions.HostAccessMode
+                DeviceAccessMode = context.RuntimeOptions.DeviceAccessMode
+                AllocationMode = context.RuntimeOptions.AllocationModeIfData
+            }
+
+        let buffer = new ClBuffer<'a>(context.ClContext, Data array, memFlags)
         return new ClArray<'a>(buffer)
     }
 
     let alloc<'a when 'a : struct> (size: int) = opencl {
         let! context = ClTask.ask
 
-        let buffer = context.CreateClBuffer(size)
+        let memFlags =
+            {
+                HostAccessMode = context.RuntimeOptions.HostAccessMode
+                DeviceAccessMode = context.RuntimeOptions.DeviceAccessMode
+                AllocationMode = context.RuntimeOptions.AllocationModeIfNoData
+            }
+
+        let buffer = new ClBuffer<'a>(context.ClContext, Size size, memFlags)
         return new ClArray<'a>(buffer)
     }
 
@@ -109,14 +124,28 @@ module ClCell =
     let toDevice (value: 'a) = opencl {
         let! context = ClTask.ask
 
-        let buffer = context.CreateClBuffer([| value |])
+        let memFlags =
+            {
+                HostAccessMode = context.RuntimeOptions.HostAccessMode
+                DeviceAccessMode = context.RuntimeOptions.DeviceAccessMode
+                AllocationMode = context.RuntimeOptions.AllocationModeIfData
+            }
+
+        let buffer = new ClBuffer<'a>(context.ClContext, Data [| value |], memFlags)
         return new ClCell<'a>(buffer)
     }
 
     let alloc<'a when 'a : struct> () = opencl {
         let! context = ClTask.ask
 
-        let buffer = context.CreateClBuffer(1, allocationMode = AllocationMode.AllocHostPtr)
+        let memFlags =
+            {
+                HostAccessMode = context.RuntimeOptions.HostAccessMode
+                DeviceAccessMode = context.RuntimeOptions.DeviceAccessMode
+                AllocationMode = context.RuntimeOptions.AllocationModeIfNoData
+            }
+
+        let buffer = new ClBuffer<'a>(context.ClContext, Size 1, memFlags)
         return new ClCell<'a>(buffer)
     }
 
@@ -131,65 +160,3 @@ module ClCell =
     let copy (clCell: ClCell<'a>) = opencl {
         failwith "Not implemented yet"
     }
-
-[<AutoOpen>]
-module ClContextExnetsions =
-    type ClContext with
-        member this.CreateClArray
-            (
-                data: 'a[],
-                ?hostAccessMode: HostAccessMode,
-                ?deviceAccessMode: DeviceAccessMode,
-                ?allocationMode: AllocationMode
-            ) =
-
-            let hostAccessMode = defaultArg hostAccessMode ClMemFlags.DefaultIfData.HostAccessMode
-            let deviceAccessMode = defaultArg deviceAccessMode ClMemFlags.DefaultIfData.DeviceAccessMode
-            let allocationMode = defaultArg allocationMode ClMemFlags.DefaultIfData.AllocationMode
-
-            let buffer = this.CreateClBuffer(data, hostAccessMode = hostAccessMode, deviceAccessMode = deviceAccessMode, allocationMode = allocationMode)
-            new ClArray<_>(buffer)
-
-        member this.CreateClArray
-            (
-                size: int,
-                ?hostAccessMode: HostAccessMode,
-                ?deviceAccessMode: DeviceAccessMode,
-                ?allocationMode: AllocationMode
-            ) =
-
-            let hostAccessMode = defaultArg hostAccessMode ClMemFlags.DefaultIfNoData.HostAccessMode
-            let deviceAccessMode = defaultArg deviceAccessMode ClMemFlags.DefaultIfNoData.DeviceAccessMode
-            let allocationMode = defaultArg allocationMode ClMemFlags.DefaultIfNoData.AllocationMode
-
-            let buffer = this.CreateClBuffer(size, hostAccessMode = hostAccessMode, deviceAccessMode = deviceAccessMode, allocationMode = allocationMode)
-            new ClArray<_>(buffer)
-
-        member this.CreateClCell
-            (
-                data: 'a,
-                ?hostAccessMode: HostAccessMode,
-                ?deviceAccessMode: DeviceAccessMode,
-                ?allocationMode: AllocationMode
-            ) =
-
-            let hostAccessMode = defaultArg hostAccessMode ClMemFlags.DefaultIfData.HostAccessMode
-            let deviceAccessMode = defaultArg deviceAccessMode ClMemFlags.DefaultIfData.DeviceAccessMode
-            let allocationMode = defaultArg allocationMode ClMemFlags.DefaultIfData.AllocationMode
-
-            let buffer = this.CreateClBuffer([| data |], hostAccessMode = hostAccessMode, deviceAccessMode = deviceAccessMode, allocationMode = allocationMode)
-            new ClCell<_>(buffer)
-
-        member this.CreateClCell
-            (
-                ?hostAccessMode: HostAccessMode,
-                ?deviceAccessMode: DeviceAccessMode,
-                ?allocationMode: AllocationMode
-            ) =
-
-            let hostAccessMode = defaultArg hostAccessMode ClMemFlags.DefaultIfNoData.HostAccessMode
-            let deviceAccessMode = defaultArg deviceAccessMode ClMemFlags.DefaultIfNoData.DeviceAccessMode
-            let allocationMode = defaultArg allocationMode ClMemFlags.DefaultIfNoData.AllocationMode
-
-            let buffer = this.CreateClBuffer(1, hostAccessMode = hostAccessMode, deviceAccessMode = deviceAccessMode, allocationMode = allocationMode)
-            new ClCell<_>(buffer)

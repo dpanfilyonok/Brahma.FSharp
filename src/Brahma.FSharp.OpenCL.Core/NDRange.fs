@@ -27,8 +27,8 @@ type Range1D(globalWorkSize: int, localWorkSize: int) =
         member this.Dimensions = 1
 
     static member CreateValid(neededSize: int, wgSize: int) =
-        let globalSzie = (neededSize + wgSize - 1) / wgSize * wgSize
-        Range1D(globalSzie, wgSize)
+        let globalSize = (neededSize + wgSize - 1) / wgSize * wgSize
+        Range1D(globalSize, wgSize)
 
 type Range2D(globalWorkSizeX: int, globalWorkSizeY: int, localWorkSizeX: int, localWorkSizeY: int) =
     new(globalWorkSizeX, globalWorkSizeY) = Range2D(globalWorkSizeX, globalWorkSizeY, 1, 1)

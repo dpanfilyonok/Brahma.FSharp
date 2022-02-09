@@ -1,9 +1,12 @@
 namespace Brahma.FSharp.OpenCL
 
+open Brahma.FSharp.OpenCL
 open OpenCL.Net
 open Brahma.FSharp.OpenCL.Translator
 open Brahma.FSharp.OpenCL.Shared
 open FSharp.Quotations
+open System.Runtime.InteropServices
+
 
 exception EmptyDevicesException of string
 
@@ -62,10 +65,124 @@ module internal Device =
             (getDevices platformName deviceType).[0]
         with
         | :? System.ArgumentException as ex ->
-            raise <| EmptyDevicesException(sprintf "No %A devices on platform %A were found" deviceType platformName)
+            raise <| EmptyDevicesException $"No %A{deviceType} devices on platform %A{platformName} were found"
 
-type ClContext private (context: Context, device: Device, translator: FSQuotationToOpenCLTranslator, queue: MailboxProcessor<Msg>) =
-    new (?platform: ClPlatform, ?deviceType: ClDeviceType) =
+type ClContext =
+    {
+        Device: Device
+        Context: Context
+    }
+
+    interface IContext with
+        member this.Device = this.Device
+        member this.Context = this.Context
+
+type RuntimeOptions =
+    {
+        // TODO if 2D or 3D
+        WorkgroupSize: int
+        HostAccessMode: HostAccessMode
+        DeviceAccessMode: DeviceAccessMode
+        AllocationModeIfData: AllocationMode
+        AllocationModeIfNoData: AllocationMode
+    }
+
+    static member Default =
+        {
+            WorkgroupSize = 256
+            HostAccessMode = HostAccessMode.ReadWrite
+            DeviceAccessMode = DeviceAccessMode.ReadWrite
+            AllocationModeIfData = AllocationMode.AllocAndCopyHostPtr
+            AllocationModeIfNoData = AllocationMode.AllocHostPtr
+        }
+
+type CompilationContext
+    (
+        clContext: IContext,
+        translator: FSQuotationToOpenCLTranslator,
+        [<Optional>] compilerOptions: string
+    ) =
+
+    member this.Compile(srcLambda: Expr<'a -> 'b>) =
+        ClProgram(clContext, translator, srcLambda, compilerOptions)
+
+type RuntimeContext2 =
+    private {
+        ClContext: ClContext
+        Translator: FSQuotationToOpenCLTranslator
+        CommandQueue: MailboxProcessor<Msg>
+        RuntimeOptions: RuntimeOptions
+    }
+
+    static member Create
+        (
+            device: Device,
+            [<Optional>] translatorOptions: TranslatorOptions,
+            [<Optional>] compilerOptions: string,
+            ?runtimeOptions: RuntimeOptions
+        ) =
+
+        let runtimeOptions = defaultArg runtimeOptions RuntimeOptions.Default
+
+        let context =
+            let error = ref Unchecked.defaultof<ErrorCode>
+            let ctx = Cl.CreateContext(null, 1u, [| device |], null, System.IntPtr.Zero, error)
+
+            if error.Value <> ErrorCode.Success then
+                raise <| Cl.Exception error.Value
+
+            ctx
+
+        let clContext =
+            {
+                Device = device
+                Context = context
+            }
+
+        let translator = FSQuotationToOpenCLTranslator(translatorOptions (*, deviceInfo*))
+        let queue = CommandQueueProvider.CreateQueue(context, device)
+
+        {
+            ClContext = clContext
+            Translator = translator
+            CommandQueue = queue
+            RuntimeOptions = runtimeOptions
+        }
+
+type RuntimeContext
+    (
+        device: Device,
+        [<Optional>] translatorOptions: TranslatorOptions,
+        [<Optional>] compilerOptions: string,
+        ?runtimeOptions: RuntimeOptions
+    ) =
+
+    let runtimeOptions = defaultArg runtimeOptions RuntimeOptions.Default
+
+    let context =
+        let error = ref Unchecked.defaultof<ErrorCode>
+        let ctx = Cl.CreateContext(null, 1u, [| device |], null, System.IntPtr.Zero, error)
+
+        if error.Value <> ErrorCode.Success then
+            raise <| Cl.Exception error.Value
+
+        ctx
+
+    let clContext =
+        {
+            Device = device
+            Context = context
+        }
+
+    let translator = FSQuotationToOpenCLTranslator(translatorOptions (*, deviceInfo*))
+    let queue = CommandQueueProvider.CreateQueue(context, device)
+
+    new([<Optional>] translatorOptions: TranslatorOptions,
+        [<Optional>] compilerOptions: string,
+        [<Optional>] runtimeOptions: RuntimeOptions,
+        ?platform: ClPlatform,
+        ?deviceType: ClDeviceType) =
+
         let platform = defaultArg platform ClPlatform.Any
         let deviceType = defaultArg deviceType ClDeviceType.Default
 
@@ -74,77 +191,25 @@ type ClContext private (context: Context, device: Device, translator: FSQuotatio
             <| ClPlatform.ConvertToPattern platform
             <| ClDeviceType.ConvertToDeviceType deviceType
 
-        let context =
-            let error = ref Unchecked.defaultof<ErrorCode>
-            let ctx = Cl.CreateContext(null, 1u, [| device |], null, System.IntPtr.Zero, error)
+        RuntimeContext(device, translatorOptions, compilerOptions, runtimeOptions)
 
-            if !error <> ErrorCode.Success then
-                raise <| Cl.Exception !error
+    member this.RuntimeOptions = runtimeOptions
 
-            ctx
-
-        let translator = FSQuotationToOpenCLTranslator(TranslatorOptions())
-        let queue = CommandQueueProvider.CreateQueue(context, device)
-
-        ClContext(context, device, translator, queue)
-
-    interface IContext with
-        member this.Context = context
-        member this.Device = device
-        member this.Translator = translator
-        member this.CommandQueue = queue
-
-    member this.Context = (this :> IContext).Context
-    member this.Device = (this :> IContext).Device
-    member this.Translator = (this :> IContext).Translator
-    member this.CommandQueue = (this :> IContext).CommandQueue
+    member this.GetCompilationContext() = CompilationContext(clContext, translator, compilerOptions)
 
     member this.WithNewCommandQueue() =
-        ClContext(this.Context, this.Device, this.Translator, CommandQueueProvider.CreateQueue(this.Context, this.Device))
+        { new IRuntimeContext with
+            member _.ClContext = clContext :> IContext
+            member _.Translator = translator
+            member _.CommandQueue = CommandQueueProvider.CreateQueue(context, device)
+        }
 
-    member this.CreateClProgram(srcLambda: Expr<'a -> 'b>) =
-        ClProgram<_,_>(this, srcLambda)
+    interface IRuntimeContext with
+        member _.ClContext = clContext :> IContext
+        member _.Translator = translator
+        member _.CommandQueue = queue
 
-    member this.CreateClBuffer
-        (
-            data: 'a[],
-            ?hostAccessMode: HostAccessMode,
-            ?deviceAccessMode: DeviceAccessMode,
-            ?allocationMode: AllocationMode
-        ) =
-
-        let hostAccessMode = defaultArg hostAccessMode ClMemFlags.DefaultIfData.HostAccessMode
-        let deviceAccessMode = defaultArg deviceAccessMode ClMemFlags.DefaultIfData.DeviceAccessMode
-        let allocationMode = defaultArg allocationMode ClMemFlags.DefaultIfData.AllocationMode
-
-        new ClBuffer<'a>(
-            this,
-            Data data,
-            {
-                HostAccessMode = hostAccessMode
-                DeviceAccessMode = deviceAccessMode
-                AllocationMode = allocationMode
-            }
-        )
-
-    member this.CreateClBuffer
-        (
-            size: int,
-            ?hostAccessMode: HostAccessMode,
-            ?deviceAccessMode: DeviceAccessMode,
-            ?allocationMode: AllocationMode
-        ) =
-
-        let hostAccessMode = defaultArg hostAccessMode ClMemFlags.DefaultIfNoData.HostAccessMode
-        let deviceAccessMode = defaultArg deviceAccessMode ClMemFlags.DefaultIfNoData.DeviceAccessMode
-        let allocationMode = defaultArg allocationMode ClMemFlags.DefaultIfNoData.AllocationMode
-
-        new ClBuffer<'a>(
-            this,
-            Size size,
-            {
-                HostAccessMode = hostAccessMode
-                DeviceAccessMode = deviceAccessMode
-                AllocationMode = allocationMode
-            }
-        )
+    // TODO rewrite
+    member _.ClContext = clContext
+    member _.Translator = translator
+    member _.CommandQueue = queue

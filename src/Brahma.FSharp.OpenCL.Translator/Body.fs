@@ -139,7 +139,7 @@ module rec Body =
                     return translated :: state
                 }
             ) (State.return' [])
-        |> fun args -> State.map List.rev args
+        |> State.map List.rev
 
     let private translateCall exprOpt (mInfo: System.Reflection.MethodInfo) args = translation {
         let! args = translateListOfArgs args
