@@ -1,9 +1,10 @@
 namespace Brahma.FSharp.OpenCL
 
 open Brahma.FSharp.OpenCL
+open Brahma.FSharp.OpenCL.Core
 open FSharp.Quotations
 
-type ClTask<'a> = ClTask of (IRuntimeContext -> 'a)
+type ClTask<'a> = ClTask of (RuntimeContext -> 'a)
 
 [<AutoOpen>]
 module internal ClTaskBuilder =

@@ -12,7 +12,10 @@ module Common =
     let context =
         let deviceType = ClDeviceType.Default
         let platformName = ClPlatform.Any
-        RuntimeContext(platform = platformName, deviceType = deviceType)
+
+        let clContext = ClContext(platformName, deviceType)
+        let translator = FSQuotationToOpenCLTranslator()
+        RuntimeContext(clContext, translator)
 
     let defaultInArrayLength = 4
     let intInArr = [| 0 .. defaultInArrayLength - 1 |]

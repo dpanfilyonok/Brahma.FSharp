@@ -3,10 +3,7 @@ namespace Brahma.FSharp.OpenCL
 open OpenCL.Net
 open System
 open System.Runtime.InteropServices
-open Brahma.FSharp.OpenCL.Translator
 open Brahma.FSharp.OpenCL.Shared
-open FSharp.Reflection
-open System.Runtime.CompilerServices
 
 //memory flags: https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clCreateBuffer.html
 
@@ -60,7 +57,7 @@ type BufferInitParam<'a> =
 
 type ClBuffer<'a when 'a : struct>
     (
-        clContext: IContext,
+        clContext: ClContext,
         initParam: BufferInitParam<'a>,
         ?memFlags: ClMemFlags
     ) =

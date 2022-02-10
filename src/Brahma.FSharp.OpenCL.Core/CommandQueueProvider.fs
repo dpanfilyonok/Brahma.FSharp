@@ -1,16 +1,17 @@
 namespace Brahma.FSharp.OpenCL
 
+open Brahma.FSharp.OpenCL
 open OpenCL.Net
 open System
 open System.Runtime.InteropServices
 
 type CommandQueueProvider =
-    static member CreateQueue(context: Context, device: Device) =
+    static member CreateQueue(clContext: ClContext) =
         let processor = MailboxProcessor.Start <| fun inbox ->
             let commandQueue =
                 let error = ref Unchecked.defaultof<ErrorCode>
                 let props = CommandQueueProperties.None
-                let queue = Cl.CreateCommandQueue(context, device, props, error)
+                let queue = Cl.CreateCommandQueue(clContext.Context, clContext.Device, props, error)
 
                 if error.Value <> ErrorCode.Success then
                     raise <| Cl.Exception error.Value
