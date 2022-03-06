@@ -30,11 +30,11 @@ type ClProgram<'TRange, 'a when 'TRange :> INDRange>
         if error <> ErrorCode.Success then
             failwithf $"Program creation failed: %A{error}"
 
-        let error = Cl.BuildProgram(program, 1u, [| clContext.Device |], compilerOptions, null, IntPtr.Zero)
+        let error = Cl.BuildProgram(program, 1u, [| clContext.ClDevice.Device |], compilerOptions, null, IntPtr.Zero)
 
         if error <> ErrorCode.Success then
             let errorCode = ref ErrorCode.Success
-            let buildInfo = Cl.GetProgramBuildInfo(program, clContext.Device, ProgramBuildInfo.Log, errorCode)
+            let buildInfo = Cl.GetProgramBuildInfo(program, clContext.ClDevice.Device, ProgramBuildInfo.Log, errorCode)
             failwithf $"Program compilation failed: %A{error} \n   BUILD LOG:\n %A{buildInfo} \n"
 
         program

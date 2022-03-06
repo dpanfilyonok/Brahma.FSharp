@@ -4,18 +4,20 @@ open System.IO
 open Brahma.FSharp.OpenCL
 open Expecto
 open Brahma.FSharp.OpenCL.Translator
+open Brahma.FSharp.OpenCL.Shared
 open Brahma.FSharp.OpenCL.Printer.AST
 open FSharp.Quotations
 
 [<AutoOpen>]
 module Common =
-    let context =
-        let deviceType = ClDeviceType.Default
-        let platformName = ClPlatform.Any
 
-        let clContext = ClContext(platformName, deviceType)
-        let translator = FSQuotationToOpenCLTranslator()
-        RuntimeContext.Create(clContext, translator)
+    let deviceType = DeviceType.Default
+    let platformName = Platform.Any
+
+    let device = ClDevice.GetFirstAppropriateDevice(platformName, deviceType)
+    let clContext = ClContext(device)
+    let translator = FSQuotationToOpenCLTranslator(device)
+    let context = RuntimeContext.Create(clContext, translator)
 
     let defaultInArrayLength = 4
     let intInArr = [| 0 .. defaultInArrayLength - 1 |]
@@ -62,15 +64,13 @@ module Utils =
 
         Expect.equal all1 all2 "Files should be equals as strings"
 
-    let openclCompile (command: Expr<('a -> 'b)>) =
+    let openclCompile (command: Expr<'a -> 'b>) =
         let kernel = context.GetCompilationContext().Compile(command)
         kernel.Code
 
     let openclTranslate (expr: Expr) =
-        let translator = FSQuotationToOpenCLTranslator(TranslatorOptions())
         let (ast, _) = translator.Translate expr
         print ast
 
     let openclTransformQuotation (expr: Expr) =
-        let translator = FSQuotationToOpenCLTranslator(TranslatorOptions())
         translator.TransformQuotation expr

@@ -8,66 +8,41 @@ open System.Runtime.CompilerServices
 open System.Collections.Generic
 open System.Runtime.Serialization
 
-[<AutoOpen>]
-module private CustomMarshalerUtils =
-    let roundUp n x =
-        if x % n <> 0 then
-            (x / n) * n + n
-        else
-            x
-
 type StructurePacking =
     | StructureElement of {| Size: int; Aligment: int |} * StructurePacking list
 
     member this.ElementSize = match this with | StructureElement(pack, _) -> pack.Size
 
-    member this.ElementOffsets =
-        let getFlattenOffsets start packing =
-            let offsets = ResizeArray()
-            let mutable size = 0
+type CustomMarshaler() =
+    let typePacking = Dictionary<Type, StructurePacking>()
 
-            match packing with
-            | StructureElement(_, innerPacking) ->
-                for StructureElement(pack, _) in innerPacking do
-                    let offset = roundUp pack.Aligment size
-                    offsets.Add (offset + start)
-                    size <- offset + pack.Size
+    let typeOffsets = Dictionary<Type, int[]>()
 
-                offsets |> Seq.toList
-
-        let getOffsets packing =
-            let rec loop (packing: StructurePacking) (start: int) = seq {
-                match packing with
-                | StructureElement(_, []) -> start
-                | StructureElement(_, innerPacking) ->
-                    let packingOffsetPairs =
-                        getFlattenOffsets start packing
-                        |> List.zip innerPacking
-
-                    for (packing, offset) in packingOffsetPairs do
-                        yield! loop packing offset
-            }
-
-            loop packing 0
-
-        getOffsets this |> Seq.toArray
-
-    override this.ToString() =
-        $"{this}\n%A{this.ElementOffsets}"
-
-[<AutoOpen>]
-module CustomMarshaler =
-    let hasAttribute<'attr> (tp: Type) =
-        tp.GetCustomAttributes(false)
-        |> Seq.tryFind (fun attr -> attr.GetType() = typeof<'attr>)
-        |> Option.isSome
+    let blittableTypes =
+        Dictionary<Type, bool>(
+            dict [
+                typeof<decimal>, false
+                typeof<byte>, true
+                typeof<sbyte>, true
+                typeof<int16>, true
+                typeof<uint16>, true
+                typeof<int32>, true
+                typeof<uint32>, true
+                typeof<int64>, true
+                typeof<uint64>, true
+                typeof<nativeint>, true
+                typeof<unativeint>, true
+                typeof<single>, true
+                typeof<double>, true
+            ]
+        )
 
     let (|TupleType|RecordType|UnionType|UserDefinedStuctureType|PrimitiveType|) (type': Type) =
         match type' with
         | _ when FSharpType.IsTuple type' -> TupleType
         | _ when FSharpType.IsRecord type' -> RecordType
         | _ when FSharpType.IsUnion type' -> UnionType
-        | _ when hasAttribute<StructAttribute> type' -> UserDefinedStuctureType
+        | _ when Utils.hasAttribute<StructAttribute> type' -> UserDefinedStuctureType
         | _ -> PrimitiveType
 
     let (|Tuple|Record|Union|UserDefinedStucture|Primitive|) (structure: obj) =
@@ -95,8 +70,8 @@ module CustomMarshaler =
                 let size =
                     elems
                     |> List.map (fun (StructureElement(pack, _)) -> pack)
-                    |> List.fold (fun state x -> roundUp x.Aligment state + x.Size) 0
-                    |> roundUp aligment
+                    |> List.fold (fun state x -> Utils.roundUp x.Aligment state + x.Size) 0
+                    |> Utils.roundUp aligment
 
                 StructureElement({| Size = size; Aligment = aligment |}, elems)
 
@@ -115,8 +90,8 @@ module CustomMarshaler =
                 let size =
                     elems
                     |> List.map (fun (StructureElement(pack, _)) -> pack)
-                    |> List.fold (fun state x -> roundUp x.Aligment state + x.Size) 0
-                    |> roundUp aligment
+                    |> List.fold (fun state x -> Utils.roundUp x.Aligment state + x.Size) 0
+                    |> Utils.roundUp aligment
 
                 StructureElement({| Size = size; Aligment = aligment |}, elems)
 
@@ -137,8 +112,8 @@ module CustomMarshaler =
                 let size =
                     elems
                     |> List.map (fun (StructureElement(pack, _)) -> pack)
-                    |> List.fold (fun state x -> roundUp x.Aligment state + x.Size) 0
-                    |> roundUp aligment
+                    |> List.fold (fun state x -> Utils.roundUp x.Aligment state + x.Size) 0
+                    |> Utils.roundUp aligment
 
                 StructureElement({| Size = size; Aligment = aligment |}, elems)
 
@@ -149,28 +124,33 @@ module CustomMarshaler =
 
         go type'
 
-// TODO make read write parallel
-type CustomMarshaler() =
-    let typePacking = Dictionary<Type, StructurePacking>()
+    let getOffsets packing =
+        let getFlattenOffsets start packing =
+            let offsets = ResizeArray()
+            let mutable size = 0
 
-    let blittableTypes =
-        Dictionary<Type, bool>(
-            dict [
-                typeof<decimal>, false
-                typeof<byte>, true
-                typeof<sbyte>, true
-                typeof<int16>, true
-                typeof<uint16>, true
-                typeof<int32>, true
-                typeof<uint32>, true
-                typeof<int64>, true
-                typeof<uint64>, true
-                typeof<nativeint>, true
-                typeof<unativeint>, true
-                typeof<single>, true
-                typeof<double>, true
-            ]
-        )
+            match packing with
+            | StructureElement(_, innerPacking) ->
+                for StructureElement(pack, _) in innerPacking do
+                    let offset = Utils.roundUp pack.Aligment size
+                    offsets.Add (offset + start)
+                    size <- offset + pack.Size
+
+                offsets |> Seq.toList
+
+        let rec loop (packing: StructurePacking) (start: int) = seq {
+            match packing with
+            | StructureElement(_, []) -> start
+            | StructureElement(_, innerPacking) ->
+                let packingOffsetPairs =
+                    getFlattenOffsets start packing
+                    |> List.zip innerPacking
+
+                for (packing, offset) in packingOffsetPairs do
+                    yield! loop packing offset
+        }
+
+        loop packing 0 |> Seq.toArray
 
     member this.GetTypePacking(type': Type) =
         let mutable packing = Unchecked.defaultof<StructurePacking>
@@ -180,6 +160,15 @@ type CustomMarshaler() =
             packing <- getTypePacking type'
             typePacking.Add(type', packing)
             packing
+
+    member this.GetTypeOffsets(type': Type) =
+        let mutable offsets = Unchecked.defaultof<int[]>
+        if typeOffsets.TryGetValue(type', &offsets) then
+            offsets
+        else
+            offsets <- getOffsets <| this.GetTypePacking(type')
+            typeOffsets.Add(type', offsets)
+            offsets
 
     member this.IsBlittable(type': Type) =
         let mutable isBlittable = false
@@ -205,7 +194,6 @@ type CustomMarshaler() =
                 isBlittable
 
     member this.WriteToUnmanaged(array: 'a[]) =
-        // TODO Add memoization
         let size = array.Length * this.GetTypePacking(typeof<'a>).ElementSize
         let mem = Marshal.AllocHGlobal size
         this.WriteToUnmanaged(array, mem) |> ignore
@@ -234,7 +222,7 @@ type CustomMarshaler() =
                     |> Array.iter go
 
                 | Primitive ->
-                    let offset = this.GetTypePacking(typeof<'a>).ElementOffsets.[i]
+                    let offset = this.GetTypeOffsets(typeof<'a>).[i]
                     let structure =
                         if structure.GetType() = typeof<bool> then
                             box <| Convert.ToByte structure
@@ -281,7 +269,7 @@ type CustomMarshaler() =
                     inst
 
                 | PrimitiveType ->
-                    let offset = this.GetTypePacking(typeof<'a>).ElementOffsets.[i]
+                    let offset = this.GetTypeOffsets(typeof<'a>).[i]
                     let structure = Marshal.PtrToStructure(IntPtr.Add(start, offset), (if type' = typeof<bool> then typeof<BoolHostAlias> else type'))
                     let structure =
                         if type' = typeof<bool> then

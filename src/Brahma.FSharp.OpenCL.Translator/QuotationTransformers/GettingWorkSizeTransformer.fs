@@ -2,15 +2,10 @@ namespace Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 
 open FSharp.Quotations
 open Brahma.FSharp.OpenCL.Translator
-open Brahma.FSharp.OpenCL.Shared
-open Brahma.FSharp.OpenCL
-open FSharp.Core.LanguagePrimitives
-open FSharp.Quotations.Evaluator
-open System.Collections.Generic
 
-type A =
-    | G
-    | L
+type WorkSizeQual =
+    | GlobalWS
+    | LocalWS
 
 module GettingWorkSizeTransformer =
     let inline (|Name|_|) (str: string) x =
@@ -23,10 +18,10 @@ module GettingWorkSizeTransformer =
         | type' when type'.Name.ToLowerInvariant().Contains str -> Some x
         | _ -> None
 
-    let inline (|WorSize|_|) x =
+    let inline (|WorkSize|_|) x =
         match x with
-        | Name "GlobalWorkSize" x -> Some (x, G)
-        | Name "LocalWorkSize" x -> Some (x, L)
+        | Name "GlobalWorkSize" x -> Some (x, GlobalWS)
+        | Name "LocalWorkSize" x -> Some (x, LocalWS)
         | _ -> None
 
     let rec go (expr: Expr) =
@@ -34,19 +29,19 @@ module GettingWorkSizeTransformer =
         | Patterns.Let
             (
                 var,
-                Patterns.PropertyGet (Some (Patterns.Var (TypeName Range1D_ _)), WorSize (_, q), _),
+                Patterns.PropertyGet (Some (Patterns.Var (TypeName Range1D_ _)), WorkSize (_, q), _),
                 inExpr
             ) ->
             Expr.Let(
                 var,
-                (match q with | G -> <@@ Anchors._globalSize0 @@> | L -> <@@ Anchors._localSize0 @@>),
+                (match q with | GlobalWS -> <@@ Anchors._globalSize0 @@> | LocalWS -> <@@ Anchors._localSize0 @@>),
                 go inExpr
             )
 
         | Patterns.LetVar
             (
                 Name "patternInput" _,
-                Patterns.PropertyGet (Some (Patterns.Var (TypeName Range2D_ _)), WorSize (_, q), _),
+                Patterns.PropertyGet (Some (Patterns.Var (TypeName Range2D_ _)), WorkSize (_, q), _),
                 Patterns.Let (
                     varY,
                     Patterns.TupleGet (Patterns.Var (Name "patternInput" _), 1),
@@ -59,10 +54,10 @@ module GettingWorkSizeTransformer =
             ) ->
             Expr.Let(
                 varX,
-                (match q with | G -> <@@ Anchors._globalSize0 @@> | L -> <@@ Anchors._localSize0 @@>),
+                (match q with | GlobalWS -> <@@ Anchors._globalSize0 @@> | LocalWS -> <@@ Anchors._localSize0 @@>),
                 Expr.Let(
                     varY,
-                    (match q with | G -> <@@ Anchors._globalSize1 @@> | L -> <@@ Anchors._localSize1 @@>),
+                    (match q with | GlobalWS -> <@@ Anchors._globalSize1 @@> | LocalWS -> <@@ Anchors._localSize1 @@>),
                     go inExpr
                 )
             )
@@ -70,11 +65,11 @@ module GettingWorkSizeTransformer =
         | Patterns.LetVar
             (
                 Name "patternInput" _,
-                Patterns.PropertyGet (Some (Patterns.Var (TypeName Range3D_ _)), WorSize (_, q), _),
+                Patterns.PropertyGet (Some (Patterns.Var (TypeName Range3D_ _)), WorkSize (_, q), _),
                 Patterns.Let (
                     varZ,
                     Patterns.TupleGet (Patterns.Var (Name "patternInput" _), 2),
-                        Patterns.Let (
+                    Patterns.Let (
                         varY,
                         Patterns.TupleGet (Patterns.Var (Name "patternInput" _), 1),
                         Patterns.Let (
@@ -87,13 +82,13 @@ module GettingWorkSizeTransformer =
             ) ->
             Expr.Let(
                 varX,
-                (match q with | G -> <@@ Anchors._globalSize0 @@> | L -> <@@ Anchors._localSize0 @@>),
+                (match q with | GlobalWS -> <@@ Anchors._globalSize0 @@> | LocalWS -> <@@ Anchors._localSize0 @@>),
                 Expr.Let(
                     varY,
-                    (match q with | G -> <@@ Anchors._globalSize1 @@> | L -> <@@ Anchors._localSize1 @@>),
+                    (match q with | GlobalWS -> <@@ Anchors._globalSize1 @@> | LocalWS -> <@@ Anchors._localSize1 @@>),
                     Expr.Let(
                         varZ,
-                        (match q with | G -> <@@ Anchors._globalSize2 @@> | L -> <@@ Anchors._localSize2 @@>),
+                        (match q with | GlobalWS -> <@@ Anchors._globalSize2 @@> | LocalWS -> <@@ Anchors._localSize2 @@>),
                         go inExpr
                     )
                 )

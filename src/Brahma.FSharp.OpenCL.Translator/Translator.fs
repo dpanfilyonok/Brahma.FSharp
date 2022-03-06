@@ -15,13 +15,13 @@
 
 namespace Brahma.FSharp.OpenCL.Translator
 
-open System.Runtime.InteropServices
 open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.AST
 open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 open System.Collections.Generic
+open Brahma.FSharp.OpenCL.Shared
 
-type FSQuotationToOpenCLTranslator(?translatorOptions: TranslatorOptions (*, deviceInfo: DeviceInfo*)) =
+type FSQuotationToOpenCLTranslator(device: IDevice, ?translatorOptions: TranslatorOptions) =
     let translatorOptions = defaultArg translatorOptions (TranslatorOptions())
     let mainKernelName = "brahmaKernel"
     let lockObject = obj ()

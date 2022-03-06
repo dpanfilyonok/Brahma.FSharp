@@ -274,11 +274,11 @@ module rec Body =
             let length =
                 match args.[0] with
                 | :? Const<Lang> as c -> int c.Val
-                | other -> raise <| InvalidKernelException(sprintf "Calling Array.zeroCreate with a non-const argument: %A" other)
+                | other -> raise <| InvalidKernelException $"Calling Array.zeroCreate with a non-const argument: %A{other}"
             return ZeroArray length :> Statement<_>
         | "fst" -> return FieldGet(args.[0], "_1") :> Statement<_>
         | "snd" -> return FieldGet(args.[0], "_2") :> Statement<_>
-        | other -> return raise <| InvalidKernelException(sprintf "Unsupported call: %s" other)
+        | other -> return raise <| InvalidKernelException $"Unsupported call: %s{other}"
     }
 
     // TODO: Refactoring: Safe pattern matching by expr type.

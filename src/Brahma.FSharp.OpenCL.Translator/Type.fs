@@ -22,11 +22,6 @@ open Microsoft.FSharp.Collections
 open System.Collections.Generic
 
 module rec Type =
-    let private hasAttribute<'attr> (tp: System.Type) =
-        tp.GetCustomAttributes(false)
-        |> Seq.tryFind (fun attr -> attr.GetType() = typeof<'attr>)
-        |> Option.isSome
-
     let (|Name|_|) (str: string) (type': System.Type) =
         match type'.Name.ToLowerInvariant() with
         | tName when tName = str -> Some Name
@@ -96,7 +91,7 @@ module rec Type =
             return translated :> Type<_>
 
         // TODO only struct, not non-struct records
-        | _ when hasAttribute<StructAttribute> type' ->
+        | _ when Utils.hasAttribute<StructAttribute> type' ->
             let! translated = translateStruct type'
             return translated :> Type<_>
 

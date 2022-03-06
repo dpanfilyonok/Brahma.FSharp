@@ -91,7 +91,7 @@ type CommandQueueProvider(clContext: ClContext, translator: FSQuotationToOpenCLT
             let commandQueue =
                 let error = ref Unchecked.defaultof<ErrorCode>
                 let props = CommandQueueProperties.None
-                let queue = Cl.CreateCommandQueue(clContext.Context, clContext.Device, props, error)
+                let queue = Cl.CreateCommandQueue(clContext.Context, clContext.ClDevice.Device, props, error)
 
                 if error.Value <> ErrorCode.Success then
                     raise <| Cl.Exception error.Value
