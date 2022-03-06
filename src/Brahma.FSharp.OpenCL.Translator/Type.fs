@@ -104,7 +104,7 @@ module rec Type =
             let! translated = translateUnion type'
             return translated :> Type<_>
 
-        | other -> return failwithf "Unsupported kernel type: %A" other
+        | other -> return failwithf $"Unsupported kernel type: %A{other}"
     }
 
     let translateStruct (type': System.Type) = translation {
@@ -131,7 +131,7 @@ module rec Type =
             let fields = fields |> List.distinct
 
             let! index = State.gets (fun ctx -> ctx.CStructDecls.Count)
-            let structType = StructType(sprintf "struct%i" index, fields)
+            let structType = StructType( $"struct%i{index}", fields)
             do! State.modify (fun context -> context.CStructDecls.Add(type', structType); context)
             return structType
     }
@@ -150,14 +150,14 @@ module rec Type =
                     (fun i type' -> translation {
                         let! translatedType = translate type'
                         return {
-                            Name = sprintf "_%i" (i + 1)
+                            Name = $"_%i{i + 1}"
                             Type = translatedType
                         }
                     })
                 |> State.collect
 
             let! index = State.gets (fun ctx -> ctx.CStructDecls.Count)
-            let tupleDecl = StructType(sprintf "tuple%i" index, elements)
+            let tupleDecl = StructType( $"tuple%i{index}", elements)
             do! State.modify (fun ctx -> ctx.CStructDecls.Add(type', tupleDecl); ctx)
             return tupleDecl
     }
@@ -192,7 +192,7 @@ module rec Type =
                 |> State.collect
 
             let! index = State.gets (fun ctx -> ctx.CStructDecls.Count)
-            let duType = DiscriminatedUnionType(sprintf "du%i" index, fields)
+            let duType = DiscriminatedUnionType( $"du%i{index}", fields)
             do! State.modify (fun context -> context.CStructDecls.Add(type', duType); context)
             return duType :> StructType<_>
     }

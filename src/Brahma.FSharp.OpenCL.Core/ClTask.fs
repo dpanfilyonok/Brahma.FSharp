@@ -81,6 +81,13 @@ module ClTask =
 
     let ask = ClTask id
 
+    let runtimeOptions =
+        ask >>= fun env -> opencl.Return env.RuntimeOptions
+
+    let setOptions (runtimeOptions: RuntimeOptions) (ClTask f) =
+        ask >>= fun env ->
+        opencl.Return(f <| env.WithRuntimeOptions(runtimeOptions))
+
     let runSync (context: RuntimeContext) (ClTask f) =
         let res = f context
         context.CommandQueue.PostAndReply <| MsgNotifyMe

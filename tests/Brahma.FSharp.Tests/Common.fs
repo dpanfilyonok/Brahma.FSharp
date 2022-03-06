@@ -15,7 +15,7 @@ module Common =
 
         let clContext = ClContext(platformName, deviceType)
         let translator = FSQuotationToOpenCLTranslator()
-        RuntimeContext(clContext, translator)
+        RuntimeContext.Create(clContext, translator)
 
     let defaultInArrayLength = 4
     let intInArr = [| 0 .. defaultInArrayLength - 1 |]

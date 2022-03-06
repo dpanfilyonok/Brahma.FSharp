@@ -13,12 +13,12 @@
 // By using this software in any fashion, you are agreeing to be bound by the
 // terms of the License.
 
-namespace rec Brahma.FSharp.OpenCL.Translator
+namespace Brahma.FSharp.OpenCL.Translator
 
+open System.Runtime.InteropServices
 open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.AST
 open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
-open System
 open System.Collections.Generic
 
 type FSQuotationToOpenCLTranslator(?translatorOptions: TranslatorOptions (*, deviceInfo: DeviceInfo*)) =
@@ -96,7 +96,6 @@ type FSQuotationToOpenCLTranslator(?translatorOptions: TranslatorOptions (*, dev
         |> replacePrintf
         |> GettingWorkSizeTransformer.__
         |> processAtomic
-        // |> replacePrintf
         |> makeVarNameUnique
         |> transformVarDefsToLambda
         |> transformMutableVarsToRef
@@ -104,7 +103,7 @@ type FSQuotationToOpenCLTranslator(?translatorOptions: TranslatorOptions (*, dev
         |> lambdaLifting
 
     let translate expr =
-        let context = TranslationContext.Create()
+        let context = TranslationContext.Create(translatorOptions)
 
         // TODO: Extract quotationTransformer to translator
         let (kernelExpr, functions) = transformQuotation expr
@@ -140,6 +139,8 @@ type FSQuotationToOpenCLTranslator(?translatorOptions: TranslatorOptions (*, dev
         methods
         |> List.find (fun method -> method :? KernelFunc)
         |> fun kernel -> kernel.FunExpr
+
+    member val Marshaler = CustomMarshaler() with get
 
     member this.TranslatorOptions = translatorOptions
 

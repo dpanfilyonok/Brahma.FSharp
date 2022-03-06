@@ -400,7 +400,7 @@ module rec Body =
                     | "int32[]" -> value :?> array<int> |> Array.map string
                     | "byte[]" -> value :?> array<byte> |> Array.map string
                     | "single[]" -> value :?> array<float32> |> Array.map string
-                    | _ -> raise <| InvalidKernelException(sprintf "Unsupported array type: %s" typeName)
+                    | _ -> raise <| InvalidKernelException $"Unsupported array type: %s{typeName}"
 
                 let! translatedType = Type.translate sType |> State.using (fun ctx -> { ctx with ArrayKind = CArrayDecl array.Length })
                 let stringValue =

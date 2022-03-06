@@ -1,7 +1,6 @@
 open Expecto
 
 open Brahma.FSharp.Tests
-open Brahma.FSharp.OpenCL
 
 [<Tests>]
 let allTests =

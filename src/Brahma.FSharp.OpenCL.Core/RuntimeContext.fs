@@ -34,35 +34,90 @@ type RuntimeOptions =
             AllocationModeIfNoData = AllocationMode.AllocHostPtr
         }
 
-type RuntimeContext
-    (
-        clContext: ClContext,
-        translator: FSQuotationToOpenCLTranslator,
-        [<Optional>] defaultCompilerOptions: string,
-        ?runtimeOptions: RuntimeOptions
-    ) =
+type RuntimeContext =
+    private {
+        ClContext: ClContext
+        Translator: FSQuotationToOpenCLTranslator
+        QueueProvider: CommandQueueProvider
+        DefaultCompilerOptions: string
 
-    let runtimeOptions = defaultArg runtimeOptions RuntimeOptions.Default
+        CommandQueue: MailboxProcessor<Msg>
+        RuntimeOptions: RuntimeOptions
+    }
 
-    let mutable queue = CommandQueueProvider.CreateQueue(clContext)
+    static member Create
+        (
+            clContext: ClContext,
+            translator: FSQuotationToOpenCLTranslator,
+            [<Optional>] defaultCompilerOptions: string,
+            ?runtimeOptions: RuntimeOptions
+        ) =
 
-    member this.CommandQueue
-        with get() = queue
-        and private set(value) = queue <- value
+        let runtimeOptions = defaultArg runtimeOptions RuntimeOptions.Default
 
-    member this.ClContext = clContext
+        let queueProvider = CommandQueueProvider(clContext, translator)
 
-    member this.Translator = translator
+        let queue = queueProvider.CreateQueue()
 
-    member this.RuntimeOptions = runtimeOptions
+        {
+            ClContext = clContext
+            Translator = translator
+            QueueProvider = queueProvider
+            DefaultCompilerOptions = defaultCompilerOptions
+
+            CommandQueue = queue
+            RuntimeOptions = runtimeOptions
+        }
+
+    member internal this.WithNewCommandQueue() =
+        { this with CommandQueue = this.QueueProvider.CreateQueue() }
+
+    member internal this.WithRuntimeOptions(runtimeOptions) =
+        { this with RuntimeOptions = runtimeOptions }
 
     member this.GetCompilationContext(?compilerOptions: string) =
         match compilerOptions with
-        | None -> CompilationContext(clContext, translator, defaultCompilerOptions)
-        | Some compilerOptions -> CompilationContext(clContext, translator, compilerOptions)
+        | None -> CompilationContext(this.ClContext, this.Translator, this.DefaultCompilerOptions)
+        | Some compilerOptions -> CompilationContext(this.ClContext, this.Translator, compilerOptions)
 
-    member this.WithNewCommandQueue() =
-        RuntimeContext(clContext, translator, defaultCompilerOptions, runtimeOptions)
 
-    member this.WithRuntimeOptions(runtimeOptions) =
-        RuntimeContext(clContext, translator, defaultCompilerOptions, runtimeOptions, CommandQueue = this.CommandQueue)
+//type RuntimeContext
+//    (
+//        clContext: ClContext,
+//        translator: FSQuotationToOpenCLTranslator,
+//        [<Optional>] defaultCompilerOptions: string,
+//        ?runtimeOptions: RuntimeOptions
+//    ) =
+//
+//    let runtimeOptions = defaultArg runtimeOptions RuntimeOptions.Default
+//
+//    let mutable queueProvider = CommandQueueProvider(clContext, translator)
+//
+//    let mutable queue = queueProvider.CreateQueue()
+//
+//    // TODO а зачем get
+//    member this.QueueProvider
+//        with get() = queueProvider
+//        and private set(value) = queueProvider <- value
+//
+//    // TODO а зачем get
+//    member this.CommandQueue
+//        with get() = queue
+//        and private set(value) = queue <- value
+//
+//    member this.ClContext = clContext
+//
+//    member this.Translator = translator
+//
+//    member this.RuntimeOptions = runtimeOptions
+//
+//    member this.GetCompilationContext(?compilerOptions: string) =
+//        match compilerOptions with
+//        | None -> CompilationContext(clContext, translator, defaultCompilerOptions)
+//        | Some compilerOptions -> CompilationContext(clContext, translator, compilerOptions)
+//
+//    member internal this.WithNewCommandQueue() =
+//        RuntimeContext(clContext, translator, defaultCompilerOptions, runtimeOptions, QueueProvider = queueProvider)
+//
+//    member internal this.WithRuntimeOptions(runtimeOptions) =
+//        RuntimeContext(clContext, translator, defaultCompilerOptions, runtimeOptions, CommandQueue = queue)

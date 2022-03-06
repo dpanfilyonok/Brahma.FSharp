@@ -20,6 +20,7 @@
     <Compile Include="Utils\Utils.fs" />
     <Compile Include="Bindings.fs" />
     <Compile Include="Exceptions.fs" />
+    <Compile Include="TranslatorOptions.fs" />
     <Compile Include="Namer.fs" />
     <Compile Include="TranslationContext.fs" />
     <Compile Include="QuotationTransformers\Utilities\Utils.fs" />
@@ -34,6 +35,7 @@
     <Compile Include="Type.fs" />
     <Compile Include="Body.fs" />
     <Compile Include="Methods.fs" />
+    <Compile Include="CustomMarshaler.fs" />
     <Compile Include="Translator.fs" />
   </ItemGroup>
   <ItemGroup>

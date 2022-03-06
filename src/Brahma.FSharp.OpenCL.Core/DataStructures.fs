@@ -80,7 +80,7 @@ module ClArray =
                 AllocationMode = context.RuntimeOptions.AllocationModeIfData
             }
 
-        let buffer = new ClBuffer<'a>(context.ClContext, Data array, memFlags)
+        let buffer = new ClBuffer<'a>(context.ClContext, context.Translator, Data array, memFlags)
         return new ClArray<'a>(buffer)
     }
 
@@ -94,7 +94,7 @@ module ClArray =
                 AllocationMode = context.RuntimeOptions.AllocationModeIfNoData
             }
 
-        let buffer = new ClBuffer<'a>(context.ClContext, Size size, memFlags)
+        let buffer = new ClBuffer<'a>(context.ClContext, context.Translator, Size size, memFlags)
         return new ClArray<'a>(buffer)
     }
 
@@ -131,7 +131,7 @@ module ClCell =
                 AllocationMode = context.RuntimeOptions.AllocationModeIfData
             }
 
-        let buffer = new ClBuffer<'a>(context.ClContext, Data [| value |], memFlags)
+        let buffer = new ClBuffer<'a>(context.ClContext, context.Translator, Data [| value |], memFlags)
         return new ClCell<'a>(buffer)
     }
 
@@ -145,7 +145,7 @@ module ClCell =
                 AllocationMode = context.RuntimeOptions.AllocationModeIfNoData
             }
 
-        let buffer = new ClBuffer<'a>(context.ClContext, Size 1, memFlags)
+        let buffer = new ClBuffer<'a>(context.ClContext, context.Translator, Size 1, memFlags)
         return new ClCell<'a>(buffer)
     }
 

@@ -11,7 +11,7 @@ module Utils =
         match expr with
         | Patterns.Call (_, mInfo, _) -> mInfo
         | DerivedPatterns.Lambdas (args, Patterns.Call (_, mInfo, _)) -> mInfo
-        | _ -> failwithf "Expression is not kind of call, but %O" expr
+        | _ -> failwithf $"Expression is not kind of call, but {expr}"
 
     let makeGenericMethodCall (types: System.Type list) (expr: Expr) =
         (getMethodInfoOfCall expr)

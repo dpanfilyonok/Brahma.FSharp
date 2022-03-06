@@ -4,6 +4,7 @@ open OpenCL.Net
 open System
 open System.Runtime.InteropServices
 open Brahma.FSharp.OpenCL.Shared
+open Brahma.FSharp.OpenCL.Translator
 
 //memory flags: https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clCreateBuffer.html
 
@@ -58,6 +59,7 @@ type BufferInitParam<'a> =
 type ClBuffer<'a when 'a : struct>
     (
         clContext: ClContext,
+        translator: FSQuotationToOpenCLTranslator,
         initParam: BufferInitParam<'a>,
         ?memFlags: ClMemFlags
     ) =
@@ -68,7 +70,7 @@ type ClBuffer<'a when 'a : struct>
         | Size _ -> ClMemFlags.DefaultIfNoData
         |> defaultArg memFlags
 
-    let marshaler = CustomMarshaler<'a>()
+    let marshaler = translator.Marshaler
 
     let intPtrSize = IntPtr(Marshal.SizeOf typedefof<IntPtr>)
 
@@ -108,19 +110,33 @@ type ClBuffer<'a when 'a : struct>
 
         flags
 
+    let mutable pinnedMemory : GCHandle option = None
+
     let buffer =
         let error = ref Unchecked.defaultof<ErrorCode>
         let buf =
-            match initParam with
-            | Data array ->
-                let (size, data) = marshaler.WriteToUnmanaged(array)
-                let buffer = Cl.CreateBuffer(clContext.Context, clMemoryFlags, IntPtr size, data, error)
-                Marshal.FreeHGlobal(data)
-                buffer
+            if marshaler.IsBlittable typeof<'a> then
+                let elementSize = Marshal.SizeOf typeof<'a>
+                let (size, data) =
+                    match initParam with
+                    | Data array ->
+                        pinnedMemory <- Some <| GCHandle.Alloc(array, GCHandleType.Pinned)
+                        IntPtr(array.Length * elementSize), array
+                    | Size size -> IntPtr(size * elementSize), null
 
-            | Size size ->
-                let size = IntPtr(size * marshaler.ElementTypeSize)
-                Cl.CreateBuffer(clContext.Context, clMemoryFlags, size, null, error)
+                Cl.CreateBuffer(clContext.Context, clMemoryFlags, size, data, error)
+
+            else
+                match initParam with
+                | Data array ->
+                    let (size, data) = marshaler.WriteToUnmanaged(array)
+                    let buffer = Cl.CreateBuffer(clContext.Context, clMemoryFlags, IntPtr size, data, error)
+                    Marshal.FreeHGlobal(data)
+                    buffer
+
+                | Size size ->
+                    let size = IntPtr(size * marshaler.GetTypePacking(typeof<'a>).ElementSize)
+                    Cl.CreateBuffer(clContext.Context, clMemoryFlags, size, null, error)
 
         if error.Value <> ErrorCode.Success then
             raise <| Cl.Exception error.Value
@@ -137,9 +153,13 @@ type ClBuffer<'a when 'a : struct>
             | Data array -> array.Length
             | Size size -> size
 
-        member this.ElementSize = marshaler.ElementTypeSize
+        member this.ElementSize = marshaler.GetTypePacking(typeof<'a>).ElementSize
 
         member this.Free() =
+            match pinnedMemory with
+            | Some x -> x.Free()
+            | None -> ()
+
             buffer.Dispose()
 
         member this.Item

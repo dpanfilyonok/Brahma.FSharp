@@ -99,7 +99,7 @@ type ClKernel<'TRange, 'a when 'TRange :> INDRange>
                         (%%mutexLengths : int[])
                         |> List.ofArray
                         |> List.map (fun n ->
-                            let mutexBuffer = new ClBuffer<Mutex>(context.ClContext, Size n)
+                            let mutexBuffer = new ClBuffer<Mutex>(context.ClContext, context.Translator, Size n)
                             mutexBuffers.Add mutexBuffer
                             box mutexBuffer
                         )

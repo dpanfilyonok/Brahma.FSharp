@@ -27,41 +27,42 @@ type Flag =
     | EnableAtomic
     | EnableFP64
 
-type TranslatorOptions() =
-    member val UseNativeBooleanType = false with get, set
-    member val BoolAsBit = false with get, set
-
 type TranslationContext<'lang, 'vDecl> =
     {
-        TopLevelVarsDecls: ResizeArray<'vDecl>
-        CStructDecls: Dictionary<Type, StructType<'lang>>
+        // translator scope
+        TranslatorOptions: TranslatorOptions
 
+        // kernel scope
+        CStructDecls: Dictionary<Type, StructType<'lang>>
+        TopLevelVarsDecls: ResizeArray<'vDecl>
+        Flags: HashSet<Flag>
+
+        // function scope
         VarDecls: ResizeArray<'vDecl>
         Namer: Namer
-        ArrayKind: ArrayKind
 
-        Flags: HashSet<Flag>
-        TranslatorOptions: TranslatorOptions
+        // specific scope
+        ArrayKind: ArrayKind
     }
 
-    static member Create() =
+    static member Create(options) =
         {
-            TopLevelVarsDecls = ResizeArray<'vDecl>()
+            TranslatorOptions = options
+
             CStructDecls = Dictionary<Type, StructType<'lang>>()
+            TopLevelVarsDecls = ResizeArray<'vDecl>()
+            Flags = HashSet()
 
             VarDecls = ResizeArray<'vDecl>()
             Namer = Namer()
-            ArrayKind = CPointer
 
-            Flags = HashSet()
-            TranslatorOptions = TranslatorOptions()
+            ArrayKind = CPointer
         }
 
     member this.WithNewLocalContext() =
         { this with
             VarDecls = ResizeArray()
             Namer = Namer()
-            ArrayKind = CPointer
         }
 
 type TargetContext = TranslationContext<Lang, Statement<Lang>>
