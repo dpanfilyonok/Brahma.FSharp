@@ -12,7 +12,7 @@ open FSharp.Quotations
 module Common =
 
     let deviceType = DeviceType.Default
-    let platformName = Platform.Any
+    let platformName = Platform.Amd
 
     let device = ClDevice.GetFirstAppropriateDevice(platformName, deviceType)
     let clContext = ClContext(device)

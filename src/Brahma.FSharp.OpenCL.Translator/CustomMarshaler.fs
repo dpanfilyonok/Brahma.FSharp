@@ -1,11 +1,11 @@
 ﻿namespace Brahma.FSharp.OpenCL.Translator
 
 open System
+open System.Collections.Concurrent
 open System.Runtime.InteropServices
 open Brahma.FSharp.OpenCL.Translator
 open FSharp.Reflection
 open System.Runtime.CompilerServices
-open System.Collections.Generic
 open System.Runtime.Serialization
 
 type StructurePacking =
@@ -14,12 +14,12 @@ type StructurePacking =
     member this.ElementSize = match this with | StructureElement(pack, _) -> pack.Size
 
 type CustomMarshaler() =
-    let typePacking = Dictionary<Type, StructurePacking>()
+    let typePacking = ConcurrentDictionary<Type, StructurePacking>()
 
-    let typeOffsets = Dictionary<Type, int[]>()
+    let typeOffsets = ConcurrentDictionary<Type, int[]>()
 
     let blittableTypes =
-        Dictionary<Type, bool>(
+        ConcurrentDictionary<Type, bool>(
             dict [
                 typeof<decimal>, false
                 typeof<byte>, true
@@ -152,13 +152,14 @@ type CustomMarshaler() =
 
         loop packing 0 |> Seq.toArray
 
+    // TODO issues with multithreading
     member this.GetTypePacking(type': Type) =
         let mutable packing = Unchecked.defaultof<StructurePacking>
         if typePacking.TryGetValue(type', &packing) then
             packing
         else
             packing <- getTypePacking type'
-            typePacking.Add(type', packing)
+            typePacking.TryAdd(type', packing) |> ignore
             packing
 
     member this.GetTypeOffsets(type': Type) =
@@ -167,7 +168,7 @@ type CustomMarshaler() =
             offsets
         else
             offsets <- getOffsets <| this.GetTypePacking(type')
-            typeOffsets.Add(type', offsets)
+            typeOffsets.TryAdd(type', offsets) |> ignore
             offsets
 
     member this.IsBlittable(type': Type) =
@@ -178,7 +179,7 @@ type CustomMarshaler() =
         elif type'.IsArray then
             let elem = type'.GetElementType()
             isBlittable <- elem.IsValueType && this.IsBlittable(elem)
-            blittableTypes.Add(type', isBlittable)
+            blittableTypes.TryAdd(type', isBlittable) |> ignore
             isBlittable
         else
             try
@@ -186,11 +187,11 @@ type CustomMarshaler() =
                 GCHandle.Alloc(instance, GCHandleType.Pinned).Free();
                 isBlittable <- true
                 // TODO remove code repetition
-                blittableTypes.Add(type', isBlittable)
+                blittableTypes.TryAdd(type', isBlittable) |> ignore
                 isBlittable
             with _ ->
                 isBlittable <- false
-                blittableTypes.Add(type', isBlittable)
+                blittableTypes.TryAdd(type', isBlittable) |> ignore
                 isBlittable
 
     member this.WriteToUnmanaged(array: 'a[]) =

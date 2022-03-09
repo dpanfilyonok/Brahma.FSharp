@@ -84,9 +84,9 @@ module ClTask =
     let runtimeOptions =
         ask >>= fun env -> opencl.Return env.RuntimeOptions
 
-    let setOptions (runtimeOptions: RuntimeOptions) (ClTask f) =
+    let withOptions (g: RuntimeOptions -> RuntimeOptions) (ClTask f) =
         ask >>= fun env ->
-        opencl.Return(f <| env.WithRuntimeOptions(runtimeOptions))
+        opencl.Return(f <| env.WithRuntimeOptions(g env.RuntimeOptions))
 
     let runSync (context: RuntimeContext) (ClTask f) =
         let res = f context

@@ -27,6 +27,7 @@
     <Compile Include="Messages.fs" />
     <Compile Include="CommandQueueProvider.fs" />
     <Compile Include="ClBuffer.fs" />
+    <Compile Include="CompilationContext.fs" />
     <Compile Include="ClProgram.fs" />
     <Compile Include="RuntimeContext.fs" />
     <Compile Include="ClKernel.fs" />

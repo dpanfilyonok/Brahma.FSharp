@@ -128,12 +128,8 @@ type ClKernel<'TRange, 'a when 'TRange :> INDRange>
 
             mutexBuffers.Clear()
 
-    // TODO rewrite
-    member this.Kernel = kernel
-    member this.NDRange = range.Value :> INDRange
-    member this.KernelFunc = argumentsSetterFunc
-    member this.ReleaseInternalBuffers() =
-        mutexBuffers
-        |> Seq.iter (Msg.CreateFreeMsg >> context.CommandQueue.Post)
+    member this.Kernel = (this :> IKernel<_,_>).Kernel
+    member this.NDRange = (this :> IKernel<_,_>).NDRange
+    member this.KernelFunc = (this :> IKernel<_,_>).KernelFunc
+    member this.ReleaseInternalBuffers() = (this :> IKernel<_,_>).ReleaseInternalBuffers()
 
-        mutexBuffers.Clear()

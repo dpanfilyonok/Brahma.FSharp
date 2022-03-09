@@ -359,8 +359,8 @@ module AtomicProcessor =
                 ([Patterns.ValidVolatileArg pointerVar] :: _ as applicationArgs)
             ) when nonPrivateVars |> Map.containsKey pointerVar |> not ->
             return failwithf
-                "Invalid address space of %O var. \
-                Atomic operaion cannot be executed on variables in private memmory" pointerVar
+                $"Invalid address space of {pointerVar} var. \
+                Atomic operaion cannot be executed on variables in private memmory"
 
         // if volatile arg is invalid
         | DerivedPatterns.Applications
@@ -374,8 +374,8 @@ module AtomicProcessor =
                 [invalidVolatileArg] :: _
             ) ->
             return failwithf
-                "Invalid volatile arg of atomic function. Must be `var` of `var.[expr]`, \
-                where `var` is variable in local or global memory, but given\n%O" invalidVolatileArg
+                $"Invalid volatile arg of atomic function. Must be `var` of `var.[expr]`, \
+                where `var` is variable in local or global memory, but given\n{invalidVolatileArg}"
 
         | ExprShape.ShapeVar var -> return Expr.Var var
         | ExprShape.ShapeLambda (var, lambda) ->
@@ -461,7 +461,7 @@ module AtomicProcessor =
 
             return Expr.Lambdas(Seq.toList newArgs |> List.map List.singleton, go body)
 
-        | _ -> return raise <| InvalidKernelException(sprintf "Invalid kernel expression. Must be lambda, but given\n%O" expr)
+        | _ -> return raise <| InvalidKernelException $"Invalid kernel expression. Must be lambda, but given\n{expr}"
     }
 
     let processAtomic (expr: Expr) =

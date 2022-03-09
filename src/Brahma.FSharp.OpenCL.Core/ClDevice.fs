@@ -2,6 +2,7 @@
 
 open OpenCL.Net
 open Brahma.FSharp.OpenCL.Shared
+open System.Text.RegularExpressions
 
 type ClPlatform = OpenCL.Net.Platform
 type ClDeviceType = OpenCL.Net.DeviceType
@@ -14,6 +15,14 @@ module internal DeviceHelpers =
         | DeviceType.CPU -> ClDeviceType.Cpu
         | DeviceType.GPU -> ClDeviceType.Gpu
         | DeviceType.Default -> ClDeviceType.Default
+
+    let convertToPattern(platform: Platform) =
+        match platform with
+        | Platform.Intel -> "Intel*"
+        | Platform.Amd -> "AMD*"
+        | Platform.Nvidia -> "NVIDIA*"
+        | Platform.Any -> "*"
+        | Platform.Custom pattern -> pattern
 
 type ClDevice(device: Device) =
     let throwOnError f =
@@ -81,13 +90,18 @@ type ClDevice(device: Device) =
         let platform = defaultArg platform Platform.Any
         let deviceType = defaultArg deviceType DeviceType.Default
 
+        let wildcardToRegex (pattern: string) =
+            "^" + Regex.Escape(pattern).Replace("\\*", ".*").Replace("\\?", ".") + "$"
+
+        let platformNameRegex = Regex(wildcardToRegex <| DeviceHelpers.convertToPattern platform, RegexOptions.IgnoreCase)
+
         let error = ref Unchecked.defaultof<ErrorCode>
 
         Cl.GetPlatformIDs error
         |> Array.choose
             (fun platform ->
                 let platformName = Cl.GetPlatformInfo(platform, PlatformInfo.Name, error).ToString()
-                if platformName.ToLower().Contains($"{platform}".ToLower()) then
+                if platformNameRegex.Match(platformName).Success then
                     Some <| Cl.GetDeviceIDs(platform, DeviceHelpers.convertToDeviceType deviceType, error)
                 else
                     None
