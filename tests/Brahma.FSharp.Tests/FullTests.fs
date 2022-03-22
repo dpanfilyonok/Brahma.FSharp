@@ -529,7 +529,7 @@ let kernelArgumentsTests = testList "Kernel arguments tests" [
 
         Expect.sequenceEqual actual expected "Arrays should be equals"
 
-    testProperty "Parallel execution of kernel" <| fun _const ->
+    ptestProperty "Parallel execution of kernel" <| fun _const ->
         let n = 4
         let l = 256
         let getAllocator (context: ClContext) =

@@ -689,6 +689,7 @@ let printfTests = testList "Translation of printf" [
                 while i < 10 do
                     xs.[0] <- i * 2
                     printf "i = %d, xs.[0]*10 = %d\n" i (xs.[0] + 10)
+                    i <- i + 1
             @>
 
         checkCode command "Printf test 3.gen" "Printf test 3.cl"
