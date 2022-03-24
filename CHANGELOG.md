@@ -5,7 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0.0-alpha9.3] - 2022-03-24
+
+### Added
+- Discriminated unions inside kernel functions
+- Stepped and non-integer loops
+
+### Fixed
+- Native opencl library linking
+
+## [2.0.0-alpha9.2] - 2021-10-16
 
 ### Added
 - ```ClCell``` support
@@ -14,8 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Records including generic records
 
 ### Fixed
-- Atomics 
-  
+- Atomics
+
 ## [2.0.0-alpha9.1] - 2021-10-16
 
 ### Fixed
@@ -144,7 +153,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - FSharp.Core form NuGet
 - .NET 4.5
 
-[Unreleased]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v2.0.0-alpha9.1...HEAD
+[Unreleased]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v2.0.0-alpha9.3...HEAD
+[2.0.0-alpha9.3]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v1.1.5...v2.0.0-alpha9.3
+[2.0.0-alpha9.2]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v1.1.5...v2.0.0-alpha9.2
 [2.0.0-alpha9.1]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v1.1.5...v2.0.0-alpha9.1
 [2.0.0-alpha9]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v1.1.5...v2.0.0-alpha9
 [2.0.0-alpha8]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v1.1.5...v2.0.0-alpha8
