@@ -1,5 +1,6 @@
 namespace Brahma.FSharp.OpenCL
 
+open Brahma.FSharp.OpenCL
 open Brahma.FSharp.OpenCL.Translator
 open Brahma.FSharp.OpenCL.Shared
 open System
@@ -68,35 +69,25 @@ type clcell<'a when 'a : struct> = ClCell<'a>
 
 // TODO set flags
 module ClArray =
-    // or allocate with null ptr and write
-    // TODO if array.Length = 0 ...
-    let toDevice (array: 'a[]) = opencl {
+    let toDeviceWithFlags (array: 'a[]) (memFlags: ClMemFlags) = opencl {
         let! context = ClTask.ask
-
-        let memFlags =
-            {
-                HostAccessMode = context.RuntimeOptions.HostAccessMode
-                DeviceAccessMode = context.RuntimeOptions.DeviceAccessMode
-                AllocationMode = context.RuntimeOptions.AllocationModeIfData
-            }
 
         let buffer = new ClBuffer<'a>(context.ClContext, context.Translator, Data array, memFlags)
         return new ClArray<'a>(buffer)
     }
 
-    let alloc<'a when 'a : struct> (size: int) = opencl {
-        let! context = ClTask.ask
+    // or allocate with null ptr and write
+    // TODO if array.Length = 0 ...
+    let toDevice (array: 'a[]) = toDeviceWithFlags array ClMemFlags.DefaultIfData
 
-        let memFlags =
-            {
-                HostAccessMode = context.RuntimeOptions.HostAccessMode
-                DeviceAccessMode = context.RuntimeOptions.DeviceAccessMode
-                AllocationMode = context.RuntimeOptions.AllocationModeIfNoData
-            }
+    let allocWithFlags<'a when 'a : struct> (size: int) (memFlags: ClMemFlags) = opencl {
+        let! context = ClTask.ask
 
         let buffer = new ClBuffer<'a>(context.ClContext, context.Translator, Size size, memFlags)
         return new ClArray<'a>(buffer)
     }
+
+    let alloc<'a when 'a : struct> (size: int) = allocWithFlags<'a> size ClMemFlags.DefaultIfNoData
 
     let toHost (clArray: ClArray<'a>) = opencl {
         let! context = ClTask.ask
@@ -121,33 +112,23 @@ module ClArray =
     }
 
 module ClCell =
-    let toDevice (value: 'a) = opencl {
+    let toDeviceWithFlags (value: 'a) (memFlags: ClMemFlags) = opencl {
         let! context = ClTask.ask
-
-        let memFlags =
-            {
-                HostAccessMode = context.RuntimeOptions.HostAccessMode
-                DeviceAccessMode = context.RuntimeOptions.DeviceAccessMode
-                AllocationMode = context.RuntimeOptions.AllocationModeIfData
-            }
 
         let buffer = new ClBuffer<'a>(context.ClContext, context.Translator, Data [| value |], memFlags)
         return new ClCell<'a>(buffer)
     }
 
-    let alloc<'a when 'a : struct> () = opencl {
-        let! context = ClTask.ask
+    let toDevice (value: 'a) = toDeviceWithFlags value ClMemFlags.DefaultIfData
 
-        let memFlags =
-            {
-                HostAccessMode = context.RuntimeOptions.HostAccessMode
-                DeviceAccessMode = context.RuntimeOptions.DeviceAccessMode
-                AllocationMode = context.RuntimeOptions.AllocationModeIfNoData
-            }
+    let allocWithFlags<'a when 'a : struct> (memFlags: ClMemFlags) = opencl {
+        let! context = ClTask.ask
 
         let buffer = new ClBuffer<'a>(context.ClContext, context.Translator, Size 1, memFlags)
         return new ClCell<'a>(buffer)
     }
+
+    let alloc<'a when 'a : struct> () = allocWithFlags ClMemFlags.DefaultIfNoData
 
     let toHost (clCell: ClCell<'a>) = opencl {
         let! context = ClTask.ask

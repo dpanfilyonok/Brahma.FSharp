@@ -1,4 +1,4 @@
-﻿module Full
+﻿module RuntimeTests
 
 open Expecto
 open Brahma.FSharp.OpenCL
@@ -7,9 +7,32 @@ open Brahma.FSharp.Tests
 open Expecto.Logging
 open Expecto.Logging.Message
 
+[<AutoOpen>]
+module Helpers =
+    let defaultInArrayLength = 4
+    let intInArr = [| 0 .. defaultInArrayLength - 1 |]
+    let float32Arr = Array.init defaultInArrayLength float32
+    let default1D = Range1D(defaultInArrayLength, 1)
+    let default2D = Range2D(defaultInArrayLength, 1)
+
+    let checkResult context command (inArr: 'a[]) (expectedArr: 'a[]) =
+        let actual =
+            opencl {
+                use! inBuf = ClArray.toDevice inArr
+                do! runCommand command <| fun x ->
+                    x default1D inBuf
+
+                return! ClArray.toHost inBuf
+            }
+            |> ClTask.runSync context
+
+        Expect.sequenceEqual actual expectedArr $"For context: %A{context}. Arrays should be equals"
+
 let logger = Log.create "FullTests"
 
-let smokeTestsOnPrimitiveTypes = testList "Simple tests on primitive types" [
+let smokeTestsOnPrimitiveTypes context = [
+    let inline checkResult cmd input expected = checkResult context cmd input expected
+
     testCase "Array item set" <| fun _ ->
         let command =
             <@
@@ -69,7 +92,9 @@ let smokeTestsOnPrimitiveTypes = testList "Simple tests on primitive types" [
         checkResult command [|0uy; 255uy; 254uy|] [|1uy; 0uy; 255uy|]
 ]
 
-let typeCastingTests = testList "Type castings tests" [
+let typeCastingTests context = [
+    let inline checkResult cmd input expected = checkResult context cmd input expected
+
     testCase "uint64 -> int64" <| fun _ ->
         let command =
             <@
@@ -164,7 +189,9 @@ let typeCastingTests = testList "Type castings tests" [
         checkResult command [|0uy; 255uy; 254uy|] [|1uy; 0uy; 255uy|]
 ]
 
-let bindingTests = testList "Bindings tests" [
+let bindingTests context = [
+    let inline checkResult cmd input expected = checkResult context cmd input expected
+
     testCase "Bindings. Simple" <| fun _ ->
         let command =
             <@
@@ -223,7 +250,9 @@ let bindingTests = testList "Bindings tests" [
         checkResult command intInArr [|25; 1; 2; 3|]
 ]
 
-let operatorsAndMathFunctionsTests =
+let operatorsAndMathFunctionsTests context =
+    let inline checkResult cmd input expected = checkResult context cmd input expected
+
     let binaryOpTestGen testCase name
         (binop: Expr<'a -> 'a -> 'a>)
         (xs: array<'a>)
@@ -286,7 +315,7 @@ let operatorsAndMathFunctionsTests =
 
             Expect.sequenceEqual actual expected ":("
 
-    testList "Operators and math functions tests" [
+    [
         binaryOpTestGen testCase "Boolean OR" <@ (||) @>
             [|true; false; false; true|]
             [|false; true; false; true|]
@@ -357,7 +386,9 @@ let operatorsAndMathFunctionsTests =
             checkResult command inA (inA |> Array.map System.Math.Sin)  //[|0.0; 0.841471; 0.9092974; 0.14112|]
     ]
 
-let controlFlowTests = testList "Control flow tests" [
+let controlFlowTests context = [
+    let inline checkResult cmd input expected = checkResult context cmd input expected
+
     testCase "Check 'if then' condition" <| fun _ ->
         let command =
             <@
@@ -431,8 +462,10 @@ let controlFlowTests = testList "Control flow tests" [
         checkResult command intInArr [|26; 26; 26; 10|]
 ]
 
-let kernelArgumentsTests = testList "Kernel arguments tests" [
-    testCase "Kernel arguments. Simple 1D" <| fun _ ->
+let kernelArgumentsTests context = [
+    let inline checkResult cmd input expected = checkResult context cmd input expected
+
+    testCase "Simple 1D" <| fun _ ->
         let command =
             <@
                 fun (range: Range1D) (buf: ClArray<int>) ->
@@ -442,7 +475,7 @@ let kernelArgumentsTests = testList "Kernel arguments tests" [
 
         checkResult command intInArr [|0;2;4;6|]
 
-    testCase "Kernel arguments. Simple 1D with copy" <| fun _ ->
+    testCase "Simple 1D with copy" <| fun _ ->
         let command =
             <@
                 fun (range: Range1D) (inBuf:ClArray<int>) (outBuf:ClArray<int>) ->
@@ -465,7 +498,7 @@ let kernelArgumentsTests = testList "Kernel arguments tests" [
 
         Expect.sequenceEqual actual expected  "Arrays should be equals"
 
-    testCase "Kernel arguments. Simple 1D float" <| fun _ ->
+    testCase "Simple 1D float" <| fun _ ->
         let command =
             <@
                 fun (range: Range1D) (buf: ClArray<float32>) ->
@@ -475,7 +508,7 @@ let kernelArgumentsTests = testList "Kernel arguments tests" [
 
         checkResult command float32Arr [|0.0f; 1.0f; 4.0f; 9.0f|]
 
-    testCase "Kernel arguments. Int as arg" <| fun _ ->
+    testCase "Int as arg" <| fun _ ->
         let command =
             <@
                 fun (range: Range1D) x (buf: ClArray<int>) ->
@@ -497,7 +530,7 @@ let kernelArgumentsTests = testList "Kernel arguments tests" [
 
         Expect.sequenceEqual actual expected "Arrays should be equals"
 
-    testCase "Kernel arguments. Sequential commands over single buffer" <| fun _ ->
+    testCase "Sequential commands over single buffer" <| fun _ ->
         let command =
             <@
                 fun (range: Range1D) i x (buf: ClArray<int>) ->
@@ -544,13 +577,12 @@ let kernelArgumentsTests = testList "Kernel arguments tests" [
 
             fun () ->
                 opencl {
-                    let! buf = ClArray.alloc l
+                    let! buf = ClArray.allocWithFlags l { ClMemFlags.DefaultIfNoData with AllocationMode = AllocationMode.AllocHostPtr }
                     do! runKernel kernel <| fun it ->
                         it (Range1D(l, l)) buf
 
                     return buf
                 }
-                |> ClTask.withOptions (fun opt -> { opt with AllocationModeIfNoData = AllocationMode.AllocHostPtr })
 
 
         let allocator ctx = getAllocator ctx ()
@@ -571,8 +603,10 @@ let kernelArgumentsTests = testList "Kernel arguments tests" [
         Expect.sequenceEqual actual expected "Arrays should be equals"
 ]
 
-let quotationInjectionTests = testList "Quotation injection tests" [
-    testCase "Quotations injections. Quotations injections 1" <| fun _ ->
+let quotationInjectionTests context = [
+    let inline checkResult cmd input expected = checkResult context cmd input expected
+
+    testCase "Quotations injections 1" <| fun _ ->
         let myF = <@ fun x -> x * x @>
 
         let command =
@@ -584,7 +618,7 @@ let quotationInjectionTests = testList "Quotation injection tests" [
 
         checkResult command intInArr [|4;16;2;3|]
 
-    testCase "Quotations injections. Quotations injections 2" <| fun _ ->
+    testCase "Quotations injections 2" <| fun _ ->
         let myF = <@ fun x y -> y - x @>
 
         let command =
@@ -597,7 +631,9 @@ let quotationInjectionTests = testList "Quotation injection tests" [
         checkResult command intInArr [|3;5;2;3|]
 ]
 
-let localMemTests = testList "Local memory tests" [
+let localMemTests context = [
+    let inline checkResult cmd input expected = checkResult context cmd input expected
+
     // TODO: pointers to local data must be local too.
     testCase "Local int. Work item counting" <| fun _ ->
         let command =
@@ -675,7 +711,9 @@ let localMemTests = testList "Local memory tests" [
         checkResult command [|0L; 1L; 2L; 3L|] [|1L; 1L; 2L; 3L|]
 ]
 
-let letTransformationTests = testList "Let Transformation Tests" [
+let letTransformationTests context = [
+    let inline checkResult cmd input expected = checkResult context cmd input expected
+
     testCase "Template Let Transformation Test 0" <| fun _ ->
         let command =
             <@
@@ -980,7 +1018,9 @@ let letTransformationTests = testList "Let Transformation Tests" [
         checkResult command intInArr [|2; 3; 6; 7|]
 ]
 
-let letQuotationTransformerSystemTests = testList "Let Transformation Tests Mutable Vars" [
+let letQuotationTransformerSystemTests context = [
+    let inline checkResult cmd input expected = checkResult context cmd input expected
+
     testCase "Test 0" <| fun _ ->
         let command =
             <@
@@ -1076,30 +1116,8 @@ let letQuotationTransformerSystemTests = testList "Let Transformation Tests Muta
         checkResult command intInArr [|34; 34; 34; 34|]
 ]
 
-let commonApiTests = testList "Common Api Tests" [
-    // TODO is it correct?
-    ptestCase "Using atomic in lambda should not raise exception if first parameter passed" <| fun () ->
-        let command =
-            <@
-                fun (range:  Range1D) (buffer: int[]) ->
-                let g = atomic (fun x y -> x + 1) buffer.[0]
-                g 5 |> ignore
-            @>
-
-        Utils.openclTranslate command |> ignore
-
-    // TODO is it correct?
-    ptestCase "Using atomic in lambda should raise exception if first parameter is argument" <| fun () ->
-        let command =
-            <@
-                fun (range:  Range1D) (buffer: int[]) ->
-                let g x y = atomic (+) x y
-                g buffer.[0] 6 |> ignore
-            @>
-
-        Expect.throwsT<System.ArgumentException>
-        <| fun () -> Utils.openclTranslate command |> ignore
-        <| "Exception should be thrown"
+let commonApiTests context = [
+    let inline checkResult cmd input expected = checkResult context cmd input expected
 
     testCase "Check simple '|> ignore'" <| fun () ->
         let command =
@@ -1261,7 +1279,7 @@ let commonApiTests = testList "Common Api Tests" [
         |> Expect.equal actual expected
 ]
 
-let booleanTests = testList "Boolean Tests" [
+let booleanTests context = [
     testCase "Executing copy kernel on boolean array should not raise exception" <| fun () ->
         let inputArray = Array.create 100_000 true
         let inputArrayLength = inputArray.Length
@@ -1368,7 +1386,7 @@ let booleanTests = testList "Boolean Tests" [
             |> Expect.sequenceEqual actual expected
 ]
 
-let parallelExecutionTests = testList "Parallel Execution Tests" [
+let parallelExecutionTests context = [
     testCase "Running tasks in parallel should not raise exception" <| fun () ->
         let fill = opencl {
             let kernel =
@@ -1407,7 +1425,7 @@ type Option1 =
     | None1
     | Some1 of int
 
-let simpleDUTests = testList "Simple tests on discriminated unions" [
+let simpleDUTests context = [
     testCase "Option<int> with F#-native syntax" <| fun () ->
         let rnd = System.Random()
         let input1 = Array.init 100_000 (fun i -> rnd.Next())
@@ -1592,48 +1610,48 @@ type StructWithOverridedConstructors =
     new(x, y) = { x = x; y = y }
     new(x) = { x = x; y = 10 }
 
-let specificTests = testList "" [
-    ptestCase "" <| fun () ->
-        let command =
-            <@
-                fun (range: Range1D) (buffer: ClCell<StructWithOverridedConstructors>) ->
-                    buffer.Value <- StructWithOverridedConstructors(10)
-            @>
+//let specificTests = testList "" [
+//    ptestCase "" <| fun () ->
+//        let command =
+//            <@
+//                fun (range: Range1D) (buffer: ClCell<StructWithOverridedConstructors>) ->
+//                    buffer.Value <- StructWithOverridedConstructors(10)
+//            @>
+//
+//        let expected = StructWithOverridedConstructors(10, 10)
+//
+//        let actual =
+//            opencl {
+//                let value = 5
+//                use! buffer = ClCell.toDevice <| StructWithOverridedConstructors(value, value)
+//                do! runCommand command <| fun it ->
+//                    it
+//                    <| Range1D(1)
+//                    <| buffer
+//
+//                return! ClCell.toHost buffer
+//            }
+//            |> ClTask.runSync context
+//
+//        ""
+//        |> Expect.equal actual expected
+//]
 
-        let expected = StructWithOverridedConstructors(10, 10)
-
-        let actual =
-            opencl {
-                let value = 5
-                use! buffer = ClCell.toDevice <| StructWithOverridedConstructors(value, value)
-                do! runCommand command <| fun it ->
-                    it
-                    <| Range1D(1)
-                    <| buffer
-
-                return! ClCell.toHost buffer
-            }
-            |> ClTask.runSync context
-
-        ""
-        |> Expect.equal actual expected
-]
-
-let tests =
-    testList "System tests with running kernels" [
-        letTransformationTests
-        letQuotationTransformerSystemTests
-        smokeTestsOnPrimitiveTypes
-        typeCastingTests
-        bindingTests
-        operatorsAndMathFunctionsTests
-        controlFlowTests
-        kernelArgumentsTests
-        quotationInjectionTests
-        localMemTests
-        booleanTests
-//        parallelExecutionTests
-        simpleDUTests
-        commonApiTests
+let tests context =
+    [
+        testList "Simple tests on primitive types" << smokeTestsOnPrimitiveTypes
+        testList "Type castings tests" << typeCastingTests
+        testList "Bindings tests" << bindingTests
+        testList "Operators and math functions tests" << operatorsAndMathFunctionsTests
+        testList "Control flow tests" << controlFlowTests
+        testList "Kernel arguments tests" << kernelArgumentsTests
+        testList "Quotation injection tests" << quotationInjectionTests
+        testList "Local memory tests"  << localMemTests
+        testList "Let Transformation Tests"  << letTransformationTests
+        testList "Let Transformation Tests Mutable Vars" << letQuotationTransformerSystemTests
+        testList "Common Api Tests" << commonApiTests
+        testList "Boolean Tests" << booleanTests
+        ptestList "Parallel Execution Tests" << parallelExecutionTests
+        testList "Simple tests on discriminated unions" << simpleDUTests
     ]
-    |> fun x -> Expecto.Sequenced(Synchronous, x)
+    |> List.map (fun testFixture -> testFixture context)

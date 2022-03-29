@@ -1,25 +1,36 @@
-﻿module Translator
+﻿module TranslatorTests
 
 open Expecto
 open Brahma.FSharp.OpenCL
-open OpenCL.Net
 open Brahma.FSharp.Tests
+open System.IO
+open Brahma.FSharp.OpenCL.Printer
+open Brahma.FSharp.OpenCL.Translator
+open FSharp.Quotations
 
-let basePath = "Expected/"
-let generatedPath = "Generated/"
+[<AutoOpen>]
+module Helpers =
+    let basePath = "TranslationTests/Expected/"
+    let generatedPath = "TranslationTests/Generated/"
 
-do System.IO.Directory.CreateDirectory(generatedPath) |> ignore
+    do Directory.CreateDirectory(generatedPath) |> ignore
 
-let checkCode command outFile expected =
-    let code = Utils.openclCompile command
+    let openclTranslate (translator: FSQuotationToOpenCLTranslator) (expr: Expr) =
+        let (ast, _) = translator.Translate expr
+        AST.print ast
 
-    let targetPath = System.IO.Path.Combine(generatedPath, outFile)
-    let expectedPath = System.IO.Path.Combine(basePath, expected)
-    System.IO.File.WriteAllText(targetPath, code)
+    let checkCode translator command outFile expected =
+        let code = command |> openclTranslate translator
 
-    Utils.filesAreEqual targetPath expectedPath
+        let targetPath = Path.Combine(generatedPath, outFile)
+        let expectedPath = Path.Combine(basePath, expected)
+        File.WriteAllText(targetPath, code)
 
-let basicLocalIdTests = testList "Basic tests on LocalID translation" [
+        Utils.filesAreEqual targetPath expectedPath
+
+let basicLocalIdTests translator = [
+    let inline checkCode cmd outFile expected = checkCode translator cmd outFile expected
+
     testCase "LocalID of 1D" <| fun _ ->
         let command =
             <@ fun (range: Range1D) (buf: int clarray) ->
@@ -40,7 +51,9 @@ let basicLocalIdTests = testList "Basic tests on LocalID translation" [
         checkCode command "LocalID2D.gen" "LocalID2D.cl"
 ]
 
-let basicWorkSizeTests = testList "Basic tests on getting WorkSize translation" [
+let basicWorkSizeTests translator = [
+    let inline checkCode cmd outFile expected = checkCode translator cmd outFile expected
+
     testCase "WorkSize of 1D" <| fun _ ->
         let command =
             <@
@@ -75,7 +88,9 @@ let basicWorkSizeTests = testList "Basic tests on getting WorkSize translation" 
         checkCode command "WorkSize3D.gen" "WorkSize3D.cl"
 ]
 
-let basicBinOpsTests = testList "Basic operations translation tests" [
+let basicBinOpsTests translator = [
+    let inline checkCode cmd outFile expected = checkCode translator cmd outFile expected
+
     testCase "Array item set" <| fun _ ->
         let command = <@ fun (range: Range1D) (buf: int clarray) -> buf.[0] <- 0 @>
 
@@ -120,7 +135,9 @@ let basicBinOpsTests = testList "Basic operations translation tests" [
         checkCode command "MAX.Transformation.gen" "MAX.Transformation.cl"
 ]
 
-let controlFlowTests = testList "Control flow translation tests" [
+let controlFlowTests translator = [
+    let inline checkCode cmd outFile expected = checkCode translator cmd outFile expected
+
     testCase "If Then" <| fun _ ->
         let command = <@ fun (range: Range1D) (buf: int clarray) -> if 0 = 2 then buf.[0] <- 1 @>
 
@@ -239,7 +256,9 @@ let controlFlowTests = testList "Control flow translation tests" [
         checkCode command "Seq.With.Bindings.gen" "Seq.With.Bindings.cl"
 ]
 
-let namesResolvingTests = testList "Tests on variables renaming." [
+let namesResolvingTests translator = [
+    let inline checkCode cmd outFile expected = checkCode translator cmd outFile expected
+
     testCase "Bindings with equal names." <| fun _ ->
         let command =
             <@ fun (range: Range1D) (buf: int clarray) ->
@@ -295,7 +314,9 @@ let namesResolvingTests = testList "Tests on variables renaming." [
         checkCode command "Binding.And.FOR.Counter.Conflict.4.gen" "Binding.And.FOR.Counter.Conflict.4.cl"
 ]
 
-let quotationsInjectionTests = testList "Quotations injection tests" [
+let quotationsInjectionTests translator = [
+    let inline checkCode cmd outFile expected = checkCode translator cmd outFile expected
+
     testCase "Quotations injections 1" <| fun _ ->
         let myF = <@ fun x -> x * x @>
 
@@ -320,7 +341,9 @@ let quotationsInjectionTests = testList "Quotations injection tests" [
 
 ]
 
-let constantArrayTests = testList "Constant array translation tests." [
+let constantArrayTests translator = [
+    let inline checkCode cmd outFile expected = checkCode translator cmd outFile expected
+
     testCase "Constant array translation. Test 1" <| fun _ ->
         let cArray1 = [| 1; 2; 3 |]
         let command = <@ fun (range: Range1D) (buf: int clarray) -> buf.[0] <- cArray1.[1] @>
@@ -332,7 +355,9 @@ let constantArrayTests = testList "Constant array translation tests." [
         checkCode command "Constant array translation. Test 2.gen" "Constant array translation. Test 2.cl"
 ]
 
-let lambdaLiftingTests = testList "Let transformation tests" [
+let lambdaLiftingTests translator = [
+    let inline checkCode cmd outFile expected = checkCode translator cmd outFile expected
+
     testCase "Template Let Transformation Test 0" <| fun _ ->
         let command =
             <@ fun (range: Range1D) (buf: int clarray) ->
@@ -623,7 +648,9 @@ let lambdaLiftingTests = testList "Let transformation tests" [
         checkCode command "Nested.Function.gen" "Nested.Function.cl"
 ]
 
-let curryingTests = ptestList "Currying translation test" [
+let curryingTests translator = [
+    let inline checkCode cmd outFile expected = checkCode translator cmd outFile expected
+
     testCase "Nested functions.Carring 1." <| fun _ ->
         let command =
             <@ fun (range: Range1D) (buf: int clarray) ->
@@ -654,7 +681,9 @@ let curryingTests = ptestList "Currying translation test" [
         checkCode command "Nested.Function.Carring2.gen" "Nested.Function.Carring2.cl"
 ]
 
-let localMemoryTests = ptestList "Test of local memory declaration functions" [
+let localMemoryTests translator = [
+    let inline checkCode cmd outFile expected = checkCode translator cmd outFile expected
+
     testCase "Local int" <| fun _ ->
         let command =
             <@ fun (range: Range1D) ->
@@ -683,7 +712,9 @@ let localMemoryTests = ptestList "Test of local memory declaration functions" [
         checkCode command "LocalMemory.int [].gen" "LocalMemory.int [].cl"
 ]
 
-let localMemoryAllocationTests = ptestList "Translation of local memory allocation functions" [
+let localMemoryAllocationTests translator = [
+    let inline checkCode cmd outFile expected = checkCode translator cmd outFile expected
+
     testCase "Constant array translation. Local copy test 1" <| fun _ ->
         let cArray1 = [| 1; 2; 3 |]
 
@@ -700,7 +731,9 @@ let localMemoryAllocationTests = ptestList "Translation of local memory allocati
             "Constant array translation. Local copy test 1.cl"
 ]
 
-let printfTests = testList "Translation of printf" [
+let printfTests translator = [
+    let inline checkCode cmd outFile expected = checkCode translator cmd outFile expected
+
     testCase "Printf test 1" <| fun _ ->
         let command = <@ fun (range: Range1D) -> printf "%d %f" 10 15.0 @>
         checkCode command "Printf test 1.gen" "Printf test 1.cl"
@@ -741,7 +774,9 @@ let printfTests = testList "Translation of printf" [
         checkCode command "Printf test 6.gen" "Printf test 6.cl"
 ]
 
-let barrierTests = testList "Barrier translation tests" [
+let barrierTests translator = [
+    let inline checkCode cmd outFile expected = checkCode translator cmd outFile expected
+
     testCase "Local barrier translation tests" <| fun () ->
         let command = <@ fun (range: Range1D) -> barrierLocal () @>
         checkCode command "Barrier.Local.gen" "Barrier.Local.cl"
@@ -755,20 +790,113 @@ let barrierTests = testList "Barrier translation tests" [
         checkCode command "Barrier.Full.gen" "Barrier.Full.cl"
 ]
 
-let tests =
-    testList "Tests for translator" [
-        basicLocalIdTests
-        basicWorkSizeTests
-        basicBinOpsTests
-        controlFlowTests
-        namesResolvingTests
-        quotationsInjectionTests
-        constantArrayTests
-        lambdaLiftingTests
-        curryingTests
-        localMemoryTests
-        localMemoryAllocationTests
-        printfTests
-        barrierTests
+type TranslateTest =
+    | A of int * float
+    | B of double
+    | C
+
+open Brahma.FSharp.OpenCL.AST
+
+let unionTests (translator: FSQuotationToOpenCLTranslator) =
+    let testGen testCase name (types: List<System.Type>) outFile expectedFile =
+        testCase name <| fun () ->
+            let context = TranslationContext.Create(TranslatorOptions())
+            for type' in types do Type.translateUnion type' |> State.run context |> ignore
+
+            let unions = context.CStructDecls.Values |> Seq.map StructDecl |> Seq.toList
+
+            let ast = AST <| List.map (fun du -> du :> ITopDef<_>) unions
+            let code = AST.print ast
+
+            File.WriteAllText(outFile, code)
+
+            Utils.filesAreEqual outFile
+            <| Path.Combine(basePath, expectedFile)
+
+    [
+        testGen testCase "Test 1" [ typeof<TranslateTest> ] "Translation.Test1.gen" "Translation.Test1.cl"
     ]
-    |> testSequenced
+
+type SimpleUnion =
+    | SimpleOne
+    | SimpleTwo of int
+
+type OuterUnion =
+    | Outer of int
+    | Inner of SimpleUnion
+
+let collectUnionTests (translator: FSQuotationToOpenCLTranslator) =
+    let testGen testCase name expected command =
+        testCase name <| fun () ->
+            let unions =
+                Body.translate command
+                |> State.exec (TranslationContext.Create(TranslatorOptions()))
+                |> fun context -> context.CStructDecls.Keys
+
+            Expect.sequenceEqual unions expected "Should be equal"
+
+    [
+        testGen testCase "Simple union" [| typeof<SimpleUnion> |]
+            <@ let x = SimpleOne
+               let y = SimpleTwo 2
+               ()
+            @>
+
+        testGen testCase "Nested union 1" [| typeof<SimpleUnion>; typeof<OuterUnion> |]
+            <@ let x = Outer 5
+               ()
+            @>
+
+        testGen testCase "Nested union 2" [| typeof<SimpleUnion>; typeof<OuterUnion> |]
+            <@ let x = Inner <| SimpleOne
+               ()
+            @>
+    ]
+
+let commonApiTests translator = [
+    // TODO is it correct?
+    ptestCase "Using atomic in lambda should not raise exception if first parameter passed" <| fun () ->
+        let command =
+            <@
+                fun (range:  Range1D) (buffer: int[]) ->
+                let g = atomic (fun x y -> x + 1) buffer.[0]
+                g 5 |> ignore
+            @>
+
+        command |> openclTranslate translator |> ignore
+
+    // TODO is it correct?
+    ptestCase "Using atomic in lambda should raise exception if first parameter is argument" <| fun () ->
+        let command =
+            <@
+                fun (range:  Range1D) (buffer: int[]) ->
+                let g x y = atomic (+) x y
+                g buffer.[0] 6 |> ignore
+            @>
+
+        Expect.throwsT<System.ArgumentException>
+        <| fun () -> command |> openclTranslate translator |> ignore
+        <| "Exception should be thrown"
+]
+
+let tests translator =
+    [
+        testList "Basic tests on LocalID translation" << basicLocalIdTests
+        testList "Basic tests on getting WorkSize translation" << basicWorkSizeTests
+        testList "Basic operations translation tests" << basicBinOpsTests
+        testList "Control flow translation tests" << controlFlowTests
+        testList "Tests on variables renaming." << namesResolvingTests
+        testList "Quotations injection tests" << quotationsInjectionTests
+        testList "Constant array translation tests." << constantArrayTests
+        testList "Let transformation tests" << lambdaLiftingTests
+        ptestList "Currying translation test" << curryingTests
+        ptestList "Test of local memory declaration functions" << localMemoryTests
+        ptestList "Translation of local memory allocation functions" << localMemoryAllocationTests
+        testList "Translation of printf" << printfTests
+        testList "Barrier translation tests" << barrierTests
+        testList "Translate union" << unionTests
+        testList "Collect union tests" << collectUnionTests
+        testList "Common Api Tests" << commonApiTests
+    ]
+    |> List.map (fun testFixture -> testFixture translator)
+

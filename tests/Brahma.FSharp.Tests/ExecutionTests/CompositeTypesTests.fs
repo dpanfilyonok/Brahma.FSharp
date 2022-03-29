@@ -9,6 +9,30 @@ open FsCheck
 // Incomplete pattern matching in record deconstruction
 #nowarn "667"
 
+[<AutoOpen>]
+module Helpers =
+    let check<'a when 'a : struct and 'a : equality> context (data: 'a[]) (command: int -> Expr<Range1D -> ClArray<'a> -> unit>) =
+        let length = data.Length
+
+        let expected = data
+
+        let actual =
+            opencl {
+                use! buffer = ClArray.toDevice data
+                do! runCommand (command length) <| fun it ->
+                    it
+                    <| Range1D.CreateValid(data.Length, 256)
+                    <| buffer
+
+                return! ClArray.toHost buffer
+            }
+            |> ClTask.runSync context
+
+        "Arrays should be equal"
+        |> Expect.sequenceEqual actual expected
+
+    let message typeName = $"Simple test on `%s{typeName}`"
+
 [<Struct>]
 type RecordOfIntInt64 =
     {
@@ -42,29 +66,9 @@ type GenericStruct<'a, 'b> =
     val mutable Y: 'b
     new(x, y) = { X = x; Y = y }
 
-let check<'a when 'a : struct and 'a : equality> (data: 'a[]) (command: int -> Expr<Range1D -> ClArray<'a> -> unit>) =
-    let length = data.Length
+let tupleTestCases context = [
+    let inline check data command = check context data command
 
-    let expected = data
-
-    let actual =
-        opencl {
-            use! buffer = ClArray.toDevice data
-            do! runCommand (command length) <| fun it ->
-                it
-                <| Range1D.CreateValid(data.Length, 256)
-                <| buffer
-
-            return! ClArray.toHost buffer
-        }
-        |> ClTask.runSync context
-
-    "Arrays should be equal"
-    |> Expect.sequenceEqual actual expected
-
-let message typeName = sprintf "Simple test on `%s`" typeName
-
-let tupleTestCases = testList "Tuple tests" [
     let inline command length =
         <@
             fun (gid: int) (buffer: clarray<struct('a * 'b)>) ->
@@ -125,7 +129,9 @@ let tupleTestCases = testList "Tuple tests" [
                 @>
 ]
 
-let recordTestCases = testList "Record tests" [
+let recordTestCases context = [
+    let inline check data command = check context data command
+
     let inline command length =
         <@
             fun (gid: int) (buffer: ClArray<GenericRecord<'a, 'b>>) ->
@@ -155,7 +161,10 @@ let genGenericStruct<'a, 'b> =
 type GenericStructGenerator =
     static member GenericStruct() = Arb.fromGen genGenericStruct
 
-let structTests = testList "Struct tests" [
+let structTests context = [
+    let inline check data command = check context data command
+    let inline checkResult cmd input expected = RuntimeTests.Helpers.checkResult context cmd input expected
+
     testCase "Smoke test" <| fun _ ->
         let command =
             <@
@@ -228,10 +237,10 @@ let structTests = testList "Struct tests" [
         if data.Length <> 0 then check data (fun length -> <@ fun (range: Range1D) (buffer: ClArray<_>) -> (%command length) range.GlobalID0 buffer @>)
 ]
 
-let tests =
-    testList "Tests on composite types" [
-        tupleTestCases
-        recordTestCases
-        structTests
+let tests context =
+    [
+        testList "Tuple tests" << tupleTestCases
+        testList "Record tests" << recordTestCases
+        testList "Struct tests" << structTests
     ]
-    |> testSequenced
+    |> List.map (fun testFixture -> testFixture context)

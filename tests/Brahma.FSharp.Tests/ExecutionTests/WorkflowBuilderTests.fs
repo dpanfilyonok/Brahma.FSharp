@@ -1,4 +1,4 @@
-module Workflow
+module WorkflowBuilderTests
 
 open FSharp.Quotations
 open Expecto
@@ -6,27 +6,29 @@ open System.Collections.Generic
 open Brahma.FSharp.OpenCL
 open Brahma.FSharp.Tests
 
-let eqMsg = "Values should be equal"
+[<AutoOpen>]
+module Helpers =
+    let eqMsg = "Values should be equal"
 
-let gpuMap (f: Expr<'a -> 'b>) (input: 'a clarray) =
-    opencl {
-        let! res = ClArray.alloc<'b> input.Length
+    let gpuMap (f: Expr<'a -> 'b>) (input: 'a clarray) =
+        opencl {
+            let! res = ClArray.alloc<'b> input.Length
 
-        let code =
-            <@ fun (range: Range1D) (input: 'a clarray) (output: 'b clarray) ->
-                let idx = range.GlobalID0
-                output.[idx] <- (%f) input.[idx] @>
+            let code =
+                <@ fun (range: Range1D) (input: 'a clarray) (output: 'b clarray) ->
+                    let idx = range.GlobalID0
+                    output.[idx] <- (%f) input.[idx] @>
 
-        do! runCommand code <| fun x ->
-            x
-            <| Range1D input.Length
-            <| input
-            <| res
+            do! runCommand code <| fun x ->
+                x
+                <| Range1D input.Length
+                <| input
+                <| res
 
-        return res
-    }
+            return res
+        }
 
-let bindTests = testList "Simple bind tests" [
+let bindTests context = [
     testCase "Test 1" <| fun _ ->
         let xs = [| 1; 2; 3; 4 |]
 
@@ -61,7 +63,7 @@ let bindTests = testList "Simple bind tests" [
         |> Expect.isTrue (log.[log.Count - 1] = "disposed")
 ]
 
-let loopTests = testList "Loop tests" [
+let loopTests context = [
     testCase "While. Test 1. Without evaluation" <| fun _ ->
         let mutable log : int list = []
 
@@ -109,7 +111,6 @@ let loopTests = testList "Loop tests" [
         Expect.equal output expected eqMsg
 
     testCase "While. Test 3. Do inside body of while loop" <| fun _ ->
-
         let gpuMapInplace f (xs: int clarray ref) =
             opencl {
                 let! res = gpuMap f !xs
@@ -171,10 +172,9 @@ let loopTests = testList "Loop tests" [
         Expect.equal output [| 61; 62; 63; 64 |] eqMsg
 ]
 
-let tests =
-    testList "System tests with running kernels" [
-        bindTests
-        loopTests
+let tests context =
+    [
+        testList "Simple bind tests" << bindTests
+        testList "Loop tests" << loopTests
     ]
-    |> fun x -> Expecto.Sequenced(Synchronous, x)
-
+    |> List.map (fun testFixture -> testFixture context)

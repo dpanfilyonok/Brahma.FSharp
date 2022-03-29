@@ -28,6 +28,10 @@ indent_size = 2
 trim_trailing_whitespace = true
 indent_size = 2
 
+[*.fsproj]
+trim_trailing_whitespace = true
+indent_size = 2
+
 # fantomas conf
 [*.fs]
 fsharp_semicolon_at_end_of_line=false

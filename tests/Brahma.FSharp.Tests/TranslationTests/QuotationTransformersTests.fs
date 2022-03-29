@@ -1,49 +1,52 @@
-module QuotationTransformers
+module QuotationTransformersTests
 
 open Brahma.FSharp.OpenCL
 open Expecto
 open FSharp.Quotations
 open Brahma.FSharp.OpenCL.Translator
 open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
-open Brahma.FSharp.Tests
 
-let eqMsg = "Values should be equal"
+[<AutoOpen>]
+module Helpers =
+    let eqMsg = "Values should be equal"
 
-let rec renameUnitVar (expr: Expr) =
-    let replaceUnitVar (var: Var) =
-        if var.Type = typeof<unit> then
-            Var("unitVar", var.Type, var.IsMutable)
-        else
-            var
+    let rec renameUnitVar (expr: Expr) =
+        let replaceUnitVar (var: Var) =
+            if var.Type = typeof<unit> then
+                Var("unitVar", var.Type, var.IsMutable)
+            else
+                var
 
-    match expr with
-    | ExprShape.ShapeVar var -> Expr.Var(replaceUnitVar var)
-    | ExprShape.ShapeLambda (var, body) -> Expr.Lambda(replaceUnitVar var, renameUnitVar body)
-    | ExprShape.ShapeCombination (shapeComboObj, exprList) ->
-        ExprShape.RebuildShapeCombination(shapeComboObj, List.map renameUnitVar exprList)
+        match expr with
+        | ExprShape.ShapeVar var -> Expr.Var(replaceUnitVar var)
+        | ExprShape.ShapeLambda (var, body) -> Expr.Lambda(replaceUnitVar var, renameUnitVar body)
+        | ExprShape.ShapeCombination (shapeComboObj, exprList) ->
+            ExprShape.RebuildShapeCombination(shapeComboObj, List.map renameUnitVar exprList)
 
-let assertExprEqual (actual: Expr) (expected: Expr) (msg: string) =
-    let actual' = renameUnitVar actual
-    let expected' = renameUnitVar expected
+    let openclTransformQuotation (translator: FSQuotationToOpenCLTranslator) (expr: Expr) =
+        translator.TransformQuotation expr
 
-    Expect.equal
-    <| actual'.ToString()
-    <| expected'.ToString()
-    <| msg
+    let assertExprEqual (actual: Expr) (expected: Expr) (msg: string) =
+        let actual' = renameUnitVar actual
+        let expected' = renameUnitVar expected
 
-let assertMethodEqual (actual: Var * Expr) (expected: Var * Expr) =
-    Expect.equal (fst actual).Name (fst expected).Name "Method names should be equal"
+        Expect.equal
+        <| actual'.ToString()
+        <| expected'.ToString()
+        <| msg
 
-    assertExprEqual (snd actual) (snd expected)
-    <| sprintf "Method bodies of %s is not equal" (fst actual).Name
+    let assertMethodEqual (actual: Var * Expr) (expected: Var * Expr) =
+        Expect.equal (fst actual).Name (fst expected).Name "Method names should be equal"
 
+        assertExprEqual (snd actual) (snd expected)
+        <| $"Method bodies of %s{(fst actual).Name} is not equal"
 let lambdaLiftingTests =
     let genParameterLiftTest testCase name expr expected =
         testCase name <| fun _ ->
             let actual = LambdaLifting.parameterLiftExpr expr
             assertExprEqual actual expected eqMsg
 
-    testList "Parameter lifting test" [
+    [
         genParameterLiftTest
             testCase
             "Test 1"
@@ -62,10 +65,10 @@ let lambdaLiftingTests =
             <@ let x = 1
                let z = x
 
-               let addToX y = /// freeVars: [x, z]
+               let addToX y = // freeVars: [x, z]
                    x + y + z
 
-               let f z1 = /// freeVars: [], addToX freeVars: [x, z]
+               let f z1 = // freeVars: [], addToX freeVars: [x, z]
                    2 + addToX z1
 
                f 3
@@ -137,7 +140,7 @@ let varDefsToLambdaTest =
             let actual = VarDefsToLambdaTransformer.transformVarDefsToLambda expr
             assertExprEqual actual expected eqMsg
 
-    testList "Var defs to lambda test" [
+    [
         genVarDefToLambdaTest
             testCase
             "Test 1"
@@ -213,9 +216,9 @@ let varDefsToLambdaTest =
             @>
     ]
 
-let quotationTransformerTest =
+let quotationTransformerTest translator =
     let sprintfMethods (methods: seq<Method>) =
-        Seq.map (fun (x: Method) -> sprintf "%A\n%A\n" x.FunVar x.FunExpr) methods
+        Seq.map (fun (x: Method) -> $"%A{x.FunVar}\n%A{x.FunExpr}\n") methods
         |> String.concat "\n"
 
     let assertMethodListsEqual (actual: list<Var * Expr>) (expected: list<Var * Expr>) =
@@ -239,12 +242,12 @@ let quotationTransformerTest =
         let expectedKernelExpr, expectedMethods = makeMethods expected
 
         testCase name <| fun _ ->
-            let (actualKernelExpr, actualKernelMethods) = Utils.openclTransformQuotation expr
+            let (actualKernelExpr, actualKernelMethods) = expr |> openclTransformQuotation translator
 
             assertMethodListsEqual actualKernelMethods expectedMethods
             assertExprEqual actualKernelExpr expectedKernelExpr "kernels not equals"
 
-    testList "transformer quotation system tests" [
+    [
         genTest
             testCase
             "Test 0"
@@ -385,9 +388,9 @@ let quotationTransformerTest =
             @>
     ]
 
-let tests =
-    testList "Quotation transformer tests" [
-        quotationTransformerTest
-        lambdaLiftingTests
-        varDefsToLambdaTest
+let tests translator =
+    [
+        testList "Parameter lifting test" lambdaLiftingTests
+        testList "Var defs to lambda test" varDefsToLambdaTest
+        testList "transformer quotation system tests" <| quotationTransformerTest translator
     ]

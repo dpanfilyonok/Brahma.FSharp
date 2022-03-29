@@ -8,19 +8,19 @@ type RuntimeOptions =
     {
         // TODO if 2D or 3D
         WorkgroupSize: int
-        HostAccessMode: HostAccessMode
-        DeviceAccessMode: DeviceAccessMode
-        AllocationModeIfData: AllocationMode
-        AllocationModeIfNoData: AllocationMode
+//        HostAccessMode: HostAccessMode
+//        DeviceAccessMode: DeviceAccessMode
+//        AllocationModeIfData: AllocationMode
+//        AllocationModeIfNoData: AllocationMode
     }
 
     static member Default =
         {
             WorkgroupSize = 256
-            HostAccessMode = HostAccessMode.ReadWrite
-            DeviceAccessMode = DeviceAccessMode.ReadWrite
-            AllocationModeIfData = AllocationMode.AllocAndCopyHostPtr
-            AllocationModeIfNoData = AllocationMode.AllocHostPtr
+//            HostAccessMode = HostAccessMode.ReadWrite
+//            DeviceAccessMode = DeviceAccessMode.ReadWrite
+//            AllocationModeIfData = AllocationMode.AllocAndCopyHostPtr
+//            AllocationModeIfNoData = AllocationMode.AllocHostPtr
         }
 
 type RuntimeContext =

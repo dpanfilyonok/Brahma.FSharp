@@ -241,23 +241,17 @@ module rec Body =
             then
                 return FunCall(fName, args) :> Statement<_>
             else
-                return raise <| InvalidKernelException(
-                    sprintf "Seems, that you use math function with name %s not from System.Math or Microsoft.FSharp.Core.Operators" fName
-                )
+                return raise <| InvalidKernelException $"Seems, that you use math function with name %s{fName} not from System.Math or Microsoft.FSharp.Core.Operators"
         | "abs" as fName ->
             if mInfo.DeclaringType.AssemblyQualifiedName.StartsWith("Microsoft.FSharp.Core.Operators") then
                 return FunCall("fabs", args) :> Statement<_>
             else
-                return raise <| InvalidKernelException(
-                    sprintf "Seems, that you use math function with name %s not from System.Math or Microsoft.FSharp.Core.Operators" fName
-                )
+                return raise <| InvalidKernelException $"Seems, that you use math function with name %s{fName} not from System.Math or Microsoft.FSharp.Core.Operators"
         | "powinteger" as fName ->
             if mInfo.DeclaringType.AssemblyQualifiedName.StartsWith("Microsoft.FSharp.Core.Operators") then
                 return FunCall("powr", args) :> Statement<_>
             else
-                return raise <| InvalidKernelException(
-                    sprintf "Seems, that you use math function with name %s not from System.Math or Microsoft.FSharp.Core.Operators" fName
-                )
+                return raise <| InvalidKernelException $"Seems, that you use math function with name %s{fName} not from System.Math or Microsoft.FSharp.Core.Operators"
         | "ref" -> return Ptr args.[0] :> Statement<_>
         | "op_dereference" -> return IndirectionOp args.[0] :> Statement<_>
         | "op_colonequals" ->
@@ -308,7 +302,7 @@ module rec Body =
             let! (idx, hVar) = itemHelper [Expr.Value 0] hostVar
             return Item(hVar, idx) :> Expression<_>
 
-        | _ -> return raise <| InvalidKernelException(sprintf "Unsupported property in kernel: %A" propName)
+        | _ -> return raise <| InvalidKernelException $"Unsupported property in kernel: %A{propName}"
     }
 
     let private translatePropGet (exprOpt: Expr Option) (propInfo: PropertyInfo) exprs = translation {
@@ -335,7 +329,7 @@ module rec Body =
             | Lower (nameof Anchors._localSize1) -> return FunCall("get_local_size", [Const(PrimitiveType Int, "1")]) :> Expression<_>
             | Lower (nameof Anchors._localSize2) -> return FunCall("get_local_size", [Const(PrimitiveType Int, "2")]) :> Expression<_>
 
-            | _ -> return raise <| InvalidKernelException(sprintf "Unsupported static property get in kernel: %A" propName)
+            | _ -> return raise <| InvalidKernelException $"Unsupported static property get in kernel: %A{propName}"
     }
 
     let private translatePropSet exprOpt (propInfo: System.Reflection.PropertyInfo) exprs newVal = translation {
@@ -367,7 +361,7 @@ module rec Body =
                     let! translated = translateFieldSet expr propInfo.Name newVal
                     return translated :> Statement<_>
             }
-        | None -> return raise <| InvalidKernelException(sprintf "Unsupported static property set in kernel: %A" propName)
+        | None -> return raise <| InvalidKernelException $"Unsupported static property set in kernel: %A{propName}"
     }
 
     let translateAsExpr expr = translation {
@@ -379,11 +373,8 @@ module rec Body =
         match! State.gets (fun context -> context.Namer.GetCLVarName var.Name) with
         | Some varName -> return Variable varName
         | None ->
-            return raise <| InvalidKernelException(
-                sprintf
-                    "Seems, that you try to use variable with name %A, that declared out of quotation. \
-                    Please, pass it as quoted function's parametaer." var.Name
-            )
+            return raise <| InvalidKernelException $"Seems, that you try to use variable with name %A{var.Name}, that declared out of quotation. \
+                    Please, pass it as quoted function's parametaer."
     }
 
     let translateValue (value: obj) (sType: System.Type) =
@@ -656,7 +647,7 @@ module rec Body =
             | Patterns.Value (calledName, sType) ->
                 match sType.Name.ToLowerInvariant() with
                 | "string" -> return (calledName :?> string), args
-                | _ -> return raise <| TranslationFailedException(sprintf "Failed to parse provided call, expected string call name: %O" expr)
+                | _ -> return raise <| TranslationFailedException $"Failed to parse provided call, expected string call name: {expr}"
             | Patterns.Sequential (expr1, expr2) ->
                 let! updatedArgs = translation {
                     match expr2 with
@@ -666,7 +657,7 @@ module rec Body =
                         return a :: args
                 }
                 return! traverse expr1 updatedArgs
-            | _ -> return raise <| TranslationFailedException(sprintf "Failed to parse provided call: %O" expr)
+            | _ -> return raise <| TranslationFailedException $"Failed to parse provided call: {expr}"
         }
 
         let! m = traverse expr []
@@ -679,8 +670,8 @@ module rec Body =
         }
 
         match expr with
-        | Patterns.AddressOf expr -> return raise <| InvalidKernelException(sprintf "AdressOf is not suported: %O" expr)
-        | Patterns.AddressSet expr -> return raise <| InvalidKernelException(sprintf "AdressSet is not suported: %O" expr)
+        | Patterns.AddressOf expr -> return raise <| InvalidKernelException $"AdressOf is not suported: {expr}"
+        | Patterns.AddressSet expr -> return raise <| InvalidKernelException $"AdressSet is not suported: {expr}"
 
         | Patterns.Application (expr1, expr2) ->
             let! (e, applying) = translateApplication expr1 expr2
@@ -719,33 +710,33 @@ module rec Body =
             return Const(type', value) :> Node<_>
 
         | Patterns.Call (exprOpt, mInfo, args) -> return! translateCall exprOpt mInfo args >>= toNode
-        | Patterns.Coerce (expr, sType) -> return raise <| InvalidKernelException(sprintf "Coerce is not suported: %O" expr)
-        | Patterns.DefaultValue sType -> return raise <| InvalidKernelException(sprintf "DefaulValue is not suported: %O" expr)
+        | Patterns.Coerce (expr, sType) -> return raise <| InvalidKernelException $"Coerce is not suported: {expr}"
+        | Patterns.DefaultValue sType -> return raise <| InvalidKernelException $"DefaulValue is not suported: {expr}"
 
         | Patterns.FieldGet (exprOpt, fldInfo) ->
             match exprOpt with
             | Some expr -> return! translateStructFieldGet expr fldInfo.Name >>= toNode
-            | None -> return raise <| InvalidKernelException(sprintf "FieldGet for empty host is not suported. Field: %A" fldInfo.Name)
+            | None -> return raise <| InvalidKernelException $"FieldGet for empty host is not suported. Field: %A{fldInfo.Name}"
 
         | Patterns.FieldSet (exprOpt, fldInfo, expr) ->
             match exprOpt with
             | Some e -> return! translateFieldSet e fldInfo.Name expr >>= toNode
-            | None -> return raise <| InvalidKernelException(sprintf "Fileld set with empty host is not supported. Field: %A" fldInfo)
+            | None -> return raise <| InvalidKernelException $"Fileld set with empty host is not supported. Field: %A{fldInfo}"
 
         | ForLoopWithStep (loopVar, (start, step, finish), loopBody) -> return! translateForLoop loopVar start finish (Some step) loopBody >>= toNode
         | ForLoop (loopVar, (start, finish), loopBody) -> return! translateForLoop loopVar start finish None loopBody >>= toNode
         | Patterns.ForIntegerRangeLoop (loopVar, start, finish, loopBody) ->  return! translateForLoop loopVar start finish None loopBody >>= toNode
         | Patterns.IfThenElse (cond, thenExpr, elseExpr) -> return! translateIf cond thenExpr elseExpr >>= toNode
 
-        | Patterns.Lambda (var, _expr) ->  return raise <| InvalidKernelException(sprintf "Lambda is not suported: %A" expr)
+        | Patterns.Lambda (var, _expr) ->  return raise <| InvalidKernelException $"Lambda is not suported: %A{expr}"
         | Patterns.Let (var, expr, inExpr) ->
             match var.Name with
             | "___providedCallInfo" -> return! translateProvidedCall expr
             | _ -> return! translateLet var expr inExpr
 
-        | Patterns.LetRecursive (bindings, expr) -> return raise <| InvalidKernelException(sprintf "LetRecursive is not suported: %O" expr)
-        | Patterns.NewArray (sType, exprs) -> return raise <| InvalidKernelException(sprintf "NewArray is not suported: %O" expr)
-        | Patterns.NewDelegate (sType, vars, expr) -> return raise <| InvalidKernelException(sprintf "NewDelegate is not suported: %O" expr)
+        | Patterns.LetRecursive (bindings, expr) -> return raise <| InvalidKernelException $"LetRecursive is not suported: {expr}"
+        | Patterns.NewArray (sType, exprs) -> return raise <| InvalidKernelException $"NewArray is not suported: {expr}"
+        | Patterns.NewDelegate (sType, vars, expr) -> return raise <| InvalidKernelException $"NewDelegate is not suported: {expr}"
 
         | Patterns.NewObject (constrInfo, exprs) ->
             let! context = State.get
@@ -790,10 +781,10 @@ module rec Body =
         | Patterns.PropertyGet (exprOpt, propInfo, exprs) -> return! translatePropGet exprOpt propInfo exprs >>= toNode
         | Patterns.PropertySet (exprOpt, propInfo, exprs, expr) -> return! translatePropSet exprOpt propInfo exprs expr >>= toNode
         | Patterns.Sequential (expr1, expr2) -> return! translateSeq expr1 expr2 >>= toNode
-        | Patterns.TryFinally (tryExpr, finallyExpr) -> return raise <| InvalidKernelException(sprintf "TryFinally is not suported: %O" expr)
-        | Patterns.TryWith (expr1, var1, expr2, var2, expr3) -> return raise <| InvalidKernelException(sprintf "TryWith is not suported: %O" expr)
-        | Patterns.TupleGet (expr, i) -> return! translateStructFieldGet expr ("_" + (string (i + 1))) >>= toNode
-        | Patterns.TypeTest (expr, sType) -> return raise <| InvalidKernelException(sprintf "TypeTest is not suported: %O" expr)
+        | Patterns.TryFinally (tryExpr, finallyExpr) -> return raise <| InvalidKernelException $"TryFinally is not suported: {expr}"
+        | Patterns.TryWith (expr1, var1, expr2, var2, expr3) -> return raise <| InvalidKernelException $"TryWith is not suported: {expr}"
+        | Patterns.TupleGet (expr, i) -> return! translateStructFieldGet expr $"_{i + 1}" >>= toNode
+        | Patterns.TypeTest (expr, sType) -> return raise <| InvalidKernelException $"TypeTest is not suported: {expr}"
 
         | Patterns.UnionCaseTest (expr, unionCaseInfo) ->
             let! unionInfo = Type.translate unionCaseInfo.DeclaringType
@@ -824,5 +815,5 @@ module rec Body =
         | Patterns.Var var -> return! translateVar var >>= toNode
         | Patterns.VarSet (var, expr) -> return! translateVarSet var expr >>= toNode
         | Patterns.WhileLoop (condExpr, bodyExpr) -> return! translateWhileLoop condExpr bodyExpr >>= toNode
-        | _ -> return raise <| InvalidKernelException(sprintf "Folowing expression inside kernel is not supported:\n%O" expr)
+        | _ -> return raise <| InvalidKernelException $"Folowing expression inside kernel is not supported:\n{expr}"
     }

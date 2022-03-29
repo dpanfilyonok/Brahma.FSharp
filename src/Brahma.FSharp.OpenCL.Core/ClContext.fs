@@ -15,3 +15,22 @@ type ClContext(clDevice: ClDevice) =
     member this.ClDevice = clDevice
 
     member this.Context = context
+
+    override this.ToString() =
+        let mutable e = ErrorCode.Unknown
+        let context = this
+        let device = context.ClDevice.Device
+        let deviceName = Cl.GetDeviceInfo(device, DeviceInfo.Name, &e).ToString()
+        if deviceName.Length < 20 then
+            $"%s{deviceName}"
+        else
+            let platform = Cl.GetDeviceInfo(device, DeviceInfo.Platform, &e).CastTo<Platform>()
+            let platformName = Cl.GetPlatformInfo(platform, PlatformInfo.Name, &e).ToString()
+            let deviceType =
+                match Cl.GetDeviceInfo(device, DeviceInfo.Type, &e).CastTo<DeviceType>() with
+                | DeviceType.Cpu -> "CPU"
+                | DeviceType.Gpu -> "GPU"
+                | DeviceType.Accelerator -> "Accelerator"
+                | _ -> "another"
+
+            $"%s{platformName}, %s{deviceType}"

@@ -86,7 +86,7 @@ type ClDevice(device: Device) =
             fun e -> Cl.GetDeviceInfo(device, DeviceInfo.Extensions, e).ToString()
             |> throwOnError
 
-    static member GetAllDevices(?platform: Platform, ?deviceType: DeviceType) =
+    static member GetAvailableDevices(?platform: Platform, ?deviceType: DeviceType) =
         let platform = defaultArg platform Platform.Any
         let deviceType = defaultArg deviceType DeviceType.Default
 
@@ -98,7 +98,7 @@ type ClDevice(device: Device) =
         let error = ref Unchecked.defaultof<ErrorCode>
 
         Cl.GetPlatformIDs error
-        |> Array.choose
+        |> Seq.choose
             (fun platform ->
                 let platformName = Cl.GetPlatformInfo(platform, PlatformInfo.Name, error).ToString()
                 if platformNameRegex.Match(platformName).Success then
@@ -106,14 +106,15 @@ type ClDevice(device: Device) =
                 else
                     None
             )
-        |> Array.concat
+        |> Seq.concat
+        |> Seq.map ClDevice
 
     static member GetFirstAppropriateDevice(?platform: Platform, ?deviceType: DeviceType) =
         let platform = defaultArg platform Platform.Any
         let deviceType = defaultArg deviceType DeviceType.Default
 
         try
-            ClDevice(ClDevice.GetAllDevices(platform, deviceType).[0])
+            Seq.head <| ClDevice.GetAvailableDevices(platform, deviceType)
         with
         | :? System.ArgumentException as ex ->
             raise <| EmptyDevicesException $"No %A{deviceType} devices on platform %A{platform} were found"
