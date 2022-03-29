@@ -44,24 +44,19 @@ namespace OpenCL.Net
 
             if (libraryName == Library)
             {
-                if (NativeLibrary.TryLoad(Library, assembly, searchPath, out libHandle))
-                {
-                    return libHandle;
-                }
-                else if (NativeLibrary.TryLoad(envOclPath, assembly, searchPath, out libHandle)) 
-                {
-                    return libHandle;
-                }
-            
                 try
                 {
                     if (OperatingSystem.IsLinux())
                     {
-                        libHandle = NativeLibrary.Load("/usr/lib/x86_64-linux-gnu/libOpenCL.so.1.0.0", assembly, searchPath);
+                        libHandle = NativeLibrary.Load(envOclPath ?? "/usr/lib/x86_64-linux-gnu/libOpenCL.so.1.0.0", assembly, searchPath);
                     }
                     else if (OperatingSystem.IsMacOS())
                     {
-                        libHandle = NativeLibrary.Load("/System/Library/Frameworks/OpenCL.framework/OpenCL", assembly, searchPath);
+                        libHandle = NativeLibrary.Load(envOclPath ?? "/System/Library/Frameworks/OpenCL.framework/OpenCL", assembly, searchPath);
+                    }
+                    else
+                    {
+                        libHandle = NativeLibrary.Load(envOclPath ?? Library, assembly, searchPath);
                     }
                 }
                 catch (DllNotFoundException e)

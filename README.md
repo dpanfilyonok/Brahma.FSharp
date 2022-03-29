@@ -1,47 +1,18 @@
-# Brahma.FSharp [![NuGet Status](http://img.shields.io/nuget/v/Brahma.FSharp.svg?style=flat)](https://www.nuget.org/packages/Brahma.FSharp/)
+# Brahma.FSharp 
 
-Brahma.FSharp is a library for F# quotations to OpenCL translation.
+[![FAKE Build](https://github.com/YaccConstructor/Brahma.FSharp/actions/workflows/build.yml/badge.svg)](https://github.com/YaccConstructor/Brahma.FSharp/actions/workflows/build.yml) 
+[![NuGet Badge](https://buildstats.info/nuget/Brahma.FSharp)](https://www.nuget.org/packages/Brahma.FSharp/)
+[![NuGet Badge](https://buildstats.info/nuget/Brahma.FSharp?includePreReleases=true)](https://www.nuget.org/packages/Brahma.FSharp/)
+[![License](https://img.shields.io/badge/License-EPL_1.0-red.svg)](https://opensource.org/licenses/EPL-1.0)
+
+**Brahma.FSharp** provides a way to utilize GPGPUs in your F# programms. It is based on F# quotations to OpenCL translation.
 
 Features of Brahma.FSharp:
 * We are aimed to translate native F# code to OpenCL with minimization of different wrappers and custom types.
-* We use OpenCL for communication with GPU. So, you can work not only with NVIDIA cards but with any device, which support OpenCL (e.g. with AMD devices).
+* We use OpenCL for communication with GPU. So, you can work not only with NVIDIA cards but with any device, which support OpenCL (e.g. with AMD ot Intel devices).
 
 More detailes are available [here](https://yaccconstructor.github.io/Brahma.FSharp/).
 Examples of usage are available [here](https://github.com/YaccConstructor/Brahma.FSharp.Examples).
-
-## Build
-
-To build project use
-
-    > build.cmd // on windows    
-    $ ./build.sh  // on unix
-
-
-## Build Status
-
-| branch | Mono | .NET |
-|---------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
-| master | [![Mono CI Build Status](https://img.shields.io/travis/YaccConstructor/Brahma.FSharp/master.svg)](https://travis-ci.org/YaccConstructor/Brahma.FSharp) | [![.NET Build Status](https://img.shields.io/appveyor/ci/gsvgit/brahma-fsharp/master.svg)](https://ci.appveyor.com/project/gsvgit/brahma-fsharp) |
-| dev | [![Mono CI Build Status](https://img.shields.io/travis/YaccConstructor/Brahma.FSharp/dev.svg)](https://travis-ci.org/YaccConstructor/Brahma.FSharp) | [![.NET Build Status](https://img.shields.io/appveyor/ci/gsvgit/brahma-fsharp/dev.svg)](https://ci.appveyor.com/project/gsvgit/brahma-fsharp) |
-
-## Maintainer(s)
-
-- [@gsvgit](https://github.com/gsvgit)
-
----
-
-## Builds
-
-GitHub Actions |
-:---: |
-[![GitHub Actions](https://github.com/YaccConstructor/Brahma.FSharp/workflows/Build%20master/badge.svg)](https://github.com/YaccConstructor/Brahma.FSharp/actions?query=branch%3Amaster) |
-[![Build History](https://buildstats.info/github/chart/YaccConstructor/Brahma.FSharp)](https://github.com/YaccConstructor/Brahma.FSharp/actions?query=branch%3Amaster) |
-
-## NuGet 
-
-Package | Stable | Prerelease
---- | --- | ---
-Brahma.FSharp | [![NuGet Badge](https://buildstats.info/nuget/Brahma.FSharp)](https://www.nuget.org/packages/Brahma.FSharp/) | [![NuGet Badge](https://buildstats.info/nuget/Brahma.FSharp?includePreReleases=true)](https://www.nuget.org/packages/Brahma.FSharp/)
 
 ---
 
