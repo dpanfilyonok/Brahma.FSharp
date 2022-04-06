@@ -7,21 +7,21 @@
         <LangVersion>4.7</LangVersion>
     </PropertyGroup>
     <ItemGroup>
-        <Compile Include="AssemblyInfo.fs"/>
-        <Compile Include="Common.fs"/>
-        <Compile Include="FullTests.fs"/>
-        <Compile Include="WorkflowTests.fs"/>
-        <Compile Include="TranslatorTests.fs"/>
-        <Compile Include="QuotationsTransformerTests.fs"/>
-        <Compile Include="CompositeTypesTests.fs"/>
-        <Compile Include="UnionTests.fs"/>
-        <Compile Include="AtomicTests.fs"/>
-        <Compile Include="Program.fs"/>
+        <Compile Include="AssemblyInfo.fs" />
+        <Compile Include="Common.fs" />
+        <Compile Include="FullTests.fs" />
+        <Compile Include="WorkflowTests.fs" />
+        <Compile Include="TranslatorTests.fs" />
+        <Compile Include="QuotationsTransformerTests.fs" />
+        <Compile Include="CompositeTypesTests.fs" />
+        <Compile Include="UnionTests.fs" />
+        <Compile Include="AtomicTests.fs" />
+        <Compile Include="Program.fs" />
     </ItemGroup>
     <ItemGroup>
-        <ProjectReference Include="..\..\src\Brahma.FSharp.OpenCL.Core\Brahma.FSharp.OpenCL.Core.fsproj"/>
-        <ProjectReference Include="..\..\src\Brahma.FSharp.OpenCL.Translator\Brahma.FSharp.OpenCL.Translator.fsproj"/>
-        <ProjectReference Include="..\..\src\YC.OpenCL.NET\YC.OpenCL.NET.csproj"/>
+        <ProjectReference Include="..\..\src\Brahma.FSharp.OpenCL.Core\Brahma.FSharp.OpenCL.Core.fsproj" />
+        <ProjectReference Include="..\..\src\Brahma.FSharp.OpenCL.Translator\Brahma.FSharp.OpenCL.Translator.fsproj" />
+        <ProjectReference Include="..\..\src\YC.OpenCL.NET\YC.OpenCL.NET.csproj" />
     </ItemGroup>
     <ItemGroup>
         <Content Include="UnionExpected\*">
@@ -31,5 +31,5 @@
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
     </ItemGroup>
-    <Import Project="..\..\.paket\Paket.Restore.targets"/>
+    <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

@@ -505,8 +505,7 @@ module rec Body =
         do! State.modify (fun context -> context.VarDecls.Clear(); context)
 
         for expr in linearized do
-            // NOTE тут что то сломалось :(
-            // do! State.modify (fun context -> context.VarDecls.Clear(); context)
+            do! State.modify (fun context -> context.VarDecls.Clear(); context)
             match! translate expr with
             | :? StatementBlock<Lang> as s1 ->
                 decls.AddRange(s1.Statements)
@@ -628,14 +627,16 @@ module rec Body =
         do! State.modify (fun context -> context.VarDecls.Add vDecl; context)
         do! State.modify (fun context -> context.Namer.LetIn var.Name; context)
 
-        let! sb = State.gets (fun context -> context.VarDecls)
         let! res = translate inExpr |> State.using clearContext
+        let! sb = State.gets (fun context -> context.VarDecls)
+
 
         match res with
         | :? StatementBlock<Lang> as s -> sb.AddRange s.Statements
         | _ -> sb.Add(res :?> Statement<_>)
 
         do! State.modify (fun context -> context.Namer.LetOut(); context)
+        do! State.modify clearContext
 
         return StatementBlock sb :> Node<_>
     }
