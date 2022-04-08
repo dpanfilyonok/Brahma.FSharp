@@ -619,7 +619,7 @@ let curryingTests = ptestList "Currying translation test" [
         checkCode command "Nested.Function.Carring2.gen" "Nested.Function.Carring2.cl"
 ]
 
-let localMemoryTests = ptestList "Test of local memory declaration functions" [
+let localMemoryTests = testList "Test of local memory declaration functions" [
     testCase "Local int" <| fun _ ->
         let command =
             <@ fun (range: Range1D) ->
