@@ -1,10 +1,10 @@
 ﻿module CompilationTests
 
 open Expecto
-open Brahma.FSharp.OpenCL
 open Brahma.FSharp.Tests
 open FSharp.Quotations
 open System.IO
+open Brahma.FSharp
 
 [<AutoOpen>]
 module Helpers =
@@ -32,7 +32,7 @@ module Helpers =
     Directory.CreateDirectory(generatedPath) |> ignore
 
     let openclCompile (context: RuntimeContext) (command: Expr<'a -> 'b>) =
-        let kernel = context.GetCompilationContext().Compile(command)
+        let kernel = context.ClContext.Compile(command)
         kernel.Code
 
     let checkCode context command outFile expected =

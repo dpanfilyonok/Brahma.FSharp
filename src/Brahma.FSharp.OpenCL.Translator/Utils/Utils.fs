@@ -1,9 +1,6 @@
 namespace Brahma.FSharp.OpenCL.Translator
 
 open Microsoft.FSharp.Quotations
-open System.Collections.Generic
-open Brahma.FSharp.OpenCL.AST
-open Microsoft.FSharp.Reflection
 open System
 
 module Utils =

@@ -1,7 +1,5 @@
-namespace Brahma.FSharp.OpenCL
+namespace Brahma.FSharp
 
-open Brahma.FSharp.OpenCL
-open Brahma.FSharp.OpenCL.Core
 open FSharp.Quotations
 
 type ClTask<'a> = ClTask of (RuntimeContext -> 'a)
@@ -132,18 +130,18 @@ module ClTaskOpened =
         opencl {
             let! ctx = ClTask.ask
 
-            let kernel = ClKernel(program.Program, program.Lambda, ctx)
+            let kernel = ClKernel(program)
 
             ctx.CommandQueue.Post <| MsgSetArguments(fun () -> binder kernel.KernelFunc)
             ctx.CommandQueue.Post <| Msg.CreateRunMsg<_, _>(kernel)
-            kernel.ReleaseInternalBuffers()
+            kernel.ReleaseInternalBuffers(ctx.CommandQueue)
         }
 
     let runCommand (command: Expr<'range -> 'a>) (binder: ('range -> 'a) -> unit) : ClTask<unit> =
         opencl {
             let! ctx = ClTask.ask
 
-            let program = ctx.GetCompilationContext().Compile(command)
+            let program = ClProgram(ctx.ClContext, command)
 
             do! runKernel program binder
         }

@@ -1,16 +1,13 @@
 module AtomicTests
 
 open Expecto
-open Brahma.FSharp.OpenCL
 open FSharp.Quotations.Evaluator
 open FSharp.Quotations
-open Brahma.FSharp.Tests.Utils
 open Brahma.FSharp.Tests.CustomDatatypes
 open Expecto.Logging
 open Expecto.Logging.Message
-open ExpectoFsCheck
 open FsCheck
-open Brahma.FSharp.Tests
+open Brahma.FSharp
 
 [<AutoOpen>]
 module Helpers =

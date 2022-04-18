@@ -2,11 +2,7 @@ namespace Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 
 open FSharp.Reflection
 open FSharp.Quotations
-open Brahma.FSharp.OpenCL
-open FSharp.Quotations
-open FSharp.Quotations.Patterns
-open FSharp.Reflection
-open FSharp.Core.LanguagePrimitives
+open Brahma.FSharp
 open Brahma.FSharp.OpenCL.Translator
 
 module Utils =

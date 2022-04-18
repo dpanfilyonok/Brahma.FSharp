@@ -1,7 +1,5 @@
-namespace Brahma.FSharp.OpenCL
+﻿namespace Brahma.FSharp
 
-open Brahma.FSharp.OpenCL
-open Brahma.FSharp.OpenCL.Translator
 open Brahma.FSharp.OpenCL.Shared
 open System
 
@@ -36,43 +34,14 @@ type ClArray<'a when 'a : struct> internal (buffer: ClBuffer<'a>) =
     override this.ToString() =
         $"{(buffer :> IClMem).Data}, %A{(buffer :> IClMem).Size}"
 
-type ClCell<'a when 'a : struct> internal (buffer: ClBuffer<'a>) =
-    member internal this.Buffer = buffer
-
-    member this.Value
-        with get () : 'a = FailIfOutsideKernel()
-        and set (value: 'a) = FailIfOutsideKernel()
-
-    interface IDisposable with
-        member this.Dispose() = buffer.Dispose()
-
-    interface IClMem with
-        member this.Size = (buffer :> IClMem).Size
-        member this.Data = (buffer :> IClMem).Data
-
-    interface IBuffer<'a> with
-        member this.Memory = (buffer :> IBuffer<_>).Memory
-        member this.Length = (buffer :> IBuffer<_>).Length
-        member this.ElementSize = (buffer :> IBuffer<_>).ElementSize
-        member this.Free() = (buffer :> IBuffer<_>).Free()
-        member this.Item
-            with get (idx: int) : 'a = FailIfOutsideKernel()
-            and set (idx: int) (value: 'a) = FailIfOutsideKernel()
-
-    member this.Dispose() = (this :> IDisposable).Dispose()
-
 // fsharplint:disable-next-line
 type clarray<'a when 'a : struct> = ClArray<'a>
 
-// fsharplint:disable-next-line
-type clcell<'a when 'a : struct> = ClCell<'a>
-
-// TODO set flags
 module ClArray =
     let toDeviceWithFlags (array: 'a[]) (memFlags: ClMemFlags) = opencl {
         let! context = ClTask.ask
 
-        let buffer = new ClBuffer<'a>(context.ClContext, context.Translator, Data array, memFlags)
+        let buffer = new ClBuffer<'a>(context.ClContext, Data array, memFlags)
         return new ClArray<'a>(buffer)
     }
 
@@ -83,7 +52,7 @@ module ClArray =
     let allocWithFlags<'a when 'a : struct> (size: int) (memFlags: ClMemFlags) = opencl {
         let! context = ClTask.ask
 
-        let buffer = new ClBuffer<'a>(context.ClContext, context.Translator, Size size, memFlags)
+        let buffer = new ClBuffer<'a>(context.ClContext, Size size, memFlags)
         return new ClArray<'a>(buffer)
     }
 
@@ -109,35 +78,4 @@ module ClArray =
     let close (clArray: ClArray<'a>) = opencl {
         let! ctx = ClTask.ask
         ctx.CommandQueue.Post <| Msg.CreateFreeMsg(clArray)
-    }
-
-module ClCell =
-    let toDeviceWithFlags (value: 'a) (memFlags: ClMemFlags) = opencl {
-        let! context = ClTask.ask
-
-        let buffer = new ClBuffer<'a>(context.ClContext, context.Translator, Data [| value |], memFlags)
-        return new ClCell<'a>(buffer)
-    }
-
-    let toDevice (value: 'a) = toDeviceWithFlags value ClMemFlags.DefaultIfData
-
-    let allocWithFlags<'a when 'a : struct> (memFlags: ClMemFlags) = opencl {
-        let! context = ClTask.ask
-
-        let buffer = new ClBuffer<'a>(context.ClContext, context.Translator, Size 1, memFlags)
-        return new ClCell<'a>(buffer)
-    }
-
-    let alloc<'a when 'a : struct> () = allocWithFlags ClMemFlags.DefaultIfNoData
-
-    let toHost (clCell: ClCell<'a>) = opencl {
-        let! context = ClTask.ask
-
-        let array = Array.zeroCreate<'a> 1
-        return context.CommandQueue.PostAndReply(fun ch -> Msg.CreateToHostMsg(clCell.Buffer, array, ch)).[0]
-    }
-
-    // TODO impl it
-    let copy (clCell: ClCell<'a>) = opencl {
-        failwith "Not implemented yet"
     }

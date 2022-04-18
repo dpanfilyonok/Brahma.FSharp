@@ -1,4 +1,4 @@
-﻿namespace Brahma.FSharp.OpenCL
+﻿namespace Brahma.FSharp
 
 open OpenCL.Net
 open Brahma.FSharp.OpenCL.Shared

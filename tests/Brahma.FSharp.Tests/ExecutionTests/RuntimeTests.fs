@@ -1,11 +1,9 @@
 ﻿module RuntimeTests
 
 open Expecto
-open Brahma.FSharp.OpenCL
 open FSharp.Quotations
-open Brahma.FSharp.Tests
 open Expecto.Logging
-open Expecto.Logging.Message
+open Brahma.FSharp
 
 [<AutoOpen>]
 module Helpers =
@@ -566,7 +564,7 @@ let kernelArgumentsTests context = [
     ptestProperty "Parallel execution of kernel" <| fun _const ->
         let n = 4
         let l = 256
-        let getAllocator (ctx: CompilationContext) =
+        let getAllocator (ctx: ClContext) =
             let kernel =
                 <@
                     fun (r: Range1D) (buffer: ClArray<int>) ->
@@ -588,7 +586,7 @@ let kernelArgumentsTests context = [
         let allocator ctx = getAllocator ctx ()
         let allocOnGPU allocator = opencl {
             let! s = ClTask.ask
-            use! b = allocator <| s.GetCompilationContext()
+            use! b = allocator <| s.ClContext
             return! ClArray.toHost b
         }
 

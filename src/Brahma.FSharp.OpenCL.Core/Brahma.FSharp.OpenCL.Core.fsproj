@@ -20,19 +20,20 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="ClException.fs" />
-    <Compile Include="ClDevice.fs" />
-    <Compile Include="ClContext.fs" />
     <Compile Include="NDRange.fs" />
     <Compile Include="IKernel.fs" />
     <Compile Include="Messages.fs" />
     <Compile Include="CommandQueueProvider.fs" />
+    <Compile Include="ClDevice.fs" />
+    <Compile Include="ClContext.fs" />
     <Compile Include="ClBuffer.fs" />
-    <Compile Include="CompilationContext.fs" />
     <Compile Include="ClProgram.fs" />
-    <Compile Include="RuntimeContext.fs" />
     <Compile Include="ClKernel.fs" />
+    <Compile Include="RuntimeContext.fs" />
     <Compile Include="ClTask.fs" />
-    <Compile Include="DataStructures.fs" />
+    <Compile Include="DataStructures\ClArray.fs" />
+    <Compile Include="DataStructures\ClCell.fs" />
+    <Compile Include="ClContextExtensions.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Brahma.FSharp.OpenCL.Printer\Brahma.FSharp.OpenCL.Printer.fsproj" />

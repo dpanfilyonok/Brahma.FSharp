@@ -1,4 +1,4 @@
-namespace Brahma.FSharp.OpenCL
+namespace Brahma.FSharp
 
 open Brahma.FSharp.OpenCL.Shared
 
@@ -14,13 +14,13 @@ type ToGPU<'a when 'a: struct>(src: 'a[], dst: IBuffer<'a>) =
     member this.Destination = dst
     member this.Source = src
 
-type Run<'TRange, 'a when 'TRange :> INDRange>(kernel: IKernel<'TRange, 'a>) =
+type Run(kernel: IKernel) =
     member this.Kernel = kernel
 
 type IRunCrate =
     abstract member Apply : IRunCrateEvaluator -> unit
 and IRunCrateEvaluator =
-    abstract member Eval : Run<'TRange, 'a> -> unit
+    abstract member Eval : Run -> unit
 
 type IToHostCrate =
     abstract member Apply : IToHostCrateEvaluator -> unit
@@ -78,7 +78,7 @@ type Msg =
 
     static member CreateRunMsg<'TRange, 'a when 'TRange :> INDRange>(kernel) =
         { new IRunCrate with
-            member this.Apply evaluator = evaluator.Eval <| Run<'TRange, 'a>(kernel)
+            member this.Apply evaluator = evaluator.Eval <| Run(kernel)
         }
         |> MsgRun
 

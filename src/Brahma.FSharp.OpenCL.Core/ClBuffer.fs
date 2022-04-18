@@ -1,10 +1,9 @@
-namespace Brahma.FSharp.OpenCL
+namespace Brahma.FSharp
 
 open OpenCL.Net
 open System
 open System.Runtime.InteropServices
 open Brahma.FSharp.OpenCL.Shared
-open Brahma.FSharp.OpenCL.Translator
 
 //memory flags: https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clCreateBuffer.html
 
@@ -59,7 +58,6 @@ type BufferInitParam<'a> =
 type ClBuffer<'a when 'a : struct>
     (
         clContext: ClContext,
-        translator: FSQuotationToOpenCLTranslator,
         initParam: BufferInitParam<'a>,
         ?memFlags: ClMemFlags
     ) =
@@ -70,7 +68,7 @@ type ClBuffer<'a when 'a : struct>
         | Size _ -> ClMemFlags.DefaultIfNoData
         |> defaultArg memFlags
 
-    let marshaler = translator.Marshaler
+    let marshaler = clContext.Translator.Marshaler
 
     let intPtrSize = IntPtr(Marshal.SizeOf typedefof<IntPtr>)
 

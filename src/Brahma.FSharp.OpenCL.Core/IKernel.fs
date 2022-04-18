@@ -1,10 +1,7 @@
-namespace Brahma.FSharp.OpenCL
+namespace Brahma.FSharp
 
 open OpenCL.Net
 
-type IKernel<'TRange, 'a when 'TRange :> INDRange> =
+type IKernel =
     abstract Kernel : Kernel
     abstract NDRange : INDRange
-    // TODO not sure about naming
-    abstract KernelFunc : ('TRange -> 'a)
-    abstract ReleaseInternalBuffers : unit -> unit

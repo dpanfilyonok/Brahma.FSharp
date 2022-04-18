@@ -1,6 +1,7 @@
-﻿namespace Brahma.FSharp.OpenCL.Core
+﻿namespace Brahma.FSharp
 
-open Brahma.FSharp.OpenCL
+open Brahma.FSharp
+open Microsoft.FSharp.Control
 open OpenCL.Net
 open Microsoft.FSharp.Quotations
 open FSharp.Quotations.Evaluator
@@ -12,16 +13,14 @@ open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 
 type ClKernel<'TRange, 'a when 'TRange :> INDRange>
     (
-        program: Program,
-        newLambda: Expr,
-        context: RuntimeContext,
+        program: ClProgram<'TRange, 'a>,
         ?kernelName
     ) =
 
     let kernelName = defaultArg kernelName "brahmaKernel"
 
     let kernel =
-        let (clKernel, error) = Cl.CreateKernel(program, kernelName)
+        let (clKernel, error) = Cl.CreateKernel(program.Program, kernelName)
         if error <> ErrorCode.Success then
             failwithf $"OpenCL kernel creation problem. Error: %A{error}"
         clKernel
@@ -43,7 +42,7 @@ type ClKernel<'TRange, 'a when 'TRange :> INDRange>
     let mutexBuffers = ResizeArray<IBuffer<Mutex>>()
 
     let argumentsSetterFunc =
-        match newLambda with
+        match program.Lambda with
         | DerivedPatterns.Lambdas (lambdaArgs, _) ->
             let flattenArgs = List.collect id lambdaArgs
 
@@ -99,7 +98,7 @@ type ClKernel<'TRange, 'a when 'TRange :> INDRange>
                         (%%mutexLengths : int[])
                         |> List.ofArray
                         |> List.map (fun n ->
-                            let mutexBuffer = new ClBuffer<Mutex>(context.ClContext, context.Translator, Size n)
+                            let mutexBuffer = new ClBuffer<Mutex>(program.ClContext, Size n)
                             mutexBuffers.Add mutexBuffer
                             box mutexBuffer
                         )
@@ -113,23 +112,25 @@ type ClKernel<'TRange, 'a when 'TRange :> INDRange>
                 @@>
             )
 
-        | _ -> failwithf $"Invalid kernel expression. Must be lambda, but given\n{newLambda}"
+        | _ -> failwithf $"Invalid kernel expression. Must be lambda, but given\n{program.Lambda}"
 
         |> fun kernelPrepare ->
             <@ %%kernelPrepare : 'TRange -> 'a @>.Compile()
 
-    interface IKernel<'TRange, 'a> with
+    member this.KernelFunc = argumentsSetterFunc
+
+    // TODO maybe return seq of IDisposable?
+    member this.ReleaseInternalBuffers(queue: MailboxProcessor<Msg>) =
+        mutexBuffers
+        |> Seq.iter (Msg.CreateFreeMsg >> queue.Post)
+
+        mutexBuffers.Clear()
+
+    interface IKernel with
         member this.Kernel = kernel
         member this.NDRange = range.Value :> INDRange
-        member this.KernelFunc = argumentsSetterFunc
-        member this.ReleaseInternalBuffers() =
-            mutexBuffers
-            |> Seq.iter (Msg.CreateFreeMsg >> context.CommandQueue.Post)
 
-            mutexBuffers.Clear()
-
-    member this.Kernel = (this :> IKernel<_,_>).Kernel
-    member this.NDRange = (this :> IKernel<_,_>).NDRange
-    member this.KernelFunc = (this :> IKernel<_,_>).KernelFunc
-    member this.ReleaseInternalBuffers() = (this :> IKernel<_,_>).ReleaseInternalBuffers()
-
+[<AutoOpen>]
+module ClProgramExtensions =
+    type ClProgram<'TRange, 'a when 'TRange :> INDRange> with
+        member this.GetKernel() =  ClKernel(this)

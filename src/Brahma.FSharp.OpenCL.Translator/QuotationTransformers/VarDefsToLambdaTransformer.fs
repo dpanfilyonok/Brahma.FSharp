@@ -2,7 +2,6 @@ namespace Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 
 open FSharp.Quotations
 open FSharp.Reflection
-open Microsoft.FSharp.Core.LanguagePrimitives
 
 [<AutoOpen>]
 module VarDefsToLambdaTransformer =

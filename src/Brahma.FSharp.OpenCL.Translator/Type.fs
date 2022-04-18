@@ -19,7 +19,6 @@ open Brahma.FSharp.OpenCL.AST
 open System.Reflection
 open FSharp.Reflection
 open Microsoft.FSharp.Collections
-open System.Collections.Generic
 
 module rec Type =
     let (|Name|_|) (str: string) (type': System.Type) =
@@ -90,13 +89,13 @@ module rec Type =
             let! translated = translateTuple type'
             return translated :> Type<_>
 
+        | _ when FSharpType.IsUnion type' ->
+            let! translated = translateUnion type'
+            return translated :> Type<_>
+
         // TODO only struct, not non-struct records
         | _ when Utils.hasAttribute<StructAttribute> type' ->
             let! translated = translateStruct type'
-            return translated :> Type<_>
-
-        | _ when FSharpType.IsUnion type' ->
-            let! translated = translateUnion type'
             return translated :> Type<_>
 
         | other -> return failwithf $"Unsupported kernel type: %A{other}"

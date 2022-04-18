@@ -15,7 +15,6 @@
 
 namespace Brahma.FSharp.OpenCL.Printer
 
-open System
 open Brahma.FSharp.OpenCL.AST
 open Microsoft.FSharp.Text.StructuredFormat.LayoutOps
 open Brahma.FSharp.OpenCL.Printer

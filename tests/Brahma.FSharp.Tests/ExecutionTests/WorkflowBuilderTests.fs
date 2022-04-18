@@ -3,8 +3,7 @@ module WorkflowBuilderTests
 open FSharp.Quotations
 open Expecto
 open System.Collections.Generic
-open Brahma.FSharp.OpenCL
-open Brahma.FSharp.Tests
+open Brahma.FSharp
 
 [<AutoOpen>]
 module Helpers =

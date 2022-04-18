@@ -1,7 +1,7 @@
 ﻿module TranslatorTests
 
 open Expecto
-open Brahma.FSharp.OpenCL
+open Brahma.FSharp
 open Brahma.FSharp.Tests
 open System.IO
 open Brahma.FSharp.OpenCL.Printer

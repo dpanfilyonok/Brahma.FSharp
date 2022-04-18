@@ -1,10 +1,9 @@
 ﻿module CompositeTypesTests
 
 open Expecto
-open Brahma.FSharp.OpenCL
 open FSharp.Quotations
-open Brahma.FSharp.Tests
 open FsCheck
+open Brahma.FSharp
 
 // Incomplete pattern matching in record deconstruction
 #nowarn "667"

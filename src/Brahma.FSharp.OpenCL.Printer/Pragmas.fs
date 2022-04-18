@@ -16,9 +16,7 @@
 namespace Brahma.FSharp.OpenCL.Printer
 
 open Brahma.FSharp.OpenCL.AST
-open Microsoft.FSharp.Text.StructuredFormat
 open Microsoft.FSharp.Text.StructuredFormat.LayoutOps
-open Brahma.FSharp.OpenCL.Printer
 
 module Pragmas =
     let print (clp: CLPragma<_>) =

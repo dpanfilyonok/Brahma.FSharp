@@ -3,10 +3,9 @@ namespace Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 open FSharp.Quotations
 open Brahma.FSharp.OpenCL.Translator
 open Brahma.FSharp.OpenCL.Shared
-open Brahma.FSharp.OpenCL
 open FSharp.Core.LanguagePrimitives
-open FSharp.Quotations.Evaluator
 open System.Collections.Generic
+open Brahma.FSharp
 
 type Mutex = int
 

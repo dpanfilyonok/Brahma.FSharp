@@ -1,8 +1,8 @@
-﻿namespace Brahma.FSharp.OpenCL
+﻿namespace Brahma.FSharp
 
 open OpenCL.Net
 
-type ClContext(clDevice: ClDevice) =
+type ClContext(clDevice: ClDevice, translator, ?options: string) =
     let context =
         let error = ref Unchecked.defaultof<ErrorCode>
         let ctx = Cl.CreateContext(null, 1u, [| clDevice.Device |], null, System.IntPtr.Zero, error)
@@ -12,9 +12,15 @@ type ClContext(clDevice: ClDevice) =
 
         ctx
 
+    member val QueueProvider = CommandQueueProvider(clDevice.Device, context, translator)
+
     member this.ClDevice = clDevice
 
     member this.Context = context
+
+    member this.Translator = translator
+
+    member this.CompilerOptions = options
 
     override this.ToString() =
         let mutable e = ErrorCode.Unknown

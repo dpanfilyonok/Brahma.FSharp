@@ -1,4 +1,4 @@
-namespace Brahma.FSharp.OpenCL
+namespace Brahma.FSharp
 
 [<AutoOpen>]
 type KernelLangExtensions =

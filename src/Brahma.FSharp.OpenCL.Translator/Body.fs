@@ -21,8 +21,8 @@ open Brahma.FSharp.OpenCL.AST
 open Microsoft.FSharp.Collections
 open FSharpx.Collections
 open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
-open Brahma.FSharp.OpenCL
 open FSharp.Quotations.Evaluator
+open Brahma.FSharp
 
 // Translations restricts the generic parameter of the AST nodes to the type Lang
 #nowarn "64"

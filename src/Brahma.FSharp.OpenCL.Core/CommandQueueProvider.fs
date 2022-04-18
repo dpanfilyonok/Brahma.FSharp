@@ -1,12 +1,11 @@
-namespace Brahma.FSharp.OpenCL
+namespace Brahma.FSharp
 
-open Brahma.FSharp.OpenCL
 open Brahma.FSharp.OpenCL.Translator
 open OpenCL.Net
 open System
 open System.Runtime.InteropServices
 
-type CommandQueueProvider(clContext: ClContext, translator: FSQuotationToOpenCLTranslator) =
+type CommandQueueProvider(device, context, translator: FSQuotationToOpenCLTranslator) =
     let finish queue =
         let error = Cl.Finish(queue)
         if error <> ErrorCode.Success then
@@ -91,7 +90,7 @@ type CommandQueueProvider(clContext: ClContext, translator: FSQuotationToOpenCLT
             let commandQueue =
                 let error = ref Unchecked.defaultof<ErrorCode>
                 let props = CommandQueueProperties.None
-                let queue = Cl.CreateCommandQueue(clContext.Context, clContext.ClDevice.Device, props, error)
+                let queue = Cl.CreateCommandQueue(context, device, props, error)
 
                 if error.Value <> ErrorCode.Success then
                     raise <| Cl.Exception error.Value

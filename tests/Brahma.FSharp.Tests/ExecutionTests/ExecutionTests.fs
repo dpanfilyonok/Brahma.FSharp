@@ -1,18 +1,17 @@
 ﻿module ExecutionTests
 
-open Brahma.FSharp.OpenCL
 open Brahma.FSharp.OpenCL.Translator
 open Expecto
-open Brahma.FSharp.Tests
+open Brahma.FSharp
 
 // TODO make it lazy
 let allContexts =
     ClDevice.GetAvailableDevices()
     |> Seq.map
         (fun device ->
-            let clContext = ClContext(device)
             let translator = FSQuotationToOpenCLTranslator(device)
-            RuntimeContext.Create(clContext, translator)
+            let clContext = ClContext(device, translator)
+            RuntimeContext(clContext)
         )
 let tests = [
     for context in allContexts do yield! [

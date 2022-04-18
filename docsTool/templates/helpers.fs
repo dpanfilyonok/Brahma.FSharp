@@ -1,5 +1,4 @@
 module Helpers
-open System
 open Fable.React
 open Fable.React.Props
 open FSharp.MetadataFormat
