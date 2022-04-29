@@ -3,7 +3,7 @@
 open Brahma.FSharp.OpenCL.Shared
 open System
 
-type ClArray<'a when 'a : struct> internal (buffer: ClBuffer<'a>) =
+type ClArray<'a> internal (buffer: ClBuffer<'a>) =
     member internal this.Buffer = buffer
 
     member this.Length = buffer.Length
@@ -35,7 +35,7 @@ type ClArray<'a when 'a : struct> internal (buffer: ClBuffer<'a>) =
         $"{(buffer :> IClMem).Data}, %A{(buffer :> IClMem).Size}"
 
 // fsharplint:disable-next-line
-type clarray<'a when 'a : struct> = ClArray<'a>
+type clarray<'a> = ClArray<'a>
 
 module ClArray =
     let toDeviceWithFlags (array: 'a[]) (memFlags: ClMemFlags) = opencl {
@@ -49,14 +49,14 @@ module ClArray =
     // TODO if array.Length = 0 ...
     let toDevice (array: 'a[]) = toDeviceWithFlags array ClMemFlags.DefaultIfData
 
-    let allocWithFlags<'a when 'a : struct> (size: int) (memFlags: ClMemFlags) = opencl {
+    let allocWithFlags<'a> (size: int) (memFlags: ClMemFlags) = opencl {
         let! context = ClTask.ask
 
         let buffer = new ClBuffer<'a>(context.ClContext, Size size, memFlags)
         return new ClArray<'a>(buffer)
     }
 
-    let alloc<'a when 'a : struct> (size: int) = allocWithFlags<'a> size ClMemFlags.DefaultIfNoData
+    let alloc<'a> (size: int) = allocWithFlags<'a> size ClMemFlags.DefaultIfNoData
 
     let toHost (clArray: ClArray<'a>) = opencl {
         let! context = ClTask.ask

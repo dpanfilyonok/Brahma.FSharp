@@ -3,7 +3,7 @@
 open Brahma.FSharp.OpenCL.Shared
 open System
 
-type ClCell<'a when 'a : struct> internal (buffer: ClBuffer<'a>) =
+type ClCell<'a> internal (buffer: ClBuffer<'a>) =
     member internal this.Buffer = buffer
 
     member this.Value
@@ -29,7 +29,7 @@ type ClCell<'a when 'a : struct> internal (buffer: ClBuffer<'a>) =
     member this.Dispose() = (this :> IDisposable).Dispose()
 
 // fsharplint:disable-next-line
-type clcell<'a when 'a : struct> = ClCell<'a>
+type clcell<'a> = ClCell<'a>
 
 module ClCell =
     let toDeviceWithFlags (value: 'a) (memFlags: ClMemFlags) = opencl {
@@ -41,14 +41,14 @@ module ClCell =
 
     let toDevice (value: 'a) = toDeviceWithFlags value ClMemFlags.DefaultIfData
 
-    let allocWithFlags<'a when 'a : struct> (memFlags: ClMemFlags) = opencl {
+    let allocWithFlags<'a> (memFlags: ClMemFlags) = opencl {
         let! context = ClTask.ask
 
         let buffer = new ClBuffer<'a>(context.ClContext, Size 1, memFlags)
         return new ClCell<'a>(buffer)
     }
 
-    let alloc<'a when 'a : struct> () = allocWithFlags ClMemFlags.DefaultIfNoData
+    let alloc<'a> () = allocWithFlags ClMemFlags.DefaultIfNoData
 
     let toHost (clCell: ClCell<'a>) = opencl {
         let! context = ClTask.ask

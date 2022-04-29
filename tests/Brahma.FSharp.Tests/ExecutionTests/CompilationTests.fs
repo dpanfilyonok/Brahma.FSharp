@@ -8,24 +8,6 @@ open Brahma.FSharp
 
 [<AutoOpen>]
 module Helpers =
-    type SimpleUnion =
-    | SimpleOne
-    | SimpleTwo of int
-
-    type OuterUnion =
-        | Outer of int
-        | Inner of SimpleUnion
-
-    type TranslateTest =
-        | A of int * float
-        | B of double
-        | C
-
-    type TranslateMatchTestUnion =
-        | Case1
-        | Case2 of int
-        | Case3 of int * int
-
     let basePath = "ExecutionTests/Expected/"
     let generatedPath = "ExecutionTests/Generated/"
 
@@ -44,6 +26,24 @@ module Helpers =
 
         Utils.filesAreEqual targetPath expectedPath
 
+type SimpleUnion =
+    | SimpleOne
+    | SimpleTwo of int
+
+type OuterUnion =
+    | Outer of int
+    | Inner of SimpleUnion
+
+type TranslateTest =
+    | A of int * float
+    | B of double
+    | C
+
+type TranslateMatchTestUnion =
+    | Case1
+    | Case2 of int
+    | Case3 of int * int
+
 let unionTests context =
     let testGen testCase name outFile expectedFile command =
         testCase name <| fun () -> checkCode context command outFile expectedFile
@@ -51,7 +51,7 @@ let unionTests context =
     let newUnionTestList =
         [
             testGen
-                ptestCase
+                testCase
                 "Test 1: TranslateTest.A"
                 "Union.Compile.Test1.gen"
                 "Union.Compile.Test1.cl"
@@ -61,7 +61,7 @@ let unionTests context =
                     y <- 7 @>
 
             testGen
-                  ptestCase
+                  testCase
                   "Test 2: TranslateTest.B"
                   "Union.Compile.Test2.gen"
                   "Union.Compile.Test2.cl"
@@ -71,7 +71,7 @@ let unionTests context =
                       y <- 7 @>
 
             testGen
-                  ptestCase
+                  testCase
                   "Test 3: TranslateTest.C"
                   "Union.Compile.Test3.gen"
                   "Union.Compile.Test3.cl"
@@ -81,7 +81,7 @@ let unionTests context =
                       y <- 7 @>
 
             testGen
-                  ptestCase
+                  testCase
                   "Test 4: OuterUnion.Outer"
                   "Union.Compile.Test4.gen"
                   "Union.Compile.Test4.cl"
@@ -91,7 +91,7 @@ let unionTests context =
                       y <- 7 @>
 
             testGen
-                  ptestCase
+                  testCase
                   "Test 5: OuterUnion.Inner"
                   "Union.Compile.Test5.gen"
                   "Union.Compile.Test5.cl"

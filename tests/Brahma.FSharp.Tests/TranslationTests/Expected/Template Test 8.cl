@@ -9,12 +9,12 @@ int y (private int l, __global int * m, private int n, private int a)
  return z (a, m, ((a + x) + l)) ;}
 int rUnitFunc (private int l, __global int * m, private int n)
 {return y (l, m, n, 6) ;}
-int x1 (__global int * m, private int n)
+int x17 (__global int * m, private int n)
 {int l = m [9] ;
  int r = rUnitFunc (l, m, n) ;
  return (r + m [3]) ;}
 int ItemUnitFunc (__global int * m)
-{return x1 (m, 7) ;}
+{return x17 (m, 7) ;}
 __kernel void brahmaKernel (__global int * m)
 {int p = m [0] ;
  m [0] = ItemUnitFunc (m) ;}

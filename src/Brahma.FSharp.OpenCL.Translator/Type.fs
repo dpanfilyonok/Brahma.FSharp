@@ -180,7 +180,17 @@ module rec Type =
                                 ]
                                 |> State.collect
 
-                            return tag, { Name = structName; Type = StructInplaceType(structName + "Type", fields) }
+                            let! context = State.get
+                            let conter =
+                                let mutable i = 0
+                                if context.StructInplaceCounter.TryGetValue($"{structName}Type", &i) then
+                                    context.StructInplaceCounter.[$"{structName}Type"] <- i + 1
+                                    i
+                                else
+                                    context.StructInplaceCounter.Add($"{structName}Type", 1)
+                                    0
+
+                            return tag, { Name = structName; Type = StructInplaceType($"{structName}Type{conter}", fields) }
                         }
                 ]
                 |> State.collect

@@ -7,7 +7,7 @@ type IClMem =
     abstract member Size : IntPtr
     abstract member Data : obj
 
-type IBuffer<'a when 'a : struct> =
+type IBuffer<'a> =
     inherit IClMem
     inherit IDisposable
 

@@ -41,7 +41,7 @@ type CommandQueueProvider(device, context, translator: FSQuotationToOpenCLTransl
                 let marshaler = translator.Marshaler
 
                 // TODO source or dest length??
-                let size = crate.Destination.Length * marshaler.GetTypePacking(typeof<'a>).ElementSize
+                let size = crate.Destination.Length * marshaler.GetTypePacking(typeof<'a>).Size
                 let hostMem = Marshal.AllocHGlobal size
 
                 let error =
@@ -50,7 +50,7 @@ type CommandQueueProvider(device, context, translator: FSQuotationToOpenCLTransl
                         clMem,
                         Bool.False,
                         IntPtr(0),
-                        IntPtr(crate.Source.Length * marshaler.GetTypePacking(typeof<'a>).ElementSize),
+                        IntPtr(crate.Source.Length * marshaler.GetTypePacking(typeof<'a>).Size),
                         hostMem,
                         0u,
                         null,

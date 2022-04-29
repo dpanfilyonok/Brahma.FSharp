@@ -1,10 +1,9 @@
 #pragma OPENCL EXTENSION cl_khr_fp64 : enable
-typedef struct TranslateTest {int tag ;
-                              union TranslateTest_Data {struct AType {int Item1 ;
-                                                                      double Item2 ;} A ;
-                                                        struct BType {double Item ;} B ;} data ;} TranslateTest
-                                                                                                  ;
+typedef struct du0 {int tag ;
+                    union du0_Data {struct AType0 {int Item1 ;
+                                                   double Item2 ;} A ;
+                                    struct BType0 {double Item ;} B ;} data ;} du0 ;
 __kernel void brahmaKernel ()
-{TranslateTest x = { 0, { .A = { 5, 6 } } } ;
+{du0 x = (du0) { 0, { .A = { 5, 6 } } } ;
  int y = 5 ;
  y = 7 ;}

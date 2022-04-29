@@ -71,8 +71,8 @@ type Method(var: Var, expr: Expr) =
         match expr with
         | DerivedPatterns.Lambdas (args, body) ->
             let args = List.collect id args
-            let! translatedBody = this.TranslateBody(args, body)
             let! translatedArgs = this.TranslateArgs(args, globalVars, localVars)
+            let! translatedBody = this.TranslateBody(args, body)
             let! func = this.BuildFunction(translatedArgs, translatedBody)
             let! topLevelVarDecls = this.GetTopLevelVarDecls()
 

@@ -579,6 +579,7 @@ module rec Body =
 
         let! unionValueExpr = translateAsExpr expr
 
+        // для структур du классы наследники кейсов кстати тоже не создаются :)
         let caseName = propInfo.DeclaringType.Name
         let unionCaseField =
             // для option классы наследники не создаются, поэтому нужно обрабатывать отдельно
@@ -599,9 +600,7 @@ module rec Body =
                 )
                 :> Expression<_>
         | None ->
-            return raise <| InvalidKernelException(
-                sprintf "Union field get translation error: union %A doesn't have case %A" unionType.Name caseName
-            )
+            return raise <| InvalidKernelException $"Union field get translation error: union %A{unionType.Name} doesn't have case %A{caseName}"
     }
 
     let private translateLet (var: Var) expr inExpr = translation {
@@ -617,7 +616,7 @@ module rec Body =
                 let arrayLength =
                     match expr with
                     | :? Const<Lang> as c -> int c.Val
-                    | other -> raise <| InvalidKernelException(sprintf "Calling localArray with a non-const argument %A" other)
+                    | other -> raise <| InvalidKernelException $"Calling localArray with a non-const argument %A{other}"
                 let! arrayType = Type.translate var.Type |> State.using (fun ctx -> { ctx with ArrayKind = CArrayDecl arrayLength })
                 return VarDecl(arrayType, bName, None, spaceModifier = Local)
             | Patterns.DefaultValue _ ->

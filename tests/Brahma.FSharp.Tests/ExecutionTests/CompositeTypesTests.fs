@@ -10,7 +10,7 @@ open Brahma.FSharp
 
 [<AutoOpen>]
 module Helpers =
-    let check<'a when 'a : struct and 'a : equality> context (data: 'a[]) (command: int -> Expr<Range1D -> ClArray<'a> -> unit>) =
+    let check<'a when 'a : equality> context (data: 'a[]) (command: int -> Expr<Range1D -> ClArray<'a> -> unit>) =
         let length = data.Length
 
         let expected = data
@@ -236,10 +236,128 @@ let structTests context = [
         if data.Length <> 0 then check data (fun length -> <@ fun (range: Range1D) (buffer: ClArray<_>) -> (%command length) range.GlobalID0 buffer @>)
 ]
 
+type SimpleDU =
+    | A
+    | B of int
+    | C of int64 * bool
+
+type GenericDU<'a, 'b> =
+    | A
+    | B of RecordOfIntInt64
+    | C of GenericRecord<'a, 'b>
+
+type EnumDU =
+    | A
+    | B
+    | C
+
+let unionTests context = [
+    let inline check data command = check context data command
+
+    testProperty (message "Option<GenericRecord<RecordOfIntInt64, RecordOfBoolBool>>") <| fun (data: Option<GenericRecord<RecordOfIntInt64, RecordOfBoolBool>>[]) ->
+        if data.Length <> 0 then
+            check data <| fun length ->
+                <@ fun (range: Range1D) (buffer: ClArray<_>) ->
+                    let gid = range.GlobalID0
+                    if gid < length then
+                        buffer.[gid] <-
+                            match buffer.[gid] with
+                            | Some { X = x; Y = y } -> Some { X = x; Y = y }
+                            | None -> None
+                @>
+
+    testProperty (message "Option<Option<RecordOfIntInt64>>") <| fun (data: Option<Option<RecordOfIntInt64>>[]) ->
+        if data.Length <> 0 then
+            check data <| fun length ->
+                <@ fun (range: Range1D) (buffer: ClArray<_>) ->
+                    let gid = range.GlobalID0
+                    if gid < length then
+                        buffer.[gid] <-
+                            match buffer.[gid] with
+                            | Some a ->
+                                match a with
+                                | Some { X = x; Y = y } -> Some (Some { X = x; Y = y })
+                                | None -> Some None
+                            | None -> None
+
+                            // TODO didnt work
+//                            | Some (Some { X = x; Y = y }) -> Some (Some { X = x; Y = y })
+//                            | Some None -> Some None
+//                            | None -> None
+                @>
+
+    testProperty (message "SimpleDU") <| fun (data: SimpleDU[]) ->
+        if data.Length <> 0 then
+            check data <| fun length ->
+                <@ fun (range: Range1D) (buffer: ClArray<_>) ->
+                    let gid = range.GlobalID0
+                    if gid < length then
+                        buffer.[gid] <-
+                            match buffer.[gid] with
+                            | SimpleDU.A -> SimpleDU.A
+                            | SimpleDU.B x -> SimpleDU.B x
+                            | SimpleDU.C (x, y) -> SimpleDU.C (x, y)
+                @>
+
+    ptestProperty (message "GenericDU<bool, Option<bool>>") <| fun (data: GenericDU<bool, Option<bool>>[]) ->
+        // TODO test case
+//        let data =
+//            [|
+//                GenericDU.C {
+//                    X = true
+//                    Y = Some true
+//                }
+//            |]
+
+        if data.Length <> 0 then
+            check data <| fun length ->
+                <@ fun (range: Range1D) (buffer: ClArray<_>) ->
+                    let gid = range.GlobalID0
+                    if gid < length then
+                        buffer.[gid] <-
+                            match buffer.[gid] with
+                            | GenericDU.A -> GenericDU.A
+                            | GenericDU.B x -> GenericDU.B x
+                            | GenericDU.C { X = x; Y = y } ->
+                                match y with
+                                | Some b -> GenericDU.C { X = x; Y = Some b }
+                                | None -> GenericDU.C { X = x; Y = None }
+                @>
+
+    testProperty (message "GenericRecord<Option<int>, Option<int64>>") <| fun (data: GenericRecord<Option<int>, Option<int64>>[]) ->
+        if data.Length <> 0 then
+            check data <| fun length ->
+                <@ fun (range: Range1D) (buffer: ClArray<_>) ->
+                    let gid = range.GlobalID0
+                    if gid < length then
+                        buffer.[gid] <-
+                            match buffer.[gid] with
+                            | { X = Some x; Y = Some y } -> { X = Some x; Y = Some y }
+                            | { X = Some x; Y = None } -> { X = Some x; Y = None }
+                            | { X = None; Y = Some y } -> { X = None; Y = Some y }
+                            | { X = None; Y = None } -> { X = None; Y = None }
+
+                @>
+
+    testProperty (message "EnumDU") <| fun (data: EnumDU[]) ->
+        if data.Length <> 0 then
+            check data <| fun length ->
+                <@ fun (range: Range1D) (buffer: ClArray<_>) ->
+                    let gid = range.GlobalID0
+                    if gid < length then
+                        buffer.[gid] <-
+                            match buffer.[gid] with
+                            | EnumDU.A -> EnumDU.A
+                            | EnumDU.B -> EnumDU.B
+                            | EnumDU.C -> EnumDU.C
+                @>
+]
+
 let tests context =
     [
         testList "Tuple tests" << tupleTestCases
         testList "Record tests" << recordTestCases
         testList "Struct tests" << structTests
+        testList "Union tests" << unionTests
     ]
     |> List.map (fun testFixture -> testFixture context)

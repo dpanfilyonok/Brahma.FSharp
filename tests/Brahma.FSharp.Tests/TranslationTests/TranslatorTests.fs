@@ -849,7 +849,7 @@ let collectUnionTests (translator: FSQuotationToOpenCLTranslator) =
             @>
 
         testGen testCase "Nested union 2" [| typeof<SimpleUnion>; typeof<OuterUnion> |]
-            <@ let x = Inner <| SimpleOne
+            <@ let x = Inner SimpleOne
                ()
             @>
     ]

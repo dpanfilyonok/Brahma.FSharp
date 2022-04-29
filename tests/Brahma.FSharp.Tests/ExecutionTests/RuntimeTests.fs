@@ -562,37 +562,35 @@ let kernelArgumentsTests context = [
         Expect.sequenceEqual actual expected "Arrays should be equals"
 
     ptestProperty "Parallel execution of kernel" <| fun _const ->
+        let context = context.ClContext
         let n = 4
         let l = 256
-        let getAllocator (ctx: ClContext) =
+        let getAllocator (context: ClContext) =
             let kernel =
                 <@
                     fun (r: Range1D) (buffer: ClArray<int>) ->
                         let i = r.GlobalID0
                         buffer.[i] <- _const
                 @>
-                |> ctx.Compile
+            let k = context.Compile kernel
+            fun (q:MailboxProcessor<_>) ->
+                let buf = context.CreateClArray(l, allocationMode = AllocationMode.AllocHostPtr)
+                let executable = k.GetKernel()
+                q.Post(Msg.MsgSetArguments(fun () -> executable.KernelFunc (Range1D(l, l)) buf))
+                q.Post(Msg.CreateRunMsg<_,_>(executable))
+                buf
 
-            fun () ->
-                opencl {
-                    let! buf = ClArray.allocWithFlags l { ClMemFlags.DefaultIfNoData with AllocationMode = AllocationMode.AllocHostPtr }
-                    do! runKernel kernel <| fun it ->
-                        it (Range1D(l, l)) buf
-
-                    return buf
-                }
-
-
-        let allocator ctx = getAllocator ctx ()
-        let allocOnGPU allocator = opencl {
-            let! s = ClTask.ask
-            use! b = allocator <| s.ClContext
-            return! ClArray.toHost b
-        }
+        let allocator = getAllocator context
+        let allocOnGPU (q:MailboxProcessor<_>) allocator =
+            let b = allocator q
+            let res = Array.zeroCreate l
+            q.PostAndReply (fun ch -> Msg.CreateToHostMsg(b, res, ch)) |> ignore
+            q.Post (Msg.CreateFreeMsg b)
+            res
 
         let actual =
-            Array.init n (fun _ -> context.WithNewCommandQueue())
-            |> Array.map (fun q -> async { return allocOnGPU allocator |> ClTask.runSync q})
+            Array.init n (fun _ -> context.QueueProvider.CreateQueue())
+            |> Array.map (fun q -> async { return allocOnGPU q allocator })
             |> Async.Parallel
             |> Async.RunSynchronously
 

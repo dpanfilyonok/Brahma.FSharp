@@ -55,7 +55,7 @@ type BufferInitParam<'a> =
     | Data of 'a[]
     | Size of int
 
-type ClBuffer<'a when 'a : struct>
+type ClBuffer<'a>
     (
         clContext: ClContext,
         initParam: BufferInitParam<'a>,
@@ -133,7 +133,7 @@ type ClBuffer<'a when 'a : struct>
                     buffer
 
                 | Size size ->
-                    let size = IntPtr(size * marshaler.GetTypePacking(typeof<'a>).ElementSize)
+                    let size = IntPtr(size * marshaler.GetTypePacking(typeof<'a>).Size)
                     Cl.CreateBuffer(clContext.Context, clMemoryFlags, size, null, error)
 
         if error.Value <> ErrorCode.Success then
@@ -151,7 +151,7 @@ type ClBuffer<'a when 'a : struct>
             | Data array -> array.Length
             | Size size -> size
 
-        member this.ElementSize = marshaler.GetTypePacking(typeof<'a>).ElementSize
+        member this.ElementSize = marshaler.GetTypePacking(typeof<'a>).Size
 
         member this.Free() =
             match pinnedMemory with

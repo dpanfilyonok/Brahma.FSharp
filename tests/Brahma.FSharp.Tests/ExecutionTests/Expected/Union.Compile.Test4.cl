@@ -1,11 +1,9 @@
-typedef struct SimpleUnion {int tag ;
-                            union SimpleUnion_Data {struct SimpleTwoType {int Item ;} SimpleTwo ;}
-                            data ;} SimpleUnion ;
-typedef struct OuterUnion {int tag ;
-                           union OuterUnion_Data {struct OuterType {int Item ;} Outer ;
-                                                  struct InnerType {SimpleUnion Item ;} Inner ;}
-                           data ;} OuterUnion ;
+typedef struct du0 {int tag ;
+                    union du0_Data {struct SimpleTwoType0 {int Item ;} SimpleTwo ;} data ;} du0 ;
+typedef struct du1 {int tag ;
+                    union du1_Data {struct OuterType0 {int Item ;} Outer ;
+                                    struct InnerType0 {du0 Item ;} Inner ;} data ;} du1 ;
 __kernel void brahmaKernel ()
-{OuterUnion x = { 1, { .Inner = { { 0 } } } } ;
+{du1 x = (du1) { 1, { .Inner = { (du0) { 0 } } } } ;
  int y = 5 ;
  y = 7 ;}

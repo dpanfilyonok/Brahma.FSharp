@@ -34,6 +34,7 @@ type TranslationContext<'lang, 'vDecl> =
 
         // kernel scope
         CStructDecls: Dictionary<Type, StructType<'lang>>
+        StructInplaceCounter: Dictionary<string, int>
         TopLevelVarsDecls: ResizeArray<'vDecl>
         Flags: HashSet<Flag>
 
@@ -50,6 +51,7 @@ type TranslationContext<'lang, 'vDecl> =
             TranslatorOptions = options
 
             CStructDecls = Dictionary<Type, StructType<'lang>>()
+            StructInplaceCounter = Dictionary<string, int>()
             TopLevelVarsDecls = ResizeArray<'vDecl>()
             Flags = HashSet()
 

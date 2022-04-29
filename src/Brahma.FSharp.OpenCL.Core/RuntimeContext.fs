@@ -29,3 +29,5 @@ type RuntimeContext(clContext: ClContext, ?runtimeOptions: RuntimeOptions) =
 
     member internal this.WithRuntimeOptions(runtimeOptions) =
         RuntimeContext(clContext, runtimeOptions, CommandQueue = this.CommandQueue)
+
+    override this.ToString() = clContext.ToString()
