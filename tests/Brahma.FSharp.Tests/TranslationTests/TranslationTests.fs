@@ -12,7 +12,7 @@ let translators = [
             member this.DeviceType = DeviceType.Default
             member this.MaxWorkGroupSize = 0
             member this.MaxWorkItemDimensions = 0
-            member this.MaxWorkItemSizes = [|0|]
+            member this.MaxWorkItemSizes = [| 0 |]
             member this.DeviceExtensions = ""
         }
     )

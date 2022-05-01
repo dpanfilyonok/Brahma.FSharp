@@ -866,13 +866,13 @@ let specificTests (translator: FSQuotationToOpenCLTranslator) = [
                     sumOfSides
                     (firstRowsBuffer: ClArray<int>)
                     (firstColumnsBuffer: ClArray<int>)
-                    (firstValuesBuffer: ClArray<'a>)
+                    (firstValuesBuffer: ClArray<int>)
                     (secondRowsBuffer: ClArray<int>)
                     (secondColumnsBuffer: ClArray<int>)
-                    (secondValuesBuffer: ClArray<'a>)
+                    (secondValuesBuffer: ClArray<int>)
                     (allRowsBuffer: ClArray<int>)
                     (allColumnsBuffer: ClArray<int>)
-                    (allValuesBuffer: ClArray<'a>) ->
+                    (allValuesBuffer: ClArray<int>) ->
 
                     let i = ndRange.GlobalID0
 

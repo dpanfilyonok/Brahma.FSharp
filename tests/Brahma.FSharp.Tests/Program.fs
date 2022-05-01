@@ -9,7 +9,6 @@ let allTests =
     ]
     |> testSequenced
 
-
 [<EntryPoint>]
 let main argv =
     allTests

@@ -39,10 +39,10 @@ __kernel void brahmaKernel
  int beginIdx = beginIdxLocal ;
  int endIdx = endIdxLocal ;
  int firstLocalLength = (endIdx - beginIdx) ;
- int x1 = (256 - firstLocalLength) ;
+ int x43 = (256 - firstLocalLength) ;
  if ((endIdx == firstSide))
- {x1 = (((secondSide - i) + localID) + beginIdx) ;} ;
- int secondLocalLength = x1 ;
+ {x43 = (((secondSide - i) + localID) + beginIdx) ;} ;
+ int secondLocalLength = x43 ;
  __local ulong localIndices [ 256 ] ;
  if ((localID < firstLocalLength))
  {localIndices [localID] =
@@ -54,22 +54,22 @@ __kernel void brahmaKernel
   ;} ;
  barrier(CLK_LOCAL_MEM_FENCE) ;
  if ((i < sumOfSides))
- {int leftEdge2 = ((localID + 1) - secondLocalLength) ;
-  if ((leftEdge2 < 0))
-  {leftEdge2 = 0 ;} ;
-  int rightEdge3 = (firstLocalLength - 1) ;
-  if ((rightEdge3 > localID))
-  {rightEdge3 = localID ;} ;
-  while ((leftEdge2 <= rightEdge3))
-  {int middleIdx4 = ((leftEdge2 + rightEdge3) / 2) ;
-   ulong firstIndex5 = localIndices [middleIdx4] ;
-   ulong secondIndex6 = localIndices [((firstLocalLength + localID) - middleIdx4)] ;
-   if ((firstIndex5 < secondIndex6))
-   {leftEdge2 = (middleIdx4 + 1) ;}
+ {int leftEdge76 = ((localID + 1) - secondLocalLength) ;
+  if ((leftEdge76 < 0))
+  {leftEdge76 = 0 ;} ;
+  int rightEdge79 = (firstLocalLength - 1) ;
+  if ((rightEdge79 > localID))
+  {rightEdge79 = localID ;} ;
+  while ((leftEdge76 <= rightEdge79))
+  {int middleIdx84 = ((leftEdge76 + rightEdge79) / 2) ;
+   ulong firstIndex85 = localIndices [middleIdx84] ;
+   ulong secondIndex90 = localIndices [((firstLocalLength + localID) - middleIdx84)] ;
+   if ((firstIndex85 < secondIndex90))
+   {leftEdge76 = (middleIdx84 + 1) ;}
    else
-   {rightEdge3 = (middleIdx4 - 1) ;} ;} ;
-  int boundaryX = rightEdge3 ;
-  int boundaryY = (localID - leftEdge2) ;
+   {rightEdge79 = (middleIdx84 - 1) ;} ;} ;
+  int boundaryX = rightEdge79 ;
+  int boundaryY = (localID - leftEdge76) ;
   uchar isValidX = (boundaryX >= 0) ;
   uchar isValidY = (boundaryY >= 0) ;
   ulong fstIdx = 0 ;
