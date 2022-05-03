@@ -5,7 +5,7 @@ open Expecto
 open Brahma.FSharp
 open Brahma.FSharp.OpenCL.Shared
 
-// TODO make it lazy
+// TODO make it lazy?
 let allContexts =
     ClDevice.GetAvailableDevices()
     |> Seq.map
