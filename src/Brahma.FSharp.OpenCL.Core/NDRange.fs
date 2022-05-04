@@ -1,4 +1,4 @@
-namespace Brahma.FSharp.OpenCL
+namespace Brahma.FSharp
 
 open System
 
@@ -6,6 +6,11 @@ type INDRange =
     abstract member GlobalWorkSize: IntPtr[] with get
     abstract member LocalWorkSize: IntPtr[] with get
     abstract member Dimensions: int
+
+(*
+    + get_num_groups (uint dimindx)
+    + get_group_id (uint dimindx)
+*)
 
 type Range1D(globalWorkSize: int, localWorkSize: int) =
     new(globalWorkSize) = Range1D(globalWorkSize, 1)
@@ -22,8 +27,8 @@ type Range1D(globalWorkSize: int, localWorkSize: int) =
         member this.Dimensions = 1
 
     static member CreateValid(neededSize: int, wgSize: int) =
-        let globalSzie = (neededSize + wgSize - 1) / wgSize * wgSize
-        Range1D(globalSzie, wgSize)
+        let globalSize = (neededSize + wgSize - 1) / wgSize * wgSize
+        Range1D(globalSize, wgSize)
 
 type Range2D(globalWorkSizeX: int, globalWorkSizeY: int, localWorkSizeX: int, localWorkSizeY: int) =
     new(globalWorkSizeX, globalWorkSizeY) = Range2D(globalWorkSizeX, globalWorkSizeY, 1, 1)

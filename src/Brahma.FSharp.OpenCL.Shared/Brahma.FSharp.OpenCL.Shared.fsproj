@@ -7,6 +7,7 @@
   <ItemGroup>
     <Compile Include="KernelLangExtensions.fs" />
     <Compile Include="IBuffer.fs" />
+    <Compile Include="IDevice.fs" />
   </ItemGroup>
 
   <ItemGroup>

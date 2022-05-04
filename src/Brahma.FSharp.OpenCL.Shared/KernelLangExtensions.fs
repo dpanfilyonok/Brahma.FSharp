@@ -1,4 +1,4 @@
-namespace Brahma.FSharp.OpenCL
+namespace Brahma.FSharp
 
 [<AutoOpen>]
 type KernelLangExtensions =
@@ -22,7 +22,7 @@ module KernelLangExtensions =
         failIfOutsideKernel ()
         ignore null
 
-    let local<'a when 'a: struct> () =
+    let local<'a> () =
         failIfOutsideKernel ()
         Unchecked.defaultof<'a>
 

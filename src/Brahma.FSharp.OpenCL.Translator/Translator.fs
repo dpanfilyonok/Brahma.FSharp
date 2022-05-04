@@ -13,15 +13,16 @@
 // By using this software in any fashion, you are agreeing to be bound by the
 // terms of the License.
 
-namespace rec Brahma.FSharp.OpenCL.Translator
+namespace Brahma.FSharp.OpenCL.Translator
 
 open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.AST
 open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
-open System
 open System.Collections.Generic
+open Brahma.FSharp.OpenCL.Shared
 
-type FSQuotationToOpenCLTranslator(translatorOptions: TranslatorOptions) =
+type FSQuotationToOpenCLTranslator(device: IDevice, ?translatorOptions: TranslatorOptions) =
+    let translatorOptions = defaultArg translatorOptions (TranslatorOptions())
     let mainKernelName = "brahmaKernel"
     let lockObject = obj ()
 
@@ -90,10 +91,19 @@ type FSQuotationToOpenCLTranslator(translatorOptions: TranslatorOptions) =
 
         methods @ kernelFunc
 
-    let translate expr' =
-        let expr = preprocessQuotation expr'
+    let transformQuotation expr =
+        expr
+        |> replacePrintf
+        |> GettingWorkSizeTransformer.__
+        |> processAtomic
+        |> makeVarNameUnique
+        |> transformVarDefsToLambda
+        |> transformMutableVarsToRef
+        |> makeVarNameUnique
+        |> lambdaLifting
 
-        let context = TranslationContext.Create()
+    let translate expr =
+        let context = TranslationContext.Create(translatorOptions)
 
         // TODO: Extract quotationTransformer to translator
         let (kernelExpr, functions) = transformQuotation expr
@@ -130,8 +140,13 @@ type FSQuotationToOpenCLTranslator(translatorOptions: TranslatorOptions) =
         |> List.find (fun method -> method :? KernelFunc)
         |> fun kernel -> kernel.FunExpr
 
+    member val Marshaler = CustomMarshaler() with get
+
     member this.TranslatorOptions = translatorOptions
 
     member this.Translate(qExpr) =
         lock lockObject <| fun () ->
             translate qExpr
+
+    member this.TransformQuotation(expr: Expr) =
+        transformQuotation expr

@@ -1,12 +1,9 @@
-namespace Brahma.FSharp.OpenCL
+namespace Brahma.FSharp
 
 open OpenCL.Net
 open System
 open System.Runtime.InteropServices
-open Brahma.FSharp.OpenCL.Translator
 open Brahma.FSharp.OpenCL.Shared
-open FSharp.Reflection
-open System.Runtime.CompilerServices
 
 //memory flags: https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clCreateBuffer.html
 
@@ -58,9 +55,9 @@ type BufferInitParam<'a> =
     | Data of 'a[]
     | Size of int
 
-type ClBuffer<'a when 'a : struct>
+type ClBuffer<'a>
     (
-        clContext: IContext,
+        clContext: ClContext,
         initParam: BufferInitParam<'a>,
         ?memFlags: ClMemFlags
     ) =
@@ -71,7 +68,7 @@ type ClBuffer<'a when 'a : struct>
         | Size _ -> ClMemFlags.DefaultIfNoData
         |> defaultArg memFlags
 
-    let marshaler = CustomMarshaler<'a>()
+    let marshaler = clContext.Translator.Marshaler
 
     let intPtrSize = IntPtr(Marshal.SizeOf typedefof<IntPtr>)
 
@@ -97,9 +94,9 @@ type ClBuffer<'a when 'a : struct>
 
         match initParam with
         | Size _  when ifDataFlags |> List.contains memFlags.AllocationMode ->
-            raise <| InvalidMemFlagsException(sprintf "One of following flags should be setted %O" ifDataFlags)
+            raise <| InvalidMemFlagsException $"One of following flags should be setted {ifDataFlags}"
         | Data _ when ifDataFlags |> List.contains memFlags.AllocationMode |> not ->
-            raise <| InvalidMemFlagsException(sprintf "Neither of following flags should be setted %O" ifDataFlags)
+            raise <| InvalidMemFlagsException $"Neither of following flags should be setted {ifDataFlags}"
         | _ -> ()
 
         match memFlags.AllocationMode with
@@ -111,22 +108,36 @@ type ClBuffer<'a when 'a : struct>
 
         flags
 
+    let mutable pinnedMemory : GCHandle option = None
+
     let buffer =
         let error = ref Unchecked.defaultof<ErrorCode>
         let buf =
-            match initParam with
-            | Data array ->
-                let (size, data) = marshaler.WriteToUnmanaged(array)
-                let buffer = Cl.CreateBuffer(clContext.Context, clMemoryFlags, IntPtr size, data, error)
-                Marshal.FreeHGlobal(data)
-                buffer
+            if marshaler.IsBlittable typeof<'a> then
+                let elementSize = Marshal.SizeOf typeof<'a>
+                let (size, data) =
+                    match initParam with
+                    | Data array ->
+                        pinnedMemory <- Some <| GCHandle.Alloc(array, GCHandleType.Pinned)
+                        IntPtr(array.Length * elementSize), array
+                    | Size size -> IntPtr(size * elementSize), null
 
-            | Size size ->
-                let size = IntPtr(size * marshaler.ElementTypeSize)
-                Cl.CreateBuffer(clContext.Context, clMemoryFlags, size, null, error)
+                Cl.CreateBuffer(clContext.Context, clMemoryFlags, size, data, error)
 
-        if !error <> ErrorCode.Success then
-            raise <| Cl.Exception !error
+            else
+                match initParam with
+                | Data array ->
+                    let (size, data) = marshaler.WriteToUnmanaged(array)
+                    let buffer = Cl.CreateBuffer(clContext.Context, clMemoryFlags, IntPtr size, data, error)
+                    Marshal.FreeHGlobal(data)
+                    buffer
+
+                | Size size ->
+                    let size = IntPtr(size * marshaler.GetTypePacking(typeof<'a>).Size)
+                    Cl.CreateBuffer(clContext.Context, clMemoryFlags, size, null, error)
+
+        if error.Value <> ErrorCode.Success then
+            raise <| Cl.Exception error.Value
 
         buf
 
@@ -140,9 +151,13 @@ type ClBuffer<'a when 'a : struct>
             | Data array -> array.Length
             | Size size -> size
 
-        member this.ElementSize = marshaler.ElementTypeSize
+        member this.ElementSize = marshaler.GetTypePacking(typeof<'a>).Size
 
         member this.Free() =
+            match pinnedMemory with
+            | Some x -> x.Free()
+            | None -> ()
+
             buffer.Dispose()
 
         member this.Item

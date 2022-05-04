@@ -17,3 +17,11 @@ module Bindings =
 
 module internal Anchors =
     let _localID0 = Unchecked.defaultof<int>
+
+    let _globalSize0 = Unchecked.defaultof<int>
+    let _globalSize1 = Unchecked.defaultof<int>
+    let _globalSize2 = Unchecked.defaultof<int>
+
+    let _localSize0 = Unchecked.defaultof<int>
+    let _localSize1 = Unchecked.defaultof<int>
+    let _localSize2 = Unchecked.defaultof<int>

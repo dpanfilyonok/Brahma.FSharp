@@ -29,7 +29,7 @@ type Method(var: Var, expr: Expr) =
                         Some (adding ite.Else.Value :?> StatementBlock<_>)
 
                 IfThenElse(ite.Condition, newThen, newElse) :> Statement<_>
-            | _ -> failwithf "Unsupported statement to add Return: %A" stmt
+            | _ -> failwithf $"Unsupported statement to add Return: %A{stmt}"
 
         adding subAST
 
@@ -46,7 +46,7 @@ type Method(var: Var, expr: Expr) =
             match newBody with
             | :? StatementBlock<Lang> as sb -> sb
             | :? Statement<Lang> as s -> StatementBlock <| ResizeArray [s]
-            | _ -> failwithf "Incorrect function body: %A" newBody
+            | _ -> failwithf $"Incorrect function body: %A{newBody}"
     }
 
     abstract TranslateArgs : Var list * string list * string list -> State<TargetContext, FunFormalArg<Lang> list>
@@ -65,23 +65,24 @@ type Method(var: Var, expr: Expr) =
 
     abstract Translate : string list * string list -> State<TargetContext, ITopDef<Lang> list>
     default this.Translate(globalVars, localVars) = translation {
+        // TODO move it to translator?
         do! State.modify (fun context -> context.WithNewLocalContext())
 
         match expr with
         | DerivedPatterns.Lambdas (args, body) ->
             let args = List.collect id args
-            let! translatedBody = this.TranslateBody(args, body)
             let! translatedArgs = this.TranslateArgs(args, globalVars, localVars)
+            let! translatedBody = this.TranslateBody(args, body)
             let! func = this.BuildFunction(translatedArgs, translatedBody)
             let! topLevelVarDecls = this.GetTopLevelVarDecls()
 
             return topLevelVarDecls @ [func]
 
-        | _ -> return failwithf "Incorrect OpenCL quotation: %A" expr
+        | _ -> return failwithf $"Incorrect OpenCL quotation: %A{expr}"
     }
 
     override this.ToString() =
-        sprintf "%A\n%A" var expr
+        $"%A{var}\n%A{expr}"
 
 type KernelFunc(var: Var, expr: Expr) =
     inherit Method(var, expr)

@@ -1,17 +1,11 @@
 open Expecto
-
-open Brahma.FSharp.Tests
+open Brahma.FSharp
 
 [<Tests>]
 let allTests =
     testList "All tests" [
-        Full.tests
-        Workflow.tests
-        Translator.tests
-        QuotationTransformers.tests
-        CompositeTypesTests.tests
-        // Union.tests
-        // Atomic.tests
+        testList "Translation tests" TranslationTests.tests
+        testList "Execution tests" ExecutionTests.tests
     ]
     |> testSequenced
 
