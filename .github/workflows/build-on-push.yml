@@ -29,7 +29,7 @@ jobs:
 
   win-test:
     name: Windows Build And Test
-    if: github.owner != 'YaccConstructor'
+    if: github.repository_owner != 'YaccConstructor'
     runs-on: windows-latest
     defaults:
       run:
@@ -91,7 +91,7 @@ jobs:
 
   linux-test:
     name: Linux Build And Test
-    if: github.owner != 'YaccConstructor'
+    if: github.repository_owner != 'YaccConstructor'
     runs-on: ubuntu-latest
     steps:
       - name: System Info
@@ -124,7 +124,7 @@ jobs:
 
   linux-test-self-hosted:
     name: Linux Self-Hosted Test
-    if: github.owner == 'YaccConstructor'
+    if: github.repository_owner == 'YaccConstructor'
     runs-on: self-hosted
     steps:
       - name: System Info
