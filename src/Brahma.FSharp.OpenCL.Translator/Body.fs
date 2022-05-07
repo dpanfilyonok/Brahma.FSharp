@@ -127,7 +127,7 @@ module rec Body =
         }
 
         let varDecl = VarDecl(varType, newName, Some body)
-        if newName.Contains "Ref" then
+        if varType :? RefType<Lang> then
             varDecl.SpaceModifier <- Some AddressSpaceQualifier.Private
 
         return varDecl
