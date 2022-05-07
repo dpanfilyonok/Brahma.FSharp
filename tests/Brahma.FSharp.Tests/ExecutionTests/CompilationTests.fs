@@ -26,6 +26,25 @@ module Helpers =
 
         Utils.filesAreEqual targetPath expectedPath
 
+let simpleTests context = [
+    let inline checkCode command outFile expected = checkCode context command outFile expected
+    testCase "Pointers to private values should be explicitly private" <| fun () ->
+        let command =
+            <@
+                fun (k: Range1D) (a: int clarray) ->
+                    let x (a: int) =
+                        a + 1
+
+                    let mutable s = 1
+                    let mutable s = 2
+                    let s1 = x s
+
+                    a.[0] <- s1
+            @>
+
+        checkCode command "GenericSpace.gen" "GenericSpace.cl"
+]
+
 type SimpleUnion =
     | SimpleOne
     | SimpleTwo of int
@@ -143,6 +162,7 @@ let unionTests context =
 
 let tests context =
     [
+        testList "Simple tests" << simpleTests
         testList "Union Compile tests" << unionTests
     ]
     |> List.map (fun testFixture -> testFixture context)

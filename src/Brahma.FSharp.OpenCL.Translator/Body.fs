@@ -126,7 +126,11 @@ module rec Body =
             | _ -> return! Type.translate var.Type
         }
 
-        return VarDecl(varType, newName, Some body)
+        let varDecl = VarDecl(varType, newName, Some body)
+        if varType :? RefType<Lang> then
+            varDecl.SpaceModifier <- Some AddressSpaceQualifier.Private
+
+        return varDecl
     }
 
     let private translateListOfArgs (args: Expr list) =
@@ -629,7 +633,6 @@ module rec Body =
 
         let! res = translate inExpr |> State.using clearContext
         let! sb = State.gets (fun context -> context.VarDecls)
-
 
         match res with
         | :? StatementBlock<Lang> as s -> sb.AddRange s.Statements
