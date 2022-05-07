@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0-alpha9.5] - 2022-05-07
+
+### Added
+- New abstraction for OpenCL device
+- Getting workGroupSize inside kernels
+
+### Fixed
+- Pointers to private variables are explicitly private
+- Performance of blittable types
+- Performance of kernels creation
+
 ## [2.0.0-alpha9.4] - 2022-04-08
 
 ### Fixed
@@ -158,7 +169,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - FSharp.Core form NuGet
 - .NET 4.5
 
-[Unreleased]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v2.0.0-alpha9.4...HEAD
+[Unreleased]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v2.0.0-alpha9.5...HEAD
+[2.0.0-alpha9.5]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v1.1.5...v2.0.0-alpha9.5
 [2.0.0-alpha9.4]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v1.1.5...v2.0.0-alpha9.4
 [2.0.0-alpha9.3]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v1.1.5...v2.0.0-alpha9.3
 [2.0.0-alpha9.2]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v1.1.5...v2.0.0-alpha9.2
