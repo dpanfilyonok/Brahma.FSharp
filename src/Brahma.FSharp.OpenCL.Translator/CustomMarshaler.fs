@@ -352,10 +352,11 @@ type CustomMarshaler() =
 
                 | PrimitiveType ->
                     let offset = offsets.[i]
-                    let structure = Marshal.PtrToStructure(
-                        IntPtr.Add(start, offset),
-                        if type'' = typeof<bool> then typeof<BoolHostAlias> else type''
-                    )
+                    let structure =
+                        Marshal.PtrToStructure(
+                            IntPtr.Add(start, offset),
+                            if type'' = typeof<bool> then typeof<BoolHostAlias> else type''
+                        )
                     let structure =
                         if type'' = typeof<bool> then
                             box <| Convert.ToBoolean structure

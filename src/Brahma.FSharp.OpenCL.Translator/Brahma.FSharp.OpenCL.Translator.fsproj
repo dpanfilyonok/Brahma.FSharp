@@ -7,7 +7,7 @@
   </PropertyGroup>
   <PropertyGroup>
     <Title>Brahma.FSharp.OpenCL.Translator</Title>
-    <Description>Brahma.FSharp does the thing!</Description>
+    <Description>F# quotations to OpenCL C translator.</Description>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <Optimize>true</Optimize>

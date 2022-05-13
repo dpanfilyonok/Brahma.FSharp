@@ -6,13 +6,13 @@
   </PropertyGroup>
   <PropertyGroup>
     <Title>Brahma.FSharp.OpenCL.AST</Title>
-    <Description>Brahma.FSharp does the thing!</Description>
+    <Description>OpenCL C AST.</Description>
 
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <Optimize>true</Optimize>
     <Tailcalls>true</Tailcalls>
-    
+
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
