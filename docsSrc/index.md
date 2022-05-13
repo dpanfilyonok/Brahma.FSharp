@@ -4,13 +4,14 @@
 
 ## What is Brahma.FSharp?
 
-Brahma.FSharp is a tool for utilization GPGPU in your F# project by F# quotations to OpenCL translation.
+Brahma.FSharp is a tool for GPGPUs utilization in your F# projects. It is based on F# quotations to OpenCL translation. Brahma.FSharp provides not only translator but also memory management system and host-devise communication system.
 
 ## Why use Brahma.FSharp?
 
- * We use OpenCL for communication with GPU. So, you can work not only with NVIDIA hardware but with any device, which supports OpenCL (e.g. with AMD or Intel devices).
- * We are aimed to translate native F# code to OpenCL with minimization of different wrappers and custom types.
- * We support tuples and structures.
+ * Brahma.FSharp uses OpenCL for communication with GPU. So, you can work not only with NVIDIA hardware but with any device, which supports OpenCL (e.g. with AMD or Intel devices).
+ * Brahma.FSharp supports not only primitive types, but also tuples, structures, and discriminated unions.
+ * Brahma.FSharp not limited by imperative subset of F#. It supports nested bindings, pattern matching.
+ * Communication with GPGPUs based on Mailbox processors, thus asynchronous communications, which are native for GPGPU computations, can be used easily.
  
 ---
 
