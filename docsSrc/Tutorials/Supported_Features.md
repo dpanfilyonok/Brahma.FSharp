@@ -5,7 +5,23 @@ Translator supports only subset of F# language and tis subset is described here.
 ## OpenCL specific operations
  * [Data transfer operations](Brahma.FSharp/Api_Reference/Brahma.FSharp.OpenCL.Extensions/brahma-fsharp-opencl-extensions.html)
  * [Supported kernel operations](Brahma.FSharp/Api_Reference/Brahma.FSharp.OpenCL.Extensions/global-opencl.html).
- * Supported functions from System.Math and Microsoft.FSharp.Core.Operators: abs, acos, asin, atan, cos, cosh, exp, floor, log, log10, pow, sin, sinh, sqrt, tan, tanh
+ * Supported functions from System.Math and Microsoft.FSharp.Core.Operators: 
+   * abs
+   * acos
+   * asin
+   * atan
+   * cos
+   * cosh
+   * exp
+   * floor
+   * log
+   * log10
+   * pow
+   * sin
+   * sinh
+   * sqrt
+   * tan
+   * tanh
 
 
 ## Basic constructions.
@@ -167,9 +183,6 @@ let command =
 
 ### Tuples
 
-Tuples support are limited. Single tuple trunsfer to GPU is supported, but methods Array.ToHost and Array.ToGPU is not.
-Also you can use tuples in kernel code.
-
 ```
 let command = 
     <@ 
@@ -185,4 +198,10 @@ let command =
             let (a, b) = (1, 2)
             buf.[0] <- a
     @>
+```
+
+## Discriminated Unions
+
+```
+TODO
 ```
