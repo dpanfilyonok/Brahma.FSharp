@@ -11,10 +11,16 @@ type RuntimeOptions =
             WorkgroupSize = 256
         }
 
-type RuntimeContext(clContext: ClContext, ?runtimeOptions: RuntimeOptions) =
-    let runtimeOptions = defaultArg runtimeOptions RuntimeOptions.Default
+type RuntimeContext(clContext: ClContext) =
+    let mutable runtimeOptions = RuntimeOptions.Default
 
     let mutable queue = clContext.QueueProvider.CreateQueue()
+
+    new(clDevice: ClDevice) = RuntimeContext(ClContext(clDevice))
+
+    member this.RuntimeOptions
+        with get() = runtimeOptions
+        and private set(value) = runtimeOptions <- value
 
     member this.CommandQueue
         with get() = queue
@@ -22,12 +28,10 @@ type RuntimeContext(clContext: ClContext, ?runtimeOptions: RuntimeOptions) =
 
     member this.ClContext = clContext
 
-    member this.RuntimeOptions = runtimeOptions
-
     member internal this.WithNewCommandQueue() =
-        RuntimeContext(clContext, runtimeOptions)
+        RuntimeContext(clContext, RuntimeOptions = this.RuntimeOptions)
 
     member internal this.WithRuntimeOptions(runtimeOptions) =
-        RuntimeContext(clContext, runtimeOptions, CommandQueue = this.CommandQueue)
+        RuntimeContext(clContext, RuntimeOptions = runtimeOptions, CommandQueue = this.CommandQueue)
 
     override this.ToString() = clContext.ToString()

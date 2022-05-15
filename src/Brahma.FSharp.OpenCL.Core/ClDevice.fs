@@ -86,6 +86,9 @@ type ClDevice(device: Device) =
             fun e -> Cl.GetDeviceInfo(device, DeviceInfo.Extensions, e).ToString()
             |> throwOnError
 
+    override this.ToString() =
+        $"{(this :> IDevice).Name} | {(this :> IDevice).Platform} | {(this :> IDevice).DeviceType}"
+
     static member GetAvailableDevices(?platform: Platform, ?deviceType: DeviceType) =
         let platform = defaultArg platform Platform.Any
         let deviceType = defaultArg deviceType DeviceType.Default
