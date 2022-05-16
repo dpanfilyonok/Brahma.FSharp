@@ -27,7 +27,7 @@ Brahma.FSharp is a tool for GPGPUs utilization in your F# projects. It is based 
       </div>
     </div>
   </div>
-  <div class="col">
+  <div class="col mb-4">
     <div class="card h-100">
       <div class="card-body">
         <h5 class="card-title">Api Reference</h5>
