@@ -39,6 +39,13 @@ As a result of execution you should get a name of detected device. For example, 
 `
 Device: "Intel(R) UHD Graphics 620 [0x5917]"
 `
+
+If you have truobles with device detection, you can:
+
+ * [Read some tips.](/Getting_Started.html)
+ * [Ask a question.](https://github.com/YaccConstructor/Brahma.FSharp/discussions)
+ * [Post an issue.](https://github.com/YaccConstructor/Brahma.FSharp/issues)
+
 *)
 
 
