@@ -48,7 +48,7 @@ module ClCell =
         return new ClCell<'a>(buffer)
     }
 
-    let alloc<'a> () = allocWithFlags ClMemFlags.DefaultIfNoData
+    let alloc<'a> () = allocWithFlags<'a> ClMemFlags.DefaultIfNoData
 
     let toHost (clCell: ClCell<'a>) = opencl {
         let! context = ClTask.ask

@@ -309,10 +309,11 @@ module AtomicProcessor =
                         Expr.DefaultValue <| getFirstOfListListWith (fun (x: Var) -> x.Type.GenericTypeArguments.[0]) atomicFuncArgs,
                         Expr.Sequential(
                             <@@
+                                let mutable flip = 0
                                 let mutable flag = true
                                 while flag do
-                                    let old = atomicXchg %%mutex 1
-                                    if old = 0 then
+                                    let old = atomicXchg %%mutex (1 - flip)
+                                    if old = flip then
                                         %%Expr.VarSet(
                                             oldValueVar,
                                             getFirstOfListListWith id baseFuncApplicaionArgs
@@ -322,11 +323,8 @@ module AtomicProcessor =
                                             <| getFirstOfListListWith Expr.Var atomicFuncArgs
                                             <| Expr.Applications(Expr.Var baseFuncVar, baseFuncApplicaionArgs)
                                         )
-                                        atomicXchg %%mutex 0 |> ignore
                                         flag <- false
-                                    // HACK needed for nvidia, but broken for intel cpu
-                                    //barrier ()
-                                barrierLocal ()
+                                    flip <- 1 - flip
                             @@>,
                             Expr.Var oldValueVar
                         )

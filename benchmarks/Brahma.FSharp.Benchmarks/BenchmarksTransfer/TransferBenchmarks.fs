@@ -5,18 +5,51 @@ open BenchmarkDotNet.Jobs
 open BenchmarkDotNet.Attributes
 open FsCheck
 
-type CommonConfig() =
-    inherit ManualConfig()
+[<Struct>]
+type StructOfIntInt64 =
+    val mutable X: int
+    val mutable Y: int64
+    new(x, y) = { X = x; Y = y }
 
-    do
-        base.AddJob(
-            Job.Dry
-                .WithWarmupCount(3)
-                .WithIterationCount(10)
-                .WithInvocationCount(3)
-        ) |> ignore
+[<Struct>]
+type GenericStruct<'a, 'b> =
+    val mutable X: 'a
+    val mutable Y: 'b
+    new(x, y) = { X = x; Y = y }
 
-[<Config(typeof<CommonConfig>)>]
+//[<Struct>]
+//type GenericRecord<'a, 'b> =
+//    {
+//        mutable X: 'a
+//        mutable Y: 'b
+//    }
+
+module Generators =
+    type MyGenerators =
+        static member StructOfIntInt64() =
+            { new Arbitrary<StructOfIntInt64>() with
+                override x.Generator =
+                    gen {
+                        let! x = Arb.generate<int>
+                        let! y = Arb.generate<int64>
+
+                        return StructOfIntInt64(x, y)
+                    }
+                override x.Shrinker t = Seq.empty
+            }
+
+        static member GenericStructOfIntInt64() =
+            { new Arbitrary<GenericStruct<'a, 'b>>() with
+                override x.Generator =
+                    gen {
+                        let! x = Arb.generate<'a>
+                        let! y = Arb.generate<'b>
+
+                        return GenericStruct(x, y)
+                    }
+                override x.Shrinker t = Seq.empty
+            }
+
 [<AbstractClass>]
 type TransferBenchmarks<'a>() =
     member val HostArray = Unchecked.defaultof<'a[]> with get, set
@@ -26,6 +59,7 @@ type TransferBenchmarks<'a>() =
 
     [<GlobalSetup>]
     member this.InitializeHostArray() =
+        Arb.register<Generators.MyGenerators>() |> ignore
         this.HostArray <-
             Arb.generate<'a>
             |> Gen.sample 0 this.ArrayLength
@@ -33,6 +67,10 @@ type TransferBenchmarks<'a>() =
 
     // TODO это бы тоже в настройки вынести
     static member ArrayLengthProvider =
-        let base' = 100
-        let count = 5
-        Seq.init count (fun i -> base' * int (10. ** float i))
+//        let base' = 100
+//        let count = 5
+//        Seq.init count (fun i -> base' * int (10. ** float i))
+        seq {
+            yield 100
+            yield 100_000_000
+        }

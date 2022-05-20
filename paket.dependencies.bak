@@ -21,7 +21,6 @@ nuget Microsoft.NETCore.Platforms 5.0.0
 
 nuget BenchmarkDotNet
 nuget ILGPU 1.1.0
-nuget FSCL.Runtime 2.0.1
 
 // [ FAKE GROUP ]
 group Build

@@ -32,6 +32,9 @@ NUGET
     Fody (6.5.2) - restriction: || (>= net452) (>= netstandard1.4)
     FsCheck (2.16) - restriction: || (>= net461) (>= netstandard2.0)
       FSharp.Core (>= 4.2.3) - restriction: || (>= net452) (>= netstandard1.6)
+    FSCL.Compiler (2.0.1)
+    FSCL.Runtime (2.0.1)
+      FSCL.Compiler
     FSharp.Core (5.0.1)
     FSharp.Quotations.Evaluator (2.1)
       FSharp.Core (>= 4.3.1) - restriction: >= netstandard2.0

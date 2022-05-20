@@ -33,7 +33,7 @@ type BrahmaAllocBenchmarks<'a>(?flags: ClMemFlags) =
             |> ClTask.runSync this.Context
 
     [<IterationCleanup>]
-    member this.ClearBuffers() =
+    member this.CleanBuffers() =
         this.DeviceArray.Dispose()
 
 type BrahmaToDeviceBenchmarks<'a>(?flags: ClMemFlags) =
@@ -52,7 +52,7 @@ type BrahmaToDeviceBenchmarks<'a>(?flags: ClMemFlags) =
             |> ClTask.runSync this.Context
 
     [<IterationCleanup>]
-    member this.ClearBuffers() =
+    member this.CleanBuffers() =
         this.DeviceArray.Dispose()
 
 type BrahmaToHostBenchmarks<'a>(?flags: ClMemFlags) =
@@ -80,6 +80,6 @@ type BrahmaToHostBenchmarks<'a>(?flags: ClMemFlags) =
         |> ignore
 
     [<IterationCleanup>]
-    member this.ClearBuffers() =
+    member this.CleanBuffers() =
         this.DeviceArray.Dispose()
 

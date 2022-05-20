@@ -105,6 +105,38 @@ type ClProgram<'TRange, 'a when 'TRange :> INDRange>
                 argsWithoutMutexes
                 |> List.map List.singleton
 
+            let kernelVar = Var("kernel", typeof<IKernel>)
+            let rangeVar = Var("range", typeof<'TRange ref>)
+            let argsVar = Var("args", typeof<obj[] ref>)
+            let mutexBuffersVar = Var("mutexBuffers", typeof<ResizeArray<IBuffer<Mutex>>>)
+
+//            Expr.Lambdas(
+//                argsList
+//                @ [[kernelVar]]
+//                @ [[rangeVar]]
+//                @ [[argsVar]]
+//                @ [[mutexBuffersVar]],
+//                <@@
+//                    let mutexArgs =
+//                        (%%mutexLengths : int[])
+//                        |> List.ofArray
+//                        |> List.map (fun n ->
+//                            let mutexBuffer = new ClBuffer<Mutex>(ctx, Size n)
+//                            (%%(Expr.Var mutexBuffersVar) : ResizeArray<IBuffer<Mutex>>).Add mutexBuffer
+//                            box mutexBuffer
+//                        )
+//
+//                    let x = %%regularArgs |> List.ofArray
+//                    %%Utils.createReferenceSetCall (Expr.Var rangeVar) <@@ unbox<'TRange> x.Head @@>
+//                    %%Utils.createReferenceSetCall (Expr.Var argsVar) <@@ x.Tail @ mutexArgs |> Array.ofList @@>
+//
+////                            range.Value <- unbox<'TRange> x.Head
+////                            args.Value <- x.Tail @ mutexArgs |> Array.ofList
+//
+//                    %%Utils.createDereferenceCall (Expr.Var argsVar)
+//                    |> Array.iteri (setupArgument (%%(Expr.Var kernelVar): IKernel).Kernel)
+//                @@>
+//            )
             fun (kernel: IKernel) (range: 'TRange ref) (args: obj[] ref) (mutexBuffers: ResizeArray<IBuffer<Mutex>>) ->
                 Expr.Lambdas(
                     argsList,

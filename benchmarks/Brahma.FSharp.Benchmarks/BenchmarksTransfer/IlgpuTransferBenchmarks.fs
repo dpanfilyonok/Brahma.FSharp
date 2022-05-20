@@ -5,6 +5,7 @@ open Brahma.FSharp
 open Brahma.FSharp.OpenCL.Shared
 open ILGPU
 open ILGPU.Runtime
+open ILGPU.Runtime.Cuda
 
 [<AbstractClass>]
 type IlgpuTransferBenchmarks<'a when 'a: (new: unit -> 'a) and 'a: struct and 'a :> System.ValueType>() =
@@ -12,72 +13,50 @@ type IlgpuTransferBenchmarks<'a when 'a: (new: unit -> 'a) and 'a: struct and 'a
 
     member val DeviceArray = Unchecked.defaultof<MemoryBuffer1D<'a, Stride1D.Dense>> with get, set
 
-
     member val Accelerator =
-        use context = Context.CreateDefault()
-        let device = context.Devices.[0]
-        device.CreateAccelerator(context)
-
-    static member AvaliableContextsProvider =
-        ClDevice.GetAvailableDevices(Platform.Nvidia)
-        |> Seq.map RuntimeContext
+        let context = Context.CreateDefault()
+        context.CreateCudaAccelerator(0)
 
 type IlgpuAllocBenchmarks<'a when 'a: (new: unit -> 'a) and 'a: struct and 'a :> System.ValueType>() =
     inherit IlgpuTransferBenchmarks<'a>()
 
     [<Benchmark>]
     member this.AllocArrayToDevice() =
-        // TODO Точно ли оно дождется завершения?
-        this.DeviceArray <- this.Accelerator.Allocate1D(this.HostArray)
-        this.Accelerator.Synchronize()
-
         this.DeviceArray <- this.Accelerator.Allocate1D(int64 this.ArrayLength)
         this.DeviceArray.MemSetToZero()
         this.Accelerator.Synchronize()
 
     [<IterationCleanup>]
-    member this.ClearBuffers() =
+    member this.CleanBuffers() =
         this.DeviceArray.Dispose()
 
-//type IlgpuToDeviceBenchmarks<'a when 'a: (new: unit -> 'a) and 'a: struct and 'a :> System.ValueType>() =
-//    inherit IlgpuTransferBenchmarks<'a>()
-//
-//    [<Benchmark>]
-//    member this.WriteArrayToDevice() =
-//        // TODO Точно ли оно дождется завершения?
-//        this.DeviceArray <-
-//            opencl {
-//                let! array = ClArray.toDeviceWithFlags this.HostArray flags
-//                return array
-//            }
-//            |> ClTask.runSync this.Context
-//
-//    [<IterationCleanup>]
-//    member this.ClearBuffers() =
-//        this.DeviceArray.Dispose()
-//
-//type IlgpuToHostBenchmarks<'a when 'a: (new: unit -> 'a) and 'a: struct and 'a :> System.ValueType>() =
-//    inherit IlgpuTransferBenchmarks<'a>()
-//
-//    // TODO мб можно в глобал сетап вынести
-//    [<IterationSetup>]
-//    member this.WriteArrayToDevice() =
-//        this.DeviceArray <-
-//            opencl {
-//                let! array = ClArray.toDeviceWithFlags this.HostArray flags
-//                return array
-//            }
-//            |> ClTask.runSync this.Context
-//
-//    [<Benchmark>]
-//    member this.ReadArrayFromDevice() =
-//        // TODO Точно ли оно дождется завершения?
-//        opencl {
-//            return ClArray.toHost this.DeviceArray
-//        }
-//        |> ClTask.runSync this.Context
-//        |> ignore
-//
-//    [<IterationCleanup>]
-//    member this.ClearBuffers() =
-//        this.DeviceArray.Dispose()
+type IlgpuToDeviceBenchmarks<'a when 'a: (new: unit -> 'a) and 'a: struct and 'a :> System.ValueType>() =
+    inherit IlgpuTransferBenchmarks<'a>()
+
+    [<Benchmark>]
+    member this.WriteArrayToDevice() =
+        this.DeviceArray <- this.Accelerator.Allocate1D(this.HostArray)
+        this.Accelerator.Synchronize()
+
+    [<IterationCleanup>]
+    member this.CleanBuffers() =
+        this.DeviceArray.Dispose()
+
+type IlgpuToHostBenchmarks<'a when 'a: (new: unit -> 'a) and 'a: struct and 'a :> System.ValueType>() =
+    inherit IlgpuTransferBenchmarks<'a>()
+
+    // TODO мб можно в глобал сетап вынести
+    [<IterationSetup>]
+    member this.WriteArrayToDevice() =
+        this.DeviceArray <- this.Accelerator.Allocate1D(this.HostArray)
+        this.Accelerator.Synchronize()
+
+    [<Benchmark>]
+    member this.ReadArrayFromDevice() =
+        let target = Array.zeroCreate<'a> this.ArrayLength
+        this.DeviceArray.CopyToCPU(target)
+        this.Accelerator.Synchronize()
+
+    [<IterationCleanup>]
+    member this.CleanBuffers() =
+        this.DeviceArray.Dispose()
