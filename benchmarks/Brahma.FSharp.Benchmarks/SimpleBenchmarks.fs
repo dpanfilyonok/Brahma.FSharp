@@ -42,10 +42,40 @@ type SimpleBenchamrks() =
 //                <| Range1D.CreateValid(this.GlobalWorkSize, this.WgSize)
 //                <| this.Cell
 //        }
-//        |> ClTask.runSync this.Context
+//        |> ClTask.runSync this.
+//        let ker = this.Program.GetKernel()
+        this.Context.CommandQueue.Post(Msg.MsgSetArguments (fun () -> this.Ker.KernelFunc (Range1D.CreateValid(this.GlobalWorkSize, this.WgSize)) this.Cell))
+        this.Context.CommandQueue.Post(Msg.CreateRunMsg this.Ker)
+        this.Context.CommandQueue.PostAndReply(MsgNotifyMe)
+
+    [<Benchmark>]
+    member this.AllocArrayToDevice2() =
+//        opencl {
+//            do! runKernel this.Program <| fun kernel ->
+//                kernel
+//                <| Range1D.CreateValid(this.GlobalWorkSize, this.WgSize)
+//                <| this.Cell
+//        }
+//        |> ClTask.runSync this.
+//        let ker = this.Program.GetKernel()
         this.Context.CommandQueue.Post(Msg.MsgSetArguments (fun () -> this.Ker.KernelFunc (Range1D.CreateValid(this.GlobalWorkSize, this.WgSize)) this.Cell))
 //        this.Context.CommandQueue.Post(Msg.CreateRunMsg this.Ker)
         this.Context.CommandQueue.PostAndReply(MsgNotifyMe)
+
+    [<Benchmark>]
+    member this.AllocArrayToDevice3() =
+//        opencl {
+//            do! runKernel this.Program <| fun kernel ->
+//                kernel
+//                <| Range1D.CreateValid(this.GlobalWorkSize, this.WgSize)
+//                <| this.Cell
+//        }
+//        |> ClTask.runSync this.
+//        let ker = this.Program.GetKernel()
+//        this.Context.CommandQueue.Post(Msg.MsgSetArguments (fun () -> this.Ker.KernelFunc (Range1D.CreateValid(this.GlobalWorkSize, this.WgSize)) this.Cell))
+//        this.Context.CommandQueue.Post(Msg.CreateRunMsg this.Ker)
+//        this.Context.CommandQueue.PostAndReply(MsgNotifyMe)
+        this.Ker.KernelFunc (Range1D.CreateValid(this.GlobalWorkSize, this.WgSize)) this.Cell
 
     [<IterationCleanup>]
     member this.CleanCell() =

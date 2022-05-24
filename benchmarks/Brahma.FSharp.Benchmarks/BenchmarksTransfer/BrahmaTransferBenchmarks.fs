@@ -77,7 +77,6 @@ type BrahmaToHostBenchmarks<'a>(?flags: ClMemFlags) =
             return ClArray.toHost this.DeviceArray
         }
         |> ClTask.runSync this.Context
-        |> ignore
 
     [<IterationCleanup>]
     member this.CleanBuffers() =

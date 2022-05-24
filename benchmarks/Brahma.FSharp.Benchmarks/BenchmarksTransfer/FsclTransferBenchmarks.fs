@@ -17,7 +17,7 @@ type FsclToDeviceBenchmarks<'a>() =
             this.HostArray
             |> Array.map (fun x -> x)
         @>.Run()
-        |> ignore
+//        |> ignore
 
 type FsclABenchmarks<'a>() =
     inherit TransferBenchmarks<'a>()

@@ -1,20 +1,21 @@
 ﻿namespace Brahma.FSharp.Benchmarks
 
+open System
 open BenchmarkDotNet.Attributes
 
 module Concrete =
     // Brahma
     [<BenchmarkCategory("Brahma")>] type BrahmaAllocIntBenchmark() = inherit BrahmaAllocBenchmarks<int>()
     [<BenchmarkCategory("Brahma", "Alloc", "Int")>] type BrahmaAllocStructOfIntInt64Benchmark() = inherit BrahmaAllocBenchmarks<StructOfIntInt64>()
-    [<BenchmarkCategory("Brahma", "Alloc", "Int")>] type BrahmaAllocGenericStructOfIntInt64Benchmark() = inherit BrahmaAllocBenchmarks<GenericStruct<int, int64>>()
+    [<BenchmarkCategory("Brahma", "Alloc", "Int")>] type BrahmaAllocGenericStructOfIntInt64Benchmark() = inherit BrahmaAllocBenchmarks<Tuple<int, int64>>()
 
     [<BenchmarkCategory("Brahma", "Alloc", "Int")>] type BrahmaToDeviceIntBenchmark() = inherit BrahmaToDeviceBenchmarks<int>()
     [<BenchmarkCategory("Brahma", "Alloc", "Int")>] type BrahmaToDeviceStructOfIntInt64Benchmark() = inherit BrahmaToDeviceBenchmarks<StructOfIntInt64>()
-    [<BenchmarkCategory("Brahma", "Alloc", "Int")>] type BrahmaToDeviceGenericStructOfIntInt64Benchmark() = inherit BrahmaToDeviceBenchmarks<GenericStruct<int, int64>>()
+    [<BenchmarkCategory("Brahma", "Alloc", "Int")>] type BrahmaToDeviceGenericStructOfIntInt64Benchmark() = inherit BrahmaToDeviceBenchmarks<Tuple<int, int64>>()
 
     [<BenchmarkCategory("Brahma", "Alloc", "Int")>] type BrahmaToHostIntBenchmark() = inherit BrahmaToHostBenchmarks<int>()
     [<BenchmarkCategory("Brahma", "Alloc", "Int")>] type BrahmaToHostStructOfIntInt64Benchmark() = inherit BrahmaToHostBenchmarks<StructOfIntInt64>()
-    [<BenchmarkCategory("Brahma", "Alloc", "Int")>] type BrahmaToHostGenericStructOfIntInt64Benchmark() = inherit BrahmaToHostBenchmarks<GenericStruct<int, int64>>()
+    [<BenchmarkCategory("Brahma", "Alloc", "Int")>] type BrahmaToHostGenericStructOfIntInt64Benchmark() = inherit BrahmaToHostBenchmarks<Tuple<int, int64>>()
 
     // Ilgpu
     [<BenchmarkCategory("Ilgpu", "Alloc", "Int")>] type IlgpuAllocIntBenchmark() = inherit IlgpuAllocBenchmarks<int>()
@@ -23,7 +24,7 @@ module Concrete =
 
     [<BenchmarkCategory("Ilgpu", "Alloc", "Int")>] type IlgpuToDeviceIntBenchmark() = inherit IlgpuToDeviceBenchmarks<int>()
     [<BenchmarkCategory("Ilgpu", "Alloc", "Int")>] type IlgpuToDeviceStructOfIntInt64Benchmark() = inherit IlgpuToDeviceBenchmarks<StructOfIntInt64>()
-    [<BenchmarkCategory("Ilgpu", "Alloc", "Int")>] type IlgpuToDeviceGenericStructOfIntInt64Benchmark() = inherit IlgpuToDeviceBenchmarks<GenericStruct<int, int64>>()
+    [<BenchmarkCategory("Ilgpu", "Alloc", "Int")>] type IlgpuToDeviceGenericStructOfIntInt64Benchmark() = inherit IlgpuToDeviceBenchmarks<ValueTuple<int, int64>>()
 
     [<BenchmarkCategory("Ilgpu", "Alloc", "Int")>] type IlgpuToHostIntBenchmark() = inherit IlgpuToHostBenchmarks<int>()
     [<BenchmarkCategory("Ilgpu", "Alloc", "Int")>] type IlgpuToHostStructOfIntInt64Benchmark() = inherit IlgpuToHostBenchmarks<StructOfIntInt64>()

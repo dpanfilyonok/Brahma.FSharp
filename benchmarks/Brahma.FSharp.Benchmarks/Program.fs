@@ -17,47 +17,49 @@ open Perfolizer.Mathematics.OutlierDetection
 [<EntryPoint>]
 let main argv =
     let benchmarks = BenchmarkSwitcher [|
-        typeof<Concrete.BrahmaAllocIntBenchmark>
-        typeof<Concrete.BrahmaAllocStructOfIntInt64Benchmark>
-        typeof<Concrete.BrahmaAllocGenericStructOfIntInt64Benchmark>
+//        typeof<Concrete.BrahmaAllocIntBenchmark>
+//        typeof<Concrete.BrahmaAllocStructOfIntInt64Benchmark>
+//        typeof<Concrete.BrahmaAllocGenericStructOfIntInt64Benchmark>
 
-        typeof<Concrete.IlgpuAllocIntBenchmark>
-        typeof<Concrete.IlgpuAllocStructOfIntInt64Benchmark>
-        typeof<Concrete.IlgpuAllocGenericStructOfIntInt64Benchmark>
+//        typeof<Concrete.IlgpuAllocIntBenchmark>
+//        typeof<Concrete.IlgpuAllocStructOfIntInt64Benchmark>
+//        typeof<Concrete.IlgpuAllocGenericStructOfIntInt64Benchmark>
 
 
-        typeof<Concrete.BrahmaToDeviceIntBenchmark>
-        typeof<Concrete.BrahmaToDeviceStructOfIntInt64Benchmark>
+//        typeof<Concrete.BrahmaToDeviceIntBenchmark>
+//        typeof<Concrete.BrahmaToDeviceStructOfIntInt64Benchmark>
         typeof<Concrete.BrahmaToDeviceGenericStructOfIntInt64Benchmark>
 
-        typeof<Concrete.IlgpuToDeviceIntBenchmark>
-        typeof<Concrete.IlgpuToDeviceStructOfIntInt64Benchmark>
+//        typeof<Concrete.IlgpuToDeviceIntBenchmark>
+//        typeof<Concrete.IlgpuToDeviceStructOfIntInt64Benchmark>
         typeof<Concrete.IlgpuToDeviceGenericStructOfIntInt64Benchmark>
-
-
-        typeof<Concrete.BrahmaToHostIntBenchmark>
-        typeof<Concrete.BrahmaToHostStructOfIntInt64Benchmark>
+//
+//
+//        typeof<Concrete.BrahmaToHostIntBenchmark>
+//        typeof<Concrete.BrahmaToHostStructOfIntInt64Benchmark>
         typeof<Concrete.BrahmaToHostGenericStructOfIntInt64Benchmark>
-
-        typeof<Concrete.IlgpuToHostIntBenchmark>
-        typeof<Concrete.IlgpuToHostStructOfIntInt64Benchmark>
-        typeof<Concrete.IlgpuToHostGenericStructOfIntInt64Benchmark>
-
-        typeof<Concrete.FsclToDeviceIntBenchmark>
-        typeof<Concrete.FsclToDeviceStructOfIntInt64Benchmark>
-//        typeof<Concrete.FsclToDeviceGenericStructOfIntInt64Benchmark>
-        typeof<Concrete.FsclAIntBenchmark>
-        typeof<Concrete.FsclAStructOfIntInt64Benchmark>
+//
+//        typeof<Concrete.IlgpuToHostIntBenchmark>
+//        typeof<Concrete.IlgpuToHostStructOfIntInt64Benchmark>
+//        typeof<Concrete.IlgpuToHostGenericStructOfIntInt64Benchmark>
+//
+//        typeof<Concrete.FsclToDeviceIntBenchmark>
+//        typeof<Concrete.FsclToDeviceStructOfIntInt64Benchmark>
+////        typeof<Concrete.FsclToDeviceGenericStructOfIntInt64Benchmark>
+//        typeof<Concrete.FsclAIntBenchmark>
+//        typeof<Concrete.FsclAStructOfIntInt64Benchmark>
 //        typeof<Concrete.FsclAGenericStructOfIntInt64Benchmark>
+//
+//        typeof<BrahmaNativeAtomicBenchmarks>
+//        typeof<BrahmaSpinlockAtomicBenchmarks>
+//        typeof<IlgpuNativeAtomicBenchmarks>
+//        typeof<IlgpuSpinlockAtomicBenchmarks>
 
-        typeof<BrahmaNativeAtomicBenchmarks>
-        typeof<BrahmaSpinlockAtomicBenchmarks>
-        typeof<IlgpuNativeAtomicBenchmarks>
-        typeof<IlgpuSpinlockAtomicBenchmarks>
+        typeof<SimpleBenchamrks1>
     |]
 //
     benchmarks.Run(
-        [|"--join"; (*"--filter"; "*"*) (*"--allCategories=Brahma";*) (*"--list"; "flat"*)|],
+        Array.append argv [|"--join"; (*"--filter"; "*"*) (*"--allCategories=Brahma";*) (*"--list"; "flat"*)|],
         DefaultConfig.Instance
             .AddJob(
                 Job.Dry
