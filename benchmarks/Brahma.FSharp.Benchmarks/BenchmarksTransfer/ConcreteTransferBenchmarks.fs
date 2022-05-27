@@ -32,6 +32,6 @@ module Concrete =
     type IlgpuToHostValueOptionOfIntBenchmark() = inherit IlgpuToHostBenchmarks<ValueOption<int>>()
 
     // Fscl
-    type FsclToDeviceIntBenchmark() = inherit FsclToDeviceBenchmarks<bool>()
+    type FsclToDeviceIntBenchmark() = inherit FsclToDeviceBenchmarks<int>()
     type FsclToDeviceStructOfIntInt64Benchmark() = inherit FsclToDeviceBenchmarks<StructOfIntInt64>()
 

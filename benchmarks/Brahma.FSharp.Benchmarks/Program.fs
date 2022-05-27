@@ -26,40 +26,40 @@ open ILGPU.Runtime.Cuda
 [<EntryPoint>]
 let main argv =
     let benchmarks = BenchmarkSwitcher [|
+//        //
+//        typeof<Concrete.BrahmaAllocIntBenchmark>
+//        typeof<Concrete.BrahmaAllocStructOfIntInt64Benchmark>
+//        typeof<Concrete.BrahmaAllocValueOptionOfIntBenchmark>
+//        typeof<Concrete.BrahmaAllocBoolBenchmark>
+//
+//        typeof<Concrete.IlgpuAllocIntBenchmark>
+//        typeof<Concrete.IlgpuAllocStructOfIntInt64Benchmark>
+//        typeof<Concrete.IlgpuAllocValueOptionOfIntBenchmark>
+
         //
-        typeof<Concrete.BrahmaAllocIntBenchmark>
-        typeof<Concrete.BrahmaAllocStructOfIntInt64Benchmark>
-        typeof<Concrete.BrahmaAllocValueOptionOfIntBenchmark>
-        typeof<Concrete.BrahmaAllocBoolBenchmark>
-
-        typeof<Concrete.IlgpuAllocIntBenchmark>
-        typeof<Concrete.IlgpuAllocStructOfIntInt64Benchmark>
-        typeof<Concrete.IlgpuAllocValueOptionOfIntBenchmark>
-
-        //
-        typeof<Concrete.BrahmaToDeviceIntBenchmark>
-        typeof<Concrete.BrahmaToDeviceStructOfIntInt64Benchmark>
-        typeof<Concrete.BrahmaToDeviceValueOptionOfIntBenchmark>
-        typeof<Concrete.BrahmaToDeviceBoolBenchmark>
-
-        typeof<Concrete.IlgpuToDeviceIntBenchmark>
-        typeof<Concrete.IlgpuToDeviceStructOfIntInt64Benchmark>
-        typeof<Concrete.IlgpuToDeviceValueOptionOfIntBenchmark>
-
+//        typeof<Concrete.BrahmaToDeviceIntBenchmark>
+//        typeof<Concrete.BrahmaToDeviceStructOfIntInt64Benchmark>
+//        typeof<Concrete.BrahmaToDeviceValueOptionOfIntBenchmark>
+//        typeof<Concrete.BrahmaToDeviceBoolBenchmark>
+//
+//        typeof<Concrete.IlgpuToDeviceIntBenchmark>
+//        typeof<Concrete.IlgpuToDeviceStructOfIntInt64Benchmark>
+//        typeof<Concrete.IlgpuToDeviceValueOptionOfIntBenchmark>
+//
         typeof<Concrete.FsclToDeviceIntBenchmark>
         typeof<Concrete.FsclToDeviceStructOfIntInt64Benchmark>
+//
+//        //
+//        typeof<Concrete.BrahmaToHostIntBenchmark>
+//        typeof<Concrete.BrahmaToHostStructOfIntInt64Benchmark>
+//        typeof<Concrete.BrahmaToHostValueOptionOfIntBenchmark>
+//        typeof<Concrete.BrahmaToHostBoolBenchmark>
+//
+//        typeof<Concrete.IlgpuToHostIntBenchmark>
+//        typeof<Concrete.IlgpuToHostStructOfIntInt64Benchmark>
+//        typeof<Concrete.IlgpuToHostValueOptionOfIntBenchmark>
 
         //
-        typeof<Concrete.BrahmaToHostIntBenchmark>
-        typeof<Concrete.BrahmaToHostStructOfIntInt64Benchmark>
-        typeof<Concrete.BrahmaToHostValueOptionOfIntBenchmark>
-        typeof<Concrete.BrahmaToHostBoolBenchmark>
-
-        typeof<Concrete.IlgpuToHostIntBenchmark>
-        typeof<Concrete.IlgpuToHostStructOfIntInt64Benchmark>
-        typeof<Concrete.IlgpuToHostValueOptionOfIntBenchmark>
-
-//        //
 //        typeof<BrahmaNativeAtomicBenchmarks>
 //        typeof<BrahmaSpinlockAtomicBenchmarks>
 //        typeof<IlgpuNativeAtomicBenchmarks>

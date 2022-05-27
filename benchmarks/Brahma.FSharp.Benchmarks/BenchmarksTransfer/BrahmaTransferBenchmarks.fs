@@ -71,7 +71,7 @@ type BrahmaToHostBenchmarks<'a>(?flags: ClMemFlags) =
     [<Benchmark>]
     member this.ReadArrayFromDevice() =
         opencl {
-            return ClArray.toHost this.DeviceArray
+            return! ClArray.toHost this.DeviceArray
         }
         |> ClTask.runSync this.Context
 
