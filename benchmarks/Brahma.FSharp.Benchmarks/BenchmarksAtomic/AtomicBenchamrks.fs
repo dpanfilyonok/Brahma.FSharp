@@ -18,4 +18,5 @@ type AtomicBenchamrks() =
         seq {
             yield 1000
             yield 100_000
+//            yield 10_000_000
         }

@@ -24,7 +24,6 @@ type BrahmaAllocBenchmarks<'a>(?flags: ClMemFlags) =
 
     [<Benchmark>]
     member this.AllocArrayToDevice() =
-        // TODO Точно ли оно дождется завершения?
         this.DeviceArray <-
             opencl {
                 let! array = ClArray.allocWithFlags<'a> this.ArrayLength flags
@@ -43,7 +42,6 @@ type BrahmaToDeviceBenchmarks<'a>(?flags: ClMemFlags) =
 
     [<Benchmark>]
     member this.WriteArrayToDevice() =
-        // TODO Точно ли оно дождется завершения?
         this.DeviceArray <-
             opencl {
                 let! array = ClArray.toDeviceWithFlags this.HostArray flags
@@ -72,7 +70,6 @@ type BrahmaToHostBenchmarks<'a>(?flags: ClMemFlags) =
 
     [<Benchmark>]
     member this.ReadArrayFromDevice() =
-        // TODO Точно ли оно дождется завершения?
         opencl {
             return ClArray.toHost this.DeviceArray
         }

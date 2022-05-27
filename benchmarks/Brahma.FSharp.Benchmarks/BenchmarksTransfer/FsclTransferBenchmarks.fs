@@ -11,17 +11,6 @@ open FSCL.Language
 type FsclToDeviceBenchmarks<'a>() =
     inherit TransferBenchmarks<'a>()
 
-    [<Benchmark>]
-    member this.WriteArrayToDevice() =
-        <@
-            this.HostArray
-            |> Array.map (fun x -> x)
-        @>.Run()
-//        |> ignore
-
-type FsclABenchmarks<'a>() =
-    inherit TransferBenchmarks<'a>()
-
     let mutable array = Unchecked.defaultof<'a[]>
 
     [<Benchmark>]

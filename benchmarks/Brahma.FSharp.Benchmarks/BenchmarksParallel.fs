@@ -1,2 +1,0 @@
-﻿namespace Brahma.FSharp.Benchmarks
-

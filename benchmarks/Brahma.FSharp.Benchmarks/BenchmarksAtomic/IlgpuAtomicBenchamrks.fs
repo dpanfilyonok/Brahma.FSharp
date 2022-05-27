@@ -31,8 +31,8 @@ type IlgpuAtomicBenchamrks() =
        this.Cell <- this.Accelerator.Allocate1D<int>(1L)
        this.Cell.MemSetToZero()
 
-    [<Benchmark>]
-    member this.AllocArrayToDevice() =
+    abstract RunProgram : unit -> unit
+    default this.RunProgram() =
         this.Program.Invoke(Index1D this.GlobalWorkSize, this.Cell.View.VariableView(Index1D 0))
         this.Accelerator.Synchronize()
 
@@ -47,6 +47,9 @@ type IlgpuNativeAtomicBenchmarks() =
         Action<Index1D, VariableView<int>>(fun index dataView ->
             Atomic.Add(&dataView.Value, 1) |> ignore
         )
+
+    [<Benchmark(Baseline = true)>]
+    override this.RunProgram() = base.RunProgram()
 
 [<Struct>]
 type AddOp =
@@ -71,3 +74,6 @@ type IlgpuSpinlockAtomicBenchmarks() =
                 CmpXchOp()
             ) |> ignore
         )
+
+    [<Benchmark>]
+    override this.RunProgram() = base.RunProgram()

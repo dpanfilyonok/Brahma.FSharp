@@ -30,10 +30,10 @@ type BrahmaAtomicBenchamrks() =
             }
             |> ClTask.runSync this.Context
 
-    [<Benchmark>]
-    member this.AllocArrayToDevice() =
+    abstract RunProgram : unit -> unit
+    default this.RunProgram() =
         opencl {
-            do! runKernel this.Program <| fun kernel ->
+            do! runProgram this.Program <| fun kernel ->
                 kernel
                 <| Range1D.CreateValid(this.GlobalWorkSize, this.WgSize)
                 <| this.Cell
@@ -57,6 +57,9 @@ type BrahmaNativeAtomicBenchmarks() =
                 atomic (+) acc.Value 1 |> ignore
         @>
 
+    [<Benchmark(Baseline = true)>]
+    override this.RunProgram() = base.RunProgram()
+
 type BrahmaSpinlockAtomicBenchmarks() =
     inherit BrahmaAtomicBenchamrks()
 
@@ -65,3 +68,6 @@ type BrahmaSpinlockAtomicBenchmarks() =
             fun (range: Range1D) (acc: int clcell) ->
                 atomic (fun x -> x + 1) acc.Value |> ignore
         @>
+
+    [<Benchmark>]
+    override this.RunProgram() = base.RunProgram()

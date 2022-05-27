@@ -23,7 +23,6 @@ type IlgpuAllocBenchmarks<'a when 'a: (new: unit -> 'a) and 'a: struct and 'a :>
     [<Benchmark>]
     member this.AllocArrayToDevice() =
         this.DeviceArray <- this.Accelerator.Allocate1D(int64 this.ArrayLength)
-        this.DeviceArray.MemSetToZero()
         this.Accelerator.Synchronize()
 
     [<IterationCleanup>]

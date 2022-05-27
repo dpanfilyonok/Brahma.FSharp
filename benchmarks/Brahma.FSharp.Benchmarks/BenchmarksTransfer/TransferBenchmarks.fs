@@ -17,13 +17,6 @@ type GenericStruct<'a, 'b> =
     val mutable Y: 'b
     new(x, y) = { X = x; Y = y }
 
-//[<Struct>]
-//type GenericRecord<'a, 'b> =
-//    {
-//        mutable X: 'a
-//        mutable Y: 'b
-//    }
-
 module Generators =
     type MyGenerators =
         static member StructOfIntInt64() =
@@ -70,7 +63,8 @@ type TransferBenchmarks<'a>() =
 //        let base' = 100
 //        let count = 5
 //        Seq.init count (fun i -> base' * int (10. ** float i))
+
         seq {
-//            yield 100
-            yield 100_000
+            yield 1000
+            yield 1_000_000
         }
