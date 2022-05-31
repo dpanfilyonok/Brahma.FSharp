@@ -1,7 +1,5 @@
 ﻿namespace Brahma.FSharp.Benchmarks
 
-open BenchmarkDotNet.Configs
-open BenchmarkDotNet.Jobs
 open BenchmarkDotNet.Attributes
 open FsCheck
 

@@ -79,3 +79,19 @@ type BrahmaToHostBenchmarks<'a>(?flags: ClMemFlags) =
     member this.CleanBuffers() =
         this.DeviceArray.Dispose()
 
+module Concrete =
+    type BrahmaAllocIntBenchmark() = inherit BrahmaAllocBenchmarks<int>()
+    type BrahmaAllocStructOfIntInt64Benchmark() = inherit BrahmaAllocBenchmarks<StructOfIntInt64>()
+    type BrahmaAllocValueOptionOfIntBenchmark() = inherit BrahmaAllocBenchmarks<ValueOption<int>>()
+    type BrahmaAllocBoolBenchmark() = inherit BrahmaAllocBenchmarks<bool>()
+
+    type BrahmaToDeviceIntBenchmark() = inherit BrahmaToDeviceBenchmarks<int>()
+    type BrahmaToDeviceStructOfIntInt64Benchmark() = inherit BrahmaToDeviceBenchmarks<StructOfIntInt64>()
+    type BrahmaToDeviceValueOptionOfIntBenchmark() = inherit BrahmaToDeviceBenchmarks<ValueOption<int>>()
+    type BrahmaToDeviceBoolBenchmark() = inherit BrahmaToDeviceBenchmarks<bool>()
+
+
+    type BrahmaToHostIntBenchmark() = inherit BrahmaToHostBenchmarks<int>()
+    type BrahmaToHostStructOfIntInt64Benchmark() = inherit BrahmaToHostBenchmarks<StructOfIntInt64>()
+    type BrahmaToHostValueOptionOfIntBenchmark() = inherit BrahmaToHostBenchmarks<ValueOption<int>>()
+    type BrahmaToHostBoolBenchmark() = inherit BrahmaToHostBenchmarks<bool>()

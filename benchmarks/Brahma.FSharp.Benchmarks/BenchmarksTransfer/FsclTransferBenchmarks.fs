@@ -1,11 +1,8 @@
-﻿namespace Brahma.FSharp.Benchmarks
+﻿namespace Brahma.FSharp.Benchmarks.Fscl
 
 open BenchmarkDotNet.Attributes
-open Brahma.FSharp
-open Brahma.FSharp.OpenCL.Shared
-open FSCL
+open Brahma.FSharp.Benchmarks
 open FSCL.Runtime
-open FSCL.Compiler
 open FSCL.Language
 
 type FsclToDeviceBenchmarks<'a>() =
@@ -20,3 +17,7 @@ type FsclToDeviceBenchmarks<'a>() =
                 this.HostArray
                 |> Array.map (fun x -> x)
             @>.Run()
+
+module Concrete =
+    type FsclToDeviceIntBenchmark() = inherit FsclToDeviceBenchmarks<int>()
+    type FsclToDeviceStructOfIntInt64Benchmark() = inherit FsclToDeviceBenchmarks<StructOfIntInt64>()

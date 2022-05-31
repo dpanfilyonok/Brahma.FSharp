@@ -6,13 +6,11 @@
     <WarnOn>3390;$(WarnOn)</WarnOn>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Common.fs" />
-    <Compile Include="SimpleBenchmarks.fs" />
+    <Compile Include="BenchmarksSimple.fs" />
     <Compile Include="BenchmarksTransfer\TransferBenchmarks.fs" />
     <Compile Include="BenchmarksTransfer\BrahmaTransferBenchmarks.fs" />
     <Compile Include="BenchmarksTransfer\IlgpuTransferBenchmarks.fs" />
     <Compile Include="BenchmarksTransfer\FsclTransferBenchmarks.fs" />
-    <Compile Include="BenchmarksTransfer\ConcreteTransferBenchmarks.fs" />
     <Compile Include="BenchmarksAtomic\AtomicBenchamrks.fs" />
     <Compile Include="BenchmarksAtomic\BrahmaAtomicBenchamrks.fs" />
     <Compile Include="BenchmarksAtomic\IlgpuAtomicBenchamrks.fs" />

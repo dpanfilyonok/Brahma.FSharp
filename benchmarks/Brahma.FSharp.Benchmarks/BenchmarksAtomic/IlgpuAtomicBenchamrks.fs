@@ -1,8 +1,8 @@
-﻿namespace Brahma.FSharp.Benchmarks
+﻿namespace Brahma.FSharp.Benchmarks.Ilgpu
 
 open System
-open BenchmarkDotNet.Attributes
 open Brahma.FSharp.Benchmarks
+open BenchmarkDotNet.Attributes
 open ILGPU
 open ILGPU.AtomicOperations
 open ILGPU.Runtime

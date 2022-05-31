@@ -1,8 +1,7 @@
-﻿namespace Brahma.FSharp.Benchmarks
+﻿namespace Brahma.FSharp.Benchmarks.Ilgpu
 
 open BenchmarkDotNet.Attributes
-open Brahma.FSharp
-open Brahma.FSharp.OpenCL.Shared
+open Brahma.FSharp.Benchmarks
 open ILGPU
 open ILGPU.Runtime
 open ILGPU.Runtime.Cuda
@@ -59,3 +58,16 @@ type IlgpuToHostBenchmarks<'a when 'a: (new: unit -> 'a) and 'a: struct and 'a :
     [<IterationCleanup>]
     member this.CleanBuffers() =
         this.DeviceArray.Dispose()
+
+module Concrete =
+    type IlgpuAllocIntBenchmark() = inherit IlgpuAllocBenchmarks<int>()
+    type IlgpuAllocStructOfIntInt64Benchmark() = inherit IlgpuAllocBenchmarks<StructOfIntInt64>()
+    type IlgpuAllocValueOptionOfIntBenchmark() = inherit IlgpuAllocBenchmarks<ValueOption<int>>()
+
+    type IlgpuToDeviceIntBenchmark() = inherit IlgpuToDeviceBenchmarks<int>()
+    type IlgpuToDeviceStructOfIntInt64Benchmark() = inherit IlgpuToDeviceBenchmarks<StructOfIntInt64>()
+    type IlgpuToDeviceValueOptionOfIntBenchmark() = inherit IlgpuToDeviceBenchmarks<ValueOption<int>>()
+
+    type IlgpuToHostIntBenchmark() = inherit IlgpuToHostBenchmarks<int>()
+    type IlgpuToHostStructOfIntInt64Benchmark() = inherit IlgpuToHostBenchmarks<StructOfIntInt64>()
+    type IlgpuToHostValueOptionOfIntBenchmark() = inherit IlgpuToHostBenchmarks<ValueOption<int>>()
