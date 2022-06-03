@@ -19,7 +19,7 @@ open Microsoft.FSharp.Quotations
 open Brahma.FSharp.OpenCL.AST
 open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 open System.Collections.Generic
-open Brahma.FSharp.OpenCL.Shared
+open Brahma.FSharp
 
 type FSQuotationToOpenCLTranslator(device: IDevice, ?translatorOptions: TranslatorOptions) =
     let translatorOptions = defaultArg translatorOptions (TranslatorOptions())
@@ -150,3 +150,17 @@ type FSQuotationToOpenCLTranslator(device: IDevice, ?translatorOptions: Translat
 
     member this.TransformQuotation(expr: Expr) =
         transformQuotation expr
+
+    static member CreateDefault() =
+        let device =
+            { new IDevice with
+                member this.Name = ""
+                member this.Platform = Platform.Any
+                member this.DeviceType = DeviceType.Default
+                member this.MaxWorkGroupSize = 0
+                member this.MaxWorkItemDimensions = 0
+                member this.MaxWorkItemSizes = [| 0 |]
+                member this.DeviceExtensions = ""
+            }
+
+        FSQuotationToOpenCLTranslator(device)

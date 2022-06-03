@@ -4,6 +4,7 @@ open System
 open OpenCL.Net
 open System.Runtime.Serialization
 
+/// Exception representing an OpenCL error
 [<Serializable>]
 type CLException =
     inherit Exception

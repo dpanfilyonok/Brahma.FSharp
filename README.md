@@ -5,19 +5,20 @@
 [![NuGet Badge](https://buildstats.info/nuget/Brahma.FSharp?includePreReleases=true)](https://www.nuget.org/packages/Brahma.FSharp/)
 [![License](https://img.shields.io/badge/License-EPL_1.0-red.svg)](https://opensource.org/licenses/EPL-1.0)
 
-**Brahma.FSharp** provides a way to utilize GPGPUs in your F# programms. It is based on F# quotations to OpenCL translation.
+**Brahma.FSharp** provides a way to utilize GPGPU in your F# programs. It is based on F# quotations to OpenCL translation.
 
 ## Features
 * Utilization of OpenCL for communication with GPU. So, you can work not only with NVIDIA devices but with any device which supports OpenCL (e.g. with AMD ot Intel devices).
-* Not only primitive types, but olso discriminated unions, structs, records are supported.
+* Not only primitive types, but also discriminated unions, structs, records are supported.
 * Pattern matching, mutable and immutable bindings, nested bindings are supported.
-* Fine-grained memory managenent and kernels compilation porcess.
-* Mailbox prcessor based interface for communication with devices.
+* Fine-grained memory management and kernels compilation process.
+* Mailbox processor based interface for communication with devices.
 
-More detailes are available [here](https://yaccconstructor.github.io/Brahma.FSharp/).
+More details are available [here](https://yaccconstructor.github.io/Brahma.FSharp/).
 Examples of usage are available [here](https://github.com/YaccConstructor/Brahma.FSharp.Examples).
 
 ## Installation
+Install Brahma.FSharp by running:
 ```shell
 dotnet add package Brahma.FSharp
 ```
@@ -76,5 +77,5 @@ To find more options look at [MiniScaffold](https://github.com/TheAngryByrd/Mini
 This project licensed under EPL-1.0 License. License text can be found in the [license file](https://github.com/YaccConstructor/Brahma.FSharp/blob/master/LICENSE.md).
 
 ## FAQ
-Set BRAHMA_OCL_PATH environment variable
+Setup BRAHMA_OCL_PATH environment variable
  

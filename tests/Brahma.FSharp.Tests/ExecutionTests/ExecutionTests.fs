@@ -23,10 +23,3 @@ let tests = [
         testList $"Tests on composite types on %A{context}" <| CompositeTypesTests.tests context
     ]
 ]
-
-let kernel =
-    <@
-        fun (range: Range1D) (buffer: int clarray) ->
-            let gid = range.GlobalID0
-            buffer.[gid] <- 0
-    @>

@@ -62,4 +62,3 @@ let main argv =
     benchmarks.Run(argv, config) |> ignore
 
     0
-

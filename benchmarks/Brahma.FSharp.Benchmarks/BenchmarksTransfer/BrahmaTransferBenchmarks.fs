@@ -58,7 +58,6 @@ type BrahmaToHostBenchmarks<'a>(?flags: ClMemFlags) =
 
     let flags = defaultArg flags ClMemFlags.DefaultIfData
 
-    // TODO мб можно в глобал сетап вынести
     [<IterationSetup>]
     member this.WriteArrayToDevice() =
         this.DeviceArray <-
@@ -89,7 +88,6 @@ module Concrete =
     type BrahmaToDeviceStructOfIntInt64Benchmark() = inherit BrahmaToDeviceBenchmarks<StructOfIntInt64>()
     type BrahmaToDeviceValueOptionOfIntBenchmark() = inherit BrahmaToDeviceBenchmarks<ValueOption<int>>()
     type BrahmaToDeviceBoolBenchmark() = inherit BrahmaToDeviceBenchmarks<bool>()
-
 
     type BrahmaToHostIntBenchmark() = inherit BrahmaToHostBenchmarks<int>()
     type BrahmaToHostStructOfIntInt64Benchmark() = inherit BrahmaToHostBenchmarks<StructOfIntInt64>()

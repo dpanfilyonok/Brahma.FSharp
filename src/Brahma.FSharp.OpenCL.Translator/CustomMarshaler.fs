@@ -289,7 +289,6 @@ type CustomMarshaler() =
                             box <| Convert.ToByte str
                         else
                             str
-//                    Unsafe. CopyBlockUnaligned(IntPtr.Add(start, offset), &structure, (uint32) 4)
                     Marshal.StructureToPtr(structure, IntPtr.Add(start, offset), false)
                     i <- i + 1
 

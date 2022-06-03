@@ -8,10 +8,11 @@ type INDRange =
     abstract member Dimensions: int
 
 (*
-    + get_num_groups (uint dimindx)
-    + get_group_id (uint dimindx)
+    TODO + get_num_groups (uint dimindx)
+    TODO + get_group_id (uint dimindx)
 *)
 
+/// 1-dimensional index space
 type Range1D(globalWorkSize: int, localWorkSize: int) =
     new(globalWorkSize) = Range1D(globalWorkSize, 1)
 
@@ -30,6 +31,7 @@ type Range1D(globalWorkSize: int, localWorkSize: int) =
         let globalSize = (neededSize + wgSize - 1) / wgSize * wgSize
         Range1D(globalSize, wgSize)
 
+/// 2-dimensional index space
 type Range2D(globalWorkSizeX: int, globalWorkSizeY: int, localWorkSizeX: int, localWorkSizeY: int) =
     new(globalWorkSizeX, globalWorkSizeY) = Range2D(globalWorkSizeX, globalWorkSizeY, 1, 1)
 
@@ -46,6 +48,7 @@ type Range2D(globalWorkSizeX: int, globalWorkSizeY: int, localWorkSizeX: int, lo
         member this.LocalWorkSize with get () = [| IntPtr localWorkSizeX; IntPtr localWorkSizeY |]
         member this.Dimensions = 2
 
+/// 3-dimensional index space
 type Range3D(globalWorkSizeX: int, globalWorkSizeY: int, globalWorkSizeZ: int, localWorkSizeX: int, localWorkSizeY: int, localWorkSizeZ: int) =
     new(globalWorkSizeX, globalWorkSizeY, globalWorkSizeZ) = Range3D(globalWorkSizeX, globalWorkSizeY, globalWorkSizeZ, 1, 1, 1)
 

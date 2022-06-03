@@ -37,49 +37,41 @@ type CommandQueueProvider(device, context, translator: FSQuotationToOpenCLTransl
             member this.Eval (crate: ToHost<'a>) =
                 let eventID = ref Unchecked.defaultof<Event>
                 let clMem = crate.Source.Memory
-
                 let marshaler = translator.Marshaler
 
-                if marshaler.IsBlittable typeof<'a> then
-                    let error =
-                        Cl.EnqueueReadBuffer(
-                            queue,
-                            clMem,
-                            Bool.False,
-                            System.IntPtr(0),
-                            System.IntPtr(crate.Source.Length * crate.Source.ElementSize),
-                            crate.Destination,
-                            0u,
-                            null,
-                            eventID
-                        )
-
+                let finishRead error =
                     if error <> ErrorCode.Success then
                         raise (Cl.Exception error)
 
                     finish queue
 
+                if marshaler.IsBlittable typeof<'a> then
+                    Cl.EnqueueReadBuffer(
+                        queue,
+                        clMem,
+                        Bool.False,
+                        IntPtr(0),
+                        IntPtr(crate.Source.Length * crate.Source.ElementSize),
+                        crate.Destination,
+                        0u,
+                        null,
+                        eventID
+                    ) |> finishRead
                 else
-                    // TODO source or dest length??
                     let size = crate.Destination.Length * marshaler.GetTypePacking(typeof<'a>).Size
                     let hostMem = Marshal.AllocHGlobal size
-                    let error =
-                        Cl.EnqueueReadBuffer(
-                            queue,
-                            clMem,
-                            Bool.False,
-                            IntPtr(0),
-                            IntPtr(crate.Source.Length * marshaler.GetTypePacking(typeof<'a>).Size),
-                            hostMem,
-                            0u,
-                            null,
-                            eventID
-                        )
 
-                    if error <> ErrorCode.Success then
-                        raise (Cl.Exception error)
-
-                    finish queue
+                    Cl.EnqueueReadBuffer(
+                        queue,
+                        clMem,
+                        Bool.False,
+                        IntPtr(0),
+                        IntPtr(crate.Source.Length * crate.Source.ElementSize),
+                        hostMem,
+                        0u,
+                        null,
+                        eventID
+                    ) |> finishRead
 
                     marshaler.ReadFromUnmanaged(hostMem, crate.Destination)
                     Marshal.FreeHGlobal(hostMem)

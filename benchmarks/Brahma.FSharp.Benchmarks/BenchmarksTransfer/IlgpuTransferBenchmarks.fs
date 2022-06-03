@@ -43,7 +43,6 @@ type IlgpuToDeviceBenchmarks<'a when 'a: (new: unit -> 'a) and 'a: struct and 'a
 type IlgpuToHostBenchmarks<'a when 'a: (new: unit -> 'a) and 'a: struct and 'a :> System.ValueType>() =
     inherit IlgpuTransferBenchmarks<'a>()
 
-    // TODO мб можно в глобал сетап вынести
     [<IterationSetup>]
     member this.WriteArrayToDevice() =
         this.DeviceArray <- this.Accelerator.Allocate1D(this.HostArray)
