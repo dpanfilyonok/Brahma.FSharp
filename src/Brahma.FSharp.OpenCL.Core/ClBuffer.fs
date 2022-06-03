@@ -114,7 +114,7 @@ type ClBuffer<'a>
         let error = ref Unchecked.defaultof<ErrorCode>
         let buf =
             if marshaler.IsBlittable typeof<'a> then
-                let elementSize = Marshal.SizeOf typeof<'a>
+                let elementSize = Marshal.SizeOf Unchecked.defaultof<'a>
                 let (size, data) =
                     match initParam with
                     | Data array ->
@@ -151,7 +151,8 @@ type ClBuffer<'a>
             | Data array -> array.Length
             | Size size -> size
 
-        member this.ElementSize = marshaler.GetTypePacking(typeof<'a>).Size
+        member this.ElementSize =
+            marshaler.GetTypePacking(typeof<'a>).Size
 
         member this.Free() =
             match pinnedMemory with

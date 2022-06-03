@@ -10,6 +10,7 @@ open Brahma.FSharp.OpenCL.Translator
 open Brahma.FSharp.OpenCL.Shared
 open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 open System.Runtime.InteropServices
+open FSharp.Quotations.Evaluator
 
 type ClProgram<'TRange, 'a when 'TRange :> INDRange>
     (
@@ -105,27 +106,48 @@ type ClProgram<'TRange, 'a when 'TRange :> INDRange>
                 argsWithoutMutexes
                 |> List.map List.singleton
 
-            fun (kernel: IKernel) (range: 'TRange ref) (args: obj[] ref) (mutexBuffers: ResizeArray<IBuffer<Mutex>>) ->
-                Expr.Lambdas(
-                    argsList,
+            let kernelVar = Var("kernel", typeof<IKernel>)
+            let rangeVar = Var("range", typeof<'TRange ref>)
+            let argsVar = Var("args", typeof<obj[] ref>)
+            let mutexBuffersVar = Var("mutexBuffers", typeof<ResizeArray<IBuffer<Mutex>>>)
+
+            let mutexArgsVar = Var("mutexArgs", typeof<obj list>)
+            let xVar = Var("x", typeof<obj list>)
+            Expr.Lambdas(
+                [[kernelVar]] @ [[rangeVar]] @ [[argsVar]] @ [[mutexBuffersVar]] @ argsList,
+                Expr.Let(
+                    mutexArgsVar,
                     <@@
-                        let mutexArgs =
-                            (%%mutexLengths : int[])
-                            |> List.ofArray
-                            |> List.map (fun n ->
-                                let mutexBuffer = new ClBuffer<Mutex>(ctx, Size n)
-                                mutexBuffers.Add mutexBuffer
-                                box mutexBuffer
-                            )
+                        (%%mutexLengths : int[])
+                        |> List.ofArray
+                        |> List.map (fun n ->
+                            let mutexBuffer = new ClBuffer<Mutex>(ctx, Size n)
+                            (%%(Expr.Var mutexBuffersVar) : ResizeArray<IBuffer<Mutex>>).Add mutexBuffer
+                            box mutexBuffer
+                        )
+                    @@>,
+                    Expr.Let(
+                        xVar,
+                        <@@ %%regularArgs |> List.ofArray @@>,
+                        <@@
+                            %%Utils.createReferenceSetCall (Expr.Var rangeVar) <@@ unbox<'TRange> (%%Expr.Var xVar : obj list).Head @@>
+                            %%Utils.createReferenceSetCall (Expr.Var argsVar) <@@ (%%Expr.Var xVar : obj list).Tail @ (%%Expr.Var mutexArgsVar : obj list) |> Array.ofList @@>
 
-                        let x = %%regularArgs |> List.ofArray
-                        range.Value <- unbox<'TRange> x.Head
-                        args.Value <- x.Tail @ mutexArgs |> Array.ofList
-
-                        args.Value
-                        |> Array.iteri (setupArgument kernel.Kernel)
-                    @@>
+                            %%Utils.createDereferenceCall (Expr.Var argsVar)
+                            |> Array.iteri (setupArgument (%%(Expr.Var kernelVar): IKernel).Kernel)
+                        @@>
+                    )
                 )
+            )
+            |> fun kernelPrepare ->
+                <@
+                    %%kernelPrepare :
+                        IKernel ->
+                        'TRange ref ->
+                        obj[] ref ->
+                        ResizeArray<IBuffer<Mutex>> ->
+                        'TRange -> 'a
+                @>.Compile()
 
         | _ -> failwithf $"Invalid kernel expression. Must be lambda, but given\n{newLambda}"
 
@@ -138,4 +160,3 @@ type ClProgram<'TRange, 'a when 'TRange :> INDRange>
     member this.ClContext = ctx
 
     member internal this.KernelPrepare = kernelPrepare
-

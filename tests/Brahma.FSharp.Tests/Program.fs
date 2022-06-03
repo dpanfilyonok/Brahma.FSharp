@@ -1,5 +1,4 @@
 open Expecto
-open Brahma.FSharp
 
 [<Tests>]
 let allTests =

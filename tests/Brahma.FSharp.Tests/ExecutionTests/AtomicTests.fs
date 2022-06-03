@@ -105,6 +105,52 @@ let stressTest<'a when 'a : equality and 'a : struct> context (f: Expr<'a -> 'a>
     "Results should be equal"
     |> Expect.isTrue (isEqual actual expected)
 
+let stressTestCases context = [
+    let range = [1 .. 10 .. 100]
+
+    // int
+    yield! range |> List.map (fun size ->
+        testCase $"Smoke stress test (size %i{size}) on atomic 'inc' on int" <| fun () ->
+            stressTest<int> context <@ inc @> size (fun x -> x + 1) (=)
+    )
+    yield! range |> List.map (fun size ->
+        testCase $"Smoke stress test (size %i{size}) on atomic 'dec' on int" <| fun () ->
+            stressTest<int> context <@ dec @> size (fun x -> x - 1) (=)
+    )
+
+    // float
+    yield! range |> List.map (fun size ->
+        testCase $"Smoke stress test (size %i{size}) on atomic 'inc' on float32" <| fun () ->
+            stressTest<float32> context <@ fun x -> x + 1.f @> size (fun x -> x + 1.f) (fun x y -> float (abs (x - y)) < Accuracy.low.relative)
+    )
+
+    // double
+    yield! range |> List.map (fun size ->
+        testCase $"Smoke stress test (size %i{size}) on atomic 'inc' on float" <| fun () ->
+            stressTest<float> context <@ fun x -> x + 1. @> size (fun x -> x + 1.) (fun x y -> abs (x - y) < Accuracy.low.relative)
+    )
+
+    // bool
+    yield! range |> List.map (fun size ->
+        testCase $"Smoke stress test (size %i{size}) on atomic 'not' on bool" <| fun () ->
+            stressTest<bool> context <@ not @> size not (=)
+    )
+
+    // WrappedInt (не работает транляция или типа того)
+    let wrappedIntInc = <@ fun x -> x + WrappedInt(1) @>
+    yield! range |> List.map (fun size ->
+        ptestCase $"Smoke stress test (size %i{size}) on custom atomic 'inc' on WrappedInt" <| fun () ->
+            stressTest<WrappedInt> context wrappedIntInc size (fun x -> x + WrappedInt(1)) (=)
+    )
+
+    // custom int op
+    let incx2 = <@ fun x -> x + 2 @>
+    yield! range |> List.map (fun size ->
+        testCase $"Smoke stress test (size %i{size}) on atomic unary func on int" <| fun () ->
+            stressTest<int> context incx2 size (fun x -> x + 2) (=)
+    )
+]
+
 /// Test for add and sub like atomic operations.
 /// Use local and global atomics,
 /// use reading from global mem in local atomic
@@ -155,81 +201,6 @@ let foldTest<'a when 'a : equality and 'a : struct> context f (isEqual: 'a -> 'a
         ==> lazy (actual () .=. expected ())
     )
 
-let xchgTest<'a when 'a : equality and 'a : struct> context cmp value =
-    let localSize = Settings.wgSize
-    let kernel =
-        <@
-            fun (range: Range1D) (array: 'a clarray) ->
-                let gid = range.GlobalID0
-
-                let localBuffer = localArray<'a> localSize
-                atomic xchg localBuffer.[gid] array.[gid] |> ignore
-                atomic cmpxchg array.[gid] cmp localBuffer.[localSize - gid] |> ignore
-        @>
-
-    let expected = Array.create<'a> localSize value
-
-    let actual =
-        opencl {
-            use! buffer = ClArray.toDevice [| for i = 0 to localSize - 1 do if i < localSize / 2 then cmp else value |]
-            do! runCommand kernel <| fun kernelPrepare ->
-                kernelPrepare
-                <| Range1D(localSize, localSize)
-                <| buffer
-
-            return! ClArray.toHost buffer
-        }
-        |> ClTask.runSync context
-
-    "Results should be equal"
-    |> Expect.sequenceEqual actual expected
-
-let stressTestCases context = [
-    let range = [1 .. 10 .. 100]
-
-    // int
-    yield! range |> List.map (fun size ->
-        testCase $"Smoke stress test (size %i{size}) on atomic 'inc' on int" <| fun () ->
-            stressTest<int> context <@ inc @> size (fun x -> x + 1) (=)
-    )
-    yield! range |> List.map (fun size ->
-        testCase $"Smoke stress test (size %i{size}) on atomic 'dec' on int" <| fun () ->
-            stressTest<int> context <@ dec @> size (fun x -> x - 1) (=)
-    )
-
-    // float
-    yield! range |> List.map (fun size ->
-        testCase $"Smoke stress test (size %i{size}) on atomic 'inc' on float32" <| fun () ->
-            stressTest<float32> context <@ fun x -> x + 1.f @> size (fun x -> x + 1.f) (fun x y -> float (abs (x - y)) < Accuracy.low.relative)
-    )
-
-    // double
-    yield! range |> List.map (fun size ->
-        testCase $"Smoke stress test (size %i{size}) on atomic 'inc' on float" <| fun () ->
-            stressTest<float> context <@ fun x -> x + 1. @> size (fun x -> x + 1.) (fun x y -> abs (x - y) < Accuracy.low.relative)
-    )
-
-    // bool
-    yield! range |> List.map (fun size ->
-        testCase $"Smoke stress test (size %i{size}) on atomic 'not' on bool" <| fun () ->
-            stressTest<bool> context <@ not @> size not (=)
-    )
-
-    // WrappedInt (не работает транляция или типа того)
-    let wrappedIntInc = <@ fun x -> x + WrappedInt(1) @>
-    yield! range |> List.map (fun size ->
-        ptestCase $"Smoke stress test (size %i{size}) on custom atomic 'inc' on WrappedInt" <| fun () ->
-            stressTest<WrappedInt> context wrappedIntInc size (fun x -> x + WrappedInt(1)) (=)
-    )
-
-    // custom int op
-    let incx2 = <@ fun x -> x + 2 @>
-    yield! range |> List.map (fun size ->
-        testCase $"Smoke stress test (size %i{size}) on atomic unary func on int" <| fun () ->
-            stressTest<int> context incx2 size (fun x -> x + 2) (=)
-    )
-]
-
 let foldTestCases context = [
     // int, smoke tests
     testCase "Smoke fold test atomic 'add' on int" <| fun () -> foldTest<int> context <@ (+) @> (=)
@@ -264,6 +235,35 @@ let foldTestCases context = [
     // WrappedInt (не работает транляция или типа того)
     ptestCase "Fold test atomic 'add' on WrappedInt" <| fun () -> foldTest<WrappedInt> context <@ (+) @> (=)
 ]
+
+let xchgTest<'a when 'a : equality and 'a : struct> context cmp value =
+    let localSize = Settings.wgSize
+    let kernel =
+        <@
+            fun (range: Range1D) (array: 'a clarray) ->
+                let gid = range.GlobalID0
+
+                let localBuffer = localArray<'a> localSize
+                atomic xchg localBuffer.[gid] array.[gid] |> ignore
+                atomic cmpxchg array.[gid] cmp localBuffer.[localSize - gid] |> ignore
+        @>
+
+    let expected = Array.create<'a> localSize value
+
+    let actual =
+        opencl {
+            use! buffer = ClArray.toDevice [| for i = 0 to localSize - 1 do if i < localSize / 2 then cmp else value |]
+            do! runCommand kernel <| fun kernelPrepare ->
+                kernelPrepare
+                <| Range1D(localSize, localSize)
+                <| buffer
+
+            return! ClArray.toHost buffer
+        }
+        |> ClTask.runSync context
+
+    "Results should be equal"
+    |> Expect.sequenceEqual actual expected
 
 let xchgTestCases context = [
     testCase "Xchg test on int" <| fun () -> xchgTest<int> context 0 256

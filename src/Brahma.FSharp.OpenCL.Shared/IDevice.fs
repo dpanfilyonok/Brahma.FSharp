@@ -1,4 +1,4 @@
-﻿namespace Brahma.FSharp.OpenCL.Shared
+﻿namespace Brahma.FSharp
 
 [<RequireQualifiedAccess>]
 type Platform =

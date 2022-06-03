@@ -37,33 +37,44 @@ type CommandQueueProvider(device, context, translator: FSQuotationToOpenCLTransl
             member this.Eval (crate: ToHost<'a>) =
                 let eventID = ref Unchecked.defaultof<Event>
                 let clMem = crate.Source.Memory
-
                 let marshaler = translator.Marshaler
 
-                // TODO source or dest length??
-                let size = crate.Destination.Length * marshaler.GetTypePacking(typeof<'a>).Size
-                let hostMem = Marshal.AllocHGlobal size
+                let finishRead error =
+                    if error <> ErrorCode.Success then
+                        raise (Cl.Exception error)
 
-                let error =
+                    finish queue
+
+                if marshaler.IsBlittable typeof<'a> then
                     Cl.EnqueueReadBuffer(
                         queue,
                         clMem,
                         Bool.False,
                         IntPtr(0),
-                        IntPtr(crate.Source.Length * marshaler.GetTypePacking(typeof<'a>).Size),
+                        IntPtr(crate.Source.Length * crate.Source.ElementSize),
+                        crate.Destination,
+                        0u,
+                        null,
+                        eventID
+                    ) |> finishRead
+                else
+                    let size = crate.Destination.Length * marshaler.GetTypePacking(typeof<'a>).Size
+                    let hostMem = Marshal.AllocHGlobal size
+
+                    Cl.EnqueueReadBuffer(
+                        queue,
+                        clMem,
+                        Bool.False,
+                        IntPtr(0),
+                        IntPtr(crate.Source.Length * crate.Source.ElementSize),
                         hostMem,
                         0u,
                         null,
                         eventID
-                    )
+                    ) |> finishRead
 
-                if error <> ErrorCode.Success then
-                    raise (Cl.Exception error)
-
-                finish queue
-
-                marshaler.ReadFromUnmanaged(hostMem, crate.Destination)
-                Marshal.FreeHGlobal(hostMem)
+                    marshaler.ReadFromUnmanaged(hostMem, crate.Destination)
+                    Marshal.FreeHGlobal(hostMem)
 
                 match crate.ReplyChannel with
                 | Some ch -> ch.Reply crate.Destination
@@ -99,48 +110,39 @@ type CommandQueueProvider(device, context, translator: FSQuotationToOpenCLTransl
 
             let mutable itIsFirstNonqueueMsg = true
 
-            // printfn "MB is started"
-
             let rec loop i = async {
                 let! msg = inbox.Receive()
                 match msg with
                 | MsgToHost crate ->
-                    // printfn "ToHost %A" <| this.GetHashCode()
                     itIsFirstNonqueueMsg  <- true
                     handleToHost commandQueue crate
 
                 | MsgToGPU crate ->
-                    // printfn "ToGPU %A" <| this.GetHashCode()
                     itIsFirstNonqueueMsg  <- true
                     handleToGPU commandQueue crate
 
                 | MsgRun crate ->
-                    // printfn "Run %A" <| this.GetHashCode()
                     itIsFirstNonqueueMsg  <- true
                     handleRun commandQueue crate
 
                 | MsgFree crate ->
-                    // printfn "Free %A" <| this.GetHashCode()
                     if itIsFirstNonqueueMsg then
                         finish commandQueue
                         itIsFirstNonqueueMsg  <- false
                     handleFree crate
 
                 | MsgSetArguments setterFunc ->
-                    // printfn "SetArgs %A" <| this.GetHashCode()
                     if itIsFirstNonqueueMsg then
                         finish commandQueue
                         itIsFirstNonqueueMsg  <- false
                     setterFunc ()
 
                 | MsgNotifyMe ch ->
-                    // printfn "Notify %A" <| this.GetHashCode()
                     itIsFirstNonqueueMsg  <- true
                     finish commandQueue
                     ch.Reply ()
 
                 | MsgBarrier syncObject ->
-                    // printfn "Barrier %A" <| this.GetHashCode()
                     itIsFirstNonqueueMsg  <- true
                     finish commandQueue
                     syncObject.ImReady()

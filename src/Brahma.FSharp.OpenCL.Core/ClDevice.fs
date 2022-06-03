@@ -1,11 +1,11 @@
 ﻿namespace Brahma.FSharp
 
-open OpenCL.Net
-open Brahma.FSharp.OpenCL.Shared
 open System.Text.RegularExpressions
 
 type ClPlatform = OpenCL.Net.Platform
 type ClDeviceType = OpenCL.Net.DeviceType
+type ClErrorCode = OpenCL.Net.ErrorCode
+type Cl = OpenCL.Net.Cl
 
 exception EmptyDevicesException of string
 
@@ -24,19 +24,19 @@ module internal DeviceHelpers =
         | Platform.Any -> "*"
         | Platform.Custom pattern -> pattern
 
-type ClDevice(device: Device) =
+type ClDevice(device: OpenCL.Net.Device) =
     let throwOnError f =
-        let error = ref Unchecked.defaultof<ErrorCode>
+        let error = ref Unchecked.defaultof<ClErrorCode>
         let result = f error
-        if error.Value <> ErrorCode.Success then
+        if error.Value <> ClErrorCode.Success then
             failwithf $"Program creation failed: %A{error}"
         else
             result
 
     let defaultOnError onError f =
-        let error = ref Unchecked.defaultof<ErrorCode>
+        let error = ref Unchecked.defaultof<ClErrorCode>
         let result = f error
-        if error.Value <> ErrorCode.Success then
+        if error.Value <> ClErrorCode.Success then
             onError
         else
             result
@@ -49,12 +49,12 @@ type ClDevice(device: Device) =
 
     interface IDevice with
         member val Name =
-            fun e -> Cl.GetDeviceInfo(device, DeviceInfo.Name, e).ToString()
+            fun e -> Cl.GetDeviceInfo(device, OpenCL.Net.DeviceInfo.Name, e).ToString()
             |> defaultOnError ""
 
         member val Platform =
             fun e ->
-                match Cl.GetDeviceInfo(device, DeviceInfo.Vendor, e).ToString() with
+                match Cl.GetDeviceInfo(device, OpenCL.Net.DeviceInfo.Vendor, e).ToString() with
                 | Contains "NVIDIA" -> Platform.Nvidia
                 | Contains "Intel" -> Platform.Intel
                 | Contains "AMD" -> Platform.Amd
@@ -63,28 +63,39 @@ type ClDevice(device: Device) =
 
         member val DeviceType =
             fun e ->
-                match Cl.GetDeviceInfo(device, DeviceInfo.Type, e).CastTo<ClDeviceType>() with
+                match Cl.GetDeviceInfo(device, OpenCL.Net.DeviceInfo.Type, e).CastTo<ClDeviceType>() with
                 | ClDeviceType.Cpu -> DeviceType.CPU
                 | ClDeviceType.Gpu -> DeviceType.GPU
                 | _ -> DeviceType.Default
             |> defaultOnError DeviceType.Default
 
         member val MaxWorkGroupSize =
-            fun e -> Cl.GetDeviceInfo(device, DeviceInfo.MaxWorkGroupSize, e).CastTo<int>()
+            fun e -> Cl.GetDeviceInfo(device, OpenCL.Net.DeviceInfo.MaxWorkGroupSize, e).CastTo<int>()
             |> throwOnError
 
         member val MaxWorkItemDimensions =
-            fun e -> Cl.GetDeviceInfo(device, DeviceInfo.MaxWorkItemDimensions, e).CastTo<int>()
+            fun e -> Cl.GetDeviceInfo(device, OpenCL.Net.DeviceInfo.MaxWorkItemDimensions, e).CastTo<int>()
             |> throwOnError
 
         // TODO change length
         member val MaxWorkItemSizes =
-            fun e -> Cl.GetDeviceInfo(device, DeviceInfo.MaxWorkItemSizes, e).CastToArray<int>(3)
+            fun e -> Cl.GetDeviceInfo(device, OpenCL.Net.DeviceInfo.MaxWorkItemSizes, e).CastToArray<int>(3)
             |> throwOnError
 
         member val DeviceExtensions =
-            fun e -> Cl.GetDeviceInfo(device, DeviceInfo.Extensions, e).ToString()
+            fun e -> Cl.GetDeviceInfo(device, OpenCL.Net.DeviceInfo.Extensions, e).ToString()
             |> throwOnError
+
+    member this.Name = (this :> IDevice).Name
+    member this.Platform = (this :> IDevice).Platform
+    member this.DeviceType = (this :> IDevice).DeviceType
+    member this.MaxWorkGroupSize = (this :> IDevice).MaxWorkGroupSize
+    member this.MaxWorkItemDimensions = (this :> IDevice).MaxWorkItemDimensions
+    member this.MaxWorkItemSizes = (this :> IDevice).MaxWorkItemSizes
+    member this.DeviceExtensions = (this :> IDevice).DeviceExtensions
+
+    override this.ToString() =
+        $"{(this :> IDevice).Name} | {(this :> IDevice).Platform} | {(this :> IDevice).DeviceType}"
 
     static member GetAvailableDevices(?platform: Platform, ?deviceType: DeviceType) =
         let platform = defaultArg platform Platform.Any
@@ -95,12 +106,12 @@ type ClDevice(device: Device) =
 
         let platformNameRegex = Regex(wildcardToRegex <| DeviceHelpers.convertToPattern platform, RegexOptions.IgnoreCase)
 
-        let error = ref Unchecked.defaultof<ErrorCode>
+        let error = ref Unchecked.defaultof<ClErrorCode>
 
         Cl.GetPlatformIDs error
         |> Seq.choose
             (fun platform ->
-                let platformName = Cl.GetPlatformInfo(platform, PlatformInfo.Name, error).ToString()
+                let platformName = Cl.GetPlatformInfo(platform, OpenCL.Net.PlatformInfo.Name, error).ToString()
                 if platformNameRegex.Match(platformName).Success then
                     Some <| Cl.GetDeviceIDs(platform, DeviceHelpers.convertToDeviceType deviceType, error)
                 else

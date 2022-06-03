@@ -126,7 +126,7 @@ module ClTask =
 
 [<AutoOpen>]
 module ClTaskOpened =
-    let runKernel (program: ClProgram<'range, 'a>) (binder: ('range -> 'a) -> unit) : ClTask<unit> =
+    let runProgram (program: ClProgram<'range, 'a>) (binder: ('range -> 'a) -> unit) : ClTask<unit> =
         opencl {
             let! ctx = ClTask.ask
 
@@ -143,5 +143,5 @@ module ClTaskOpened =
 
             let program = ClProgram(ctx.ClContext, command)
 
-            do! runKernel program binder
+            do! runProgram program binder
         }

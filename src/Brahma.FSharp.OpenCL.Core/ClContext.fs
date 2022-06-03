@@ -1,8 +1,11 @@
 ﻿namespace Brahma.FSharp
 
+open Brahma.FSharp.OpenCL.Translator
 open OpenCL.Net
 
-type ClContext(clDevice: ClDevice, translator, ?options: string) =
+type ClContext(clDevice: ClDevice, ?translator, ?options: string) =
+    let translator = defaultArg translator <| FSQuotationToOpenCLTranslator(clDevice)
+
     let context =
         let error = ref Unchecked.defaultof<ErrorCode>
         let ctx = Cl.CreateContext(null, 1u, [| clDevice.Device |], null, System.IntPtr.Zero, error)

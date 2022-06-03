@@ -27,7 +27,6 @@ type ClKernel<'TRange, 'a when 'TRange :> INDRange>
 
     member this.KernelFunc =
         program.KernelPrepare (this :> IKernel) range args mutexBuffers
-        |> fun kernelPrepare -> <@ %%kernelPrepare : 'TRange -> 'a @>.Compile()
 
     // TODO maybe return seq of IDisposable?
     member this.ReleaseInternalBuffers(queue: MailboxProcessor<Msg>) =

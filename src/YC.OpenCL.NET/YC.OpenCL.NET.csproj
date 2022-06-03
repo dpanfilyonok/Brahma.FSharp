@@ -9,7 +9,5 @@
     <RootNamespace>OpenCL.NET</RootNamespace>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
-  <ItemGroup>
-  </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
