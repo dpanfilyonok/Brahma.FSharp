@@ -82,7 +82,7 @@ module AtomicProcessor =
 
             vars |> Seq.map (|KeyValue|) |> Map.ofSeq
 
-        | _ -> raise <| InvalidKernelException(sprintf "Invalid kernel expression. Must be lambda, but given\n%O" expr)
+        | _ -> raise <| InvalidKernelException $"Invalid kernel expression. Must be lambda, but given\n{expr}"
 
     let rec private transformAtomicsAndCollectPointerVars (expr: Expr) nonPrivateVars = atomicProcessing {
         match expr with

@@ -151,7 +151,8 @@ type ClBuffer<'a>
             | Data array -> array.Length
             | Size size -> size
 
-        member this.ElementSize = marshaler.GetTypePacking(typeof<'a>).Size
+        member this.ElementSize =
+            marshaler.GetTypePacking(typeof<'a>).Size
 
         member this.Free() =
             match pinnedMemory with
