@@ -1,5 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
+<PropertyGroup>
+    <Title>YC.OpenCL.NET</Title>
+    <Description>Low level .NET wrapper for OpenCL.</Description>
+  </PropertyGroup>
   <PropertyGroup>
     <TargetFramework>net5.0</TargetFramework>
     <RootNamespace>OpenCL.NET</RootNamespace>

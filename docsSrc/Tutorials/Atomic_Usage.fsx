@@ -1,9 +1,10 @@
 (*** hide ***)
 #I "../../src/Brahma.FSharp.OpenCL.Core/bin/Debug/net5.0"
-#r "Brahma.FSharp.dll"
+#r "Brahma.FSharp.OpenCL.Core.dll"
 #r "Brahma.FSharp.OpenCL.Shared.dll"
 
-open Brahma.FSharp.OpenCL
+open Brahma.FSharp
+open Brahma.FSharp.OpenCL.Shared
 
 (**
 # Atomic Usage

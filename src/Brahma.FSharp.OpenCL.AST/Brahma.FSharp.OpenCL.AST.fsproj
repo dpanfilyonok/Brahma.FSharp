@@ -1,18 +1,18 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <AssemblyName>Brahma.FSharp.OpenCL.AST</AssemblyName>
     <TargetFramework>net5.0</TargetFramework>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <PropertyGroup>
     <Title>Brahma.FSharp.OpenCL.AST</Title>
-    <Description>Brahma.FSharp does the thing!</Description>
-
+    <Description>OpenCL C AST.</Description>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <Optimize>true</Optimize>
     <Tailcalls>true</Tailcalls>
-    
+
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
