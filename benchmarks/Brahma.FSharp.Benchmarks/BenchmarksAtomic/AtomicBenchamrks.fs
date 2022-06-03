@@ -11,6 +11,6 @@ type AtomicBenchamrks() =
 
     static member GlobalWorkSizeProvider =
         seq {
-            yield 1000
-            yield 100_000
+            1000
+            100_000
         }

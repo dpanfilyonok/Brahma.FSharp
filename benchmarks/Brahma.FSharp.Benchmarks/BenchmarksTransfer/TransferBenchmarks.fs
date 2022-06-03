@@ -58,6 +58,6 @@ type TransferBenchmarks<'a>() =
 
     static member ArrayLengthProvider =
         seq {
-            yield 1000
-            yield 1_000_000
+            1000
+            1_000_000
         }
