@@ -30,6 +30,7 @@ type AllocationMode =
     | AllocAndCopyHostPtr
     | Default
 
+/// Represents flags to specify allocation and usage information of OpenCL buffer.
 type ClMemFlags =
     {
         HostAccessMode: HostAccessMode
@@ -37,6 +38,7 @@ type ClMemFlags =
         AllocationMode: AllocationMode
     }
 
+    /// Represents default flags in case of allocation with copying data.
     static member DefaultIfData =
         {
             HostAccessMode = HostAccessMode.ReadWrite
@@ -44,6 +46,7 @@ type ClMemFlags =
             AllocationMode = AllocationMode.AllocAndCopyHostPtr
         }
 
+    /// Represents default flags in case of allocation without copying data.
     static member DefaultIfNoData =
         {
             HostAccessMode = HostAccessMode.ReadWrite
@@ -55,6 +58,7 @@ type BufferInitParam<'a> =
     | Data of 'a[]
     | Size of int
 
+/// Represents an abstraction over OpenCL memory buffer.
 type ClBuffer<'a>
     (
         clContext: ClContext,

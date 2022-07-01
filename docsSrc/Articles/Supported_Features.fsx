@@ -2,9 +2,8 @@
 #I "../../src/Brahma.FSharp.OpenCL.Core/bin/Debug/net5.0"
 #r "Brahma.FSharp.OpenCL.Core.dll"
 #r "Brahma.FSharp.OpenCL.Shared.dll"
-open Brahma.FSharp
-open Brahma.FSharp.OpenCL.Shared
 
+open Brahma.FSharp
 
 (**
 # Supported Features.
@@ -41,7 +40,7 @@ Array "by index" access is supported.
 *)
 
 <@
-    fun (range:Range1D) (buf:array<_>) ->
+    fun (range: Range1D) (buf: ClArray<_>) ->
         buf.[1] <- buf.[0]
 @>
 
@@ -52,7 +51,7 @@ Basic "let" binding is supported. Note, that now we support only "variable bindi
 
 
 <@
-    fun (range:Range1D) (buf:array<_>) ->
+    fun (range: Range1D) (buf: ClArray<_>) ->
         let x = 1
         let y = (x - 1) * (x + 2)
         buf.[x] <- y
@@ -66,7 +65,7 @@ Mutability is available by using of "let mutable" binding.
 
 
 <@
-    fun (range:Range1D) (buf:array<_>) ->
+    fun (range: Range1D) (buf: ClArray<_>) ->
         let mutable x = 1
         x <- x * 2
 @>
@@ -77,17 +76,17 @@ Note, that scopes are supported. So, you can "rebind" any name and "F#-style" vi
 
 
 <@
-    fun (range:Range1D) (buf:array<_>) ->
+    fun (range: Range1D) (buf: ClArray<_>) ->
         let i = 2
-        for i in 1..3 do
+        for i in 1 .. 3 do
             buf.[i] <- buf.[i] + 1
         buf.[0] <- i
 @>
 
 
 <@
-    fun (range:Range1D) (buf:array<_>) ->
-        for i in 1..3 do
+    fun (range: Range1D) (buf: ClArray<_>) ->
+        for i in 1 .. 3 do
             let i = i * 2
             buf.[i] <- 0
 @>
@@ -98,7 +97,7 @@ Note, that scopes are supported. So, you can "rebind" any name and "F#-style" vi
 
 
 <@
-    fun (range: Range1D) (buffer: int[]) ->
+    fun (range: Range1D) (buffer: int clarray) ->
         let gid = range.GlobalID0
         atomic inc buffer.[gid] |> ignore
 @>
@@ -113,7 +112,7 @@ Almost all basic control flow operators are supported.
 
 
 <@
-    fun (range:Range1D) (buf:array<int>) ->
+    fun (range: Range1D) (buf: ClArray<int>) ->
         buf.[0] <- 2
         buf.[1] <- 4
 @>
@@ -124,9 +123,9 @@ Almost all basic control flow operators are supported.
 
 
 <@
-    fun (range:Range1D) (buf:array<_>) ->
+    fun (range: Range1D) (buf: ClArray<_>) ->
         while buf.[0] < 5 do
-        buf.[0] <- buf.[0] + 1
+            buf.[0] <- buf.[0] + 1
 @>
 
 (**
@@ -135,8 +134,9 @@ Almost all basic control flow operators are supported.
 
 
 <@
-    fun (range:Range1D) (buf:array<_>) ->
-        for i in 1..3 do buf.[i] <- 0
+    fun (range: Range1D) (buf: ClArray<_>) ->
+        for i in 1 .. 3 do
+            buf.[i] <- 0
 @>
 
 (**
@@ -147,14 +147,14 @@ You can use "quotations injection" for code reusing or parameterization. For exa
 let myFun = <@ fun x y -> y - x @>
 let command =
     <@
-        fun (range:Range1D) (buf:array<int>) ->
+        fun (range: Range1D) (buf: ClArray<int>) ->
             buf.[0] <- (%myFun) 2 5
             buf.[1] <- (%myFun) 4 9
     @>
 
 let commandTemplate f =
     <@
-        fun (range:Range1D) (buf:array<int>) ->
+        fun (range: Range1D) (buf: ClArray<int>) ->
             buf.[0] <- (%f) 2 5
             buf.[1] <- (%f) 4 9
     @>
@@ -171,45 +171,40 @@ Structs and tuples transferring and using in kernel code are supported.
 *)
 
 [<Struct>]
-type c =
-    val x: int
-    val y: int
-    new (x1, y1) = {x = x1; y = y1}
-    new (x1) = {x = x1; y = 0}
+type MyStruct =
+    val X: int
+    val Y: int
+    new (x, y) = { X = x; Y = y }
+    new (x) = { X = x; Y = 0 }
 
 let command1 =
     <@
-        fun(range:Range1D) (buf:array<int>) (s:c) ->
-            buf.[0] <- s.x + s.y
-            let s2 = new c(6)
-            let s3 = new c(s2.y + 6)
-            buf.[1] <- s2.x
+        fun(range: Range1D) (buf: ClArray<int>) (str: MyStruct) ->
+            buf.[0] <- str.X + str.Y
+            let s2 = new MyStruct(6)
+            let s3 = new MyStruct(s2.Y + 6)
+            buf.[1] <- s2.X
     @>
 
 let command2 =
     <@
-        fun(range:Range1D) (buf:array<int>) (arr:array<c>) ->
-            buf.[0] <- arr.[0].x
+        fun(range: Range1D) (buf: ClArray<int>) (arr: ClArray<MyStruct>) ->
+            buf.[0] <- arr.[0].X
     @>
 
 (**
 ### Tuples
 *)
 
-
 <@
-    fun (range:Range1D) (buf:array<int>) (k1:int*int) (k2:int64*byte) (k3:float32*int) ->
+    fun (range: Range1D) (buf: ClArray<int>) (k1: int * int) (k2: int64 * byte) (k3: float32 * int) ->
         let x = fst k1
         buf.[0] <- x
-        buf.[1] <- int(fst k3)
+        buf.[1] <- int (fst k3)
 @>
 
 <@
-    fun (range:Range1D) (buf:array<int>) ->
+    fun (range: Range1D) (buf: ClArray<int>) ->
         let (a, b) = (1, 2)
         buf.[0] <- a
 @>
-
-(**
-## Discriminated Unions
-*)

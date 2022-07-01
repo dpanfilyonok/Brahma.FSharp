@@ -3,7 +3,8 @@
 open Brahma.FSharp.OpenCL.Translator
 open OpenCL.Net
 
-type ClContext(clDevice: ClDevice, ?translator, ?options: string) =
+/// Represents an abstraction over OpenCL context.
+type ClContext(clDevice: ClDevice, ?translator, ?compilerOptions: string) =
     let translator = defaultArg translator <| FSQuotationToOpenCLTranslator(clDevice)
 
     let context =
@@ -23,7 +24,7 @@ type ClContext(clDevice: ClDevice, ?translator, ?options: string) =
 
     member this.Translator = translator
 
-    member this.CompilerOptions = options
+    member this.CompilerOptions = compilerOptions
 
     override this.ToString() =
         let mutable e = ErrorCode.Unknown

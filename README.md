@@ -23,6 +23,8 @@ Install Brahma.FSharp by running:
 dotnet add package Brahma.FSharp
 ```
 
+Setup BRAHMA_OCL_PATH environment variable to opencl.dll location if it differs from default.
+
 ## Quick Start
 ```f# script
 open Brahma.FSharp
@@ -75,7 +77,4 @@ To find more options look at [MiniScaffold](https://github.com/TheAngryByrd/Mini
 
 ## License
 This project licensed under EPL-1.0 License. License text can be found in the [license file](https://github.com/YaccConstructor/Brahma.FSharp/blob/master/LICENSE.md).
-
-## FAQ
-Setup BRAHMA_OCL_PATH environment variable
  

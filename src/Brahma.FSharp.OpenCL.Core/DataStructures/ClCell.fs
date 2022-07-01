@@ -3,9 +3,11 @@
 open Brahma.FSharp.OpenCL.Shared
 open System
 
+/// Represents an abstraction over value in OpenCL device memory.
 type ClCell<'a> internal (buffer: ClBuffer<'a>) =
     member internal this.Buffer = buffer
 
+    /// Gets internal value.
     member this.Value
         with get () : 'a = FailIfOutsideKernel()
         and set (value: 'a) = FailIfOutsideKernel()
@@ -32,6 +34,7 @@ type ClCell<'a> internal (buffer: ClBuffer<'a>) =
 type clcell<'a> = ClCell<'a>
 
 module ClCell =
+    /// Transfers specified value to device with specified memory flags.
     let toDeviceWithFlags (value: 'a) (memFlags: ClMemFlags) = opencl {
         let! context = ClTask.ask
 
@@ -39,8 +42,10 @@ module ClCell =
         return new ClCell<'a>(buffer)
     }
 
+    /// Transfers specified value to device with default memory flags.
     let toDevice (value: 'a) = toDeviceWithFlags value ClMemFlags.DefaultIfData
 
+    /// Allocate default value on device with specified memory flags.
     let allocWithFlags<'a> (memFlags: ClMemFlags) = opencl {
         let! context = ClTask.ask
 
@@ -48,8 +53,10 @@ module ClCell =
         return new ClCell<'a>(buffer)
     }
 
+    /// Allocate empty array on device with default memory flags.
     let alloc<'a> () = allocWithFlags<'a> ClMemFlags.DefaultIfNoData
 
+    /// Transfers specified value from device to host.
     let toHost (clCell: ClCell<'a>) = opencl {
         let! context = ClTask.ask
 

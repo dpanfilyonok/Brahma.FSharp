@@ -9,6 +9,7 @@ module internal ClTaskBuilder =
     let inline runComputation (ClTask f) env = f env
 
 // TODO inlineiflambda
+/// Represents a computation expression for OpenCL computations.
 type ClTaskBuilder() =
     member inline this.Bind(x, f) =
         ClTask <| fun env ->
@@ -77,15 +78,19 @@ module ClTaskImpl =
 module ClTask =
     let private runComputation (ClTask f) env = f env
 
+    /// Returns computation context.
     let ask = ClTask id
 
+    /// Returns runtime options.
     let runtimeOptions =
         ask >>= fun env -> opencl.Return env.RuntimeOptions
 
+    /// Creates computation with specified options.
     let withOptions (g: RuntimeOptions -> RuntimeOptions) (ClTask f) =
         ask >>= fun env ->
         opencl.Return(f <| env.WithRuntimeOptions(g env.RuntimeOptions))
 
+    /// Runs computation with specified runtime context.
     let runSync (context: RuntimeContext) (ClTask f) =
         let res = f context
         context.CommandQueue.PostAndReply <| MsgNotifyMe
@@ -100,6 +105,7 @@ module ClTask =
 
     // NOTE maybe switch to manual threads
     // TODO check if it is really parallel
+    /// Runs computations in parallel.
     let inParallel (tasks: seq<ClTask<'a>>) = opencl {
         let! ctx = ask
 
@@ -126,6 +132,7 @@ module ClTask =
 
 [<AutoOpen>]
 module ClTaskOpened =
+    /// Runs specified pre-compiled program.
     let runProgram (program: ClProgram<'range, 'a>) (binder: ('range -> 'a) -> unit) : ClTask<unit> =
         opencl {
             let! ctx = ClTask.ask
@@ -137,6 +144,7 @@ module ClTaskOpened =
             kernel.ReleaseInternalBuffers(ctx.CommandQueue)
         }
 
+    /// Compiles specified raw kernel and runs using specified binder.
     let runCommand (command: Expr<'range -> 'a>) (binder: ('range -> 'a) -> unit) : ClTask<unit> =
         opencl {
             let! ctx = ClTask.ask

@@ -24,6 +24,7 @@ module internal DeviceHelpers =
         | Platform.Any -> "*"
         | Platform.Custom pattern -> pattern
 
+/// Represents an abstraction over single OpenCL device.
 type ClDevice(device: OpenCL.Net.Device) =
     let throwOnError f =
         let error = ref Unchecked.defaultof<ClErrorCode>
@@ -45,6 +46,7 @@ type ClDevice(device: OpenCL.Net.Device) =
         if str.Contains substring then Some Contains
         else None
 
+    /// Gets internal representation of device specific to OpenCL.Net.
     member this.Device = device
 
     interface IDevice with
@@ -86,17 +88,33 @@ type ClDevice(device: OpenCL.Net.Device) =
             fun e -> Cl.GetDeviceInfo(device, OpenCL.Net.DeviceInfo.Extensions, e).ToString()
             |> throwOnError
 
+    /// Device name string.
     member this.Name = (this :> IDevice).Name
+
+    /// The platform associated with this device.
     member this.Platform = (this :> IDevice).Platform
+
+    /// The OpenCL device type.
     member this.DeviceType = (this :> IDevice).DeviceType
+
+    /// Maximum number of work-items in a work-group executing a kernel using the data parallel execution model. The minimum value is 1.
     member this.MaxWorkGroupSize = (this :> IDevice).MaxWorkGroupSize
+
+    /// Maximum dimensions that specify the global and local work-item IDs used by the data parallel execution model. The minimum value is 3.
     member this.MaxWorkItemDimensions = (this :> IDevice).MaxWorkItemDimensions
+
+    /// Maximum number of work-items that can be specified in each dimension of the work-group. The minimum value is (1, 1, 1).
     member this.MaxWorkItemSizes = (this :> IDevice).MaxWorkItemSizes
+
+    /// Returns a space separated list of extension names.
     member this.DeviceExtensions = (this :> IDevice).DeviceExtensions
 
     override this.ToString() =
         $"{(this :> IDevice).Name} | {(this :> IDevice).Platform} | {(this :> IDevice).DeviceType}"
 
+    /// <summary>
+    /// Returns list of all available OpenCL devices of specified platform and device type.
+    /// </summary>
     static member GetAvailableDevices(?platform: Platform, ?deviceType: DeviceType) =
         let platform = defaultArg platform Platform.Any
         let deviceType = defaultArg deviceType DeviceType.Default
@@ -120,6 +138,10 @@ type ClDevice(device: OpenCL.Net.Device) =
         |> Seq.concat
         |> Seq.map ClDevice
 
+    /// <summary>
+    /// Returns first available OpenCL device of specified platform and device type or throw exception if there are no available devices.
+    /// </summary>
+    /// <exception cref="EmptyDevicesException">There are no available devices of specified platform and device type.</exception>
     static member GetFirstAppropriateDevice(?platform: Platform, ?deviceType: DeviceType) =
         let platform = defaultArg platform Platform.Any
         let deviceType = defaultArg deviceType DeviceType.Default

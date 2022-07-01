@@ -3,9 +3,11 @@
 open Brahma.FSharp.OpenCL.Shared
 open System
 
+/// Represents an abstraction over array in OpenCL device memory.
 type ClArray<'a> internal (buffer: ClBuffer<'a>) =
     member internal this.Buffer = buffer
 
+    /// Gets array length.
     member this.Length = buffer.Length
 
     member this.Item
@@ -38,6 +40,7 @@ type ClArray<'a> internal (buffer: ClBuffer<'a>) =
 type clarray<'a> = ClArray<'a>
 
 module ClArray =
+    /// Transfers specified array to device with specified memory flags.
     let toDeviceWithFlags (array: 'a[]) (memFlags: ClMemFlags) = opencl {
         let! context = ClTask.ask
 
@@ -47,8 +50,10 @@ module ClArray =
 
     // or allocate with null ptr and write
     // TODO if array.Length = 0 ...
+    /// Transfers specified array to device with default memory flags.
     let toDevice (array: 'a[]) = toDeviceWithFlags array ClMemFlags.DefaultIfData
 
+    /// Allocate empty array on device with specified memory flags.
     let allocWithFlags<'a> (size: int) (memFlags: ClMemFlags) = opencl {
         let! context = ClTask.ask
 
@@ -56,8 +61,10 @@ module ClArray =
         return new ClArray<'a>(buffer)
     }
 
+    /// Allocate empty array on device with default memory flags.
     let alloc<'a> (size: int) = allocWithFlags<'a> size ClMemFlags.DefaultIfNoData
 
+    /// Transfers specified array from device to host.
     let toHost (clArray: ClArray<'a>) = opencl {
         let! context = ClTask.ask
 

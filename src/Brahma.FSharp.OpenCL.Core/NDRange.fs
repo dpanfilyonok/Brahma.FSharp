@@ -2,6 +2,7 @@ namespace Brahma.FSharp
 
 open System
 
+/// Interface representing n-dimensional index space.
 type INDRange =
     abstract member GlobalWorkSize: IntPtr[] with get
     abstract member LocalWorkSize: IntPtr[] with get
@@ -12,11 +13,25 @@ type INDRange =
     TODO + get_group_id (uint dimindx)
 *)
 
-/// 1-dimensional index space
-type Range1D(globalWorkSize: int, localWorkSize: int) =
+/// Represents 1-dimensional index space.
+type Range1D private (globalWorkSize: int, localWorkSize: int, __: unit) =
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Range1D"/> class with specified global and local work size.
+    /// </summary>
+    /// <param name="globalWorkSize">Global work size to use.</param>
+    /// <param name="localWorkSize">Local work size to use.</param>
+    new(globalWorkSize: int, localWorkSize: int) = Range1D(globalWorkSize, localWorkSize, ())
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Range1D"/> class with specified global work size and local work size setted to 1.
+    /// </summary>
+    /// <param name="globalWorkSize">Global work size to use.</param>
     new(globalWorkSize) = Range1D(globalWorkSize, 1)
 
+    /// Gets the unique global work-item ID.
     member this.GlobalID0 : int = FailIfOutsideKernel()
+
+    /// Gets the unique local work-item ID.
     member this.LocalID0 : int = FailIfOutsideKernel()
 
     member this.GlobalWorkSize = globalWorkSize
@@ -27,17 +42,45 @@ type Range1D(globalWorkSize: int, localWorkSize: int) =
         member this.LocalWorkSize with get () = [| IntPtr localWorkSize |]
         member this.Dimensions = 1
 
-    static member CreateValid(neededSize: int, wgSize: int) =
-        let globalSize = (neededSize + wgSize - 1) / wgSize * wgSize
-        Range1D(globalSize, wgSize)
+    /// <summary>
+    /// Creates a new instance of the <see cref="Range1D"/> class with specified lower bound of global work size and local work size.
+    /// The resulting global work size will be a multiple of local work size and not less than specified lower bound.
+    /// </summary>
+    /// <param name="neededSize">Lower bound of global work size.</param>
+    /// <param name="localWorkSize">Local work size to use.</param>
+    static member CreateValid(neededSize: int, localWorkSize: int) =
+        let globalSize = (neededSize + localWorkSize - 1) / localWorkSize * localWorkSize
+        Range1D(globalSize, localWorkSize)
 
-/// 2-dimensional index space
-type Range2D(globalWorkSizeX: int, globalWorkSizeY: int, localWorkSizeX: int, localWorkSizeY: int) =
+/// Represents 2-dimensional index space.
+type Range2D private (globalWorkSizeX: int, globalWorkSizeY: int, localWorkSizeX: int, localWorkSizeY: int, __: unit) =
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Range2D"/> class with specified global and local work size.
+    /// </summary>
+    /// <param name="globalWorkSizeX">Global work size for dimension 0 to use.</param>
+    /// <param name="globalWorkSizeY">Global work size for dimension 1 to use.</param>
+    /// <param name="localWorkSizeX">Local work size for dimension 0 to use.</param>
+    /// <param name="localWorkSizeY">Local work size for dimension 1 to use.</param>
+    new(globalWorkSizeX: int, globalWorkSizeY: int, localWorkSizeX: int, localWorkSizeY: int) =
+        Range2D(globalWorkSizeX, globalWorkSizeY, localWorkSizeX, localWorkSizeY, ())
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Range2D"/> class with specified global and local work size setted to (1, 1).
+    /// </summary>
+    /// <param name="globalWorkSizeX">Global work size for dimension 0 to use.</param>
+    /// <param name="globalWorkSizeY">Global work size for dimension 1 to use.</param>
     new(globalWorkSizeX, globalWorkSizeY) = Range2D(globalWorkSizeX, globalWorkSizeY, 1, 1)
 
+    /// Gets the unique global work-item ID for dimension 0.
     member this.GlobalID0 : int = FailIfOutsideKernel()
+
+    /// Gets the unique global work-item ID for dimension 1.
     member this.GlobalID1 : int = FailIfOutsideKernel()
+
+    /// Gets the unique local work-item ID for dimension 0.
     member this.LocalID0 : int = FailIfOutsideKernel()
+
+    /// Gets the unique local work-item ID for dimension 1.
     member this.LocalID1 : int = FailIfOutsideKernel()
 
     member this.GlobalWorkSize = (globalWorkSizeX, globalWorkSizeY)
@@ -48,15 +91,44 @@ type Range2D(globalWorkSizeX: int, globalWorkSizeY: int, localWorkSizeX: int, lo
         member this.LocalWorkSize with get () = [| IntPtr localWorkSizeX; IntPtr localWorkSizeY |]
         member this.Dimensions = 2
 
-/// 3-dimensional index space
-type Range3D(globalWorkSizeX: int, globalWorkSizeY: int, globalWorkSizeZ: int, localWorkSizeX: int, localWorkSizeY: int, localWorkSizeZ: int) =
+/// Represents 3-dimensional index space.
+type Range3D private (globalWorkSizeX: int, globalWorkSizeY: int, globalWorkSizeZ: int, localWorkSizeX: int, localWorkSizeY: int, localWorkSizeZ: int, __: unit) =
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Range3D"/> class with specified global and local work size.
+    /// </summary>
+    /// <param name="globalWorkSizeX">Global work size for dimension 0 to use.</param>
+    /// <param name="globalWorkSizeY">Global work size for dimension 1 to use.</param>
+    /// <param name="globalWorkSizeZ">Global work size for dimension 2 to use.</param>
+    /// <param name="localWorkSizeX">Local work size for dimension 0 to use.</param>
+    /// <param name="localWorkSizeY">Local work size for dimension 1 to use.</param>
+    /// <param name="localWorkSizeZ">Local work size for dimension 2 to use.</param>
+    new(globalWorkSizeX: int, globalWorkSizeY: int, globalWorkSizeZ: int, localWorkSizeX: int, localWorkSizeY: int, localWorkSizeZ: int) =
+        Range3D(globalWorkSizeX, globalWorkSizeY, globalWorkSizeZ, localWorkSizeX, localWorkSizeY, localWorkSizeZ)
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Range3D"/> class with specified global and local work size setted to (1, 1, 1).
+    /// </summary>
+    /// <param name="globalWorkSizeX">Global work size for dimension 0 to use.</param>
+    /// <param name="globalWorkSizeY">Global work size for dimension 1 to use.</param>
+    /// <param name="globalWorkSizeZ">Global work size for dimension 2 to use.</param>
     new(globalWorkSizeX, globalWorkSizeY, globalWorkSizeZ) = Range3D(globalWorkSizeX, globalWorkSizeY, globalWorkSizeZ, 1, 1, 1)
 
+    /// Gets the unique global work-item ID for dimension 0.
     member this.GlobalID0 : int = FailIfOutsideKernel()
+
+    /// Gets the unique global work-item ID for dimension 1.
     member this.GlobalID1 : int = FailIfOutsideKernel()
+
+    /// Gets the unique global work-item ID for dimension 2.
     member this.GlobalID2 : int = FailIfOutsideKernel()
+
+    /// Gets the unique local work-item ID for dimension 0.
     member this.LocalID0 : int = FailIfOutsideKernel()
+
+    /// Gets the unique local work-item ID for dimension 1.
     member this.LocalID1 : int = FailIfOutsideKernel()
+
+    /// Gets the unique local work-item ID for dimension 2.
     member this.LocalID2 : int = FailIfOutsideKernel()
 
     member this.GlobalWorkSize = (globalWorkSizeX, globalWorkSizeY, globalWorkSizeZ)
