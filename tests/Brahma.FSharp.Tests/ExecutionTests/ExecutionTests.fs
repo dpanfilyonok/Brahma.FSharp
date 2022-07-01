@@ -19,7 +19,7 @@ let tests = [
         testList $"System tests with running kernels on %A{context}" <| RuntimeTests.tests context
         testList $"Compilation tests on %A{context}" <| CompilationTests.tests context
         testList $"Tests on 'opencl' computation exression on %A{context}" <| WorkflowBuilderTests.tests context
-        ptestList $"Tests on atomic functions on %A{context}" <| AtomicTests.tests context
+        testList $"Tests on atomic functions on %A{context}" <| AtomicTests.tests context
         testList $"Tests on composite types on %A{context}" <| CompositeTypesTests.tests context
     ]
 ]

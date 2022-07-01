@@ -50,6 +50,7 @@ type SyncObject(numToWait: int) =
     member this.CanContinue() = canContinue
 
 type Msg =
+    /// kik
     | MsgToHost of IToHostCrate
     | MsgToGPU of IToGPUCrate
     | MsgRun of IRunCrate

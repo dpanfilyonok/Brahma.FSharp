@@ -12,6 +12,7 @@ open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 open System.Runtime.InteropServices
 open FSharp.Quotations.Evaluator
 
+/// Represents an abstraction over OpenCL program.
 type ClProgram<'TRange, 'a when 'TRange :> INDRange>
     (
         ctx: ClContext,
@@ -151,12 +152,16 @@ type ClProgram<'TRange, 'a when 'TRange :> INDRange>
 
         | _ -> failwithf $"Invalid kernel expression. Must be lambda, but given\n{newLambda}"
 
+    /// Gets internal representation of Program specific to OpenCL.Net.
     member this.Program = program
 
+    /// Gets compiled OpenCL kernel code.
     member this.Code = clCode
 
+    /// Gets kernel lambda after transformation.
     member this.Lambda = newLambda
 
+    /// Gets OpenCL context.
     member this.ClContext = ctx
 
     member internal this.KernelPrepare = kernelPrepare

@@ -7,6 +7,7 @@ open FSharp.Quotations.Evaluator
 open Brahma.FSharp.OpenCL.Shared
 open Brahma.FSharp.OpenCL.Translator.QuotationTransformers
 
+/// Represents an abstraction over OpenCL kernel.
 type ClKernel<'TRange, 'a when 'TRange :> INDRange>
     (
         program: ClProgram<'TRange, 'a>,
@@ -25,10 +26,12 @@ type ClKernel<'TRange, 'a when 'TRange :> INDRange>
     let range = ref Unchecked.defaultof<'TRange>
     let mutexBuffers = ResizeArray<IBuffer<Mutex>>()
 
+    /// Gets lambda function needed to pass parameters to kernel.
     member this.KernelFunc =
         program.KernelPrepare (this :> IKernel) range args mutexBuffers
 
     // TODO maybe return seq of IDisposable?
+    /// Release internal buffers created inside kernel.
     member this.ReleaseInternalBuffers(queue: MailboxProcessor<Msg>) =
         mutexBuffers
         |> Seq.iter (Msg.CreateFreeMsg >> queue.Post)
@@ -42,4 +45,5 @@ type ClKernel<'TRange, 'a when 'TRange :> INDRange>
 [<AutoOpen>]
 module ClProgramExtensions =
     type ClProgram<'TRange, 'a when 'TRange :> INDRange> with
+        /// Returns new kernel instance corresponding to the given OpenCL program.
         member this.GetKernel() =  ClKernel(this)

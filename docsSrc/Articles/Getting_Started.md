@@ -13,5 +13,5 @@ If this key is not exists, then you should create it. For more details look at [
 
 ## OpenCL.dll
 
-If you want to use Brahma.FSharp on Linux/macOS, check OpenCL.Net.dll.config after installation and fix path to opencl.dll if necessary.
+If you want to use Brahma.FSharp on Linux/macOS, set BRAHMA_OCL_PATH environment variable to opencl.dll location.
 
