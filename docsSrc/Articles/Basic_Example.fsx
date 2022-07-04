@@ -37,7 +37,7 @@ Device: "Intel(R) UHD Graphics 620 [0x5917]"
 
 If you have truobles with device detection, you can:
 
- * [Read some tips.](/Getting_Started.html)
+ * [Read some tips.](Getting_Started.html)
  * [Ask a question.](https://github.com/YaccConstructor/Brahma.FSharp/discussions)
  * [Post an issue.](https://github.com/YaccConstructor/Brahma.FSharp/issues)
 
@@ -50,6 +50,7 @@ If you have truobles with device detection, you can:
 
 (**
 Let's create `map2`-like kernel with following features.
+
  * Kernel should be generic. We want to create a single function for all possible types of arrays.
  * Kernel should be parameterized by operation, like a classic `map`.
 
@@ -100,6 +101,7 @@ Note, that our function operates over `ClArray<_>`. It allows one to provide fin
 ## Kernel execution
 
 To execute or kernel we should do following steps.
+
 * Create OpenCL-compatible device.
 * Create execution context. Multiple contexts can be created on the top of single device. Moreover, one can use translators with different options in different contexts.
 * Get at least one queue. Queue is a way to communicate with device. Moreover, it is a synchronization primitive: commands in queue will be executed in order.
