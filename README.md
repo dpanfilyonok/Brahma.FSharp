@@ -11,11 +11,11 @@
 * Utilization of OpenCL for communication with GPU. So, you can work not only with NVIDIA devices but with any device which supports OpenCL (e.g. with AMD ot Intel devices).
 * Not only primitive types, but also discriminated unions, structs, records are supported.
 * Pattern matching, mutable and immutable bindings, nested bindings are supported.
+* Custom atomics.
 * Fine-grained memory management and kernels compilation process.
 * Mailbox processor based interface for communication with devices.
 
 More details are available [here](https://yaccconstructor.github.io/Brahma.FSharp/).
-Examples of usage are available [here](https://github.com/YaccConstructor/Brahma.FSharp.Examples).
 
 ## Installation
 Install Brahma.FSharp by running:
@@ -73,7 +73,7 @@ build.cmd
 ```shell
 ./build.sh 
 ```
-To find more options look at [MiniScaffold](https://github.com/TheAngryByrd/MiniScaffold).
+To find more options look at [MiniScaffold](https://github.com/TheAngryByrd/MiniScaffold). We use it in our project.
 
 ## License
 This project licensed under EPL-1.0 License. License text can be found in the [license file](https://github.com/YaccConstructor/Brahma.FSharp/blob/master/LICENSE.md).
