@@ -1,7 +1,14 @@
 # Installation
 
     [lang=bash]
+    dotnet add package Brahma.FSharp
+
+Or
+
+    [lang=bash]
     paket install Brahma.FSharp
+
+More options [here](https://www.nuget.org/packages/Brahma.FSharp/).
 
 # Troubleshooting
 
@@ -13,5 +20,5 @@ If this key is not exists, then you should create it. For more details look at [
 
 ## OpenCL.dll
 
-If you want to use Brahma.FSharp on Linux/macOS, set BRAHMA_OCL_PATH environment variable to opencl.dll location.
+If you want to use Brahma.FSharp on Linux/macOS, set ```BRAHMA_OCL_PATH``` environment variable to ```opencl.dll``` location.
 

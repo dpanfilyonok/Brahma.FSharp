@@ -4,35 +4,15 @@
 #r "Brahma.FSharp.OpenCL.Shared.dll"
 
 open Brahma.FSharp
+open FSharp.Quotations
 
 (**
 # Supported Features.
 
-Translator supports only subset of F# language and tis subset is described here.
-
-## OpenCL specific operations
- * [Data transfer operations](Brahma.FSharp/Api_Reference/Brahma.FSharp.OpenCL.Extensions/brahma-fsharp-opencl-extensions.html)
- * [Supported kernel operations](Brahma.FSharp/Api_Reference/Brahma.FSharp.OpenCL.Extensions/global-opencl.html).
- * Supported functions from System.Math and Microsoft.FSharp.Core.Operators:
-   * abs
-   * acos
-   * asin
-   * atan
-   * cos
-   * cosh
-   * exp
-   * floor
-   * log
-   * log10
-   * pow
-   * sin
-   * sinh
-   * sqrt
-   * tan
-   * tanh
+Translator supports only subset of F# language and this subset is described here.
 
 
-## Basic constructions.
+## Basic constructions
 
 ### Array access
 Array "by index" access is supported.
@@ -90,6 +70,21 @@ Note, that scopes are supported. So, you can "rebind" any name and "F#-style" vi
             let i = i * 2
             buf.[i] <- 0
 @>
+
+(**
+### Local funtions
+
+You can also use local funtions inside kernel.
+When compiled, they will be converted to OpenCL C functions.
+*)
+
+<@
+    fun (range: Range1D) (buffer: int clarray) ->
+        let gid = range.GlobalID0
+        let f x = x + 10
+        buffer.[gid] <- f buffer.[gid]
+@>
+
 
 (**
 ### Expression ignore by ```|> ignore```
@@ -163,9 +158,15 @@ let cmd1 = commandTemplate  <@ fun x y -> y - x @>
 let cmd2 = commandTemplate  <@ fun x y -> y + x @>
 
 (**
-## Structs and tuples
+## Data types
 
-Structs and tuples transferring and using in kernel code are supported.
+Both host-kernel transferring and processing in kernels are supporeted for the following types.
+- Primitive types
+- Booleans
+- Custom structs
+- Records
+- Tuples
+- Discriminated unions
 
 ### Structs
 *)
@@ -192,6 +193,25 @@ let command2 =
             buf.[0] <- arr.[0].X
     @>
 
+[<Struct>]
+type StructOfIntInt64 =
+    val mutable X: int
+    val mutable Y: int64
+    new(x, y) = { X = x; Y = y }
+
+<@
+    fun (range: Range1D) (buffer: ClArray<StructOfIntInt64>) ->
+        let gid = range.GlobalID0
+        let tmp = buffer.[gid]
+        let x = tmp.X
+        let y = tmp.Y
+        let mutable innerStruct = StructOfIntInt64(x, y)
+        innerStruct.X <- x
+        innerStruct.Y <- y
+        buffer.[gid] <- StructOfIntInt64(innerStruct.X, innerStruct.Y)
+@>
+
+
 (**
 ### Tuples
 *)
@@ -207,4 +227,59 @@ let command2 =
     fun (range: Range1D) (buf: ClArray<int>) ->
         let (a, b) = (1, 2)
         buf.[0] <- a
+@>
+
+(**
+## Math operations
+Supported functions from System.Math and Microsoft.FSharp.Core.Operators:
+   * abs
+   * acos
+   * asin
+   * atan
+   * cos
+   * cosh
+   * exp
+   * floor
+   * log
+   * log10
+   * pow
+   * sin
+   * sinh
+   * sqrt
+   * tan
+   * tanh
+
+## OpenCL specific extensions
+
+### Global and local memory space
+
+Use `clarray` and `clcell` types to use data located in global memory inside the kernel.
+Use `localArray` and `local` to allocate data in local memory inside the kernel.
+*)
+
+<@
+    fun (range: Range1D) (globalBuffer: int clarray) ->
+        let localBuffer = localArray<int> 10
+
+        let gid = range.GlobalID0
+        globalBuffer.[gid] <- globalBuffer.[gid] + 10
+@>
+
+(**
+### Synchronization barriers
+
+- `barrierLocal` corresponds to `barrier(CLK_LOCAL_MEM_FENCE)`
+- `barrierGlobal` corresponds to `barrier(CLK_GLOBAL_MEM_FENCE)`
+- `barrierFull` corresponds to `barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE)`
+*)
+
+(**
+### Atomic functions
+
+Use `atomic` for atomic function call.
+*)
+
+<@
+    fun (range: Range1D) (buffer: int clarray) ->
+        atomic (+) buffer.[0] 10 |> ignore
 @>
