@@ -6,7 +6,10 @@
 open Brahma.FSharp
 
 (**
-# Atomic Usage
+# Atomic Usage [Experimental]
+
+This feature is unstable and behaviour depends on hardware and driver version/vendor.
+
 *)
 
 (**
