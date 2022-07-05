@@ -5,6 +5,82 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2022-07-05
+
+### Fixed
+- Blittable types transfer
+- Performance issues
+- Pointers to private variables are explicitly private
+- Performance of blittable types
+- Performance of kernels creation
+- Issue #135
+- Native opencl library linking
+- Atomics
+- ClArray memory management
+- API for buffers manipulation
+- Boolean type support (issue ##116, https://github.com/YaccConstructor/Brahma.FSharp/issues/116)
+- Nested functions
+- Complex let bindings
+- ToHost behaviour on non-gpu arrays
+- printf/printfn without arguments
+- Boolean binary operators
+- Transfer arrays of boolean
+- Local memory semantic. It is forbidden to initialize variables in the local memory.
+
+- Blittable types transfer
+- Performance issues
+- Pointers to private variables are explicitly private
+- Performance of blittable types
+- Performance of kernels creation
+- Issue #135
+- Native opencl library linking
+- Atomics
+- ClArray memory management
+- API for buffers manipulation
+- Boolean type support (issue ##116, https://github.com/YaccConstructor/Brahma.FSharp/issues/116)
+- Nested functions
+- Complex let bindings
+- ToHost behaviour on non-gpu arrays
+- printf/printfn without arguments
+- Boolean binary operators
+- Transfer arrays of boolean
+- Local memory semantic. It is forbidden to initialize variables in the local memory.
+
+### Added
+- New abstraction for OpenCL device
+- Getting workGroupSize inside kernels
+- Discriminated unions inside kernel functions
+- Stepped and non-integer loops
+- ```ClCell``` support
+- support of following types
+  - ```Tuple``` and ```ValueTuple```
+  - Records including generic records
+- Workflow builder for OpenCL computations
+- New mailbox processor based API
+- Targeting .net 5.0
+- Kernel compilation caching
+- Mutable variables in closures
+- support of printf call inside kernel code
+- While and for loops in workflow builders
+- Basic workflow builders for designing computations
+
+- New abstraction for OpenCL device
+- Getting workGroupSize inside kernels
+- Discriminated unions inside kernel functions
+- Stepped and non-integer loops
+- ```ClCell``` support
+- support of following types
+  - ```Tuple``` and ```ValueTuple```
+  - Records including generic records
+- Workflow builder for OpenCL computations
+- New mailbox processor based API
+- Targeting .net 5.0
+- Kernel compilation caching
+- Mutable variables in closures
+- support of printf call inside kernel code
+- While and for loops in workflow builders
+- Basic workflow builders for designing computations
+
 ## [2.0.0-alpha9.6] - 2022-06-03
 
 ### Fixed
@@ -175,7 +251,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - FSharp.Core form NuGet
 - .NET 4.5
 
-[Unreleased]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v2.0.0-alpha9.6...HEAD
+[Unreleased]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v1.1.5...v2.0.0
 [2.0.0-alpha9.6]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v1.1.5...v2.0.0-alpha9.6
 [2.0.0-alpha9.5]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v1.1.5...v2.0.0-alpha9.5
 [2.0.0-alpha9.4]: https://github.com/YaccConstructor/Brahma.FSharp/compare/v1.1.5...v2.0.0-alpha9.4
