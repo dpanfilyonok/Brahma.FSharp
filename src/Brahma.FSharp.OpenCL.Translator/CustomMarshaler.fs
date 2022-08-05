@@ -8,6 +8,7 @@ open FSharp.Reflection
 open System.Runtime.CompilerServices
 open System.Runtime.Serialization
 open FSharpx.Collections
+open Microsoft.FSharp.NativeInterop
 
 type StructurePacking =
     {
@@ -284,12 +285,17 @@ type CustomMarshaler() =
 
                 | Primitive ->
                     let offset = if isNull structure then 0 else offsets.[i]
-                    let structure =
+                    let mutable structure =
                         if str.GetType() = typeof<bool> then
                             box <| Convert.ToByte str
                         else
                             str
-                    Marshal.StructureToPtr(structure, IntPtr.Add(start, offset), false)
+                    Unsafe.CopyBlockUnaligned(
+                        ref <| Unsafe.As<int, byte>(ref <| IntPtr.Add(start, offset).ToInt32()),
+                        ref <| Unsafe.As<obj, byte>(&structure),
+                        uint32 offset
+                    )
+//                    Marshal.StructureToPtr(structure, IntPtr.Add(start, offset), false)
                     i <- i + 1
 
             go structure
